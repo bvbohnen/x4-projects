@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Test_Named_Pipe" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+
+<!--
+Test cue that excercises the named pipe library.
+Server side is written in python.
+-->
+
+<cues>
+  
+  <!-- 
+  Testing cue will restart every so many seconds.
+  This makes it a little more useful with /refreshmd commands.
+  -->
+  <cue name="Test_Named_Pipe" instantiate="true" checkinterval="10s" checktime="30s">
+  
+    <conditions>
+      <!-- Uncomment to disable this cue. -->
+      <check_value value="false"/>
+    </conditions>>
+  
+    <actions>
+      <!-- Set up some names.-->
+      <set_value name="$Debug_File_Name" exact="'responses.log'"/>
+      <set_value name="$Debug_Directory" exact="'interface'"/>
+      
+      <show_notification text="'Test_Named_Pipe started'" sound="notification_warning" priority="2" />
+      
+      <!-- Tell the lib to open the pipe. -->
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Open" param="['x4_pipe']"/>
+      
+      <!-- Do a test write. This follows the same pattern as the lua test code. -->
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'write:[test1]5']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'read:[test1]']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Read" param="['x4_pipe', Read_Callback]"/>
+    </actions>
+    
+    <cues>
+    
+      <!-- This is called from the lib once a read is complete. -->
+      <cue name="Read_Callback" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        
+        <actions>
+          <!-- Pull the value out of the param. -->
+          <set_value name="$read_result" exact="event.param"/>
+          <!-- Log it. -->
+          <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Captured ' + $read_result"/> 
+            
+          <!-- Deal with errors. -->
+          <do_if value="$read_result == 'ERROR'">
+          </do_if>
+          <!-- Deal with valid results. -->
+          <do_else>
+          </do_else>
+          
+        </actions>
+      </cue> <!-- end Read_Callback -->
+      
+    </cues>
+  </cue> <!-- end Test_Named_Pipe -->
+      
+</cues>
+
+</mdscript>
