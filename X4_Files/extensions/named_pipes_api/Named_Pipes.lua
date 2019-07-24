@@ -77,11 +77,9 @@ local ffi = require("ffi")
 local C = ffi.C
 
 
--- This will use winapi
---  https://github.com/stevedonovan/winapi
--- Goal is to use named pipes, which are more desirable anyway than file io.
--- Notes on compiling winapi to a dll are further below.
-local winapi = require("winapi")
+-- This will use winpipe, based on winapi and trimmed down to just the
+--  needed pipe functions.
+local winpipe = require("winpipe")
 
 
 -- Forward declarations of functions.
@@ -90,9 +88,7 @@ local Init
 local Handle_pipeRead
 local Handle_pipeWrite
 local Handle_pipeCheck
-
 --local Handle_Read_Responses
-
 local Raise_Signal
 local Open_Pipe
 local _Write_Pipe_Raw
@@ -183,13 +179,14 @@ function Open_Pipe(pipe_name)
 
 	-- If the name isn't present, try to open it.
 	if private.pipes[pipe_name] == nil then
-		private.pipes[pipe_name] = winapi.open_pipe(pipe_name)
+		private.pipes[pipe_name] = winpipe.open_pipe(pipe_name)
 		
 		-- If the entry is still nil, the open failed.
 		if private.pipes[pipe_name] == nil then
 			-- TODO: maybe print an error to the chat window, but the concern
 			-- is that scripts will keep attempting to access the pipe and
 			-- will spam error messages.
+			CallEventScripts("directChatMessageReceived", pipe_name..";open_pipe returned nil")
 			-- A simple error description is used for the Test function.
 			error("open_pipe returned nil for "..pipe_name)
 		end
@@ -212,20 +209,8 @@ function Open_Pipe(pipe_name)
 	-- For now, just hope things work out if the file opened, and check for
 	--  errors in the Read/Write functions.
 
-	-- TODO: how to change pipe mode?  winapi appears to forget to
-	-- expose SetNamedPipeHandleState, which means these pipes are
-	-- in byte mode and not message mode. For writes this doesn't
-	-- matter (server reads as messages, eg. individual write accesses),
-	-- but for reading it needs a way to distinguish multiple reads
-	-- that may have been pipelined.
-	-- Test this, think of ideas, maybe need to parse read bytes or
-	-- else only allow one read request at a time in flight (or send
-	-- multiple read reqs but ack each response, so server knows when
-	-- to move to next response).
-	-- Alternatively, modify winapi to open pipes in message mode,
-	-- or (more complicated) to expose SetNamedPipeHandleState.
-	-- Aternatively, protocol can presend how many bytes are in a message,
-	-- and the other end access just that many bytes.
+	-- TODO: change pipemode in winpipe to non-blocking, and handle putting
+	-- together the 
 	
 end
 
@@ -419,7 +404,6 @@ Init()
 
 -- Small test function.
 -- Only run this if the external named pipes are set up and ready.
--- This will do a test write, then a test read.
 -- Note: when logging to the chat window, it was noticed that sometimes
 --  the window doesn't display the latest activity, and needs to be
 --  closed/reopened to see all messages.
@@ -427,38 +411,40 @@ function Test()
 	local pipe_name = "\\\\.\\pipe\\x4_pipe"
 	CallEventScripts("directChatMessageReceived", "pipes;Starting pipe test on "..pipe_name)
 	Open_Pipe(pipe_name)
+
+	-- Individual writes
 	Write_Pipe(pipe_name, "write:[test1]5")
+	Write_Pipe(pipe_name, "write:[test2]6")
+	Write_Pipe(pipe_name, "write:[test3]7")
+	Write_Pipe(pipe_name, "write:[test4]8")
+
+	-- Transaction write/read
 	Write_Pipe(pipe_name, "read:[test1]")
 	local message = Read_Pipe(pipe_name)
+
+	-- Pipelined transactions.
+	Write_Pipe(pipe_name, "read:[test2]")
+	Write_Pipe(pipe_name, "read:[test3]")
+	Write_Pipe(pipe_name, "read:[test4]")
+	local message = Read_Pipe(pipe_name)
+	local message = Read_Pipe(pipe_name)
+	local message = Read_Pipe(pipe_name)
+
+	-- Tell the server to close (for this particular server test).
+	Write_Pipe(pipe_name, "close")
+
+	-- Optionally close out the pipe.
+	Close_Pipe(pipe_name)
 end
 
 -- Uncomment this to run the test. Used during development.
---Test()
+-- Test()
 
 
---[[
-Notes on compiling winapi on windows using VS2017:
-- Grab the lua 5.1 binaries (exe); lua5_1_4_Win64_bin
-- Grab the /include headers from lua-5.1.4_Win64_dll12_lib or lua-5.1.4_Win64_vc12_lib
-  These headers appear the same.
-  Ignore the dll/lib files.
-- Grab the lua51_64.dll from the x4 folder
-- Using VS2017, open the developer command prompt in x64 mode.
-  For this, I created a new shortcut with the arch arg:
-  %comspec% /k "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\Tools\VsDevCmd.bat" -arch=amd64
-- Convert this dll into a lib file using technique from:
-  https://stackoverflow.com/questions/9946322/how-to-generate-an-import-library-lib-file-from-a-dll
-  The bat file on that page works well; run in the dev prompt.
-- Get the winapi-master git repo
-- Edit the winapi build-msvc.bat file to update paths.
-  Eg. use "lua51_64.lib" obtained above.
-- Run it; hopefully it has no errors, though I did get a warning about default libs.
-- Name the dll winapi_64.dll (x4 appends the _64) and place it in ui/core/lualibs
-]]
 
 --[[
 A couple old, quick winapi tests.
-
+local winapi = require("winapi")
 -- Launching the calculator works!
 -- winapi.shell_exec('open','calc.exe')
 

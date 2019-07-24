@@ -29,10 +29,27 @@ Server side is written in python.
       <!-- Tell the lib to open the pipe. -->
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Open" param="['x4_pipe']"/>
       
-      <!-- Do a test write. This follows the same pattern as the lua test code. -->
+      <!-- Do some test writes/reads. This follows the same pattern as the lua test code. -->
+      <!-- Individual writes. -->
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'write:[test1]5']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'write:[test2]6']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'write:[test3]7']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'write:[test4]8']"/>
+      
+      <!-- Transaction with write/read. -->
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'read:[test1]']"/>
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Read" param="['x4_pipe', Read_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="['x4_pipe', Read_Callback]"/>
+      
+      <!-- Pipelined transactions. -->
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'read:[test2]']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'read:[test3]']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'read:[test4]']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="['x4_pipe', Read_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="['x4_pipe', Read_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="['x4_pipe', Read_Callback]"/>
+      
+      <!-- Tell the server to close the pipe. TODO: think about when to close here. -->
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="['x4_pipe', 'close']"/>
     </actions>
     
     <cues>
