@@ -3,14 +3,15 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>e94cbc76-4ca6-414b-8bb9-46d7ca4ff933</ProjectGuid>
-    <ProjectHome>.</ProjectHome>
-    <StartupFile>__init__.py</StartupFile>
+    <ProjectHome>
+    </ProjectHome>
+    <StartupFile>Make_Release.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>extensions</Name>
-    <RootNamespace>extensions</RootNamespace>
+    <Name>X4_Files</Name>
+    <RootNamespace>X4_Files</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -21,17 +22,22 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Change_Log.py" />
+    <Compile Include="Make_Release.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="named_pipes_api\" />
-    <Folder Include="named_pipes_api\md\" />
+    <Folder Include="extensions\" />
+    <Folder Include="extensions\named_pipes_api\" />
+    <Folder Include="extensions\named_pipes_api\md\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="named_pipes_api\content.xml" />
-    <Content Include="named_pipes_api\md\LIB_Named_Pipes.xml" />
-    <Content Include="named_pipes_api\md\Test_Named_Pipe.xml" />
-    <Content Include="named_pipes_api\Named_Pipes.lua" />
+    <Content Include="extensions\named_pipes_api\content.xml" />
+    <Content Include="extensions\named_pipes_api\md\LIB_Named_Pipes.xml" />
+    <Content Include="extensions\named_pipes_api\md\Test_Named_Pipe.xml" />
+    <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

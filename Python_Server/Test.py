@@ -89,11 +89,11 @@ def Runtime_Test(pure_python = False):
 
 
     # X4 will write to its output, read from its input.
-    # Loop over the expected number of test requests.
     # These will be read/write transactions to a data table, stored here.
-    test_count = 2
+    # Loop ends on getting a 'close' command.
     data_store = {}
-    for _ in range(test_count):
+    close_requested = False
+    while not close_requested:
 
         # Get the next control message.
         error, data = win32file.ReadFile(pipe, 64*1024)
@@ -132,11 +132,16 @@ def Runtime_Test(pure_python = False):
             error2, bytes_written = win32file.WriteFile(pipe, str(response).encode('utf-8'))
             print('Returned: ' + response)
 
+        elif message == 'close':
+            # Close the pipe/server when requested.
+            close_requested = True
+
         else:
             print('Unexpected message type')
 
     
     # Close the pipe.
+    print('Closing pipe...')
     # The routine for closing is described here:
     # https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-operations
     win32file.FlushFileBuffers(pipe)
@@ -156,6 +161,7 @@ def Pipe_Client_Test():
     pipe.write(b'read:[test1]')
     message = pipe.read(65536)
     print('Client read: ' + message.decode())
+    pipe.write(b'close')
     
     return
 
