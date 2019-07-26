@@ -31,6 +31,7 @@ Note: the lua side winapi uses this for opening the pipe:
 '''
 # Name of the pipe in the OS.
 # Name must be: "//<server>/pipe/<pipename>"
+# Note: not case sensitive on windows.
 pipe_name = r"\\.\pipe\x4_pipe"
 
 
@@ -129,8 +130,13 @@ def Runtime_Test(pure_python = False):
             # Anyway, it is easiest to make strings canonical for this, for now.
             # TODO: consider passing some sort of format specifier so the
             #  data can be recast in the lua.
-            error2, bytes_written = win32file.WriteFile(pipe, str(response).encode('utf-8'))
-            print('Returned: ' + response)
+            # Optionally do a read timeout test, which doesn't return data.
+            timeout_test = 0
+            if timeout_test:
+                print('Suppressing read return; testing timeout.')
+            else:
+                error2, bytes_written = win32file.WriteFile(pipe, str(response).encode('utf-8'))
+                print('Returned: ' + response)
 
         elif message == 'close':
             # Close the pipe/server when requested.

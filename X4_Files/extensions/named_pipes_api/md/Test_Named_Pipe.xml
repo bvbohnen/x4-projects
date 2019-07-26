@@ -12,7 +12,7 @@ Server side is written in python.
   Testing cue will restart every so many seconds.
   This makes it a little more useful with /refreshmd commands.
   -->
-  <cue name="Test_Named_Pipe" instantiate="true" checkinterval="10s" checktime="30s">
+  <cue name="Test_Named_Pipe" instantiate="true" namespace="this" checkinterval="10s" checktime="30s">
   
     <conditions>
       <!-- Uncomment to disable this cue. -->
@@ -54,32 +54,36 @@ Server side is written in python.
     </actions>
     
     <cues>
-    
-      <!-- This is called from the lib once a read is complete. -->
-      <cue name="Read_Callback" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        
-        <actions>
-          <!-- Pull the value out of the param. -->
-          <set_value name="$read_result" exact="event.param"/>
-          <!-- Log it. -->
-          <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Captured ' + $read_result"/> 
-            
-          <!-- Deal with errors. -->
-          <do_if value="$read_result == 'ERROR'">
-          </do_if>
-          <!-- Deal with valid results. -->
-          <do_else>
-          </do_else>
-          
-        </actions>
-      </cue> <!-- end Read_Callback -->
-      
     </cues>
   </cue> <!-- end Test_Named_Pipe -->
       
+  <!--This is called from the lib once a read is complete.
+      Note: this can't be a child of the cue making requests, since that cue
+      will die off once its actions complete, leaving no child to capture
+      responses. (Unless this is set to no instantiate, but then it is only
+      good for one read/write; if it resets itself, it would keep the test
+      cue alive forever in teh save.)
+  -->
+  <cue name="Read_Callback" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    
+    <actions>
+      <!-- Pull the value out of the param. -->
+      <set_value name="$read_result" exact="event.param"/>
+      <!-- Log it. -->
+      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Captured ' + $read_result"/> 
+        
+      <!-- Deal with errors. -->
+      <do_if value="$read_result == 'ERROR'">
+      </do_if>
+      <!-- Deal with valid results. -->
+      <do_else>
+      </do_else>
+      
+    </actions>
+  </cue> <!-- end Read_Callback -->
 </cues>
 
 </mdscript>
