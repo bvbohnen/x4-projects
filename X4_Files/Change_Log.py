@@ -18,6 +18,8 @@ Change Log
     queueing multiple requests.  Winpipe updated accordingly.
   - Rewrote md api, compressing code, removing unused stubs.
   - Timeouts are a work in progress, and are disabled by default.
+* 0.4
+  - Timeouts working, plus some general debug and refinement.
 '''
 
 def Get_Version():

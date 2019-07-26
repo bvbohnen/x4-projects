@@ -5,6 +5,7 @@ an external process.
 The external process will be responsible for serving pipes.
 X4 will act purely as a client.
 
+TODO: go over this api writeup again, and make sure up to date.
 
 Reading:
     Start with a trigger:
@@ -63,6 +64,9 @@ Check if pipes open:
     succesfully opened, false if not. Note that this does not robustly
     test the pipe.
         
+        
+TODO: trim down these random thoughts, or move them; unnecessary now that
+api is largely done.
     
 Challenges:
     A)  To avoid game lockup when a pipe is valid but not ready, eg. full when
@@ -162,6 +166,10 @@ Challenges:
     the server behaves properly.  (3) is overly complex and should be
     avoided.
     
+    
+TODO:
+    Switch to DebugError printouts instead of using the chat window,
+    except for basic connect/disconnect messages.
 
     
 Note:
@@ -374,7 +382,7 @@ end
 
 
 -- Close a pipe file.
-function Close_File(pipe_name)
+function Disconnect_Pipe(pipe_name)
     -- Do a safe file close() attempt, ignoring errors.
     pcall(function () private.pipes[pipe_name].file.close() end)
     -- Unlink from the file entirely.
@@ -387,7 +395,7 @@ end
 -- This sends error messages to MD for any pending pipe writes or reads.
 function Close_Pipe(pipe_name)
     -- Close out the file itself.
-    Close_File(pipe_name)
+    Disconnect_Pipe(pipe_name)
     
     -- Convenience renamings.
     local write_fifo = private.pipes[pipe_name].write_fifo
@@ -472,7 +480,7 @@ function Schedule_Read(pipe_name, access_id)
         -- TODO: move this to Poll_For_Reads, and call it once.
         SetScript("onUpdate", Poll_For_Reads)
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "pipe;Registering Poll_For_Reads")
+        CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Reads")
         private.read_polling_active = true
         
         -- Kick off a first polling call, so it doesn't wait until
@@ -513,7 +521,7 @@ function Schedule_Write(pipe_name, access_id, message)
         -- run every frame.
         SetScript("onUpdate", Poll_For_Writes)
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "pipe;Registering Poll_For_Writes")
+        CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Writes")
         private.write_polling_active = true
         
         -- Kick off a first polling call, so it doesn't wait until
@@ -608,7 +616,7 @@ function Poll_For_Reads()
     if activity_still_pending == false then
         RemoveScript("onUpdate", Poll_For_Reads)
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "pipe;Unregistering Poll_For_Reads")
+        CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Reads")
         private.read_polling_active = false
     end
 end
@@ -636,23 +644,34 @@ function Poll_For_Writes()
             local message   = FIFO.Next(state.write_fifo)[2]
         
             -- Try to write.
-            -- Note: both return flags will never be true at the same time.
-            -- If both are false, the pipe was full.
-            local write_success, error_occurred = Write_Pipe(pipe_name, message)
+            -- If call_success is False, a hard error occurred with the pipe.
+            -- Otherwise retval is True on succesful write, false on full pipe.
+            -- (Not calling it write_success to avoid confusing it with an
+            --  error string.)
+            local call_success, retval = Write_Pipe(pipe_name, message)
             
-            -- Handle succesful writes.
-            if write_success then
-                -- Debug print.
-                CallEventScripts("directChatMessageReceived", pipe_name..";Wrote: "..message)
-            
-                -- Empty the entry from the fifo.
-                FIFO.Read(state.write_fifo)
+            if call_success then
+                -- Handle succesful writes.
+                if retval then
+                    -- Debug print.
+                    CallEventScripts("directChatMessageReceived", pipe_name..";Wrote: "..message)
                 
-                -- Signal the MD, if listening.
-                Raise_Signal('pipeWrite_complete_'..access_id, 'SUCCESS')
-                                
+                    -- Remove the entry from the fifo.
+                    FIFO.Read(state.write_fifo)
+                    
+                    -- Signal the MD, if listening.
+                    Raise_Signal('pipeWrite_complete_'..access_id, 'SUCCESS')
+                    
+                -- Otherwise a full pipe.
+                else
+                    -- Flag the poller to stay active.
+                    activity_still_pending = true
+                    -- Stop trying to write this pipe.
+                    break
+                end
+                
             -- Handle errors.
-            elseif write_success then
+            else
                 -- Debug print.
                 CallEventScripts("directChatMessageReceived", pipe_name..";Write error; closing")
         
@@ -663,14 +682,7 @@ function Poll_For_Writes()
                 
                 -- Stop trying to access this pipe.
                 break
-            
-            -- Otherwise a full pipe.
-            else
-                -- Flag the poller to stay active.
-                activity_still_pending = true
-                -- Stop trying to write this pipe.
-                break
-            end                    
+            end                  
         end
     end
     
@@ -678,7 +690,7 @@ function Poll_For_Writes()
     if activity_still_pending == false then
         RemoveScript("onUpdate", Poll_For_Writes)
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "pipe;Unregistering Poll_For_Writes")
+        CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Writes")
         private.write_polling_active = false
     end
 end
@@ -768,10 +780,11 @@ function _Write_Pipe_Raw(pipe_name, message)
     -- Lua returns no error message for this, unlike for reads.
     local bytes_written = private.pipes[pipe_name].file:write(message)
     
-    if not bytes_written then
+    if bytes_written == 0 then
         -- Error occurred; either pipe is bad or full.
         -- TODO: what is the actual error code for this?
         --  Maybe ERROR_PIPE_BUSY ?
+        -- Note: gets ERROR_NO_DATA if the server disconnected.
         if winpipe.GetLastError() == winpipe.ERROR_IO_PENDING then
             -- Pipe is full. Want to wait a while.
             return false
@@ -792,11 +805,11 @@ end
 
 
 -- Write a pipe, with possibly one retry.
--- Returns write_success, error_occurred, boolean flags.
--- If both flags are false, the fifo was full but otherwise okay.
--- Both flags won't be true.
+-- Returns success and retval, the outputs of a pcall with the same meaning.
+-- On success, retval is a bool: true if write completed, false if pipe full.
+-- On non-success, retval is the lua error.
 function Write_Pipe(pipe_name, message)
-    local call_success, write_success = pcall(_Write_Pipe_Raw, pipe_name, message)
+    local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
     
     if not call_success then
         -- Try once more if allowed.
@@ -804,15 +817,13 @@ function Write_Pipe(pipe_name, message)
             -- Debug message.
             CallEventScripts("directChatMessageReceived", pipe_name..";Retrying write...")
             -- Overwrite the success flag.
-            local call_success, write_success = pcall(_Write_Pipe_Raw, pipe_name, message)
+            local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
             -- Clear the retry flag.
             private.pipes[pipe_name].retry_allowed = false
         end
     end
     
-    -- Flip the flags around for the response.
-    -- Write success is first; call_success is inverted to indicate error.
-    return write_success, not call_success
+    return call_success, retval
 end
 
 
