@@ -12,6 +12,12 @@ Change Log
   - Switched client pipes into messaging mode, and verified pipelined reads
     are received correctly.
   - Added Make_Release for zip file generation with the X4 files.
+* 0.3
+  - Refined behavior of api on connection errors and game reloads.
+  - Rewrote lua api to support non-blocking access, with support for
+    queueing multiple requests.  Winpipe updated accordingly.
+  - Rewrote md api, compressing code, removing unused stubs.
+  - Timeouts are a work in progress, and are disabled by default.
 '''
 
 def Get_Version():

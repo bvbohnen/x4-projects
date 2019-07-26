@@ -8,38 +8,29 @@ This will tie into related functions in an accompanying lua script.
 Note: for Windows named pipes. Linux support may or may not come later.
 
 Goals:
-  - Allow user to open a named pipe, with arbitrary name.
+  - Allow user to access a named pipe, with arbitrary name.
   - Handle pipe write and read requests.
-  - Track active pipe accesses, and recover correctly after save/reload
-    when an access was in flight. Eg. a read request sent that hasn't
-    returned a value yet when a game is saved, will be resent after
-    reloading.
-  - Any other techniques to improve reliability, transparent to user.
+  - Recover safely on game save/reload, server shutdown/restart, ui reload, etc.
   
 Operation notes:
-  - Pipe objects will be tracked in a shared table, stored in a static cue
-    in this library.
-  - The actual OS level pipe connections are handled in lua, and checked
-    on every access.
-  - Users may open or close pipes by signalling appropriate library cues,
-    which carry out the action and close, with pipes being added or removed
-    from the shared table appropriately.
-  - Users interract with the pipes by signalling appropriate service cues.
-  - Where necessary, pipe return results are passed to callback cues
-    provided by the user.
-  
+  - The actual OS level pipe connections are handled in lua.
+  - Minimal global state is tracked here; each access cue is self-sufficient.
+  - Read/Write requests kick off cue instances that schedule the operation
+    with the lua code, and then listen for a lua callback, ui reload (which
+    wipes lua state), or timeout.
+  - Requests call a user-supplied cue when complete, with the result.
+  - Any access error returns an 'ERROR' to the callback cue.
+  - Any pipe error will trigger an error on all pending accesses.
+  - Such pipe errors will occur on game reloading, ui reload, server shutdown.
     
-TODO: maybe add a callback for Write to capture success/failure.
-
-TODO: a command or memory style interface, eg. Set/Get, where all reads
-      are preceeding by some sort of command written that triggers a
-      response in the server.
-
-TODO: maybe a generic function to check if the pipe is open.
-
-TODO: a more robust way to buffer up writes/reads, get acknowledgements,
-      resend requests that are not acknowledged, etc.
-    
+Usage:
+  - See Read and Write cues below for how to call them.
+  - User code should expect errors to occur often, and handle as needed.
+  - Exact message protocol and transaction behavior depends on the external
+    server handling a specific pipe.
+  - If the OS pipe gets broken, the server should shutdown and remake
+    the pipe, as the lua client cannot reconnect to the old pipe
+    (in testing so far).
 -->
 <cues>
 
@@ -59,117 +50,93 @@ TODO: a more robust way to buffer up writes/reads, get acknowledgements,
   
   
   <!--
-    Static cue that tracks all opened pipes, makes connections, etc.
-    This is primarily intended for local usage.
+    Static cue that holds some shared state information or constants.
     When this script is installed, a new instance of this cue is created,
     and will afterwards be live until the script is removed.
+    Globals reset each time the game is loaded, to enable easy changing
+    of constants.
     
-    Attributes:
-    * $pipe_table
-      - Table of opened (but maybe not connected) pipe descriptors.
-      - Keyed by pipe name, holding a subtable of attributes.
-      - TODO: think about what goes into a pipe descriptor.
+    Attributes:          
+    * access_counter
+      - Int, number of accesses performed, with some rollover.
+      - Used to tag each new access, so that the lua can suffix its
+        completion signals to match them to the right callback cue.
+                
     * $pipe_name_prefix
       - String, prefix to add to all pipe names to construct the OS path.
       - On windows, this is "\\.\pipe\"
   -->
-  <cue name="Pipe_Manager">
-  
-    <!-- Set up static variables. -->
+  <library name="Reset_Globals">
     <actions>
-      <set_value name="$pipe_table" exact="table[]" />
+      <!-- Counter reset is optional, but include for init. -->
+      <set_value name="$access_counter" exact="0"/>
       <!-- Prefix to add to all pipe names. -->
       <set_value name="$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
     </actions>
+  </library>
+  
+  <cue name="Pipe_Manager">
+  
+    <!-- When first created, set up globals. -->
+    <actions>
+      <include_actions ref="Reset_Globals"/>
+    </actions>
     
     <cues>
-      <!--When a save is loaded, reconnect/reset the pipe, and resend any
-          pending requests.
+      <!--When a save or the ui is loaded, reset globals again.
+          This is also handy for changing constants.
           -->
-      <cue name="Handle_Game_Reload" instantiate="true">
+      <cue name="Reset_On_Lua_Reload" instantiate="true">
         <conditions>
-          <event_game_loaded/>
+          <event_object_signalled object="player.galaxy" param="'lua_named_pipe_api_loaded'"/>
         </conditions>
         <actions>
-          <!-- Loop over any open pipes. TODO -->
+          <include_actions ref="Reset_Globals"/>          
         </actions>
-      </cue> <!-- end Handle_Game_Reload -->
+      </cue> <!-- end Reset_On_Lua_Reload -->
     </cues>
   </cue> <!-- end Pipe_Manager -->
   
-  
+    
   
   <!--
-    User function to register a new pipe for opening.
-    If the pipe already was opened, this will do nothing.
-    Note: the OS pipe may or may not actually be connected to (and may not
-    even exist at this point), though the pipe will be added to appropriate
-    tables to support future access attempts.
-    Called through signal_cue_instantly.
+    Support lib function to update the access_counter, and use it
+    to generate an ID string for the next access.
+    Count rolls over every 1000 or so, to avoid excessive growth.
     
-    Note: currently this is not needed for early testing, as Read/Write
-    cause Lua to open the pipe automatically.
-    
-    TODO: consider making this auto-open more formal. Tradeoff
-    is that it is easier to mess up a pipe name without an error, and the
-    mistaken name would get added to the pipe table, polluting it somewhat,
-    possibly countered by the pipe table occasionally cleaning out pipes
-    that haven't been used in a while (eg. since last save game was loaded).
-    
-    Args:
-      param  : List with one item:
-        0: String, name of the pipe being opened, with no OS prefix.
-      
-    Returns:
-      nothing.
-    
-    Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Open" param="['mypipe']">
+    Add to an action block using:
+    <include_actions ref="Get_Next_Access_ID"/>
+    Result is returned in: $access_id
   -->
-  <cue name="Open" instantiate="true">
-    <!-- Activate only when signalled; no extra filters.-->
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>
-    
+  <library name="Get_Next_Access_ID">
     <actions>
-      <!-- Save input args (since 'event' is not available in subcues). -->
-      <set_value name="$pipe_name" exact="event.param.{1}" />
-      
-      <!-- Check if a pipe of this name already exists.
-          Note: strings as keys literally must start with $)-->
-      <do_if value="Pipe_Manager.$pipe_table.{'$'+$pipe_name}?">      
-        <!-- Debug announcement to the chat window. -->
-        <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name + ' already open'"/>
+      <!-- Inc with rollover. -->
+      <set_value name="Pipe_Manager.$access_counter" exact="Pipe_Manager.$access_counter + 1"/>
+      <do_if value="Pipe_Manager.$access_counter >= 1000">
+        <set_value name="Pipe_Manager.$access_counter" exact="0"/>
       </do_if>
-      <do_else>
-        <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name + ' opened'"/>
-        
-        <!-- Init a new pipe table entry. -->
-        <set_value  name="Pipe_Manager.$pipe_table.{'$'+$pipe_name}" 
-                    exact="table[{'$name'} = $pipe_name, {'$pending_reads'} = [], {'$connected'} = 0]"/>
-        <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;key test:' + Pipe_Manager.$pipe_table.keys.list "/> -->
-      </do_else>
-
+      <!-- Assign the new count to the access_id, as a string. -->
+      <set_value name="$access_id" exact="'' + Pipe_Manager.$access_counter"/>
     </actions>
-  </cue> <!-- end Open -->
+  </library>
+  
   
   
   <!--
     User function to close a pipe.
-    Does nothing if the pipe does not exist.
-    
+    This is passed down to the lua level, where the pipe file is closed and
+    all pending accesses cancelled (return errors).
+    Does nothing if the pipe does not exist.    
     Called through signal_cue_instantly.
     
     Args:
-      param  : List with one item:
-        0: String, name of the pipe being opened, with no OS prefix.
+      param  : Name of the pipe being opened, with no OS prefix.
       
     Returns:
       nothing.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Close" param="['mypipe']">
+      <signal_cue_instantly name="md.LIB_Named_Pipes.Close" param="'mypipe'">
   -->
   <cue name="Close" instantiate="true">
     <conditions>
@@ -177,21 +144,9 @@ TODO: a more robust way to buffer up writes/reads, get acknowledgements,
     </conditions>
     
     <actions>
-      <!-- Save input args (since 'event' is not available in subcues). -->
-      <set_value name="$pipe_name" exact="event.param.{1}" />
-      
-      <!-- Check if a pipe of this name already exists. -->
-      <do_if value="Pipe_Manager.$pipe_table.{'$'+$pipe_name}?">
-        <!-- TODO: any cleanup/flush stuff. Signal lua to close the file. -->
-        <!-- Remove the table entry. -->
-        <remove_value name="Pipe_Manager.$pipe_table.{'$'+$pipe_name}" />
-        <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name + ' closed'"/>
-      </do_if>
-      <do_else>
-        <!-- Debug announcement to the chat window. -->
-        <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name + ' not open; cannot close'"/>        
-      </do_else>
-
+      <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ event.param + ' closing if open.'"/>
+      <!-- Just need to send down the pipe name. -->
+      <raise_lua_event name="'pipeClose'" param="Pipe_Manager.$pipe_name_prefix + event.param"/>
     </actions>
   </cue> <!-- end Close -->
   
@@ -201,38 +156,32 @@ TODO: a more robust way to buffer up writes/reads, get acknowledgements,
     Called through signal_cue_instantly.
     
     Args:
-      param  : List with two items:
-        0: String, name of the pipe being written.
-        1: Message to write to the pipe.
+      param  : Table with the following items:
+        pipe : Name of the pipe being written, without OS path prefix.
+        msg  : Message string to write to the pipe.
+        cue  : Callback, optional, the cue to call when the write completes.
+        time : Timeout, optional, the time until an unsent write is cancelled.
       
     Returns:
-      nothing.
+      Value is is sent as event.param to the callback cue.
+      Writes receive 'SUCCESS' or 'ERROR'.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Write" param="['mypipe', 'hello']">
+      <signal_cue_instantly name="md.LIB_Named_Pipes.Write" 
+        param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback, $time=5s]">
   -->
   <cue name="Write" instantiate="true">
     <!-- Activate only when signalled; no extra filters.-->
     <conditions>
       <event_cue_signalled/>
-    </conditions>
-    
+    </conditions>    
     <actions>
-      <!-- Save input args (since 'event' is not available in subcues). -->
-      <set_value name="$pipe_name" exact="event.param.{1}" />
-      <set_value name="$message" exact="event.param.{2}" />
-      
-      <!-- Debug announcement to the chat window. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' writing: ' + $message"/>
-
-      <!--Trigger the lua handler.
-          Awakwardly, this only accepts one param, so the pipename and message
-          need to be squished together. -->
-      <raise_lua_event name="'pipeWrite'" param="Pipe_Manager.$pipe_name_prefix + $pipe_name + ';' + $message"/>       
-    </actions>
-    
-    <!-- TODO: any sort of ack callback. -->
+      <!-- Add the command to the param table, and pass it along. -->
+      <set_value name="event.param.{'$command'}" exact="'Write'" />
+      <signal_cue_instantly cue="Access_Handler" param="event.param"/>
+    </actions>    
   </cue> <!-- end Write -->
+  
   
   
   <!--
@@ -240,18 +189,21 @@ TODO: a more robust way to buffer up writes/reads, get acknowledgements,
     Called through signal_cue_instantly.
     
     Args:
-      param  : List with two items:
-        0: String, name of the pipe being written.
-        1: Cue, the cue to call when the read completes. This has no $.
+      param  : Table with the following items:
+        pipe : Name of the pipe being written, without OS path prefix.
+        cue  : Callback, optional, the cue to call when the write completes.
+        time : Timeout, optional, the time until an unsent write is cancelled.
       
     Returns:
       Whatever is read from the pipe in event.param to the callback cue.
       If the read fails for some reason, this will be an 'ERROR' string.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Read" param="['mypipe', MyReadHandler]">      
+      <signal_cue_instantly name="md.LIB_Named_Pipes.Read" 
+        param="table[$pipe = 'mypipe', $cue = Read_Callback, $time = 5s]">
+        
       ...
-      <cue name="MyReadHandler" instantiate="true">
+      <cue name="Read_Callback" instantiate="true">
         <conditions>
           <event_cue_signalled/>
         </conditions>
@@ -265,55 +217,211 @@ TODO: a more robust way to buffer up writes/reads, get acknowledgements,
           </do_else>
         </actions>
       </cue>
-      
-  TODO: make safe against refreshmd, reloadui, save/reload
   -->
   <cue name="Read" instantiate="true">
+    <!-- Activate only when signalled; no extra filters.-->
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <!-- Add the command to the param table, and pass it along. -->
+      <set_value name="event.param.{'$command'}" exact="'Read'" />
+      <signal_cue_instantly cue="Access_Handler" param="event.param"/>
+    </actions>    
+  </cue> <!-- end Read -->
+  
+    
+  <!--
+    Start a new pipe access.
+    Primarily for internal use.
+    Shared by Read and Write operations.
+    
+    Args:
+      param  : Table with the following possible items:
+      * pipe
+        - String, name of the pipe being accessed, without path prefix.
+      * command
+        - String, either 'Read' or 'Write'.
+      * msg
+        - String, message to send for writes.
+        - Unused for non-writes.
+      * cue
+        - Cue to call with the result when operation completes.
+        - Optional for writes.
+      * time
+        - Time, how long to allow for access before cancelling it.
+        - A timeout will trigger an 'ERROR' return value to the callback cue.
+        - Optional.
+        - Defaults to 10s.
+        - Note: timeout kills this access cue, but does not prevent the lua
+          from continuing the operation.  The lua op complete signal
+          will be ignored, if/when it arrives.           
+      
+    Returns:
+      Value is is sent as event.param to the callback cue.
+        Writes receive 'SUCCESS' or 'ERROR'.
+        Reads receive pipe response or 'ERROR'.
+  -->
+  <cue name="Access_Handler" instantiate="true">
     <!-- Activate only when signalled; no extra filters.-->
     <conditions>
       <event_cue_signalled/>
     </conditions>
     
     <actions>
-      <!-- Save input args (since 'event' is not available in subcues). -->
-      <set_value name="$pipe_name" exact="event.param.{1}" />
-      <set_value name="$callback_cue" exact="event.param.{2}" />
+      <!-- Parse inputs. Record some stuff for subcues. -->
+      <set_value name="$pipe_name"    exact="event.param.{'$pipe'}" />
+      <set_value name="$command"      exact="event.param.{'$command'}" />
       
-      <!-- Debug announcement to the chat window. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' read started'"/>
+      <!-- Message doesn't need to be created for non-writes. -->
+      <do_if value="event.param.{'$msg'}?">
+        <set_value name="$message"      exact="event.param.{'$msg'}" />
+      </do_if>
+      
+      <!-- Callback defaults to null. -->
+      <do_if value="event.param.{'$cue'}?">
+        <set_value name="$callback_cue"      exact="event.param.{'$cue'}" />
+      </do_if>
+      <do_else>
+        <set_value name="$callback_cue"      exact="null" />
+      </do_else>
+      
+      <!-- Calculate the real time of the timeout, by adding to current age. -->
+      <do_if value="event.param.{'$time'}?">
+        <set_value name="$scheduled_timeout"  exact="player.age + event.param.{'$time'}" />
+      </do_if>
+      <do_else>
+        <set_value name="$scheduled_timeout"  exact="player.age + 1s" />
+      </do_else>
+            
+      <!-- Get a new access id to use. Adds $access_id -->
+      <include_actions ref="Get_Next_Access_ID"/>
+      
+      <!--Preconstruct the signal name that lua will use.
+          Eg. "pipeRead_123"
+      -->
+      <set_value name="$lua_signal" exact="'pipe'+ $command +'_'+$access_id"/>
 
-      <!-- Trigger the lua handler. -->
-      <raise_lua_event name="'pipeRead'" param="Pipe_Manager.$pipe_name_prefix + $pipe_name"/>       
+      <!-- Handle the command, passing off to lua. -->
+      <do_if value="$command == 'Write'">      
+        <!-- Debug announcement to the chat window. -->
+        <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' writing: ' + $message"/>
+        <!--Trigger the lua handler.
+            Awakwardly, this only accepts one param, so the pipename, id, and message
+            need to be squished together. -->
+        <raise_lua_event name="'pipeWrite'" param="Pipe_Manager.$pipe_name_prefix + $pipe_name + ';' + $access_id + ';' + $message"/>
+      </do_if>
+      
+      <do_if value="$command == 'Read'">
+        <!-- Debug announcement to the chat window. -->
+        <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' read started'"/>
+        <raise_lua_event name="'pipeRead'" param="Pipe_Manager.$pipe_name_prefix + $pipe_name + ';' + $access_id"/>
+      </do_if>
+      
     </actions>
     
     <cues>
       <!--
-      Capture the result.
-      This is handled by a lua created object event, sent to the galaxy,
-      suffixed by the pipe name.
+        Support funcion to complete this access.
+        Handles the callback, if necessary.
+        Cancels other subcues and the parent.
+        Uses these variables:
+          $callback : cue or none
+          $response : string; optional if no callback.
+          
+        Call with include_actions:
+        <include_actions ref="Complete_Access"/>
       -->
-      <cue name="Capture_Read_Response" instantiate="true">
+      <library name="Complete_Access">
+        <actions>
+          <!-- Signal the callback cue with this response. -->
+          <do_if value="$callback_cue != null">
+            <signal_cue_instantly cue="$callback_cue" param="$response"/>
+          </do_if>
+          
+          <!-- Stop other subcues by cancelling the parent. -->
+          <cancel_cue cue="parent"/>
+        </actions>
+      </library> <!-- end Complete_Access -->
+      
+      
+      <!--
+        Listen for the lua completion signal, get result.
+        This is handled by a lua created object event, sent to the galaxy,
+        suffixed by the access_id.
+        Services both reads and writes.
+      -->
+      <cue name="Capture_Lua_Response" >
         <conditions>
-          <event_object_signalled object="player.galaxy" param="'pipeRead_'+$pipe_name"/>
+          <event_object_signalled object="player.galaxy" param="$lua_signal"/>
         </conditions>
         
-        <actions>              
+        <actions>
           <!-- Grab the returned value. -->
+          <!-- An ERROR may have been returned. Ignore for now. -->
           <set_value name="$response" exact="event.param2" />
           
           <!-- Debug announcement to the chat window. -->
-          <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' returned: ' + $response "/>
-          
-          <!-- An ERROR may have been returned. Ignore for now. -->
-          
-          <!-- Signal the callback cue with this response. -->
-          <signal_cue_instantly cue="$callback_cue" param="$response"/>
+          <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' '+$command+' returned: ' + $response "/>
+                    
+          <!-- Handle the callback. -->
+          <include_actions ref="Complete_Access"/>
           
         </actions>        
-      </cue> <!-- end Capture_Read_Response -->
+      </cue> <!-- end Capture_Lua_Response -->
+      
+      
+      <!--
+        Detect if the LUA interface was reloaded.
+        This will cancel out the pending access as an error.
+      -->
+      <cue name="Lua_Reload_Listener" >
+      
+        <conditions>
+          <event_object_signalled object="player.galaxy" param="'lua_named_pipe_api_loaded'"/>
+        </conditions>
+        
+        <actions>          
+          <!-- Debug announcement to the chat window. -->
+          <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' '+$command+' cancelled on reload' "/>
+                    
+          <!-- Set the return value as ERROR. -->
+          <set_value name="$response" exact="'ERROR'" />
+          
+          <!-- Handle the callback. -->
+          <include_actions ref="Complete_Access"/>
+          
+        </actions>
+      </cue> <!-- end Lua_Reload_Listener -->
+      
+      <!--
+        Timeout check.
+        $scheduled_timeout should be available prior to setting up this cue.
+        
+        Uses checktime to handle the timeout condition.
+        
+        Note: buggy currently
+      -->
+      <cue name="Access_Timeout" checkinterval="1s" checktime="$scheduled_timeout">
+        <conditions>
+          <!-- Uncomment to disable this cue. -->
+          <check_value value="false"/>
+        </conditions>
+        <actions>
+          <!-- Debug announcement to the chat window. -->
+          <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' '+$command+' timed out' "/>
+                    
+          <!-- Set the return value as ERROR. -->
+          <set_value name="$response" exact="'ERROR'" />
+          
+          <!-- Handle the callback. -->
+          <include_actions ref="Complete_Access"/>
+          
+        </actions>
+      </cue> <!-- end Access_Timeout -->
       
     </cues>
-  </cue> <!-- end Read -->
+  </cue> <!-- end Access_Handler -->
   
 </cues>
 

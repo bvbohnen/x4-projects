@@ -4,13 +4,15 @@ Lua wrapping for select win32 api functions:
     file.write
     file.read
     file.close
+    GetLastError
 
 This is based on the lua winapi module from:
 https://github.com/stevedonovan/winapi
 Original mit license is located at the bottom of this file.
 
 Changes mostly consist of removal of nearly all of the api, minus
-the necessary pipe related functions.
+the necessary pipe related functions, tweaking pipe mode, adding
+error code export.
 New comments (not part of winapi) start with "//--".
 */
 
@@ -21,6 +23,7 @@ New comments (not part of winapi) start with "//--".
 #include <winable.h> /* GNU GCC specific */
 #endif
 
+#include <winerror.h>
 
 #define FILE_BUFF_SIZE 2048
 
@@ -222,7 +225,22 @@ static int l_File_read(lua_State *L) {
     }
 }
 
-//--removed; depends on threads
+
+//--For access to an empty pipe in non-blocking mode, ReadFile will return
+//  an error, and GetLastError should be ERROR_IO_PENDING.
+//  To support this, expose GetLastError without formatting.
+//  Update: microsoft documentation is wrong or incomplete; non-blocking
+//  reads actually return ERROR_NO_DATA, not mentioned in docs.
+static int l_GetLastError(lua_State *L) {
+    // Grab the current error code.
+    int err = GetLastError();
+    lua_pushinteger(L, err);
+    return 1;
+}
+
+
+//--removed; depends on threads, and may not work with pipes, as
+//  they are only documented for use with ReadFile.
 //static void file_reader (File *this) { // background reader thread
 //  int n;
 //  do {
@@ -345,9 +363,9 @@ static int l_open_pipe(lua_State *L) {
     }
     else {
         //--Modify the named pipe to change its access mode for X4.
-        //--Since it requires LPDWORD input, a point to DWORD, set the
+        //--Since it requires LPDWORD input, a pointer to DWORD, set the
         //  mode first then pass it in.
-        DWORD mode = PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        DWORD mode = PIPE_READMODE_MESSAGE | PIPE_NOWAIT;
         SetNamedPipeHandleState(
             hPipe,
             //--lpMode
@@ -382,25 +400,30 @@ static int l_open_pipe(lua_State *L) {
 
 
 static const luaL_Reg winpipe_funs[] = {
-   {"open_pipe",l_open_pipe},
+    //--Adding GetLastError function.
+    {"GetLastError",l_GetLastError},
+    {"open_pipe",l_open_pipe},
     {NULL,NULL}
 };
 
 EXPORT int luaopen_winpipe(lua_State *L) {
-#if LUA_VERSION_NUM > 501
-    lua_newtable(L);
-    luaL_setfuncs(L, winpipe_funs, 0);
-    lua_pushvalue(L, -1);
-    lua_setglobal(L, "winpipe");
-#else
-    luaL_register(L, "winpipe", winpipe_funs);
-#endif
+    #if LUA_VERSION_NUM > 501
+        lua_newtable(L);
+        luaL_setfuncs(L, winpipe_funs, 0);
+        lua_pushvalue(L, -1);
+        lua_setglobal(L, "winpipe");
+    #else
+        luaL_register(L, "winpipe", winpipe_funs);
+    #endif
 
     File_register(L);
 
+    //--Error code constants.
+    lua_pushinteger(L, ERROR_IO_PENDING); lua_setfield(L, -2, "ERROR_IO_PENDING");
+    lua_pushinteger(L, ERROR_NO_DATA); lua_setfield(L, -2, "ERROR_NO_DATA");
+    
     return 1;
 }
-
 
 
 
