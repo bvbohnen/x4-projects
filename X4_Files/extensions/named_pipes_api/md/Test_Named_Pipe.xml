@@ -4,6 +4,9 @@
 <!--
 Test cue that excercises the named pipe library.
 Server side is written in python.
+
+TODO: a full (though simple) app that uses a pipe regularly during runtime,
+ eg. for extra hotkeys.
 -->
 
 <cues>
@@ -27,30 +30,36 @@ Server side is written in python.
       <show_notification text="'Test_Named_Pipe started'" sound="notification_warning" priority="2" />
       
       <!-- Do some test writes/reads. This follows the same pattern as the lua test code. -->
-      <!-- TODO: write callbacks. -->
+      
       <!-- Individual writes. -->
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test1]5']"/>
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test2]6']"/>
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test3]7']"/>
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test4]8']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test1]5', $cue=Write_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test2]6', $cue=Write_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test3]7', $cue=Write_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='write:[test4]8', $cue=Write_Callback]"/>
       
       <!-- Transaction with write/read. -->
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test1]']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test1]', $cue=Write_Callback]"/>
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="table[$pipe='x4_pipe', $cue=Read_Callback]"/>
       
       <!-- Pipelined transactions. -->
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test2]']"/>
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test3]']"/>
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test4]']"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test2]', $cue=Write_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test3]', $cue=Write_Callback]"/>
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='read:[test4]', $cue=Write_Callback]"/>
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="table[$pipe='x4_pipe', $cue=Read_Callback]"/>
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="table[$pipe='x4_pipe', $cue=Read_Callback]"/>
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Read"  param="table[$pipe='x4_pipe', $cue=Read_Callback]"/>
       
-      <!-- Tell the server to close the pipe. Server will wait for read to complete. -->
+      <!-- Generic pipe check. -->
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Check" param="table[$pipe='x4_pipe', $cue=Check_Callback]"/>
+      
+      
+      <!-- Tell the server to close the pipe. Server will wait for pending reads to complete. -->
       <!-- <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_pipe', $msg='close']"/> -->
       
       <!-- Tell MD/lua to close the client pipe. TODO: not until reads finished. -->
       <!-- <signal_cue_instantly cue="md.LIB_Named_Pipes.Close" param="'x4_pipe'"/> -->
+      <!-- Verify above closed the pipe. -->
+      <!-- <signal_cue_instantly cue="md.LIB_Named_Pipes.Connected" param="table[$pipe='x4_pipe', $cue=Connected_Callback']"/> -->
     </actions>
     
     <cues>
@@ -67,23 +76,41 @@ Server side is written in python.
   <cue name="Read_Callback" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
-    </conditions>
-    
+    </conditions>    
     <actions>
       <!-- Pull the value out of the param. -->
       <set_value name="$read_result" exact="event.param"/>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Captured ' + $read_result"/> 
-        
-      <!-- Deal with errors. -->
-      <do_if value="$read_result == 'ERROR'">
-      </do_if>
-      <!-- Deal with valid results. -->
-      <do_else>
-      </do_else>
-      
+      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Read result: ' + $read_result"/>      
     </actions>
-  </cue> <!-- end Read_Callback -->
+  </cue>
+    
+  <cue name="Write_Callback" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <!-- Pull the value out of the param. -->
+      <set_value name="$result" exact="event.param"/>
+      <!-- Log it. -->
+      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Write result: ' + $result"/>      
+    </actions>
+  </cue>
+  
+  <cue name="Check_Callback" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <!-- Pull the value out of the param. -->
+      <set_value name="$result" exact="event.param"/>
+      <!-- Log it. -->
+      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Connected? ' + $result"/>      
+    </actions>
+  </cue>
+  
+  
+  
 </cues>
 
 </mdscript>

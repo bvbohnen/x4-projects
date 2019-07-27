@@ -16,6 +16,7 @@ Named pipe testing.
 import win32pipe
 import win32file
 import threading
+import time
 
 '''
 Note: the lua side winapi uses this for opening the pipe:
@@ -66,6 +67,12 @@ def Runtime_Test(pure_python = False):
         # nOutBufferSize
         65536, 
         # nInBufferSize
+        # Can limit this to choke writes and see what errors they give.
+        # In testing, this needs to be large enough for any single message,
+        #  else the client write fails with no error code (eg. code 0).
+        # In testing, a closed server and a full pipe generate the same
+        #  error code, so x4 stalling on full buffers will not be supported.
+        # This buffer should be sized large enough to never fill up.
         65536,
         # nDefaultTimeOut
         300,
@@ -78,6 +85,7 @@ def Runtime_Test(pure_python = False):
         # Set up the reader in another thread.
         reader_thread = threading.Thread(target = Pipe_Client_Test)
         reader_thread.start()
+        
 
     # Set up connections.
     # This appears to be a stall op that waits for a client to connect.
@@ -100,6 +108,13 @@ def Runtime_Test(pure_python = False):
         error, data = win32file.ReadFile(pipe, 64*1024)
         message = data.decode()
         print('Received: ' + message)
+
+        # Testing: delay on processing write.
+        # Used originally to let multiple x4 writes queue up, potentially
+        # hitting a full buffer.
+        if 0:
+            print('Pausing for a moment...')
+            time.sleep(0.5)
 
         # Handle based on prefix, write or read.
         if message.startswith('write:'):

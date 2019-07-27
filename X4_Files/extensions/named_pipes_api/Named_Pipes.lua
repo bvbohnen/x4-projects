@@ -5,12 +5,56 @@ an external process.
 The external process will be responsible for serving pipes.
 X4 will act purely as a client.
 
-TODO: go over this api writeup again, and make sure up to date.
+Behavior:
 
-Reading:
+    MD triggers lua functions using raise_lua_event.
+    Lua responds to MD by signalling the galaxy object with specific names.
+    When loaded, sends the signal "lua_named_pipe_api_loaded".
+    
+    Requested reads and writes will be tagged with a unique <id> string,
+    used to uniquify the signal raised when the request has completed.
+    
+    Requests are queued, and will be served as the pipe becomes available.
+    Multiple requests may be serviced within the same frame.
+    
+    Pipe access is non-blocking; reading an empty pipe will not error, but
+    instead kicks off a polling loop that will retry the pipe each frame 
+    until the request succeeds or the pipe goes bad (eg. server disconnect).
+    
+    If the write buffer to the server fills up and doesn't have room for
+    a new message, or the new message is larger than the entire buffer,
+    the pipe will be treated as bad and closed. (This is due to windows
+    not properly distinguishing these cases from broken pipes in
+    its error codes.)
+    
+    Pipe file handles are opened automatically when handling requests.
+    If a prior opened file handle goes bad when processing a request,
+    one attempt will be made to reopen the file before the request will
+    error out.
+    
+    Whenever the UI is reloaded, all queued requests and open pipes will
+    be destroyed, with no signals to MD.  The MD is responsible for
+    cancelling out such requests on its end, and the external server
+    is responsible for resetting its provided pipe in this case.
+    
+    The pipe file handle will (should) be closed properly on UI/game reload,
+    triggering a closed pipe error on the server, which the server should deal
+    with reasonably (eg. restarting the server side pipe).
+    
+
+Reading a pipe from MD:
+
     Start with a trigger:
     
-        <raise_lua_event name="'pipeRead'" param="'<pipe_name>;<id>'"/>
+        <raise_lua_event 
+            name="'pipeRead'" 
+            param="'<pipe_name>;<id>'"/>
+            
+        Example:
+        
+        <raise_lua_event 
+            name="'pipeRead'" 
+            param="'myX4pipe;1234'"/>
         
     Capture completion with a new subcue (don't instantiate if already inside
     an instance), conditioned on response signal:
@@ -21,7 +65,9 @@ Reading:
         
     The returned value will be in "event.param2":
     
-        <set_value name="$pipe_read_value" exact="event.param2" />
+        <set_value 
+            name="$pipe_read_value" 
+            exact="event.param2" />
         
     <pipe_name> should be replaced with the full path name of the pipe
     being connected to. Example: "\\.\pipe\x4_pipe", with doubled backslashes
@@ -33,159 +79,75 @@ Reading:
     but param2 will contain "ERROR".
     
     
-Writing:
+Writing a pipe from MD:
+
     The message to be sent will be suffixed to the pipe_name and id, separated
     by semicolons.
     
-        <raise_lua_event name="'pipeWrite'" param="'<pipe_name>;<id>;message'"/>    
+        <raise_lua_event 
+            name="'pipeWrite'" 
+            param="'<pipe_name>;<id>;<message>'"/>    
             
+        Example:
+        
+        <raise_lua_event 
+            name="'pipeWrite'" 
+            param="'myX4pipe;1234;hello'"/>
+        
     Optionally capture the response signal, indicating success or failure.
     
         <event_object_signalled 
             object="player.galaxy" 
             param="'pipeWrite_complete_<id>'"/>
     
-    The returned code is "ERROR" on an error, else "SUCCESS".
+    The returned status is "ERROR" on an error, else "SUCCESS".
     
-        <set_value name="$error" exact="event.param2" />
+        <set_value name="$status" exact="event.param2" />
         
         
     
-Check if pipes open:
-    Test if the pipe is open in a similar way to reading:
+Checking pipe status:
+
+    Test if the pipe is connected in a similar way to reading:
     
-        <raise_lua_event name="'pipeCheck'" param="'<pipe_name>'" />
+        <raise_lua_event name="'pipeCheck'" param="'<pipe_name>;<id>'" />
     
         <event_object_signalled 
             object="player.galaxy" 
-            param="'pipeCheck_complete_<pipe_name>'"/>
+            param="'pipeCheck_complete_<id>'"/>
             
-    In this case, event.param2 holds true if the pipe appears to be
-    succesfully opened, false if not. Note that this does not robustly
-    test the pipe.
-        
-        
-TODO: trim down these random thoughts, or move them; unnecessary now that
-api is largely done.
+    In this case, event.param2 holds SUCCESS if the pipe appears to be
+    succesfully opened, ERROR if not. Note that this does not robustly
+    test the pipe, only if the File is open, so it will report success
+    even if the server has disconnected if no operations have been
+    performed since that disconnect.
     
-Challenges:
-    A)  To avoid game lockup when a pipe is valid but not ready, eg. full when
-        writing or empty when reading, non-blocking logic is needed.
-        Note: with the pipe in message mode, it appears this code doesn't
-        need to worry about partially completed transfers (eg. if only 10
-        of 20 bytes were written), since operations should either succeed
-        completely or fail completely.
-        TODO: watch this.
-        
-    B)  Game may be saved during an operation.  This does not directly affect
-        the pipe state.  However, reloading such a save will have the MD
-        expecting accesses are being carried out, while this lua interface
-        has been completely reset (empty buffers, closed pipes).
-        A similar situation would occur on a /reloadui command.
-        
-        A reasonable goal would be for all interrupted accesses to be
-        flagged as failures, returning Error results upward.
-        However, identification of these failures is not trivial.
-        
-        Some example scenarios:
-        - MD made write request, the write hasn't been served yet,
-          or is only partially sent.
-        - MD made read request, similarly not serviced or partially complete.
-        - MD made 1+ serviced write requests and is expecting responses, but
-          has not yet posted the follup read requests, yet will do so soon.
-        - MD made write request, not yet served, and is expecting a response
-          and will post a read request soon.
-                  
-    Ideas:
-    1)  If the client (lua) pipe is closed for any reason, the server
-        should fully reset the pipe and service logic.
-        Eg. if the server received a request and hasn't yet sent the
-        response (waiting on compute or similar), that response should
-        be cancelled out and never sent.
-        
-    2)  Whenever a user posts a Write which is expected to trigger a server
-        response, for which the user posts a Read, this should be required
-        to instead be a single Transact event (or for both Write and Read
-        to be in the same frame).
-        This can avoid cases where the Write is posted, game saved/reloaded,
-        then Read posted, in which case the Write and server response were
-        lost, leaving the Read dangling.
-        If the Write/Read are posted together, the game cannot be saved in
-        this danger window.
-        
-    3)  Apply a unique ID to all pipe transactions (eg. 3-digit integer,
-        rollover at 1000, needing only 3 characters).
-        IDs can be shared across all open pipes for simplicity, as long
-        as rollover isn't expected to occur within a danger window of
-        any given pipe.
-        Messages are prefixed with this ID in a standard way.
-        
-        A transaction will be an x4->pipe write prefixed by this ID,
-        to be followed by a pipe->x4 read prefixed with a matched ID.
-        The server will be responsible for echoing this ID.
-        
-        The MD will handle these IDs.
-        Three basic user exposed operations:
-        - Write; no response expected; ID doesn't matter.
-        - Read; not following any prior write; ID doesn't matter.
-        - Transact; pairs a write and a read; ID is used here.
+    
+Close pipe:
 
-        If the user interfaces with a server that validates all written
-        values, this will be done through Transact events, where the
-        user can ignore or use read data as desired (eg. server may
-        send a 'success'/'error').
-        
-        The MD can maintain a record of expected read IDs, and will match
-        the received ID against that table to know which read request
-        has been serviced.
-        Table entries can time out with an Error if their ID not matched,
-        and IDs with no table match can be ignored (assumed to pair with
-        a timed out request).
-                
-    4)  MD api should support timeouts, so that an expected Read that
-        doesn't arrive within a window will be cancelled (md side, and
-        maybe lua side) with a returned error code.  If this Read later
-        arrives late, when the MD is trying to read something else,
-        it needs to be identified as unwanted and ignored.
-        
-    5)  The interface could be simplified by specifying that the entire
-        thing resets, and all pending accessed cancelled, on a savegame
-        reload or ui reload.
-        The lua code here can signal when this file is loaded (in init())
-        to the MD, plus the MD has access to game loadings.
-        
-        The MD doesn't need to signal anything to the lua in these cases,
-        since the lua already has had its state wiped, though some thought
-        is needed on how to safely reset the server in case it has a
-        transaction it is still servicing and will soon send back
-        a read response. That complexity is largely server-side, though.
+    Closing out a pipe has no callback.
     
+        <raise_lua_event name="'pipeClose'" param="'<pipe_name>'" />
     
-    Overall, (5) seems like the best approach overall, with some of (1)
-    for delayed reads.  (4) may not be needed if (2) is required, assuming
-    the server behaves properly.  (3) is overly complex and should be
-    avoided.
-    
+    This will close the File handle, and will force all pending reads
+    and writes to signal errors.
+        
+        
     
 TODO:
     Switch to DebugError printouts instead of using the chat window,
     except for basic connect/disconnect messages.
-
     
-Note:
-    The external pipe names are (with extra lua escape slashes):
-        "\\\\.\\pipe\\x4input"  (\\.\pipe\x4_input)
-        "\\\\.\\pipe\\x4output" (\\.\pipe\x4_output)
 ]]
 
 
--- Generic required ffi.
+-- Generic required ffi, to access C functions.
 local ffi = require("ffi")
 local C = ffi.C
 
 
--- This will use winpipe, based on winapi and trimmed down to just the
---  needed pipe functions.
+-- Load in the winpipe dll, which has been set up with the necessary
+-- Windows functions for working with pipes.
 local winpipe = require("winpipe")
 
 
@@ -219,18 +181,16 @@ local Test
 
 -- Match the style of egosoft lua, with a private table containing
 -- static variables.
--- For safety, most higher level state (transmit buffers and such) will
--- be kept at the MD level, to be recorded in saved games.
 local private = {
 
     --[[
     Pipe state objects, generally alive while the link is set up.
-    Keys are the basic pipe names sent from the MD side, with full path
+    Keys are the pipe names sent from the MD side, with full path
     extension.
     
-    Each entry is subtable with these fields:
+    Each entry is a subtable with these fields:
     * file
-      - File object to read/write/close
+      - File object to read/write/close.
     * retry_allowed
       - Bool, if a failed access is allowed one retry.
       - Set prior to an access attempt if the pipe was already open, but
@@ -239,14 +199,12 @@ local private = {
     * read_fifo
       - FIFO of callback IDs for read completions.
       - Callback ID is a string.
-      - Index 0 is next read to service.
       - Entries removed as reads complete.
-      - When empty, stop trying to read.
+      - When empty, stop trying to read this pipe.
     * write_fifo
       - FIFO of lists of [callback ID, message pending writing]
-      - Index 0 is the next write to service.
       - Entries removed as writes complete succesfully or fail completely.
-      - When empty, stop trying to write.
+      - When empty, stop trying to write this pipe.
     ]]
     pipes = { },
 
@@ -318,6 +276,70 @@ end
 -------------------------------------------------------------------------------
 -- Pipe management.
 
+
+-- Garbage collection functions for pipe files.
+--[[
+    Without this, if the ui is reloaded and a pipe client file handle lost,
+    the server still sees it as connected.
+    Hopefully by setting close() to be called at garbage collection, this
+    problem can be avoided.
+    
+    Lua notes: objects have metatables of implicit functions that get
+    called on them. To control garbage collection, a new metatable needs
+    to be set on the File with a __gc member that is the function to call.
+    But this is only 5.2 onward, and x4 is 5.1.
+    
+    Apparently lua 5.1 is even more of a mess about this.
+    https://stackoverflow.com/questions/27426704/lua-5-1-workaround-for-gc-metamethod-for-tables
+    Copy this function below, use it on the pipe table, and hope.
+    
+    In testing, this appears to gc the file 25 times?  But at least it appears
+    to have worked for ensuring file:close is called.
+    
+    Success: with this the python server now sees the pipe properly
+    closed on ui or game reload.
+]]
+
+local function Pipe_Garbage_Collection_Handler(pipe_table)
+    -- Verification message.
+    DebugError("Pipe being garbage collected.")
+    -- Try to close out the file.
+    if pipe_table.file ~= nil then
+        -- TODO: repeated code with elsewhere; reuse.
+        success, message = pcall(function () pipe_table.file:close() end)
+        if not success then
+            DebugError("Failed to close pipe file with error: "..message)
+        end
+    end
+end
+
+
+-- Call this function when the file is created to set up GC on it.
+local function Attach_Pipe_Table_GC(pipe_table)
+  
+    -- Don't want to overwrite existing meta stuff, but need to use
+    -- setmetatable else the gc function won't be registered, so aim
+    -- to edit the existing metatable.
+    local new_metatable = {}
+    -- Maybe not needed; tables apparently dont have default metatables.
+    --for key, value in pairs(getmetatable(pipe_table)) do
+    --    new_metatable[key] = value
+    --end
+        
+    -- Overwrite with the custom function.    
+    new_metatable.__gc = Pipe_Garbage_Collection_Handler
+    
+    -- From stackoverflow, adjusted names.
+    -- Not 100% clear on what this is doing.
+    local prox = newproxy(true)
+    getmetatable(prox).__gc = function() new_metatable.__gc(pipe_table) end
+    pipe_table[prox] = true
+    setmetatable(pipe_table, new_metatable)
+    
+end
+        
+
+
 -- Declare a pipe, setting up its initial data structure.
 -- This does not attempt to open the pipe or validate it.
 function Declare_Pipe(pipe_name)
@@ -330,6 +352,9 @@ function Declare_Pipe(pipe_name)
             read_fifo  = FIFO.new()
         }
     end
+        
+    -- Attach the garbage collector function.
+    Attach_Pipe_Table_GC(private.pipes[pipe_name])
 end
 
 
@@ -343,7 +368,8 @@ end
 -- try to reopen it.
 function Connect_Pipe(pipe_name)
 
-    -- Assume the pipe has been declared, and state data available.
+    -- If the pipe not yet declared, declare it.
+    Declare_Pipe(pipe_name)
 
     -- Check if a file is not open.
     if private.pipes[pipe_name].file == nil then
@@ -360,7 +386,8 @@ function Connect_Pipe(pipe_name)
         end
             
         -- Announce to the server that x4 just connected.
-        -- TODO
+        -- Removed; depends on server protocol, and MD can send this signal
+        -- if needed for a particular server.
         -- private.pipes[pipe_name].file:write('connected\n')
         
         -- Debug print.
@@ -377,14 +404,18 @@ function Connect_Pipe(pipe_name)
     --  ideally occur on every test. Also, it may cause a data ordering
     --  problem when the user requests a read.
     -- For now, just hope things work out if the file opened, and check for
-    --  errors in the Read/Write functions.    
+    --  errors in the Read/Write functions.
 end
 
 
 -- Close a pipe file.
 function Disconnect_Pipe(pipe_name)
     -- Do a safe file close() attempt, ignoring errors.
-    pcall(function () private.pipes[pipe_name].file.close() end)
+    -- TODO: does this need an anon function around it?
+    success, message = pcall(function () private.pipes[pipe_name].file:close() end)
+    if not success then
+        DebugError("Failed to close pipe file with error: "..message)
+    end
     -- Unlink from the file entirely.
     private.pipes[pipe_name].file = nil
     CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
@@ -434,7 +465,8 @@ function Split_String(this_string)
     -- Get the position of the separator.
     local position = string.find(this_string, ";")
     if position == nil then
-        -- TODO: error in message construction.
+        DebugError("No ; separator found in: "..this_string)
+        error("Bad separator")
     end
 
     -- Split into pre- and post- separator strings.
@@ -532,15 +564,27 @@ end
 
 
 -- MD interface: check if a pipe is connected.
-function Handle_pipeCheck(pipe_name)
+-- While id isn't important for this, it is included for interface
+-- consistency and code reuse in the MD.
+function Handle_pipeCheck(_, pipe_name_id)
+    -- Use find/sub for splitting instead.
+    local pipe_name, access_id = Split_String(pipe_name_id)
+    
     local success = pcall(Connect_Pipe, pipe_name)
-    Raise_Signal('pipeCheck_complete_pipe_name', success)
+    -- Translate to strings that match read/write returns.
+    local message
+    if success then
+        message = "SUCCESS"
+    else
+        message = "ERROR"
+    end
+    Raise_Signal('pipeCheck_complete_'..access_id, message)
 end
 
 
 -- MD interface: close a pipe.
 -- This will not signal back, for now.
-function Handle_pipeClose(pipe_name)
+function Handle_pipeClose(_, pipe_name)
     Close_Pipe(pipe_name)
 end
 
@@ -580,14 +624,14 @@ function Poll_For_Reads()
                     -- Obtained a message.
                 
                     -- Grab the read_id out of the fifo.
-                    local read_id = FIFO.Read(state.read_fifo)
+                    local access_id = FIFO.Read(state.read_fifo)
                     
                     -- Debug print.
                     CallEventScripts("directChatMessageReceived", pipe_name..";Read: "..message_or_nil)                
                     
                     -- Signal the MD with message return the data, suffixing
                     -- the signal name with the id.
-                    Raise_Signal('pipeRead_complete_'..read_id, message_or_nil)
+                    Raise_Signal('pipeRead_complete_'..access_id, message_or_nil)
                     
                 else
                     -- Pipe is empty.
@@ -785,10 +829,18 @@ function _Write_Pipe_Raw(pipe_name, message)
         -- TODO: what is the actual error code for this?
         --  Maybe ERROR_PIPE_BUSY ?
         -- Note: gets ERROR_NO_DATA if the server disconnected.
-        if winpipe.GetLastError() == winpipe.ERROR_IO_PENDING then
-            -- Pipe is full. Want to wait a while.
-            return false
-        else
+        -- In testing, also gets ERROR_NO_DATA if the pipe doesn't have room
+        -- currently.
+        -- If the pipe doesn't have enough buffer for the message, the
+        -- error code is oddly 0, which isn't helpful, but that case shouldn't
+        -- come up with a healthy buffer size (eg. 65k).
+        -- Overall, there is no apparent way to know if a pipe is full or
+        -- broken, so no way to support waiting for a full pipe to empty.
+        -- Any error will be treated as a hard error for now.
+        --if winpipe.GetLastError() == winpipe.ERROR_IO_PENDING then
+        --    -- Pipe is full. Want to wait a while.
+        --    return false
+        --else
             -- Something else went wrong.
             -- Raise an error in this case.
             CallEventScripts("directChatMessageReceived", pipe_name..";write failure")
@@ -796,7 +848,7 @@ function _Write_Pipe_Raw(pipe_name, message)
             -- Always disconnect the pipe in this case; assume unrecoverable.
             Disconnect_Pipe(pipe_name)
             error("write failed")
-        end
+        --end
     end
     
     -- If here, write was succesful.
@@ -894,6 +946,109 @@ Init()
 
 -- TODO: consider exporting functions for other lua modules.
 
+
+-- Random thoughts when overhauling the design:
+--[[
+    
+Challenges:
+    A)  To avoid game lockup when a pipe is valid but not ready, eg. full when
+        writing or empty when reading, non-blocking logic is needed.
+        Note: with the pipe in message mode, it appears this code doesn't
+        need to worry about partially completed transfers (eg. if only 10
+        of 20 bytes were written), since operations should either succeed
+        completely or fail completely.
+        TODO: watch this.
+        
+    B)  Game may be saved during an operation.  This does not directly affect
+        the pipe state.  However, reloading such a save will have the MD
+        expecting accesses are being carried out, while this lua interface
+        has been completely reset (empty buffers, closed pipes).
+        A similar situation would occur on a /reloadui command.
+        
+        A reasonable goal would be for all interrupted accesses to be
+        flagged as failures, returning Error results upward.
+        However, identification of these failures is not trivial.
+        
+        Some example scenarios:
+        - MD made write request, the write hasn't been served yet,
+          or is only partially sent.
+        - MD made read request, similarly not serviced or partially complete.
+        - MD made 1+ serviced write requests and is expecting responses, but
+          has not yet posted the follup read requests, yet will do so soon.
+        - MD made write request, not yet served, and is expecting a response
+          and will post a read request soon.
+                  
+    Ideas:
+    1)  If the client (lua) pipe is closed for any reason, the server
+        should fully reset the pipe and service logic.
+        Eg. if the server received a request and hasn't yet sent the
+        response (waiting on compute or similar), that response should
+        be cancelled out and never sent.
+        
+    2)  Whenever a user posts a Write which is expected to trigger a server
+        response, for which the user posts a Read, this should be required
+        to instead be a single Transact event (or for both Write and Read
+        to be in the same frame).
+        This can avoid cases where the Write is posted, game saved/reloaded,
+        then Read posted, in which case the Write and server response were
+        lost, leaving the Read dangling.
+        If the Write/Read are posted together, the game cannot be saved in
+        this danger window.
+        
+    3)  Apply a unique ID to all pipe transactions (eg. 3-digit integer,
+        rollover at 1000, needing only 3 characters).
+        IDs can be shared across all open pipes for simplicity, as long
+        as rollover isn't expected to occur within a danger window of
+        any given pipe.
+        Messages are prefixed with this ID in a standard way.
+        
+        A transaction will be an x4->pipe write prefixed by this ID,
+        to be followed by a pipe->x4 read prefixed with a matched ID.
+        The server will be responsible for echoing this ID.
+        
+        The MD will handle these IDs.
+        Three basic user exposed operations:
+        - Write; no response expected; ID doesn't matter.
+        - Read; not following any prior write; ID doesn't matter.
+        - Transact; pairs a write and a read; ID is used here.
+
+        If the user interfaces with a server that validates all written
+        values, this will be done through Transact events, where the
+        user can ignore or use read data as desired (eg. server may
+        send a 'success'/'error').
+        
+        The MD can maintain a record of expected read IDs, and will match
+        the received ID against that table to know which read request
+        has been serviced.
+        Table entries can time out with an Error if their ID not matched,
+        and IDs with no table match can be ignored (assumed to pair with
+        a timed out request).
+                
+    4)  MD api should support timeouts, so that an expected Read that
+        doesn't arrive within a window will be cancelled (md side, and
+        maybe lua side) with a returned error code.  If this Read later
+        arrives late, when the MD is trying to read something else,
+        it needs to be identified as unwanted and ignored.
+        
+    5)  The interface could be simplified by specifying that the entire
+        thing resets, and all pending accessed cancelled, on a savegame
+        reload or ui reload.
+        The lua code here can signal when this file is loaded (in init())
+        to the MD, plus the MD has access to game loadings.
+        
+        The MD doesn't need to signal anything to the lua in these cases,
+        since the lua already has had its state wiped, though some thought
+        is needed on how to safely reset the server in case it has a
+        transaction it is still servicing and will soon send back
+        a read response. That complexity is largely server-side, though.
+    
+    
+    Overall, (5) seems like the best approach overall, with some of (1)
+    for delayed reads.  (4) may not be needed if (2) is required, assuming
+    the server behaves properly.  (3) is overly complex and should be
+    avoided.
+    
+]]
 
 --[[
 A couple old, quick winapi tests.
