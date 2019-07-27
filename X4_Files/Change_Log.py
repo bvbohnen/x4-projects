@@ -20,6 +20,9 @@ Change Log
   - Timeouts are a work in progress, and are disabled by default.
 * 0.4
   - Timeouts working, plus some general debug and refinement.
+* 0.5
+  - Added workaround for lua garbage collection not closing pipe files.
+  - General debug.
 '''
 
 def Get_Version():

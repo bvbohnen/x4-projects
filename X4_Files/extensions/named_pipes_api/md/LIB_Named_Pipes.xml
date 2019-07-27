@@ -40,6 +40,10 @@ Note on timeouts:
   - This is intentional, so that if the server is behaving correctly but
     tardy, writes and reads will still get serviced in the correct
     order.
+    
+TODO:
+  - Test through multiple save/reloads.
+  - Add Transact function (convenient write+read, lower overhead).
 -->
 <cues>
 
@@ -74,19 +78,8 @@ Note on timeouts:
     * $pipe_name_prefix
       - String, prefix to add to all pipe names to construct the OS path.
       - On windows, this is "\\.\pipe\"
-  -->
-  <library name="Reset_Globals">
-    <actions>
-      <!-- Counter reset is optional, but include for init. -->
-      <set_value name="$access_counter" exact="0"/>
-      <!-- Prefix to add to all pipe names. -->
-      <set_value name="$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
-      <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
-      <set_value name="$DebugChance" exact="100" />
-    </actions>
-  </library>
-  
-  <cue name="Pipe_Manager">  
+  -->  
+  <cue name="Globals">
     <!-- When first created, set up globals. -->
     <actions>
       <include_actions ref="Reset_Globals"/>
@@ -105,7 +98,18 @@ Note on timeouts:
         </actions>
       </cue> <!-- end Reset_On_Lua_Reload -->
     </cues>
-  </cue> <!-- end Pipe_Manager -->
+  </cue> <!-- end Globals -->
+  <!-- TODO: can this lib be put into the cues list above? -->
+  <library name="Reset_Globals">
+    <actions>
+      <!-- Counter reset is optional, but include for init. -->
+      <set_value name="$access_counter" exact="0"/>
+      <!-- Prefix to add to all pipe names. -->
+      <set_value name="$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
+      <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
+      <set_value name="$DebugChance" exact="100" />
+    </actions>
+  </library>
   
     
   
@@ -123,15 +127,14 @@ Note on timeouts:
   <library name="Get_Next_Access_ID">
     <actions>
       <!-- Inc with rollover. -->
-      <set_value name="Pipe_Manager.$access_counter" exact="Pipe_Manager.$access_counter + 1"/>
-      <do_if value="Pipe_Manager.$access_counter >= 10000">
-        <set_value name="Pipe_Manager.$access_counter" exact="0"/>
+      <set_value name="Globals.$access_counter" exact="Globals.$access_counter + 1"/>
+      <do_if value="Globals.$access_counter >= 10000">
+        <set_value name="Globals.$access_counter" exact="0"/>
       </do_if>
       <!-- Assign the new count to the access_id, as a string. -->
-      <set_value name="$access_id" exact="'' + Pipe_Manager.$access_counter"/>
+      <set_value name="$access_id" exact="'' + Globals.$access_counter"/>
     </actions>
   </library>
-  
   
   
   <!--
@@ -158,9 +161,45 @@ Note on timeouts:
       <debug_text text="'LIB_Named_Pipes: %s closing if open.'.[@event.param, @$command]" chance="$DebugChance"/>
       <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ event.param + ' closing if open.'"/> -->
       <!-- Just need to send down the pipe name. -->
-      <raise_lua_event name="'pipeClose'" param="Pipe_Manager.$pipe_name_prefix + event.param"/>
+      <raise_lua_event name="'pipeClose'" param="Globals.$pipe_name_prefix + event.param"/>
     </actions>
   </cue> <!-- end Close -->
+    
+  
+  <!--
+    User function to check if a pipe is connected to a server, making
+    the connection if needed.
+    Note: if a pipe was connected in the past but the server has since closed,
+    and no other operations have been attempted in the meantime, this
+    function will report the pipe as still connected.
+    Note: this may return prior to following writes or reads.
+    Called through signal_cue_instantly.
+    
+    Args:
+      param  : Table with the following items:
+        pipe : Name of the pipe being checked, without OS path prefix.
+        cue  : Callback, the cue to call when the check completes.
+      
+    Returns:
+      Value is is sent as event.param to the callback cue.
+      Checks receive 'SUCCESS' or 'ERROR'.
+    
+    Usage example:
+      <signal_cue_instantly name="md.LIB_Named_Pipes.Write" 
+        param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback, $time=5s]">
+  -->
+  <cue name="Check" instantiate="true">
+    <!-- Activate only when signalled; no extra filters.-->
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <!-- Add the command to the param table, and pass it along. -->
+      <set_value name="event.param.{'$command'}" exact="'Check'" />
+      <signal_cue_instantly cue="Access_Handler" param="event.param"/>
+    </actions>
+  </cue> <!-- end Check -->
+  
   
   
   <!--
@@ -247,6 +286,8 @@ Note on timeouts:
     Start a new pipe access.
     Primarily for internal use.
     Shared by Read and Write operations.
+    Also used by Check, mainly for the callback handling, though checks
+    don't use timeout meaningfully.
     
     Args:
       param  : Table with the following possible items:
@@ -271,7 +312,7 @@ Note on timeouts:
       
     Returns:
       Value is is sent as event.param to the callback cue.
-        Writes receive 'SUCCESS' or 'ERROR'.
+        Writes and Checks receive 'SUCCESS' or 'ERROR'.
         Reads receive pipe response or 'ERROR'.
   -->
   <cue name="Access_Handler" instantiate="true" namespace="this">
@@ -282,7 +323,7 @@ Note on timeouts:
     
     <actions>
       <!-- Copy debug printout setting to this namespace for lookups. -->
-      <set_value name="$DebugChance" exact="Pipe_Manager.$DebugChance" />
+      <set_value name="$DebugChance" exact="Globals.$DebugChance" />
       
       <!-- Parse inputs. Record some stuff for subcues. -->
       <set_value name="$pipe_name"    exact="event.param.{'$pipe'}" />
@@ -325,15 +366,23 @@ Note on timeouts:
         <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' writing: ' + $message"/> -->
         <!--Trigger the lua handler.
             Awakwardly, this only accepts one param, so the pipename, id, and message
-            need to be squished together. -->
-        <raise_lua_event name="'pipeWrite'" param="Pipe_Manager.$pipe_name_prefix + $pipe_name + ';' + $access_id + ';' + $message"/>
+            need to be squished together.
+            TODO: maybe code reuse on the first part of string construction. -->
+        <raise_lua_event name="'pipeWrite'" param="Globals.$pipe_name_prefix + $pipe_name + ';' + $access_id + ';' + $message"/>
       </do_if>
       
       <do_if value="$command == 'Read'">
         <!-- Debug announcement. -->
         <debug_text text="'LIB_Named_Pipes: %s read started'.[@$pipe_name]" chance="$DebugChance"/>
         <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' read started'"/> -->
-        <raise_lua_event name="'pipeRead'" param="Pipe_Manager.$pipe_name_prefix + $pipe_name + ';' + $access_id"/>
+        <raise_lua_event name="'pipeRead'" param="Globals.$pipe_name_prefix + $pipe_name + ';' + $access_id"/>
+      </do_if>
+      
+      <do_if value="$command == 'Check'">
+        <!-- Debug announcement. -->
+        <debug_text text="'LIB_Named_Pipes: %s check started'.[@$pipe_name]" chance="$DebugChance"/>
+        <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' read started'"/> -->
+        <raise_lua_event name="'pipeCheck'" param="Globals.$pipe_name_prefix + $pipe_name + ';' + $access_id"/>
       </do_if>
       
     </actions>
