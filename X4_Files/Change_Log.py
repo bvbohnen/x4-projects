@@ -23,6 +23,11 @@ Change Log
 * 0.5
   - Added workaround for lua garbage collection not closing pipe files.
   - General debug.
+* 0.6
+  - Slight debug to prevent excess garbage collection on pipes.
+  - Reorganization of python test server setup, for scalability to
+    running user provided subservers, and to support auto-restart
+    when x4 reloads.
 '''
 
 def Get_Version():

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{ea6dd6ee-64b2-4ea4-a002-17495bf8a5ad}</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Test.py</StartupFile>
+    <StartupFile>Main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,16 +21,42 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Launcher.py" />
-    <Compile Include="Log_Reader.py">
+    <Compile Include="Old\Launcher.py" />
+    <Compile Include="Classes\Log_Reader.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Test.py">
+    <Compile Include="Main.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Servers\Send_Keys.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Classes\Server_Thread.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Servers\Test1.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Servers\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Classes\Pipe.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Classes\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Old\Test.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Old\" />
+    <Folder Include="Servers\" />
+    <Folder Include="Classes\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
