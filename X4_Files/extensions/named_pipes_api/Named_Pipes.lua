@@ -252,6 +252,14 @@ end
 
 -- Handle initial setup.
 function Init()
+    -- Force lua to garbage collect.
+    -- There may have been a File opened to a prior pipe which hasn't been
+    -- GC'd yet, so the server won't yet know to reboot. New requests will
+    -- then fail to be able to open a new pipe.
+    -- By GC'ing here, the old File should close properly and the server
+    -- can restart quicker.
+    collectgarbage()
+
     -- Connect the events to the matching functions.
     RegisterEvent("pipeRead", Handle_pipeRead)
     RegisterEvent("pipeWrite", Handle_pipeWrite)
@@ -292,12 +300,11 @@ end
     Apparently lua 5.1 is even more of a mess about this.
     https://stackoverflow.com/questions/27426704/lua-5-1-workaround-for-gc-metamethod-for-tables
     Copy this function below, use it on the pipe table, and hope.
-    
-    In testing, this appears to gc the file 25 times?  But at least it appears
-    to have worked for ensuring file:close is called.
-    
+        
     Success: with this the python server now sees the pipe properly
-    closed on ui or game reload.
+    closed on ui or game reload, though potentially with some delay
+    that can be potentially fixed by forcing collectgarbage on
+    a ui reload.
 ]]
 
 local function Pipe_Garbage_Collection_Handler(pipe_table)
@@ -351,10 +358,16 @@ function Declare_Pipe(pipe_name)
             write_fifo = FIFO.new(),
             read_fifo  = FIFO.new()
         }
-    end
         
-    -- Attach the garbage collector function.
-    Attach_Pipe_Table_GC(private.pipes[pipe_name])
+        -- Attach the garbage collector function.
+        -- TODO: this used to be outside the if/then, but triggered GC
+        --  many times (once for each Declare_Pipe call?). However, when
+        --  this was first moved inside, x4 started crashing on reloadui,
+        --  but that problem didn't persist.
+        --  This may need a revisit in the future if crashes return.
+        Attach_Pipe_Table_GC(private.pipes[pipe_name])
+    end
+           
 end
 
 
@@ -409,16 +422,19 @@ end
 
 
 -- Close a pipe file.
+-- If the file isn't open, this does nothing.
 function Disconnect_Pipe(pipe_name)
-    -- Do a safe file close() attempt, ignoring errors.
-    -- TODO: does this need an anon function around it?
-    success, message = pcall(function () private.pipes[pipe_name].file:close() end)
-    if not success then
-        DebugError("Failed to close pipe file with error: "..message)
+    if private.pipes[pipe_name].file ~= nil then
+        -- Do a safe file close() attempt, ignoring errors.
+        -- TODO: does this need an anon function around it?
+        success, message = pcall(function () private.pipes[pipe_name].file:close() end)
+        if not success then
+            DebugError("Failed to close pipe file with error: "..message)
+        end
+        -- Unlink from the file entirely.
+        private.pipes[pipe_name].file = nil
+        CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
     end
-    -- Unlink from the file entirely.
-    private.pipes[pipe_name].file = nil
-    CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
 end
 
 
