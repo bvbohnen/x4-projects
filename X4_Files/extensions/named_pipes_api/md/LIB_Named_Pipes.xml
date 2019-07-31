@@ -165,6 +165,26 @@ TODO:
     </actions>
   </cue> <!-- end Close -->
     
+    
+  <!-- Set the pipe to suppress reads when paused. -->
+  <cue name="Suppress_Paused_Reads" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <raise_lua_event name="'pipeSuppressPausedReads'" param="Globals.$pipe_name_prefix + event.param"/>
+    </actions>
+  </cue>
+  
+  <!-- Set the pipe to no longer suppress reads when paused. -->
+  <cue name="Unsuppress_Paused_Reads" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <raise_lua_event name="'pipeUnsuppressPausedReads'" param="Globals.$pipe_name_prefix + event.param"/>
+    </actions>
+  </cue>
   
   <!--
     User function to check if a pipe is connected to a server, making

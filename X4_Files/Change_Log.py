@@ -31,6 +31,8 @@ Change Log
 * 0.7
   - Added key_capture_api and related python server code, for capturing
     key/combo presses and linking them to cues.
+* 0.71
+  - Debug on key capture api.
 '''
 
 def Get_Version():
