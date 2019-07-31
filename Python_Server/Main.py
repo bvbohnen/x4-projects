@@ -13,6 +13,7 @@ if str(home_path) not in sys.path:
     sys.path.append(str(home_path))
     
 from Python_Server.Servers import Test1
+from Python_Server.Servers import Send_Keys
 from Python_Server.Classes import Server_Thread
 
 
@@ -27,7 +28,8 @@ def Main():
     # Start all server threads.
     # Just a test for now.
     threads = [
-        Server_Thread(Test1.main)
+        Server_Thread(Test1.main),
+        Server_Thread(Send_Keys.main),
     ]
     # Wait for them all to finish.
     for thread in threads:

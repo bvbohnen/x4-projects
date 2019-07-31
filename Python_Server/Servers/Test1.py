@@ -1,6 +1,7 @@
 
 # TODO: generic import suitable to dynamicly imported modules.
-from ..Classes import Pipe
+# TODO: x4 model using Pipe_Client (can take/edit from Old/Test.py).
+from ..Classes import Pipe_Server, Pipe_Client
 
 def main():
     '''
@@ -14,7 +15,12 @@ def main():
         "read:[food]"      returns "bard" to x4
     '''
     # Set up the pipe and connect to x4.
-    pipe = Pipe('x4_pipe')
+    pipe = Pipe_Server('x4_pipe')
+
+    # TODO: set up python reference client model.
+
+    # Wait for client.
+    pipe.Connect()
     
     # These will be read/write transactions to a data table, stored here.
     data_store = {}
@@ -58,7 +64,7 @@ def main():
 
             # Pipe the response back.
             # Note: data is binary in the pipe, but treated as string in lua,
-            # plua lua apparently has no integers (just doubles), but does have
+            # plus lua apparently has no integers (just doubles), but does have
             # string pack/unpack functions.
             # Anyway, it is easiest to make strings canonical for this, for now.
             # TODO: consider passing some sort of format specifier so the

@@ -158,7 +158,7 @@ TODO:
       <event_cue_signalled/>
     </conditions>    
     <actions>
-      <debug_text text="'LIB_Named_Pipes: %s closing if open.'.[@event.param, @$command]" chance="$DebugChance"/>
+      <debug_text text="'LIB_Named_Pipes: %s closing if open.'.[event.param, $command]" chance="$DebugChance"/>
       <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ event.param + ' closing if open.'"/> -->
       <!-- Just need to send down the pipe name. -->
       <raise_lua_event name="'pipeClose'" param="Globals.$pipe_name_prefix + event.param"/>
@@ -247,7 +247,8 @@ TODO:
       
     Returns:
       Whatever is read from the pipe in event.param to the callback cue.
-      If the read fails for some reason, this will be an 'ERROR' string.
+      If the read fails on bad pipe or game reload, returns 'ERROR'.
+      If the read times out, returns 'TIMEOUT'.
     
     Usage example:
       <signal_cue_instantly name="md.LIB_Named_Pipes.Read" 
@@ -263,6 +264,9 @@ TODO:
           <do_if value="$read_result == 'ERROR'">
             <stuff to do on pipe error>
           </do_if>
+          <do_elseif value="$read_result == 'TIMEOUT'">
+            <stuff to do on pipe timeout>
+          </do_elseif>
           <do_else>
             <stuff to do on read success>
           </do_else>
@@ -303,7 +307,7 @@ TODO:
         - Optional for writes.
       * time
         - Time, how long to allow for access before cancelling it.
-        - A timeout will trigger an 'ERROR' return value to the callback cue.
+        - A timeout will trigger an 'TIMEOUT' return value to the callback cue.
         - Optional.
         - Defaults to 10s.
         - Note: timeout kills this access cue, but does not prevent the lua
@@ -313,7 +317,7 @@ TODO:
     Returns:
       Value is is sent as event.param to the callback cue.
         Writes and Checks receive 'SUCCESS' or 'ERROR'.
-        Reads receive pipe response or 'ERROR'.
+        Reads receive pipe response or 'ERROR' or 'TIMEOUT'.
   -->
   <cue name="Access_Handler" instantiate="true" namespace="this">
     <!-- Activate only when signalled; no extra filters.-->
@@ -484,7 +488,7 @@ TODO:
           <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ $pipe_name +' '+$command+' timed out' "/> -->
                     
           <!-- Set the return value as ERROR. -->
-          <set_value name="$response" exact="'ERROR'" />
+          <set_value name="$response" exact="'TIMEOUT'" />
           
           <!-- Handle the callback. -->
           <include_actions ref="Complete_Access"/>
