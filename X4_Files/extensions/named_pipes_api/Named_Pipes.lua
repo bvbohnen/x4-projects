@@ -132,6 +132,11 @@ Close pipe:
     This will close the File handle, and will force all pending reads
     and writes to signal errors.
         
+      
+Set a pipe to ignore reads during a pause:
+    <raise_lua_event name="'pipeSuppressPausedReads'" param="'<pipe_name>'" />
+Undo this with:
+    <raise_lua_event name="'pipeUnsuppressPausedReads'" param="'<pipe_name>'" />
         
     
 TODO:
@@ -147,6 +152,9 @@ TODO:
 -- Generic required ffi, to access C functions.
 local ffi = require("ffi")
 local C = ffi.C
+ffi.cdef[[
+	bool IsGamePaused(void);
+]]
 
 
 -- Load in the winpipe dll, which has been set up with the necessary
@@ -170,6 +178,8 @@ local Handle_pipeWrite
 local Schedule_Write
 local Handle_pipeCheck
 local Handle_pipeClose
+local Handle_pipeSuppressPausedReads
+local Handle_pipeUnsuppressPausedReads
 
 local Poll_For_Reads
 local Poll_For_Writes
@@ -199,6 +209,8 @@ local private = {
       - Set prior to an access attempt if the pipe was already open, but
         is not known to be still connected.
       - On a retry attempt, this flag should be cleared.
+    * suppress_reads_when_paused
+      - Bool, if true then messages read during a game pause are thrown away.
     * read_fifo
       - FIFO of callback IDs for read completions.
       - Callback ID is a string.
@@ -273,6 +285,9 @@ function Init()
     RegisterEvent("pipeWrite", Handle_pipeWrite)
     RegisterEvent("pipeCheck", Handle_pipeCheck)
     RegisterEvent("pipeClose", Handle_pipeClose)
+    RegisterEvent("pipeSuppressPausedReads", Handle_pipeSuppressPausedReads)
+    RegisterEvent("pipeUnsuppressPausedReads", Handle_pipeUnsuppressPausedReads)
+        
         
     -- Signal to MD that the lua has reloaded.
     Raise_Signal('lua_named_pipe_api_loaded')
@@ -368,6 +383,7 @@ function Declare_Pipe(pipe_name)
         private.pipes[pipe_name] = {
             file = nil,
             retry_allowed = false,
+            suppress_reads_when_paused = false,
             write_fifo = FIFO.new(),
             read_fifo  = FIFO.new()
         }
@@ -629,6 +645,18 @@ function Handle_pipeClose(_, pipe_name)
     Close_Pipe(pipe_name)
 end
 
+-- MD interface: flag a pipe to suppress paused reads.
+function Handle_pipeSuppressPausedReads(_, pipe_name)
+    -- Make sure the pipe is declared already.
+    Declare_Pipe(pipe_name)
+    private.pipes[pipe_name].suppress_reads_when_paused = true
+end
+
+function Handle_pipeUnsuppressPausedReads(_, pipe_name)
+    -- Make sure the pipe is declared already.
+    Declare_Pipe(pipe_name)
+    private.pipes[pipe_name].suppress_reads_when_paused = false
+end
 
 
 -------------------------------------------------------------------------------
@@ -672,9 +700,16 @@ function Poll_For_Reads()
                         CallEventScripts("directChatMessageReceived", pipe_name..";Read: "..message_or_nil)
                     end
                     
-                    -- Signal the MD with message return the data, suffixing
-                    -- the signal name with the id.
-                    Raise_Signal('pipeRead_complete_'..access_id, message_or_nil)
+                    -- Maybe ignore this if paused.
+                    if state.suppress_reads_when_paused and C.IsGamePaused() then
+                        -- Do nothing.
+                        -- TODO: an option to Ack the read to the pipe automatically,
+                        --  since md cannot do it in this case.
+                    else
+                        -- Signal the MD with message return the data, suffixing
+                        -- the signal name with the id.
+                        Raise_Signal('pipeRead_complete_'..access_id, message_or_nil)
+                    end                    
                     
                 else
                     -- Pipe is empty.

@@ -112,13 +112,10 @@ def main():
     # List of keys being recorded.
     # TODO: delete when combo support finished.
     keys_to_record = set()
-
-    # List of x4 requested key combos.
-    # Each entry is a tuple of (original x4 strings representing a combo,
-    # list of pynput Key and KeyCode objects).
-    # The earlier pynput list keys need to be in a pressed state when the
-    # last key in the list is pressed to trigger a match.
-    combo_specs_to_record = []
+    
+    # See comments on this elsewhere.
+    # Setting a default to make sure this is known.
+    categorized_combo_specs = defaultdict(list)
 
     # Set of keys (Key or KeyCode) in a pressed state.
     # Updated when key_buffer is processed.
@@ -163,12 +160,7 @@ def main():
         on_release = Buffer_Releases)
     listener.start()
 
-
-
-    # TODO: how to buffer, how to avoid stale items in buffer (eg. buffer
-    # isn't serviced when game is paused, so don't overflow and maybe
-    # try to prune old presses), etc.
-
+    
     # Note: x4 will sometimes send non-ack messages to the pipe, and there
     # is no way to know when they will arrive other than testing it.
     # This cannot be done in one thread with blocking Reads/Writes.
@@ -209,6 +201,8 @@ def main():
                 pass
 
             # Acks will update the piped keys counter.
+            # TODO: think about how to make more robust; really want a
+            # way to sample the client pipe fill.
             elif message == 'ack':
                 keys_piped -= 1
 
@@ -247,10 +241,12 @@ def main():
             for combo in matched_combos:
                 # Only go up to the max that can be piped at once.
                 if keys_piped >= max_keys_piped:
+                    print('Suppressing combo; max pipe reached.')
                     break
 
-                # Prefix with a '$' to match x4-side table keys.
-                combo = '$' + combo
+                # Transmit to x4.
+                # Note: this doesn't put the '$' back for now, since that
+                # is easier to add in x4 than remove afterwards.
                 print('Sending: ' + combo)
                 pipe.Write(combo)
                 keys_piped += 1
@@ -305,6 +301,7 @@ def Update_Combos(message):
     # For variants of modifier keys, encode into an integer category label.
     categorized_combo_specs = defaultdict(list)
     for combo_spec in combo_specs:
+
         # Category code; starts at 0, gets bits set.
         category = 0
         # Check each modifier.
@@ -312,6 +309,7 @@ def Update_Combos(message):
             if mod_key in combo_spec[1]:
                 # Set a bit for this position.
                 category += (1 << index)
+
         # Add this combo to the dict.
         categorized_combo_specs[category].append(combo_spec)
 
@@ -356,10 +354,12 @@ def Compile_Combo(combo_string):
     combo_list = [[]]
     for name in combo:
         if name in ['shift','alt','ctrl']:
+
             # Triplicate all groups.
             bare_combos = combo_list
             l_combos = copy.deepcopy(combo_list)
             r_combos = copy.deepcopy(combo_list)
+
             # Add uniquified names.
             # Left, right, and unsuffixed versions are kept.
             for groups, suffix in zip([bare_combos, l_combos, r_combos], ['','_l','_r']):
@@ -367,6 +367,7 @@ def Compile_Combo(combo_string):
                     group.append(name + suffix)
             # Stick the new groups together again.
             combo_list = bare_combos + l_combos + r_combos
+
         else:
             # Add the name to all groups.
             for group in combo_list:
@@ -381,7 +382,6 @@ def Compile_Combo(combo_string):
     
         # Set up a list for these keys, and add to the list of combos.
         encoded_combo = []
-        encoded_combo_list.append(encoded_combo)
     
         # Map to Key and KeyCode objects.
         for key_name in combo:
@@ -407,6 +407,12 @@ def Compile_Combo(combo_string):
                 key = getattr(keyboard.Key, key_name).value.vk
     
             encoded_combo.append(key)
+            
+        # It is possible this encoded_combo is already present, due
+        #  to modifier keycode aliasing.
+        # Only record the new combo if unique.
+        if not any(encoded_combo == x for x in encoded_combo_list):
+            encoded_combo_list.append(encoded_combo)
             
     return encoded_combo_list
 
@@ -473,6 +479,8 @@ def Process_Key_Events(key_buffer, keys_down, categorized_combo_specs):
                 if mod_key in keys_down:
                     # Add a 1-hot bit.
                     category += (1 << index)
+
+            print('Keys down: {}'.format(keys_down))
 
             # Use the appropriate combo category, to filter out those
             # that don't match the modifiers held.
