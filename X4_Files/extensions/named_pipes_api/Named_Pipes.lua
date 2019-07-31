@@ -138,6 +138,9 @@ TODO:
     Switch to DebugError printouts instead of using the chat window,
     except for basic connect/disconnect messages.
     
+    Add api hooks for other lua functions, instead of requiring callbacks
+    to be MD signals always.
+    
 ]]
 
 
@@ -212,6 +215,11 @@ local private = {
     -- to run each frame or not.
     write_polling_active = false,
     read_polling_active  = false,
+    
+    -- If extra status messages should print to the chat window.
+    print_to_chat = false,
+    -- If status messages should print to the debuglog.
+    print_to_log = false
     }
 
 
@@ -306,22 +314,27 @@ end
     that can be potentially fixed by forcing collectgarbage on
     a ui reload.
 ]]
-
 local function Pipe_Garbage_Collection_Handler(pipe_table)
-    -- Verification message.
-    DebugError("Pipe being garbage collected.")
     -- Try to close out the file.
     if pipe_table.file ~= nil then
-        -- TODO: repeated code with elsewhere; reuse.
+        -- Verification message.
+        if private.print_to_log then
+            DebugError("Pipe being garbage collected, file closed.")
+        end
+        -- TODO: repeated code with elsewhere; maybe reuse.
         success, message = pcall(function () pipe_table.file:close() end)
         if not success then
-            DebugError("Failed to close pipe file with error: "..message)
+            if private.print_to_log then
+                DebugError("Failed to close pipe file with error: "..message)
+            end
         end
+        -- TODO: maybe nil the file once closed.
     end
 end
 
 
 -- Call this function when the file is created to set up GC on it.
+-- TODO: tighten up this code.
 local function Attach_Pipe_Table_GC(pipe_table)
   
     -- Don't want to overwrite existing meta stuff, but need to use
@@ -429,7 +442,9 @@ function Disconnect_Pipe(pipe_name)
         -- TODO: does this need an anon function around it?
         success, message = pcall(function () private.pipes[pipe_name].file:close() end)
         if not success then
-            DebugError("Failed to close pipe file with error: "..message)
+            if private.print_to_log then
+                DebugError("Failed to close pipe file with error: "..message)
+            end
         end
         -- Unlink from the file entirely.
         private.pipes[pipe_name].file = nil
@@ -481,7 +496,9 @@ function Split_String(this_string)
     -- Get the position of the separator.
     local position = string.find(this_string, ";")
     if position == nil then
-        DebugError("No ; separator found in: "..this_string)
+        if private.print_to_log then
+            DebugError("No ; separator found in: "..this_string)
+        end
         error("Bad separator")
     end
 
@@ -527,8 +544,12 @@ function Schedule_Read(pipe_name, access_id)
         -- run every frame.
         -- TODO: move this to Poll_For_Reads, and call it once.
         SetScript("onUpdate", Poll_For_Reads)
+        
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Reads")
+        if private.print_to_chat then
+            CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Reads")
+        end
+            
         private.read_polling_active = true
         
         -- Kick off a first polling call, so it doesn't wait until
@@ -568,8 +589,12 @@ function Schedule_Write(pipe_name, access_id, message)
         -- Do this by hooking into the onUpdate signal, which appears to
         -- run every frame.
         SetScript("onUpdate", Poll_For_Writes)
+        
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Writes")
+        if private.print_to_chat then
+            CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Writes")
+        end
+            
         private.write_polling_active = true
         
         -- Kick off a first polling call, so it doesn't wait until
@@ -643,7 +668,9 @@ function Poll_For_Reads()
                     local access_id = FIFO.Read(state.read_fifo)
                     
                     -- Debug print.
-                    CallEventScripts("directChatMessageReceived", pipe_name..";Read: "..message_or_nil)                
+                    if private.print_to_chat then
+                        CallEventScripts("directChatMessageReceived", pipe_name..";Read: "..message_or_nil)
+                    end
                     
                     -- Signal the MD with message return the data, suffixing
                     -- the signal name with the id.
@@ -659,7 +686,9 @@ function Poll_For_Reads()
                 
             else
                 -- Debug print.
-                CallEventScripts("directChatMessageReceived", pipe_name..";Read error; closing")
+                if private.print_to_chat then
+                    CallEventScripts("directChatMessageReceived", pipe_name..";Read error; closing")
+                end
         
                 -- Something went wrong, other than an empty fifo.
                 -- Close out the pipe; this call will send error messages
@@ -676,7 +705,9 @@ function Poll_For_Reads()
     if activity_still_pending == false then
         RemoveScript("onUpdate", Poll_For_Reads)
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Reads")
+        if private.print_to_chat then
+            CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Reads")
+        end
         private.read_polling_active = false
     end
 end
@@ -714,7 +745,9 @@ function Poll_For_Writes()
                 -- Handle succesful writes.
                 if retval then
                     -- Debug print.
-                    CallEventScripts("directChatMessageReceived", pipe_name..";Wrote: "..message)
+                    if private.print_to_chat then
+                        CallEventScripts("directChatMessageReceived", pipe_name..";Wrote: "..message)
+                    end
                 
                     -- Remove the entry from the fifo.
                     FIFO.Read(state.write_fifo)
@@ -733,7 +766,9 @@ function Poll_For_Writes()
             -- Handle errors.
             else
                 -- Debug print.
-                CallEventScripts("directChatMessageReceived", pipe_name..";Write error; closing")
+                if private.print_to_chat then
+                    CallEventScripts("directChatMessageReceived", pipe_name..";Write error; closing")
+                end
         
                 -- Something went wrong, other than a full fifo.
                 -- Close out the pipe; this call will send error messages
@@ -750,7 +785,9 @@ function Poll_For_Writes()
     if activity_still_pending == false then
         RemoveScript("onUpdate", Poll_For_Writes)
         -- Debug printout.
-        CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Writes")
+        if private.print_to_chat then
+            CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Writes")
+        end
         private.write_polling_active = false
     end
 end
@@ -790,8 +827,13 @@ function _Read_Pipe_Raw(pipe_name)
             return_value = nil
         else
             -- Something else went wrong.
-            CallEventScripts("directChatMessageReceived", pipe_name..";read failure")
-            DebugError(pipe_name.."; read failure, lua message: "..lua_error_message)
+            if private.print_to_chat then
+                CallEventScripts("directChatMessageReceived", pipe_name..";read failure")
+            end
+            if private.print_to_log then
+                DebugError(pipe_name.."; read failure, lua message: "..lua_error_message)
+            end
+            
             -- Always disconnect the pipe in this case; assume unrecoverable.
             Disconnect_Pipe(pipe_name)
             -- Raise an error in this case.
@@ -811,8 +853,12 @@ function Read_Pipe(pipe_name)
     if not success then
         -- Try once more if allowed.
         if private.pipes[pipe_name].retry_allowed then
+        
             -- Debug message.
-            CallEventScripts("directChatMessageReceived", pipe_name..";Retrying read...")
+            if private.print_to_chat then
+                CallEventScripts("directChatMessageReceived", pipe_name..";Retrying read...")
+            end
+                
             -- Overwrite the success flag.
             success, message = pcall(_Read_Pipe_Raw, pipe_name)
             -- Clear the retry flag.
@@ -859,8 +905,13 @@ function _Write_Pipe_Raw(pipe_name, message)
         --else
             -- Something else went wrong.
             -- Raise an error in this case.
-            CallEventScripts("directChatMessageReceived", pipe_name..";write failure")
-            DebugError(pipe_name.."; write failure, error code: "..winpipe.GetLastError())
+            if private.print_to_chat then
+                CallEventScripts("directChatMessageReceived", pipe_name..";write failure")
+            end
+            if private.print_to_log then
+                DebugError(pipe_name.."; write failure, error code: "..winpipe.GetLastError())
+            end
+            
             -- Always disconnect the pipe in this case; assume unrecoverable.
             Disconnect_Pipe(pipe_name)
             error("write failed")
@@ -883,7 +934,9 @@ function Write_Pipe(pipe_name, message)
         -- Try once more if allowed.
         if private.pipes[pipe_name].retry_allowed then
             -- Debug message.
-            CallEventScripts("directChatMessageReceived", pipe_name..";Retrying write...")
+            if private.print_to_chat then
+                CallEventScripts("directChatMessageReceived", pipe_name..";Retrying write...")
+            end
             -- Overwrite the success flag.
             local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
             -- Clear the retry flag.
@@ -909,7 +962,9 @@ end
 -- TODO: tweak test somehow to capture read results properly.
 function Test()
     local pipe_name = "\\\\.\\pipe\\x4_pipe"
-    CallEventScripts("directChatMessageReceived", "pipes;Starting pipe test on "..pipe_name)
+    if private.print_to_chat then
+        CallEventScripts("directChatMessageReceived", "pipes;Starting pipe test on "..pipe_name)
+    end
     
     Declare_Pipe(pipe_name)
     Connect_Pipe(pipe_name)

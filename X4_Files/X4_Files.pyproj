@@ -30,10 +30,15 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="extensions\" />
+    <Folder Include="extensions\key_capture_api\md\" />
     <Folder Include="extensions\named_pipes_api\" />
     <Folder Include="extensions\named_pipes_api\md\" />
+    <Folder Include="extensions\key_capture_api\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="extensions\key_capture_api\content.xml" />
+    <Content Include="extensions\key_capture_api\md\LIB_Key_Capture.xml" />
+    <Content Include="extensions\key_capture_api\md\Test_Key_Capture.xml" />
     <Content Include="extensions\named_pipes_api\content.xml" />
     <Content Include="extensions\named_pipes_api\md\LIB_Named_Pipes.xml" />
     <Content Include="extensions\named_pipes_api\md\Test_Named_Pipe.xml" />

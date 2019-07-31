@@ -28,6 +28,9 @@ Change Log
   - Reorganization of python test server setup, for scalability to
     running user provided subservers, and to support auto-restart
     when x4 reloads.
+* 0.7
+  - Added key_capture_api and related python server code, for capturing
+    key/combo presses and linking them to cues.
 '''
 
 def Get_Version():
