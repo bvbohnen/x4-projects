@@ -295,7 +295,7 @@ Overview of cues and what they call:
         <!--Set the loop_active flag early; x4 signal_cue_instantly appears 
             not to be instant enough to prevent this cue from being called 
             again before Ping_Server sets the flag on its own. -->
-        <set_value name="$server_access_loop_active" exact="1"/>
+        <set_value name="Globals.$server_access_loop_active" exact="1"/>
         <signal_cue_instantly cue="Ping_Server"/>
       </do_if>
     </actions>    
@@ -306,7 +306,7 @@ Overview of cues and what they call:
   
   
   <!-- Ping the server to see if it is available. -->
-  <cue name="Ping_Server" instantiate="true">
+  <cue name="Ping_Server" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -314,14 +314,14 @@ Overview of cues and what they call:
       <!--Flag that the server is being accessed. 
           This will remain 1 until the Ping_Callback or Read_Callback loop
           exits. -->
-      <set_value name="$server_access_loop_active" exact="1"/>
+      <set_value name="Globals.$server_access_loop_active" exact="1"/>
       <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe='x4_keys', $msg='ping', $cue=Ping_Callback]"/>
     </actions>
   </cue>
   
   
   <!-- Check if ping write went through. -->
-  <cue name="Ping_Callback" instantiate="true">
+  <cue name="Ping_Callback" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -336,7 +336,7 @@ Overview of cues and what they call:
         </do_if>
         <do_else>
           <!-- Flag that the server is no longer being accessed. -->
-          <set_value name="$server_access_loop_active" exact="0"/>
+          <set_value name="Globals.$server_access_loop_active" exact="0"/>
         </do_else>
       </do_if>
       
@@ -344,6 +344,7 @@ Overview of cues and what they call:
         <!-- Connected; continue with startup. -->
         <!-- Start by getting the server set up to listen to wanted keys. -->
         <include_actions ref="Register_Keys_With_Server"/>
+                
         <!-- Can kick off a first read right away. -->
         <signal_cue_instantly cue="Read_Key"/>
       </do_else>
@@ -353,7 +354,7 @@ Overview of cues and what they call:
   
   <!--Trigger ping after long delay.
       Should be used by the ping loop to reduce ping overhead. -->
-  <cue name="Ping_Server_After_Delay" instantiate="true">
+  <cue name="Ping_Server_After_Delay" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -369,7 +370,7 @@ Overview of cues and what they call:
       Read_Key and Read_Callback will effectively loop on each other until
       an error occurs.
   -->
-  <cue name="Read_Key" instantiate="true">
+  <cue name="Read_Key" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -389,7 +390,7 @@ Overview of cues and what they call:
       If succesful, triggers Read_Key and Ack_Key.
       If error, Resets.
   -->
-  <cue name="Read_Callback" instantiate="true">
+  <cue name="Read_Callback" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -409,7 +410,7 @@ Overview of cues and what they call:
         </do_if>
         <do_else>
           <!-- Flag that the server is no longer being accessed. -->
-          <set_value name="$server_access_loop_active" exact="0"/>
+          <set_value name="Globals.$server_access_loop_active" exact="0"/>
         </do_else>
       </do_elseif>
       
@@ -418,19 +419,21 @@ Overview of cues and what they call:
         <!-- Read succeeded with at least one key. -->
         <!-- Handle callback cues. -->
         <!-- TODO: support multiple keys returned, with some separator. -->
+                
+        <!-- Start by prefixing the key combo with a '$' for table lookups. -->
+        <set_value name="$key" exact="'$' + event.param"/>
+        <debug_text text="'LIB_Key_Capture.Read_Callback: received key %s.'.[$key]" chance="Globals.$DebugChance"/>
       
         <!-- Is the key returned actually registered? -->
-        <do_if value="Globals.$key_cue_registry.{event.param}?">
+        <do_if value="Globals.$key_cue_registry.{$key}?">
         
           <!-- Convenience renaming. -->
-          <set_value name="$cue_list" exact="Globals.$key_cue_registry.{event.param}"/>
+          <set_value name="$cue_list" exact="Globals.$key_cue_registry.{$key}"/>
           
           <!-- Loop over the callback cues. -->
           <do_all exact="$cue_list.count" counter="$i">            
             <!-- TODO: Verify the callback cue still exists. -->
-            <!-- Call the cue, with this key.
-                TODO: remove the '$'.
-            -->
+            <!-- Call the cue, with this key combo (without $). -->
             <signal_cue_instantly cue="$cue_list.{$i}" param="event.param"/>              
           </do_all>
                     
