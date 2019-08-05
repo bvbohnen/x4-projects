@@ -160,7 +160,7 @@ def Main():
                         if module_path in module_relpaths:
                             continue
                         # Record this path as seen.
-                        module_relpaths.append(message)
+                        module_relpaths.append(module_path)
 
                         # Put together the full path.         
                         full_path = x4_path / module_path

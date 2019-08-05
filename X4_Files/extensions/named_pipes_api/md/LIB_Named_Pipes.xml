@@ -74,6 +74,7 @@ TODO:
     * $pipe_name_prefix
       - String, prefix to add to all pipe names to construct the OS path.
       - On windows, this is "\\.\pipe\"
+      - Not used; prefix attached in lua to simplify some signalling.
   -->  
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -170,7 +171,7 @@ TODO:
     <actions>
       <debug_text text="'%s closing if open.'.[event.param, $command]" chance="Globals.$DebugChance" filter="general"/>
       <!-- Just need to send down the pipe name. -->
-      <raise_lua_event name="'pipeClose'" param="Globals.$pipe_name_prefix + event.param"/>
+      <raise_lua_event name="'pipeClose'" param="event.param"/>
     </actions>
   </cue>
     
@@ -181,7 +182,7 @@ TODO:
       <event_cue_signalled/>
     </conditions>    
     <actions>
-      <raise_lua_event name="'pipeSuppressPausedReads'" param="Globals.$pipe_name_prefix + event.param"/>
+      <raise_lua_event name="'pipeSuppressPausedReads'" param="event.param"/>
     </actions>
   </cue>
   
@@ -191,7 +192,7 @@ TODO:
       <event_cue_signalled/>
     </conditions>    
     <actions>
-      <raise_lua_event name="'pipeUnsuppressPausedReads'" param="Globals.$pipe_name_prefix + event.param"/>
+      <raise_lua_event name="'pipeUnsuppressPausedReads'" param="event.param"/>
     </actions>
   </cue>
   
@@ -415,19 +416,19 @@ TODO:
             Awakwardly, this only accepts one param, so the pipename, id, and message
             need to be squished together.
             TODO: maybe code reuse on the first part of string construction. -->
-        <raise_lua_event name="'pipe'+$command" param="Globals.$pipe_name_prefix + $pipe_name + ';' + $access_id + ';' + $message"/>
+        <raise_lua_event name="'pipe'+$command" param="$pipe_name + ';' + $access_id + ';' + $message"/>
       </do_if>
       
       <do_if value="$command == 'Read'">
         <!-- Debug announcement. -->
         <debug_text text="'%s Read started'.[$pipe_name]" chance="Globals.$DebugChance" filter="general"/>
-        <raise_lua_event name="'pipeRead'" param="Globals.$pipe_name_prefix + $pipe_name + ';' + $access_id"/>
+        <raise_lua_event name="'pipeRead'" param="$pipe_name + ';' + $access_id"/>
       </do_if>
       
       <do_if value="$command == 'Check'">
         <!-- Debug announcement. -->
         <debug_text text="'%s Check started'.[$pipe_name]" chance="Globals.$DebugChance" filter="general"/>
-        <raise_lua_event name="'pipeCheck'" param="Globals.$pipe_name_prefix + $pipe_name + ';' + $access_id"/>
+        <raise_lua_event name="'pipeCheck'" param="$pipe_name + ';' + $access_id"/>
       </do_if>
       
     </actions>
