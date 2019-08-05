@@ -12,6 +12,17 @@ Goals:
   - When key pressed, call the user cue.
   
   
+TODO:
+  Switch to not saving keys across reloads, requiring they be reset regularly.
+  This would add robustness against mods being removed, so their old keys
+  aren't remembered. (Alternative is to check if callback cues exist anymore,
+  but that is less robust if a mod hooked a key to some external cue not
+  part of that mod, or if a mod changes how it does key announcement but
+  the cue still exists.)
+  
+  Require keys be re-registered in a particular way, eg. on some cue being
+  signalled (or later).
+  
   
 Question: what general approach to use?
 
@@ -105,7 +116,20 @@ Overview of cues and what they call:
     
 -->
 <cues>
-
+  
+  <!--
+    Register the pipe server with the python host.
+  -->  
+  <cue name="Register_Pipe_Server" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.LIB_Pipe_Server.Reloaded" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly 
+        cue="md.LIB_Pipe_Server.Register_Module" 
+        param="'extensions/key_capture_api/Send_Keys.py'"/>
+    </actions>
+  </cue>
       
   <!--
     Static cue that holds some shared state information or constants.
@@ -132,35 +156,56 @@ Overview of cues and what they call:
     * DebugChance
       - 0 or 100
       - Reloaded
+      
+    TODO: move pipe_name to here instead of hardcoding it.
   -->  
   <cue name="Globals">
     <!-- When first created, set up globals. -->
     <actions>
+      <!-- TODO: move towards not saving these. -->
       <set_value name="$key_cue_registry" exact="table[]" />
       <set_value name="$server_access_loop_active" exact="0"/>
       <include_actions ref="Reset_Globals"/>
     </actions>
-    
-    <cues>
-      <!--When a save or the ui is loaded, reset globals again.
-          This is also handy for changing constants. -->
-      <cue name="Reset_On_Lua_Reload" instantiate="true">
-        <conditions>
-          <event_object_signalled object="player.galaxy" param="'lua_named_pipe_api_loaded'"/>
-        </conditions>
-        <actions>
-          <include_actions ref="Reset_Globals"/>          
-        </actions>
-      </cue>
-    </cues>
   </cue>
-  <!-- TODO: can this lib be put into the cues list above? -->
+  
   <library name="Reset_Globals">
     <actions>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
       <set_value name="$DebugChance" exact="100" />
     </actions>
   </library>
+
+  <!--
+    Reset some vars and send a signal when the pipe api reloads.
+    
+    TODO: maybe switch to waiting on the pipe server api to reload first.
+  -->
+  <cue name="Reset_On_Lua_Reload" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.LIB_Named_Pipes.Reloaded" />
+    </conditions>
+    <actions>
+      <!-- Make sure the global registry is reset. -->
+      <include_actions ref="Reset_Globals"/>
+      <!-- Send a signal that all users listen to, to repopulate the table. -->
+      <signal_cue_instantly cue="Reloaded"/>
+    </actions>
+  </cue>  
+  
+  <!--
+    Dummy cue used for signalling.
+    TODO: have users re-register their keys when this signal is sent,
+    instead of saving keys here.
+  -->  
+  <cue name="Reloaded" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+    </actions>
+  </cue>
+
 
       
   <!--
@@ -197,12 +242,12 @@ Overview of cues and what they call:
       <!-- Check if the cue is already recorded for this key. -->
       <do_if value="Globals.$key_cue_registry.{$key}.indexof.{$cue} != 0">
         <!-- Print some warning. -->
-        <debug_text text="'LIB_Key_Capture.Register_Key: Warning, cue %s already registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance"/>
+        <debug_text text="'LIB_Key_Capture.Register_Key: Warning, cue %s already registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
       </do_if>
       <do_else>
         <!-- It isn't recorded, so add it in. -->
         <append_to_list name="Globals.$key_cue_registry.{$key}" exact="$cue" />
-        <debug_text text="'LIB_Key_Capture.Register_Key: cue %s registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance"/>
+        <debug_text text="'LIB_Key_Capture.Register_Key: cue %s registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
         <!-- <raise_lua_event name="'directChatMessageReceived'" param="'Pipes;'+ event.param + ' closing if open.'"/> -->
       </do_else>
       
@@ -237,25 +282,25 @@ Overview of cues and what they call:
       <!-- Make sure there is a table entry for the key. -->
       <do_if value="not Globals.$key_cue_registry.{$key}?">
         <!-- Print some warning. -->
-        <debug_text text="'LIB_Key_Capture.Unregister_Key: Warning, key %s has no registered cues.'.[$key]" chance="Globals.$DebugChance"/>
+        <debug_text text="'LIB_Key_Capture.Unregister_Key: Warning, key %s has no registered cues.'.[$key]" chance="Globals.$DebugChance" filter="general"/>
       </do_if>
       
       <!-- Check if the cue is recorded for this key. -->
       <set_value name="$cue_index" exact="Globals.$key_cue_registry.{$key}.indexof.{$cue}"/>
       <do_if value="$cue_index == 0">
         <!-- It isn't recorded, so print a warning. -->
-        <debug_text text="'LIB_Key_Capture.Unregister_Key: Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance"/>
+        <debug_text text="'LIB_Key_Capture.Unregister_Key: Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
       </do_if>
       
       <do_else>
         <!-- Proceed with removal. -->
         <remove_value name="Globals.$key_cue_registry.{$key}.{$cue_index}" />
-        <debug_text text="'LIB_Key_Capture.Unregister_Key: Removed cue %s from key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance"/>
+        <debug_text text="'LIB_Key_Capture.Unregister_Key: Removed cue %s from key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
         
         <!-- If the key's cue list is empty, also remove the key itself. -->
         <do_if value="Globals.$key_cue_registry.{$key}.count == 0">
           <remove_value name="Globals.$key_cue_registry.{$key}" />
-          <debug_text text="'LIB_Key_Capture.Unregister_Key: No remaining listeners to key %s; removing it.'.[$key]" chance="Globals.$DebugChance"/>
+          <debug_text text="'LIB_Key_Capture.Unregister_Key: No remaining listeners to key %s; removing it.'.[$key]" chance="Globals.$DebugChance" filter="general"/>
           
           <!-- Update the server. If it isn't connected, ignore any error. -->
           <include_actions ref="Register_Keys_With_Server"/>
@@ -274,6 +319,7 @@ Overview of cues and what they call:
           TODO: is there a natural way to get list of strings -> string?
       -->
       <set_value name="$joined_keys" exact="''" />
+      <!-- TODO: why is this giving a property lookup error on key_cue_registry. -->
       <do_all exact="Globals.$key_cue_registry.keys.count" counter="$i">
         <set_value name="$joined_keys" exact="$joined_keys + Globals.$key_cue_registry.keys.list.{$i} + ';'"/>
       </do_all>
@@ -304,7 +350,7 @@ Overview of cues and what they call:
   </library>
   
   
-  
+  <!-- TODO: maybe move this ping routine to the named pipe api which calls back on success. -->
   <!-- Ping the server to see if it is available. -->
   <cue name="Ping_Server" instantiate="true" namespace="this">
     <conditions>
@@ -328,7 +374,8 @@ Overview of cues and what they call:
     <actions>      
     
       <!-- If an error then the server isn't set up, so wait to ping again. -->
-      <do_if value="event.param == 'ERROR'">
+      <!-- TODO: handle cancellations differently. -->
+      <do_if value="event.param == 'ERROR' or event.param == 'CANCELLED'">
         <!-- Only keep looping if keys are still registered. -->
         <do_if value="Globals.$key_cue_registry.keys.count != 0">
           <!-- Restart pinging routine, after some delay. -->
@@ -396,8 +443,8 @@ Overview of cues and what they call:
     </conditions>
     <actions>
     
-      <!-- If error, assume the server shut down. -->
-      <do_if value="event.param == 'ERROR'">
+      <!-- If error/cancelled, assume the server shut down. -->
+      <do_if value="event.param == 'ERROR' or event.param == 'CANCELLED'">
         <!-- Restart pinging routine. -->
         <signal_cue_instantly cue="Ping_Server"/>
       </do_if>
@@ -422,7 +469,7 @@ Overview of cues and what they call:
                 
         <!-- Start by prefixing the key combo with a '$' for table lookups. -->
         <set_value name="$key" exact="'$' + event.param"/>
-        <debug_text text="'LIB_Key_Capture.Read_Callback: received key %s.'.[$key]" chance="Globals.$DebugChance"/>
+        <debug_text text="'LIB_Key_Capture.Read_Callback: received key %s.'.[$key]" chance="Globals.$DebugChance" filter="general"/>
       
         <!-- Is the key returned actually registered? -->
         <do_if value="Globals.$key_cue_registry.{$key}?">
