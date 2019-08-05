@@ -81,7 +81,7 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
       <!-- Pull the value out of the param. -->
       <set_value name="$read_result" exact="event.param"/>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Read result: ' + $read_result"/>      
+      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Read result: ' + $read_result"/>
     </actions>
   </cue>
     

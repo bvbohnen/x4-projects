@@ -59,15 +59,15 @@ Reading a pipe from MD:
     Capture completion with a new subcue (don't instantiate if already inside
     an instance), conditioned on response signal:
     
-        <event_object_signalled 
-            object="player.galaxy" 
-            param="'pipeRead_complete_<id>'"/>
+        <event_ui_triggered 
+            screen="'Named_Pipes_Api'" 
+            control="'pipeRead_complete_<id>'" />
         
-    The returned value will be in "event.param2":
+    The returned value will be in "event.param3":
     
         <set_value 
             name="$pipe_read_value" 
-            exact="event.param2" />
+            exact="event.param3" />
         
     <pipe_name> should be replaced with the full path name of the pipe
     being connected to. Example: "\\.\pipe\x4_pipe", with doubled backslashes
@@ -96,14 +96,27 @@ Writing a pipe from MD:
         
     Optionally capture the response signal, indicating success or failure.
     
-        <event_object_signalled 
-            object="player.galaxy" 
-            param="'pipeWrite_complete_<id>'"/>
+        <event_ui_triggered 
+            screen="'Named_Pipes_Api'" 
+            control="'pipeWrite_complete_<id>'" />
     
     The returned status is "ERROR" on an error, else "SUCCESS".
     
-        <set_value name="$status" exact="event.param2" />
+        <set_value name="$status" exact="event.param3" />
         
+        
+Special writes:
+
+    Certain write messages will be mapped to special values to be written,
+    determined lua side.  This uses "pipeWriteSpecial" as the event name,
+    and the message is the special command.
+    
+    Currently, the only such command is "package.path", sending the current
+    value in lua for that.
+    
+        <raise_lua_event 
+            name="'pipeWriteSpecial'" 
+            param="'myX4pipe;1234;package.path'"/>
         
     
 Checking pipe status:
@@ -112,9 +125,9 @@ Checking pipe status:
     
         <raise_lua_event name="'pipeCheck'" param="'<pipe_name>;<id>'" />
     
-        <event_object_signalled 
-            object="player.galaxy" 
-            param="'pipeCheck_complete_<id>'"/>
+        <event_ui_triggered 
+            screen="'Named_Pipes_Api'" 
+            control="'pipeCheck_complete_<id>'" />
             
     In this case, event.param2 holds SUCCESS if the pipe appears to be
     succesfully opened, ERROR if not. Note that this does not robustly
@@ -133,18 +146,19 @@ Close pipe:
     and writes to signal errors.
         
       
-Set a pipe to ignore reads during a pause:
+Set a pipe to throw away reads during a pause:
     <raise_lua_event name="'pipeSuppressPausedReads'" param="'<pipe_name>'" />
+    
 Undo this with:
     <raise_lua_event name="'pipeUnsuppressPausedReads'" param="'<pipe_name>'" />
         
     
-TODO:
-    Switch to DebugError printouts instead of using the chat window,
-    except for basic connect/disconnect messages.
-    
+TODO:    
     Add api hooks for other lua functions, instead of requiring callbacks
-    to be MD signals always.
+    to be ui signals for md always.
+    
+    Add option to auto-ack reads (send back "ack" on any read), to slightly
+    reduce md api overhead.
     
 ]]
 
@@ -283,6 +297,7 @@ function Init()
     -- Connect the events to the matching functions.
     RegisterEvent("pipeRead", Handle_pipeRead)
     RegisterEvent("pipeWrite", Handle_pipeWrite)
+    RegisterEvent("pipeWriteSpecial", Handle_pipeWrite)    
     RegisterEvent("pipeCheck", Handle_pipeCheck)
     RegisterEvent("pipeClose", Handle_pipeClose)
     RegisterEvent("pipeSuppressPausedReads", Handle_pipeSuppressPausedReads)
@@ -290,7 +305,12 @@ function Init()
         
         
     -- Signal to MD that the lua has reloaded.
-    Raise_Signal('lua_named_pipe_api_loaded')
+    Raise_Signal('reloaded')
+    
+    -- Testing for path detection.
+    -- if package.path ~= nil then
+    --     DebugError("package.path: "..package.path)
+    -- end
 end
 
 
@@ -298,9 +318,14 @@ end
 -- return value.
 function Raise_Signal(name, return_value)
     -- Clumsy way to lookup the galaxy.
-    local player = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
-    local galaxy = GetComponentData(player, "galaxyid" )
-    SignalObject( galaxy, name, return_value)
+    -- local player = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
+    -- local galaxy = GetComponentData(player, "galaxyid" )
+    -- SignalObject( galaxy, name, return_value)
+    
+    -- Switching to AddUITriggeredEvent
+    -- This will give the return_value in event.param3
+    -- Use <event_ui_triggered screen="'Named_Pipes_Api'" control="'???'" />
+    AddUITriggeredEvent("Named_Pipes_Api", name, return_value)
 end
 
 
@@ -579,21 +604,33 @@ end
 -- MD interface: write to a pipe.
 -- Input is one term, semicolon separates string with pipe name, callback id,
 -- and message.
-function Handle_pipeWrite(_, pipe_name_id_message)
+-- If signal_name was "pipeWriteSpecial", this message is treated as
+-- a special command that is used to determine what to write.
+function Handle_pipeWrite(signal_name, pipe_name_id_message)
 
     -- Isolate the pipe_name, id, value.
     -- local pipe_name, access_id, message = string:match(pipe_name_id_message, "([^;]+);([^;]+)")
     
     local pipe_name, temp = Split_String(pipe_name_id_message)
     local access_id, message = Split_String(temp)
+    
+    -- Handle special commands.
+    -- Note: if the command not recognized, it just gets sent as-is.
+    if signal_name == "pipeWriteSpecial" then
+        -- Table of commands to consider.
+        if message == "package.path" then
+            -- Want to write out the current package.path.
+            message = "package.path:"..package.path
+        end
+    end
         
     -- Declare the pipe, if needed.
     Declare_Pipe(pipe_name)
     
     -- Pass to the scheduler.
-    Schedule_Write(pipe_name, access_id, message)
-    
+    Schedule_Write(pipe_name, access_id, message)    
 end
+
 
 -- Schedule a pipe to be written.
 function Schedule_Write(pipe_name, access_id, message)

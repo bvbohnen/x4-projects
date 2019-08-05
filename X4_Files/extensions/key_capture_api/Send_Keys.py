@@ -6,6 +6,11 @@ Uses the pynput package (not included with anaconda or standard python).
 
 '''
 '''
+TODO:
+    Repack much of this functionality into a class or two, instead
+    of messy global vars and such.
+'''
+'''
 Keyboard capture example here:
 https://pynput.readthedocs.io/en/latest/keyboard.html
 
@@ -35,7 +40,7 @@ Note:
     doesn't appear to support integer codes for alphanumeric keys.
 '''
 
-from ..Classes import Pipe_Server, Pipe_Client
+from X4_Python_Pipe_Server import Pipe_Server, Pipe_Client
 from pynput import keyboard
 import time
 import threading
@@ -50,6 +55,8 @@ pipe_name = 'x4_keys'
 
 # Flag to do a test run with the pipe client handled in python instead
 # of x4.
+# Note: if doing this from a console window, pynput prevents ctrl-c
+# exits, but ctrl-pause/break will work.
 test_python_client = 0
 
 # Expected window title, for when this captures keys.
@@ -79,8 +86,11 @@ def main():
     This will transmit key presses to x4, and x4 will return acks as it
     processes them. Total keys in flight will be limited.
 
-    Keys will be prefixed with '$' due to x4 table behavior, for
-    easier x4-side processing.
+    Uses pynput for key capture. For a little extra security, pynput
+    will ignore keys while x4 lacks focus.
+
+    Note: by experience, x4 side sometimes has several seconds of lag
+    before processing keys sent.
     '''
     # Testing keyboard class types/attributes.
     #a = keyboard.KeyCode(char='a')
@@ -98,12 +108,14 @@ def main():
 
     # Wait for client.
     pipe.Connect()
-    
-    # Buffer of raw keys pressed. Index 0 is oldest press.
-    # Each entry is a tuple of (1 for pressed or 0 released, Key or KeyCode).
-    # TODO: maybe some sort of queue with max size that tosses oldest.
-    key_buffer = []
 
+    # Start the keyboard listener after client connect, in case it
+    # never connects.
+    Start_Keyboard_Listener()
+
+    # Announce this as global, since it gets reassigned at one point.
+    global key_buffer
+    
     # Max keys in flight to x4, not yet acknowledged.
     max_keys_piped = 5
     # Current count of piped keys.
@@ -125,41 +137,8 @@ def main():
     keys_down = set()
 
     # Flag to indicate if x4 has focus.
-    # Updated periodically in primary server loop.
-    # Probably doesn't matter much if True or False, but default True
-    # so keys start capturing sooner if x4 reloaded and server is
-    # rebooting.
-    x4_has_focus = True
+    global x4_has_focus
         
-
-    # Set up the keyboard listener.
-    # Capture key presses into a queue.
-    def Buffer_Presses(key):
-        '''
-        Function to be called by the key listener on button presses.
-        Kept super simple, due to pynput warning about long callbacks.
-        '''
-        # Stick in a 1 for pressed.
-        if x4_has_focus:
-            key_buffer.append((1, key))
-        return
-    
-    def Buffer_Releases(key):
-        '''
-        Function to be called by the key listener on button releases.
-        Kept super simple, due to pynput warning about long callbacks.
-        '''
-        # Stick in a 0 for released.
-        if x4_has_focus:
-            key_buffer.append((0, key))
-        return
-
-    # Start the listener thread.
-    listener = keyboard.Listener(
-        on_press   = Buffer_Presses,
-        on_release = Buffer_Releases)
-    listener.start()
-
     
     # Note: x4 will sometimes send non-ack messages to the pipe, and there
     # is no way to know when they will arrive other than testing it.
@@ -173,10 +152,10 @@ def main():
    
             
     if 0:
-        key_buffer.append((1,'$a'))
-        key_buffer.append((1,'$s'))
-        key_buffer.append((1,'$d'))
-        key_buffer.append((1,'$f'))
+        key_buffer.append((1,1,'$a'))
+        key_buffer.append((1,1,'$s'))
+        key_buffer.append((1,1,'$d'))
+        key_buffer.append((1,1,'$f'))
 
     while 1:
         
@@ -190,6 +169,15 @@ def main():
             x4_has_focus = True
         else:
             x4_has_focus = False
+            # When x4 loses focus, assume all pressed keys are released
+            # upon returning to x4. This addresses the common case of
+            # alt-tabbing out (which leaves alt as pressed when clicking
+            # back into x4 otherwise).
+            # An alternate solution would be to capture all keys even
+            # when x4 lacks focus, but while that was tried and worked,
+            # it was distasteful.
+            keys_down.clear()
+
         
         # Try to read any data.
         message = pipe.Read()
@@ -217,6 +205,13 @@ def main():
                 # Get the new compiled combos.
                 categorized_combo_specs = Update_Combos(message)
                 print('Updated combos to: {}'.format(message))
+
+                # TODO: if all keys are unregistered, kill off this thread
+                # so it returns to waiting for pipe connection, and the
+                # key capture subthread is no longer running.
+                # Would just need to check for empty combo specs, and
+                # throw a pipe error exception (as expected by
+                # Server_Thread to reboot this module).
                 
 
         # If anything is in the key_buffer, process into key combos.
@@ -259,8 +254,83 @@ def main():
         # Although, x4 processing will add a frame or two at least.
         # TODO: maybe revisit this timer stepping.
         # TODO: maybe reduce this if any traffic was handled above.
-        time.sleep(0.04)
+        if x4_has_focus:
+            time.sleep(0.040)
+        else:
+            # Slow down when outside x4, though still quick enough
+            # to response when tabbing back in quickly.
+            time.sleep(0.200)
+                
+    return
 
+
+# Set up the keyboard listener.
+
+# Buffer of raw keys pressed. Index 0 is oldest press.
+# Each entry is a tuple of:
+# (1 for pressed or 0 released, Key or KeyCode).
+# TODO: maybe some sort of queue with max size that tosses oldest.
+# TODO: rethink buffer limit; it is mostly for safety, but if ever
+# hit it will cause problems with detecting key releases (eg. set
+# of held keys may have false state).
+key_buffer = []
+max_keys_buffered = 50
+
+# The listener thread itself.
+listener_thread = None
+
+# Global flag for it x4 has focus.
+# Updated periodically in primary server loop.
+# Probably doesn't matter much if True or False, but default True
+# so keys start capturing sooner if x4 reloaded and server is
+# rebooting.
+x4_has_focus = True
+
+# Capture key presses into a queue.
+def Buffer_Presses(key):
+    '''
+    Function to be called by the key listener on button presses.
+    Kept super simple, due to pynput warning about long callbacks.
+    '''
+    # Stick in a 1 for pressed.
+    if x4_has_focus and len(key_buffer) < max_keys_buffered:
+        key_buffer.append((1, key))
+    return
+    
+def Buffer_Releases(key):
+    '''
+    Function to be called by the key listener on button releases.
+    Kept super simple, due to pynput warning about long callbacks.
+    '''
+    # Stick in a 0 for released.
+    if x4_has_focus and len(key_buffer) < max_keys_buffered:
+        key_buffer.append((0, key))
+    return
+
+def Start_Keyboard_Listener():
+    '''
+    Start up the keyboard listener thread if it isn't running already.
+    If main() exits and restarts, the same listener thread should still
+    be running and will be reused.
+    This extra step was added when multiple server restarts led to
+    pynput getting in some buggy state where it only returned codes
+    instead of letters (eg. b'\x01' instead of 'a').
+    '''
+    global listener_thread
+
+    # If the thread is running, just clear the buffer.
+    if listener_thread != None:
+        print('Reusing running keyboard listener')
+        key_buffer.clear()
+
+    else:
+        print('Starting keyboard listener')
+        # Start the listener thread.
+        listener_thread = keyboard.Listener(
+            on_press   = Buffer_Presses,
+            on_release = Buffer_Releases)
+
+        listener_thread.start()
     return
 
 
@@ -423,7 +493,6 @@ def Process_Key_Events(key_buffer, keys_down, categorized_combo_specs):
     updating keys_down and matching to combos in combo_specs.
     Returns a list of combos matched, using string names from
     the categorized_combo_specs entries.
-
     '''
     matched_combo_names = []
 

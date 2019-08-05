@@ -33,6 +33,10 @@ Change Log
     key/combo presses and linking them to cues.
 * 0.71
   - Debug on key capture api.
+* 0.8
+  - Added lua_loader_api.
+  - Added LIB_Named_Pipes.
+  - Overhauled python server to work with the above.
 '''
 
 def Get_Version():

@@ -3,13 +3,13 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{ea6dd6ee-64b2-4ea4-a002-17495bf8a5ad}</ProjectGuid>
-    <ProjectHome>.</ProjectHome>
+    <ProjectHome>
+    </ProjectHome>
     <StartupFile>Main.py</StartupFile>
-    <SearchPath>
-    </SearchPath>
+    <SearchPath>..\X4_Files\extensions\key_capture_api</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>Python_Server</Name>
+    <Name>X4_Python_Pipe_Server</Name>
     <RootNamespace>Python_Server</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -21,14 +21,14 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\X4_Files\extensions\key_capture_api\Send_Keys.py">
+      <Link>Send_Keys.py</Link>
+    </Compile>
     <Compile Include="Old\Launcher.py" />
     <Compile Include="Classes\Log_Reader.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Main.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Servers\Send_Keys.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Classes\Server_Thread.py">

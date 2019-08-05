@@ -23,6 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Change_Log.py" />
+    <Compile Include="extensions\key_capture_api\Send_Keys.py" />
     <Compile Include="Make_Release.py">
       <SubType>Code</SubType>
     </Compile>
@@ -31,16 +32,27 @@
   <ItemGroup>
     <Folder Include="extensions\" />
     <Folder Include="extensions\key_capture_api\md\" />
+    <Folder Include="extensions\lua_loader_api\md\" />
+    <Folder Include="extensions\lua_loader_api\ui\" />
+    <Folder Include="extensions\lua_loader_api\ui\addons\" />
+    <Folder Include="extensions\lua_loader_api\ui\addons\ego_debug\" />
     <Folder Include="extensions\named_pipes_api\" />
     <Folder Include="extensions\named_pipes_api\md\" />
     <Folder Include="extensions\key_capture_api\" />
+    <Folder Include="extensions\lua_loader_api\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="extensions\key_capture_api\content.xml" />
     <Content Include="extensions\key_capture_api\md\LIB_Key_Capture.xml" />
     <Content Include="extensions\key_capture_api\md\Test_Key_Capture.xml" />
+    <Content Include="extensions\lua_loader_api\content.xml" />
+    <Content Include="extensions\lua_loader_api\md\Lua_Loader_Api.xml" />
+    <Content Include="extensions\lua_loader_api\readme.md" />
+    <Content Include="extensions\lua_loader_api\ui\addons\ego_debug\Lua_Loader_Api.lua" />
+    <Content Include="extensions\lua_loader_api\ui\addons\ego_debug\ui.xml" />
     <Content Include="extensions\named_pipes_api\content.xml" />
     <Content Include="extensions\named_pipes_api\md\LIB_Named_Pipes.xml" />
+    <Content Include="extensions\named_pipes_api\md\LIB_Pipe_Server.xml" />
     <Content Include="extensions\named_pipes_api\md\Test_Named_Pipe.xml" />
     <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
   </ItemGroup>

@@ -13,5 +13,6 @@
   <langugage description="" language="86"/>
   <langugage description="" language="88"/>
   <!-- Need this for the lua to load.-->
-  <dependency id="G_Work_Around" version="020" optional="false" url="https://forum.egosoft.com/viewtopic.php?t=411630"/>
+  <!-- <dependency id="G_Work_Around" version="020" optional="false" url="https://forum.egosoft.com/viewtopic.php?t=411630"/> -->
+  <dependency id="lua_loader_api" version="050" optional="false"/>  
 </content>

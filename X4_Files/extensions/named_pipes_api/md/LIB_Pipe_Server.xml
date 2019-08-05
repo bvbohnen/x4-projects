@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="LIB_Pipe_Server" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+
+<!--
+MD API for interfacing with an external Python based pipe server.
+Builds on top of the Named Pipes API.
+
+Goals:
+  - Connect to the running python host server process.
+  - Allow user to specify the relative path to a python server module to be
+    loaded, stored in the extension folder.
+  - Extract the absolute path to x4and transmit this to the server, for
+    the currently running x4 installation (assume multiple on a computer).
+  - Transmit user file paths to the host server, to be dynamically imported
+    and started.
+  - Detect host server errors, and re-announce user files upon
+    reconnection.
+    
+Operation notes:
+  - Requires the Python host server be set up and started. This is done by
+    the player outside of the game, though can be started before or after
+    x4.
+  - Pings the server pipe until getting a connection.
+  - Transfers the lua package.paths to the server, where python code parses
+    out the x4 absolute path. (Should be adaptable to multiple x4 installations
+    without requiring extra player setup.)
+  - Records the python module relative paths registered by other extensions.
+  - Transmits these paths to the host.
+  - Passively reads the host server, watching for disconnect errors.
+  - On pipe error, restarts the connection/announce process.
+  
+Usage:
+  
+  Use this cue template to register the path to a server module.
+  The cue name can be anything. The <> fields should be customized.
+  
+    <cue name="Register_Pipe_Server" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.LIB_Pipe_Server.Reloaded" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly 
+          cue="md.LIB_Pipe_Server.Register" 
+          param="'extensions/<mod_folder_name>/<python file>.py'"/>
+      </actions>
+    </cue>
+    
+    
+Notes on server access looping cues:
+  The cues for accessing the server, either pinging or reading, form
+  oscillating loops.  A ping that fails in the callback will re-ping,
+  and a read that succeeds will re-read (for the next message).
+  Stopping oscillating loops upon reset (game or ui reload) is non-trivial.
+  
+  If the cues are made static, they require reset_cue to reuse.  However, this
+  command appears to only take effect at the end of a game frame, and hence
+  all attempts to re-call a cue that was reset earlier in the same frame
+  will fail.  Same-frame recall is a common case, so all experiments with
+  resetting static cues were dead ends.
+  
+  If the cues are instantiated, they can be recalled in the same frame, but
+  there is a danger of multiple instances being active, which is not
+  wanted.  While the general design of this api would try to avoid such
+  multi-instance problems, bugs are always possible.
+  
+  TODO: document the current design further once it is stable.
+-->
+<cues>
+
+  
+  <!--
+    Static cue that holds some shared state information or constants.
+    When this script is installed, a new instance of this cue is created,
+    and will afterwards be live until the script is removed.
+    Some globals reset each time the game is loaded or ui reloaded,
+    to enable easy changing of constants.
+    
+    Attributes:
+    * registered_modules
+      - List of strings, paths to python server modules registered by users.
+      - Cleared on reloads.
+    * server_access_loop_active
+      - Flag, 1 when either the Ping_Server or Test_Server loops are active
+        and waiting for a pipe access callback (or in a delay node).
+      - If 0, the loops are stopped, and Ping_Server should be called
+        to start them.
+    * server_connected
+      - Flag, 1 when the server has been pinged succesfully and appears to
+        have a valid connection. 0 before connection is set up, or after
+        an error/disconnect. Used to suppress some writes before a
+        connection is made, though shouldn't be critical to functionality.
+    * pipe_name
+      - Default name of the pipe used to communicate with the python host.
+      - Using "x4_python_host"
+    * DebugChance
+      - 0 or 100.
+      
+  -->  
+  <cue name="Globals">
+    <!-- When first created, set up globals. -->
+    <actions>
+      <include_actions ref="Reset_Globals"/>
+    </actions>
+  </cue>
+  
+  <library name="Reset_Globals">
+    <actions>
+      <!-- Empty list of server paths. -->
+      <set_value name="Globals.$registered_modules" exact="[]"/>
+      <!-- Name of the pipe. -->
+      <set_value name="Globals.$pipe_name" exact="'x4_python_host'" />
+      <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
+      <set_value name="Globals.$DebugChance" exact="100" />
+      <!-- Always treat server loop as innactive; it should be killed somehow. -->
+      <set_value name="Globals.$server_access_loop_active" exact="0"/>
+      <!-- Server is never connected at reset. -->
+      <set_value name="Globals.$server_connected" exact="0"/>      
+    </actions>
+  </library>
+
+  <!--
+    Handle game creation, reload, or ui reload.
+    Goal is to reset some global vars, and signal to users that they
+    should re-register their server modules.
+    In practice, this is best handled by listening to a signal from
+    the named pipe api, to ensure that has reloaded first.
+    
+  -->
+  <cue name="Reset_On_Lua_Reload" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.LIB_Named_Pipes.Reloaded" />
+    </conditions>
+    <actions>
+      <!-- Make sure the global registry is reset. -->
+      <include_actions ref="Reset_Globals"/>
+      <!-- Send a signal that all users listen to, to repopulate the table. -->
+      <signal_cue_instantly cue="Reloaded"/>
+    </actions>
+  </cue>
+  
+  
+  <!--
+    Dummy cue used for signalling.
+    When the api wants users to register their servers, it will signal
+    this cue. Users can then listen to this cue being signalled.
+  -->  
+  <cue name="Reloaded" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+    </actions>
+  </cue>
+    
+  
+  <!--
+    User function to register a python server module.
+    
+    Param:
+      String, relative path to the python file from the x4 base dir.
+      Use forward slashes between folders.
+    
+    Usage example:
+      <signal_cue_instantly cue="md.LIB_Pipe_Server.Register" param="'extensions/key_capture_api/Send_Keys.py'">
+  -->
+  <cue name="Register_Module" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    
+    <actions>
+      <set_value name="$path" exact="event.param"/>
+      
+      <!-- Check if this path is not yet known. -->
+      <do_if value="Globals.$registered_modules.indexof.{$path} == 0">
+        <!-- Add to the list. -->
+        <append_to_list name="Globals.$registered_modules" exact="$path" />
+        <debug_text text="'registered server path: %s.'.[$path]" chance="Globals.$DebugChance" filter="general"/>
+        
+        <!-- Update the server. If it isn't connected, ignore any error. -->
+        <include_actions ref="Register_Modules_With_Server"/>
+        
+        <!-- Make sure the read loop is started, if it wasn't already. -->
+        <include_actions ref="Activate_Read_Loop"/>
+      </do_if>
+    </actions>    
+  </cue>
+  
+      
+    
+  <!-- Lib function to update the server list of registered modules. -->
+  <library name="Register_Modules_With_Server">
+    <actions>
+      <!-- Suppress if not connected to server, to reduce log confusion. -->
+      <do_if value="Globals.$server_connected == 1">
+      
+        <!-- Start by merging the entries together, semicolon separated. -->
+        <set_value name="$joined_modules" exact="''" />
+        <do_all exact="Globals.$registered_modules.count" counter="$i">
+          <set_value name="$joined_modules" exact="$joined_modules + Globals.$registered_modules.{$i} + ';'"/>
+        </do_all>
+        
+        <!-- Send this to the server. -->
+        <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe = Globals.$pipe_name, $msg = 'modules:'+$joined_modules ]"/>
+      </do_if>
+    </actions>
+  </library>
+  
+  
+  <!--
+    Lib function to check if any of the server ping/read cues are alive.
+    Places result in $server_access_loop_active.    
+    This checks each of the 5 cues for being in a waiting or active state.
+    
+    TODO: think if this is useful. Probably not since cues are instanced.
+    Attempts to switch to static cues were a mess of renew_cue stuff that
+    doesn't really work (renew_cue followed by signal_cue fails).
+  <library name="Is_Server_Access_Loop_Active">
+    <actions>
+      <set_value name="$server_access_loop_active" 
+        exact="Ping_Server.state.waiting 
+            or Ping_Callback.state.waiting 
+            or Ping_Server_After_Delay.state.waiting 
+            or Read_Message.state.waiting 
+            or Read_Callback.state.waiting
+            or Ping_Server.state.active 
+            or Ping_Callback.state.active 
+            or Ping_Server_After_Delay.state.active 
+            or Read_Message.state.active 
+            or Read_Callback.state.active" />
+    </actions>
+  </library>
+  -->  
+
+
+  <!--
+    Lib function to start up the ping/read loop, if it isn't active.
+    TODO: rethink this.
+  -->
+  <library name="Activate_Read_Loop">
+    <actions>
+      <!--If the ping/read loops have no pending callback activity,
+          kick off a ping. -->
+      <do_if value="Globals.$server_access_loop_active == 0">
+        <!--Set the loop_active flag early; x4 signal_cue_instantly appears 
+            not to be instant enough to prevent this cue from being called 
+            again before Ping_Server sets the flag on its own. -->
+        <set_value name="Globals.$server_access_loop_active" exact="1"/>
+        <signal_cue_instantly cue="Server_Access_Loop"/>
+      </do_if>
+      <do_else>
+        <debug_text text="'Skipping Ping_Server call; access loop is active.'" chance="Globals.$DebugChance" filter="general"/>
+      </do_else>
+    </actions>    
+    <cues>
+    </cues>
+  </library>
+  
+  
+  <!--
+    Parent cue for the subcues that access a server, pinging and reading.
+    Subcues will form oscillating loops.
+    This will cancel its instance when a reload occurs.
+  -->
+  <cue name="Server_Access_Loop" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!-- TODO: think about this. -->
+      <set_value name="$session_id" value="0"/>
+    </actions>
+    
+    <cues>
+    
+      <!-- Dummy cue, no conditions, calls Ping_Server right away. -->
+      <cue name="Init_Ping_Server">
+        <actions>
+          <signal_cue_instantly cue="Ping_Server"/>
+        </actions>        
+      </cue>
+      
+      <!-- Detect a reload, and kill this access loop instance. -->
+      <cue name="Reload_Listener">
+        <conditions>
+          <event_cue_signalled cue="Reloaded" />
+        </conditions>
+        <actions>
+          <!-- Cancel the namespace, which is the instanced parent (not the static parent). -->
+          <cancel_cue cue="namespace"/>
+        </actions>        
+      </cue>
+  
+      <!-- Ping the server to see if it is available. -->
+      <cue name="Ping_Server" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <actions>
+          <!--Flag that the server is being accessed. 
+              This will remain 1 until the Ping_Callback or Read_Callback loop
+              exits, or the ui reloads. -->
+          <set_value name="Globals.$server_access_loop_active" exact="1"/>
+          <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe=Globals.$pipe_name, $msg='ping', $cue=Ping_Callback]"/>
+        </actions>
+      </cue>
+      
+      
+      <!-- Check if ping write went through. -->
+      <cue name="Ping_Callback" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <actions>      
+        
+          <!-- If an error then the server isn't set up, so wait to ping again. -->
+          <do_if value="event.param == 'ERROR'">
+            <!-- Only keep looping if modules are still registered. -->
+            <do_if value="Globals.$registered_modules.count != 0">
+              <!-- Restart pinging routine, after some delay. -->
+              <signal_cue_instantly cue="Ping_Server_After_Delay"/>
+              <reset_cue cue="Ping_Server"/>
+            </do_if>
+            <do_else>
+              <!-- Flag that the server is no longer being accessed. -->
+              <set_value name="Globals.$server_connected" exact="0"/>
+              <set_value name="Globals.$server_access_loop_active" exact="0"/>
+            </do_else>
+          </do_if>
+          
+          <!-- On a game reload, this comes back as cancelled; don't loop. -->
+          <!-- TODO: clean up code, get reuse. -->
+          <!-- TODO: is this needed now that the parent cue cancels itself on reload? -->
+          <do_elseif value="event.param == 'CANCELLED'">
+            <!-- Flag that the server is no longer being accessed. -->
+            <set_value name="Globals.$server_connected" exact="0"/>
+            <set_value name="Globals.$server_access_loop_active" exact="0"/>
+          </do_elseif>
+          
+          <do_else>
+            <!-- Connected; continue with startup. -->
+            <set_value name="Globals.$server_connected" exact="1"/>
+            
+            <!--Send the lua side package.path string to the server, 
+                containing the path to this x4 installation. -->
+            <signal_cue_instantly cue="md.LIB_Named_Pipes.Write_Special" param="table[$pipe = Globals.$pipe_name, $msg = 'package.path' ]"/>
+            
+            <!-- Announce the modules to start up. -->
+            <include_actions ref="Register_Modules_With_Server"/>
+                    
+            <!-- Can kick off a first read right away. -->
+            <signal_cue_instantly cue="Read_Message"/>
+          </do_else>
+        </actions>
+      </cue>
+      
+      
+      <!--
+        Trigger ping after long delay.
+        Should be used by the ping loop to reduce ping overhead.
+        Note: this may be active in its delay when the game/ui reloads, leading
+        to a new ping loop being started right away, which may in turn quickly
+        lead to a second instance of this cue.
+        Eg. two of these may be running at once, one pre-reset and one post-reset.
+      -->
+      <cue name="Ping_Server_After_Delay">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <delay exact="10s"/>
+        <actions>
+          <signal_cue_instantly cue="Ping_Server"/>
+          <reset_cue cue="this"/>
+        </actions>
+      </cue>
+          
+        
+      <!--Send a read request, wait for timeout or error or message.
+          Used to detect when the server host disconnects.
+          TODO: modify this to only read occasionally, with really short timeout
+          and long re-read delay, to reduce pipe api overhead that reads every frame.
+      -->
+      <cue name="Read_Message" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <actions>
+          <!-- Timeout is used to occasionally check if the loop should stop. -->
+          <signal_cue_instantly cue="md.LIB_Named_Pipes.Read" param="table[$pipe=Globals.$pipe_name, $cue=Read_Callback, $to='1s']"/>
+          <reset_cue cue="this"/>
+        </actions>
+      </cue>
+      
+      
+      <!--Handle the read message.
+          On error, resets.
+          On timeout, loops to another read.
+          Currently not expecting control messages, but they may be added
+          in the future.
+      -->
+      <cue name="Read_Callback" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <actions>    
+          <!-- If error, assume the server shut down. -->
+          <do_if value="event.param == 'ERROR'">
+            <debug_text text="'pipe error; restarting Ping_Server'" chance="Globals.$DebugChance" filter="general"/>
+            <!-- Note that the pipe disconnected. -->
+            <set_value name="Globals.$server_connected" exact="0"/>
+            <!-- Restart pinging routine. -->
+            <signal_cue_instantly cue="Ping_Server"/>
+          </do_if>
+          
+          <!-- On a game reload, this comes back as cancelled; don't loop. -->
+          <!-- TODO: clean up code, get reuse. -->
+          <!-- TODO: is this needed now that the parent cue cancels itself on reload? -->
+          <do_elseif value="event.param == 'CANCELLED'">
+            <!-- Flag that the server is no longer being accessed. -->
+            <set_value name="Globals.$server_connected" exact="0"/>
+            <set_value name="Globals.$server_access_loop_active" exact="0"/>
+          </do_elseif>
+          
+          <!-- On timeout, check if the loop should stop. -->
+          <do_elseif value="event.param == 'TIMEOUT'">
+            <!-- Only keep looping if modules are still registered. -->
+            <do_if value="Globals.$registered_modules.count != 0">
+              <signal_cue_instantly cue="Read_Message"/>
+            </do_if>
+            <do_else>
+              <!-- Flag that the server is no longer being accessed. -->
+              <!-- TODO: maybe some code reuse. -->
+              <set_value name="Globals.$server_connected" exact="0"/>
+              <set_value name="Globals.$server_access_loop_active" exact="0"/>
+            </do_else>
+          </do_elseif>
+                
+          <do_else>
+            <!-- Read succeeded with some message. -->
+            <!-- Nothing expected for now. -->
+            <debug_text text="'received mesage: %s.'.[event.param]" chance="Globals.$DebugChance" filter="general"/>
+            <!-- Request the next key to be read, looping. -->
+            <signal_cue cue="Read_Key"/>        
+          </do_else>    
+        </actions>
+      </cue>
+      
+    </cues>
+  </cue> <!-- end Server_Access_Loop -->
+  
+</cues>
+
+</mdscript>

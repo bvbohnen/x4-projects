@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="lua_loader_api" name="Lua Loader API" description="Adds basic functionality for loading lua files." author="SirNukes" version="100" date="2019-07-31" save="false" sync="false">
+  <!-- Maybe fill out individual languages. -->
+  <langugage description="" language="7"/>
+  <langugage description="" language="33"/>
+  <langugage description="" language="37"/>
+  <langugage description="" language="39"/>
+  <langugage description="Adds basic functionality for loading lua files, working around a bug in egosoft's official method." language="44"/>
+  <langugage description="" language="49"/>
+  <langugage description="" language="55"/>
+  <langugage description="" language="81"/>
+  <langugage description="" language="82"/>
+  <langugage description="" language="86"/>
+  <langugage description="" language="88"/>
+</content>
