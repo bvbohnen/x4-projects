@@ -152,6 +152,18 @@ Set a pipe to throw away reads during a pause:
 Undo this with:
     <raise_lua_event name="'pipeUnsuppressPausedReads'" param="'<pipe_name>'" />
         
+
+Detect a pipe closed:
+
+    When there is a pipe error, this api will make one attempt to reconnect
+    before returning an ERROR. Since the user may need to know about these
+    disconnect events, a signal will be raised when they happen.
+    The signal name is tied to the pipe name.
+    
+        <event_ui_triggered 
+            screen="'Named_Pipes_Api'" 
+            control="'<pipe_name>_disconnected'" />
+
     
 TODO:    
     Add api hooks for other lua functions, instead of requiring callbacks
@@ -167,7 +179,7 @@ TODO:
 local ffi = require("ffi")
 local C = ffi.C
 ffi.cdef[[
-	bool IsGamePaused(void);
+    bool IsGamePaused(void);
 ]]
 
 
@@ -212,8 +224,7 @@ local private = {
 
     --[[
     Pipe state objects, generally alive while the link is set up.
-    Keys are the pipe names sent from the MD side, with full path
-    extension.
+    Keys are the pipe names sent from the MD side, without path extension.
     
     Each entry is a subtable with these fields:
     * file
@@ -245,7 +256,10 @@ local private = {
     -- If extra status messages should print to the chat window.
     print_to_chat = false,
     -- If status messages should print to the debuglog.
-    print_to_log = false
+    print_to_log = false,
+    
+    -- Prefix to add to the pipe_name to get a file path.
+    pipe_path_prefix = "\\\\.\\pipe\\"
     }
 
 
@@ -440,7 +454,8 @@ function Connect_Pipe(pipe_name)
 
     -- Check if a file is not open.
     if private.pipes[pipe_name].file == nil then
-        private.pipes[pipe_name].file = winpipe.open_pipe(pipe_name)
+        -- Add a prefix to the pipe_name to get the path to use.
+        private.pipes[pipe_name].file = winpipe.open_pipe(private.pipe_path_prefix .. pipe_name)
         
         -- If the entry is still nil, the open failed.
         if private.pipes[pipe_name].file == nil then
@@ -477,6 +492,7 @@ end
 
 -- Close a pipe file.
 -- If the file isn't open, this does nothing.
+-- If the pipe was open, this will signal that the disconnect occurred.
 function Disconnect_Pipe(pipe_name)
     if private.pipes[pipe_name].file ~= nil then
         -- Do a safe file close() attempt, ignoring errors.
@@ -487,8 +503,12 @@ function Disconnect_Pipe(pipe_name)
                 DebugError("Failed to close pipe file with error: "..message)
             end
         end
+        
         -- Unlink from the file entirely.
         private.pipes[pipe_name].file = nil
+        
+        -- Signal the disconnect.
+        Raise_Signal(pipe_name.."_disconnected")
         CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
     end
 end
@@ -906,8 +926,6 @@ function _Read_Pipe_Raw(pipe_name)
                 DebugError(pipe_name.."; read failure, lua message: "..lua_error_message)
             end
             
-            -- Always disconnect the pipe in this case; assume unrecoverable.
-            Disconnect_Pipe(pipe_name)
             -- Raise an error in this case.
             error("read failed with error: "..lua_error_message)
         end
@@ -923,6 +941,9 @@ function Read_Pipe(pipe_name)
     local success, message = pcall(_Read_Pipe_Raw, pipe_name)
     
     if not success then
+        -- Disconnect the pipe (close file) on any hard error.
+        Disconnect_Pipe(pipe_name)
+            
         -- Try once more if allowed.
         if private.pipes[pipe_name].retry_allowed then
         
@@ -935,6 +956,11 @@ function Read_Pipe(pipe_name)
             success, message = pcall(_Read_Pipe_Raw, pipe_name)
             -- Clear the retry flag.
             private.pipes[pipe_name].retry_allowed = false
+            
+            if not success then
+                -- Disconnect the pipe (close file) on any hard error.
+                Disconnect_Pipe(pipe_name)
+            end
         end
     end
     
@@ -984,8 +1010,6 @@ function _Write_Pipe_Raw(pipe_name, message)
                 DebugError(pipe_name.."; write failure, error code: "..winpipe.GetLastError())
             end
             
-            -- Always disconnect the pipe in this case; assume unrecoverable.
-            Disconnect_Pipe(pipe_name)
             error("write failed")
         --end
     end
@@ -1003,6 +1027,9 @@ function Write_Pipe(pipe_name, message)
     local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
     
     if not call_success then
+        -- Disconnect the pipe (close file) on any hard error.
+        Disconnect_Pipe(pipe_name)
+                
         -- Try once more if allowed.
         if private.pipes[pipe_name].retry_allowed then
             -- Debug message.
@@ -1012,7 +1039,12 @@ function Write_Pipe(pipe_name, message)
             -- Overwrite the success flag.
             local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
             -- Clear the retry flag.
-            private.pipes[pipe_name].retry_allowed = false
+            private.pipes[pipe_name].retry_allowed = false            
+            
+            if not success then
+                -- Disconnect the pipe (close file) on any hard error.
+                Disconnect_Pipe(pipe_name)
+            end
         end
     end
     

@@ -79,6 +79,10 @@ Notes on server access looping cues:
     * registered_modules
       - List of strings, paths to python server modules registered by users.
       - Cleared on reloads.
+    * server_access_loop_cue
+      - Cue or null, the currently active Server_Access_Loop cue instance.
+      - Starts as null. If an active instance dies, calls "exists" on this
+        will return false.
     * server_access_loop_active
       - Flag, 1 when either the Ping_Server or Test_Server loops are active
         and waiting for a pipe access callback (or in a delay node).
@@ -111,30 +115,37 @@ Notes on server access looping cues:
       <set_value name="Globals.$pipe_name" exact="'x4_python_host'" />
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
       <set_value name="Globals.$DebugChance" exact="100" />
+      <!-- Assume no access loop active; any old one should self-kill. -->
+      <set_value name="Globals.$server_access_loop_cue" exact="null"/>
       <!-- Always treat server loop as innactive; it should be killed somehow. -->
       <set_value name="Globals.$server_access_loop_active" exact="0"/>
       <!-- Server is never connected at reset. -->
-      <set_value name="Globals.$server_connected" exact="0"/>      
+      <set_value name="Globals.$server_connected" exact="0"/>
     </actions>
   </library>
 
   <!--
-    Handle game creation, reload, or ui reload.
+    Handle game creation, reload, or ui reload, as well as server pipe
+    disconnection.
     Goal is to reset some global vars, and signal to users that they
     should re-register their server modules.
     In practice, this is best handled by listening to a signal from
     the named pipe api, to ensure that has reloaded first.
-    
   -->
   <cue name="Reset_On_Lua_Reload" instantiate="true">
     <conditions>
-      <event_cue_signalled cue="md.LIB_Named_Pipes.Reloaded" />
+      <check_any>
+        <event_cue_signalled cue="md.LIB_Named_Pipes.Reloaded" />
+        <event_ui_triggered screen="'Named_Pipes_Api'" control="'%s_disconnected'.[Globals.$pipe_name]" />
+      </check_any>
     </conditions>
     <actions>
       <!-- Make sure the global registry is reset. -->
       <include_actions ref="Reset_Globals"/>
-      <!-- Send a signal that all users listen to, to repopulate the table. -->
+      <!-- Send a signal that all users listen to. -->
       <signal_cue_instantly cue="Reloaded"/>
+      
+      <debug_text text="'reload triggered.'" chance="Globals.$DebugChance" filter="general"/>
     </actions>
   </cue>
   
@@ -143,6 +154,7 @@ Notes on server access looping cues:
     Dummy cue used for signalling.
     When the api wants users to register their servers, it will signal
     this cue. Users can then listen to this cue being signalled.
+    This is also used to kill off an older server access loop.
   -->  
   <cue name="Reloaded" instantiate="true">
     <conditions>
@@ -181,7 +193,8 @@ Notes on server access looping cues:
         <include_actions ref="Register_Modules_With_Server"/>
         
         <!-- Make sure the read loop is started, if it wasn't already. -->
-        <include_actions ref="Activate_Read_Loop"/>
+        <signal_cue cue="Server_Access_Loop" />
+        <!-- <include_actions ref="Activate_Read_Loop"/> -->
       </do_if>
     </actions>    
   </cue>
@@ -235,7 +248,7 @@ Notes on server access looping cues:
 
   <!--
     Lib function to start up the ping/read loop, if it isn't active.
-    TODO: rethink this.
+    TODO: rethink this. Maybe delete if not used.
   -->
   <library name="Activate_Read_Loop">
     <actions>
@@ -261,14 +274,25 @@ Notes on server access looping cues:
     Parent cue for the subcues that access a server, pinging and reading.
     Subcues will form oscillating loops.
     This will cancel its instance when a reload occurs.
+    This will not start if server_access_loop_active is true, to prevent
+    it running when another loop is already going.
+    Instanced, so this can be cancelled and recalled in the same frame.
+    
+    TODO: switch from server_access_loop_active to having this cue
+    record itself into a global variable, which can then be checked
+    for "exists" to know if this loop is still running. This is cleaner
+    and more reliable than a manually handled flag, which could be
+    forgotten to be cleared on some path.
   -->
   <cue name="Server_Access_Loop" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
+      <!-- <check_value value="Globals.$server_access_loop_active == 0"/> -->
+      <check_value value="not Globals.$server_access_loop_cue.exists"/>
     </conditions>
     <actions>
-      <!-- TODO: think about this. -->
-      <set_value name="$session_id" value="0"/>
+      <!-- <set_value name="Globals.$server_access_loop_active" exact="1"/> -->
+      <set_value name="Globals.$server_access_loop_cue" exact="this"/>      
     </actions>
     
     <cues>
@@ -286,7 +310,8 @@ Notes on server access looping cues:
           <event_cue_signalled cue="Reloaded" />
         </conditions>
         <actions>
-          <!-- Cancel the namespace, which is the instanced parent (not the static parent). -->
+          <!-- Cancel the namespace, which is the instanced parent 
+              (not the static parent). -->
           <cancel_cue cue="namespace"/>
         </actions>        
       </cue>
