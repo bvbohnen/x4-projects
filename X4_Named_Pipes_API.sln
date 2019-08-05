@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.757
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Python_Server", "Python_Server\Python_Server.pyproj", "{EA6DD6EE-64B2-4EA4-A002-17495BF8A5AD}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "X4_Python_Pipe_Server", "X4_Python_Pipe_Server\X4_Python_Pipe_Server.pyproj", "{EA6DD6EE-64B2-4EA4-A002-17495BF8A5AD}"
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "X4_Files", "X4_Files\X4_Files.pyproj", "{E94CBC76-4CA6-414B-8BB9-46D7CA4FF933}"
 EndProject

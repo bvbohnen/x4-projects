@@ -11,6 +11,8 @@ class Server_Thread:
     
     TODO: support cleanly closing threads, likely with a global flag
     checked by pipe operations which raise a special exception.
+    TODO: maybe make this a subclass of threading.Thread, and customize
+    the run/start methods.
 
     Attributes:
     * entry_function

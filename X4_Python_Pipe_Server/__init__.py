@@ -17,3 +17,6 @@ def _Init():
         sys.path.append(str(parent_dir))
 _Init()
 '''
+
+# Make available the pipes for easy import into dynamically loaded modules.
+from .Classes import Pipe_Server, Pipe_Client
