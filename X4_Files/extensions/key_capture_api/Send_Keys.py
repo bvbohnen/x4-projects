@@ -177,7 +177,10 @@ def main():
             # when x4 lacks focus, but while that was tried and worked,
             # it was distasteful.
             keys_down.clear()
-
+            
+        # TODO: shut down the keyboard listener thread when x4 loses
+        # focus, and restart it on focus gain, so it isn't running
+        # when x4 tabbed out.
         
         # Try to read any data.
         message = pipe.Read()
