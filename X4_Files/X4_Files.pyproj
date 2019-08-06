@@ -53,6 +53,7 @@
     <Content Include="extensions\named_pipes_api\content.xml" />
     <Content Include="extensions\named_pipes_api\md\LIB_Named_Pipes.xml" />
     <Content Include="extensions\named_pipes_api\md\LIB_Pipe_Server.xml" />
+    <Content Include="extensions\named_pipes_api\md\LIB_Pipe_Server_Support.xml" />
     <Content Include="extensions\named_pipes_api\md\Test_Named_Pipe.xml" />
     <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
   </ItemGroup>
