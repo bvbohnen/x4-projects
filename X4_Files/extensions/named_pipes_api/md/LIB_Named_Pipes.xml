@@ -127,7 +127,7 @@ TODO:
   <!--
     Support lib function to update the access_counter, and use it
     to generate an ID string for the next access.
-    Count rolls over every 10000 to  limits the string size for 4 characters,
+    Count rolls over every 10000 to  limit the string size to 4 characters,
     and should be enough that an ID will not be reused until well after the
     prior access of that ID completed.
     
@@ -151,7 +151,7 @@ TODO:
   <!--
     User function to close a pipe.
     This is passed down to the lua level, where the pipe file is closed and
-    all pending accesses cancelled (return errors).
+    all pending accesses killed (return errors).
     Does nothing if the pipe does not exist.    
     Called through signal_cue_instantly.
     
@@ -241,6 +241,8 @@ TODO:
         msg  : Message string to write to the pipe.
         cue  : Callback, optional, the cue to call when the write completes.
         time : Timeout, optional, the time until an unsent write is cancelled.
+               Currently not meaningful, as write stalling on a full pipe
+               is not supported at the lua level.
       
     Returns:
       Value is is sent as event.param to the callback cue.
@@ -248,7 +250,7 @@ TODO:
     
     Usage example:
       <signal_cue_instantly name="md.LIB_Named_Pipes.Write" 
-        param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback, $time=5s]">
+        param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback]">
   -->
   <cue name="Write" instantiate="true">
     <conditions>

@@ -35,8 +35,13 @@ Change Log
   - Debug on key capture api.
 * 0.8
   - Added lua_loader_api.
-  - Added LIB_Named_Pipes.
+  - Added LIB_Pipe_Server.
   - Overhauled python server to work with the above.
+* 0.9
+  - Added the Server_Reader library function which handles connecting
+    to and continually reading a pipe, and updated LIB_Pipe_Server and
+    LIB_Key_Capture to use it.
+  - Key capture api now requires keys be re-registered when it reloads.
 '''
 
 def Get_Version():

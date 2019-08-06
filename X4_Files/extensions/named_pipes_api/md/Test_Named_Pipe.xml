@@ -10,6 +10,100 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
 -->
 
 <cues>
+
+
+  <!-- Testing include_actions on lib stored in variable. -->
+  <!-- <library name="Test_Lib_Actions"> -->
+    <!-- <actions> -->
+      <!-- <debug_text text="'Test_Lib_Actions called'" filter="general"/> -->
+    <!-- </actions> -->
+  <!-- </library> -->
+  
+  <!--
+  <cue name="Test_Lib_Ref" instantiate="true" namespace="this" checkinterval="10s" checktime="30s">
+    <actions>
+      <debug_text text="'Trying to call Test_Lib_Actions from cue'" filter="general"/>
+      <set_value name="$test_lib_actions_var" exact="Test_Lib_Actions"/>
+      <include_actions ref="$test_lib_actions_var"/>
+    </actions>
+  </cue> -->
+  
+  <!-- <library name="Test_Lib_Wrap"> -->
+    <!-- <params> -->
+      <!-- <param name="Test_Lib_Actions_param"/> -->
+    <!-- </params> -->
+    <!-- <actions> -->
+      <!-- <debug_text text="'Trying to call Test_Lib_Actions from lib param; Test_Lib_Actions_param = %s'.[$Test_Lib_Actions_param]" filter="general"/> -->
+      <!-- <include_actions ref="$Test_Lib_Actions_param"/> -->
+    <!-- </actions> -->
+  <!-- </library> -->
+  
+  <!-- <library name="Test_Lib_Wrap_Repeat" instantiate="true" checkinterval="5s"> -->
+    <!-- <params> -->
+      <!-- <param name="Test_Lib_Actions_param"/> -->
+    <!-- </params> -->
+    <!-- <actions> -->
+      <!-- <debug_text text="'Trying to call Test_Lib_Actions from lib param; Test_Lib_Actions_param = %s'.[$Test_Lib_Actions_param]" filter="general"/> -->
+      <!-- <include_actions ref="$Test_Lib_Actions_param"/> -->
+    <!-- </actions> -->
+  <!-- </library> -->
+  
+  <!-- <cue name="Test_Lib_Wrap_Ref_Wrap" instantiate="true" checkinterval="5s"> -->
+    <!-- <actions> -->
+      <!-- <set_value name="$test_lib_actions_var" exact="Test_Lib_Actions"/> -->
+      <!-- <debug_text text="'Trying to call Test_Lib_Actions from cue; test_lib_actions_var = %s'.[$test_lib_actions_var]" filter="general"/> -->
+      <!-- <include_actions ref="$test_lib_actions_var"/> -->
+    <!-- </actions> -->
+    <!-- <cues> -->
+      <!-- This started working at some point. -->
+      <!-- <cue name="Test_Lib_Wrap_Ref_Wrapped" ref="Test_Lib_Wrap"> -->
+        <!-- <param name="Test_Lib_Actions_param" value="$test_lib_actions_var"/> -->
+      <!-- </cue> -->
+      
+      <!-- This works after the above started working. -->
+      <!-- <cue name="Test_Lib_Wrap_Ref_Wrapped" ref="Test_Lib_Wrap"> -->
+        <!-- <param name="Test_Lib_Actions_param" value="Test_Lib_Actions"/> -->
+      <!-- </cue> -->
+    <!-- </cues>     -->
+  <!-- </cue>  -->
+  
+  <!-- Now this appears to be working; weird. -->
+  <!-- <cue name="Test_Lib_Wrap_Ref" ref="Test_Lib_Wrap_Repeat"> -->
+    <!-- <param name="Test_Lib_Actions_param" value="Test_Lib_Actions"/> -->
+  <!-- </cue> -->
+  
+  <!-- Try with different names; maybe loading order matters; these work. -->
+  <!-- <cue name="A_Test_Lib_Wrap_Ref" ref="Test_Lib_Wrap_Repeat"> -->
+    <!-- <param name="Test_Lib_Actions_param" value="Test_Lib_Actions"/> -->
+  <!-- </cue> -->
+  
+  <!-- <cue name="Z_Test_Lib_Wrap_Ref" ref="Test_Lib_Wrap_Repeat"> -->
+    <!-- <param name="Test_Lib_Actions_param" value="Test_Lib_Actions"/> -->
+  <!-- </cue> -->
+  
+  <!-- Try the actual server lib... this fails? -->
+  <!-- <cue name="Host_Server_Reader_unwrapped" ref="md.LIB_Pipe_Server_Support.Server_Reader"> -->
+    <!-- <param name="Actions_On_Init"     value="Test_Lib_Actions"/> -->
+  <!-- </cue> -->
+      
+  <!-- Try the actual server lib... this works? -->
+  <!-- <cue name="Server_Reader_Wrap" instantiate="true" checkinterval="5s"> -->
+    <!-- <cues> -->
+      <!-- <cue name="Server_Reader" ref="md.LIB_Pipe_Server_Support.Server_Reader"> -->
+        <!-- <param name="Actions_On_Init"     value="Test_Lib_Actions"/> -->
+      <!-- </cue> -->
+    <!-- </cues>     -->
+  <!-- </cue>  -->
+  
+  <!-- Maybe just a one-step shell would work? yes, works.-->  
+  <!-- <cue name="Server_Reader_Wrap"> -->
+    <!-- <cues> -->
+      <!-- <cue name="Host_Server_Reader" ref="md.LIB_Pipe_Server_Support.Server_Reader"> -->
+        <!-- <param name="Actions_On_Init"     value="Test_Lib_Actions"/> -->
+      <!-- </cue> -->
+    <!-- </cues> -->
+  <!-- </cue> -->
+  
   
   <!-- 
   Testing cue will restart every so many seconds.
