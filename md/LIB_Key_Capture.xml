@@ -13,111 +13,10 @@ Goals:
   
   
 TODO:
-  Switch to not saving keys across reloads, requiring they be reset regularly.
-  This would add robustness against mods being removed, so their old keys
-  aren't remembered. (Alternative is to check if callback cues exist anymore,
-  but that is less robust if a mod hooked a key to some external cue not
-  part of that mod, or if a mod changes how it does key announcement but
-  the cue still exists.)
-  
-  Require keys be re-registered in a particular way, eg. on some cue being
-  signalled (or later).
-  
   Add an option to suppress further key matching when a key is held down,
   eg. ignore the extra 'press' events sent by the keyboard without a 'release'
   event.
   
-  
-Question: what general approach to use?
-
-  A)  Have a global table of keys registers, subtables of cues to be called.
-      Global handler announces to server keys it cares about, and signal
-      names to use for those keys being pressed.
-      Global handler responsible for setting up instanced listeners for
-      each registered key, which in turn signal the respective cues.
-      
-      - One listener per key, even if multiple cues hook into it.
-      - Extra complexity for multiple cues/key, when generally only expect
-        one cue/key.
-         
-      Unregistering a key/cue means removing that cue from the key table.
-      If a key has no callback cues, stop the listener in some way?
-      May need to code this check into the listener in some way, but it is
-      an instance, so unclear on how to do this.
-       
-  B)  Have an independent key register cue, which instantiates a listener.
-      No global registery.
-      Still has the quirk of difficulty unregistering a key/cue, but might
-      be even more complicated than above.
-     
-  C)  Global handler as in A, but only one listener for key presses.
-      When getting a keypress, the listener checks it against key/cue
-      table, and signals cues.
-      Unregistering relatively easy, just remove cue from key table.
-      Probably okay to leave listener running even if no keys registered.
-      Might have better peformance, since MD engine doesn't need to track
-      so many subcues.
-      
-  Going with C, as it seems easiest to manage.
-  
-  
-Question: should this save registered keys, or require users to re-register
-  on each game reload?
-  
-  This api is easier to write if it doesn't have to keep state, but that
-  would make it harder to use.
-  There is no particular expectation that reloading a save should break
-  keys, so it makes most sense to save them.
-  This api will then need to be responsible for re-informing the server
-  when it is reset of which keys to capture.
-  
-  However, saving the state here makes it less robust against version
-  changes, as it removes freedom to rename variables, add new table
-  fields, etc., except through the annoying patching system.
-  
-  Compromise: save the specific key/cue combos registered, but keep them
-  in their own data table and add nothing else to it.  All other state
-  can be rebuilt on reload.
-     
-     
-     
-Overview of cues and what they call:
-
-  Globals
-  - Set up once at lib setup, storing static important state.
-  -> Globals.Reset_On_Lua_Reload
-    - Updates some settings, eg. DebugChance.
-  
-  Register_Key (called by user)
-  - Sends new key list to server.
-  -> Activate_Read_Loop (does nothing if ping/read loops are active).
-  
-    -> Ping_Server: Sends dummy write to server.
-      -> Ping_Callback      
-        On error:
-          If keys are still registered:
-          -> Ping_Server_With_Delay (short delay, several seconds)
-            -> Ping_Server (loops)
-          else does nothing, loop dies.          
-        On success:
-        - Sends current key list to server.
-        -> Read_Key
-          -> Read_Callback
-            On timeout:
-              If keys are still registered:
-              -> Read_Key (loops)
-              else does nothing, loop dies.
-            On error:
-              -> Ping_Server
-            Else:
-              -> User callbacks for the key(s) from server.
-              -> Read_Key (loops)
-    
-    
-  Unregister_Key (called by user)
-  - Sends new key list to server.
-  - Calls no other cues; Read_Key_Callback checks if keys still registered.
-    
 -->
 <cues>
   
@@ -135,80 +34,94 @@ Overview of cues and what they call:
     </actions>
   </cue>
       
-  <!--
-    Static cue that holds some shared state information or constants.
-    When this script is installed, a new instance of this cue is created,
-    and will afterwards be live until the script is removed.
-    Globals are reset each time this api reloads.
+      
+  <!-- Use the generic server reader library.
+      Needs a cue wrapping it, else get property errors on the library refs. -->
+  <cue name="Server_Reader_Wrapper">
+    <cues>
+      <cue name="Server_Reader" ref="md.LIB_Pipe_Server_Support.Server_Reader">
+        <param name="Actions_On_Init"     value="Actions_On_Init"/>
+        <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
+        <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
+        <param name="Actions_On_Read"     value="Actions_On_Read"/>
+      </cue>
+    </cues>
+  </cue>
+  
+
+  <library name="Actions_On_Init">
+    <actions>
     
-    Attributes:
-    * key_cue_registry
+      <!--
       - Table, indexed by key descriptor (string), holding lists of cues.
       - Key descriptors have an extra '$' prefixed, due to x4 quirkiness.
       - Normally expect only one cue to be registered per key, but it
         might be higher.
       - Keys with no registered cues should be removed.
       - If table is empty, no keys are being listened to.
-    * server_access_loop_cue
-      - Cue or null, the currently active Server_Access_Loop cue instance.
-      - Starts as null. If an active instance dies, calls "exists" on this
-        will return false.
-    * server_connected
-      - Flag, 1 when the server has been pinged succesfully and appears to
-        have a valid connection. 0 before connection is set up, or after
-        an error/disconnect. Used to suppress some writes before a
-        connection is made, though shouldn't be critical to functionality.
-    * pipe_name
-      - Default name of the pipe used to communicate with the python host.
-      - Using "x4_python_host"
-    * DebugChance
-      - 0 or 100.
-  -->  
-  <cue name="Globals">
-    <!-- When first created, set up globals. -->
-    <actions>
-      <include_actions ref="Reset_Globals"/>
-    </actions>
-  </cue>
-  
-  <library name="Reset_Globals">
-    <actions>
-      <set_value name="Globals.$key_cue_registry" exact="table[]" />
+      -->
+      <set_value name="$key_cue_registry" exact="table[]"/>
+      
       <!-- Name of the pipe. -->
-      <set_value name="Globals.$pipe_name" exact="'x4_keys'" />
-      <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
-      <set_value name="Globals.$DebugChance" exact="100" />
-      <!-- Assume no access loop active; any old one should self-kill. -->
-      <set_value name="Globals.$server_access_loop_cue" exact="null"/>
-      <!-- Server is never connected at reset. -->
-      <set_value name="Globals.$server_connected" exact="0"/>
+      <set_value name="$Pipe_Name" exact="'x4_keys'" />
+    </actions>
+  </library>
+  
+  <library name="Actions_On_Reload">
+    <actions>
+      <include_actions ref="$Actions_On_Init"/>
+      
+      <!-- Send a signal that all users listen to. -->
+      <signal_cue_instantly cue="md.LIB_Key_Capture.Reloaded"/>
     </actions>
   </library>
 
-  <!--
-    Reset some vars and send a signal when the pipe api reloads.
-    
-    TODO: consider if this should wait on the pipe server api reloading first;
-    first ping will fail if the server isn't set up in time. Alternatively,
-    consider getting a confirmation from the pipe server api that it sent
-    the command to launch the key capture server.
-  -->
-  <cue name="Reset_On_Lua_Reload" instantiate="true">
-    <conditions>
-      <check_any>
-        <event_cue_signalled cue="md.LIB_Named_Pipes.Reloaded" />
-        <event_ui_triggered screen="'Named_Pipes_Api'" control="'%s_disconnected'.[Globals.$pipe_name]" />
-      </check_any>
-    </conditions>
+  <library name="Actions_On_Connect">
     <actions>
-      <!-- Make sure the global registry is reset. -->
-      <include_actions ref="Reset_Globals"/>
-      <!-- Send a signal that all users listen to. -->
-      <signal_cue_instantly cue="Reloaded"/>
-      
-      <debug_text text="'reload triggered.'" chance="Globals.$DebugChance" filter="general"/>
+      <!-- Announce the wanted keys to the server. -->
+      <include_actions ref="md.LIB_Key_Capture.Register_Keys_With_Server"/>
     </actions>
-  </cue>
+  </library>
+  
+  <library name="Actions_On_Read">
+    <actions>
+      <!-- Read succeeded with at least one key. -->
+      <!-- Handle callback cues. -->
+      <!-- TODO: support multiple keys returned, with some separator. -->
+              
+      <!-- Start by prefixing the key combo with a '$' for table lookups. -->
+      <set_value name="$key" exact="'$' + event.param"/>
+      <debug_text text="'Received key %s.'.[$key]" chance="$DebugChance" filter="general"/>
+    
+      <!-- Is the key returned actually registered? -->
+      <do_if value="$key_cue_registry.{$key}?">
+      
+        <!-- Convenience renaming. -->
+        <set_value name="$cue_list" exact="$key_cue_registry.{$key}"/>
+        
+        <!-- Loop over the callback cues. -->
+        <do_all exact="$cue_list.count" counter="$i">
+          <!-- Verify the cue still exists before calling it. -->
+          <do_if value="$cue_list.{$i}.exists">
+            <!-- Call the cue, with this key combo (without $). -->
+            <signal_cue_instantly cue="$cue_list.{$i}" param="event.param"/>
+          </do_if>
+          <!-- TODO: remove non-existent cues. -->
+        </do_all>
+                  
+      </do_if>
+      
+      <do_else>
+        <!-- Key not registered. TODO: error message. -->
+      </do_else>
+      
+      <!--Acknowledge this key was read.
+          Note: this will not bother to check for errors. If the pipe dies,
+          a read will fail and catch it. -->
+      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe=$Pipe_Name, $msg='ack']"/>
+    </actions>
+  </library>
+  
   
   <!--
     Dummy cue used for signalling.
@@ -260,26 +173,26 @@ Overview of cues and what they call:
       <set_value name="$cue" exact="event.param.{'$cue'}"/>
       
       <!-- Make sure there is a table entry for the key. -->
-      <do_if value="not Globals.$key_cue_registry.{$key}?">
-        <set_value name="Globals.$key_cue_registry.{$key}" exact="[]"/>
+      <do_if value="not Server_Reader.$key_cue_registry.{$key}?">
+        <set_value name="Server_Reader.$key_cue_registry.{$key}" exact="[]"/>
       </do_if>
       
       <!-- Check if the cue is already recorded for this key. -->
-      <do_if value="Globals.$key_cue_registry.{$key}.indexof.{$cue} != 0">
+      <do_if value="Server_Reader.$key_cue_registry.{$key}.indexof.{$cue} != 0">
         <!-- Print some warning. -->
-        <debug_text text="'Warning, cue %s already registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, cue %s already registered to key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
       </do_if>
       <do_else>
         <!-- It isn't recorded, so add it in. -->
-        <append_to_list name="Globals.$key_cue_registry.{$key}" exact="$cue" />
-        <debug_text text="'Cue %s registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
+        <append_to_list name="Server_Reader.$key_cue_registry.{$key}" exact="$cue" />
+        <debug_text text="'Cue %s registered to key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
       </do_else>
       
       <!-- Update the server. If it isn't connected, ignore any error. -->
       <include_actions ref="Register_Keys_With_Server"/>
       
-        <!-- Make sure the read loop is started, if it wasn't already. -->
-        <signal_cue cue="Server_Access_Loop" />
+      <!-- Make sure the read loop is started, if it wasn't already. -->
+      <signal_cue cue="Server_Reader.$Start_Reading" />
       
     </actions>    
   </cue>
@@ -304,27 +217,27 @@ Overview of cues and what they call:
       <set_value name="$cue" exact="event.param.{'$cue'}"/>
       
       <!-- Make sure there is a table entry for the key. -->
-      <do_if value="not Globals.$key_cue_registry.{$key}?">
+      <do_if value="not Server_Reader.$key_cue_registry.{$key}?">
         <!-- Print some warning. -->
-        <debug_text text="'Warning, key %s has no registered cues.'.[$key]" chance="Globals.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, key %s has no registered cues.'.[$key]" chance="Server_Reader.$DebugChance" filter="general"/>
       </do_if>
       
       <!-- Check if the cue is recorded for this key. -->
-      <set_value name="$cue_index" exact="Globals.$key_cue_registry.{$key}.indexof.{$cue}"/>
+      <set_value name="$cue_index" exact="Server_Reader.$key_cue_registry.{$key}.indexof.{$cue}"/>
       <do_if value="$cue_index == 0">
         <!-- It isn't recorded, so print a warning. -->
-        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
       </do_if>
       
       <do_else>
         <!-- Proceed with removal. -->
-        <remove_value name="Globals.$key_cue_registry.{$key}.{$cue_index}" />
-        <debug_text text="'Removed cue %s from key %s.'.[$cue.name, $key]" chance="Globals.$DebugChance" filter="general"/>
+        <remove_value name="Server_Reader.$key_cue_registry.{$key}.{$cue_index}" />
+        <debug_text text="'Removed cue %s from key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
         
         <!-- If the key's cue list is empty, also remove the key itself. -->
-        <do_if value="Globals.$key_cue_registry.{$key}.count == 0">
-          <remove_value name="Globals.$key_cue_registry.{$key}" />
-          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]" chance="Globals.$DebugChance" filter="general"/>
+        <do_if value="Server_Reader.$key_cue_registry.{$key}.count == 0">
+          <remove_value name="Server_Reader.$key_cue_registry.{$key}" />
+          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]" chance="Server_Reader.$DebugChance" filter="general"/>
           
           <!-- Update the server. If it isn't connected, ignore any error. -->
           <include_actions ref="Register_Keys_With_Server"/>
@@ -339,248 +252,20 @@ Overview of cues and what they call:
   <library name="Register_Keys_With_Server">
     <actions>
       <!-- Suppress if not connected to server, to reduce log confusion. -->
-      <do_if value="Globals.$server_connected == 1">
+      <do_if value="Server_Reader.$server_connected == 1">
       
         <!--Start by merging the keys together, semicolon separated. -->
         <set_value name="$joined_keys" exact="''" />
-        <do_all exact="Globals.$key_cue_registry.keys.count" counter="$i">
-          <set_value name="$joined_keys" exact="$joined_keys + Globals.$key_cue_registry.keys.list.{$i} + ';'"/>
+        <do_all exact="Server_Reader.$key_cue_registry.keys.count" counter="$i">
+          <set_value name="$joined_keys" exact="$joined_keys + Server_Reader.$key_cue_registry.keys.list.{$i} + ';'"/>
         </do_all>
         
         <!-- Send this to the server. -->
-        <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe = Globals.$pipe_name, $msg = 'setkeys:'+$joined_keys ]"/>
+        <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'setkeys:'+$joined_keys ]"/>
         
       </do_if>
     </actions>
   </library>
-
-
-
-  
-  <!--
-    Parent cue for the subcues that access a server, pinging and reading.
-    Subcues will form oscillating loops.
-    This will cancel its instance when a reload occurs.
-    This will not start if a prior instance still exists, as stored
-    in Globals.$server_access_loop_cue.
-    Instanced, so this can be cancelled and recalled in the same frame.
-  -->
-  <cue name="Server_Access_Loop" instantiate="true" namespace="this">
-    <conditions>
-      <event_cue_signalled/>
-      <check_value value="not Globals.$server_access_loop_cue.exists"/>
-    </conditions>
-    <actions>
-      <set_value name="Globals.$server_access_loop_cue" exact="this"/>      
-    </actions>
-    
-    <cues>
-    
-      <!-- Dummy cue, no conditions, calls Ping_Server right away. -->
-      <cue name="Init_Ping_Server">
-        <actions>
-          <signal_cue_instantly cue="Ping_Server"/>
-        </actions>        
-      </cue>
-      
-      <!-- Detect a reload, and kill this access loop instance. -->
-      <cue name="Reload_Listener">
-        <conditions>
-          <event_cue_signalled cue="Reloaded" />
-        </conditions>
-        <actions>
-          <!-- Cancel the namespace, which is the instanced parent 
-              (not the static parent). -->
-          <cancel_cue cue="namespace"/>
-        </actions>        
-      </cue>
-  
-      
-      <!-- 
-        Lib function for cancelling the parent cue and resetting some state.
-        Use this to end the Server_Access_Loop when no keys are registered.
-      -->
-      <library name="Cancel_Server_Access_Loop">
-        <actions>
-          <!-- Clear any necessary flags. -->
-          <set_value name="Globals.$server_connected" exact="0"/>
-          <!-- Cancel the namespace, which is the instanced parent 
-              (not the static parent). -->
-          <cancel_cue cue="namespace"/>
-        </actions>
-      </library>
-      
-  
-  
-      <!-- Ping the server to see if it is available. -->
-      <cue name="Ping_Server" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        <actions>
-          <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe=Globals.$pipe_name, $msg='ping', $cue=Ping_Callback]"/>
-        </actions>
-      </cue>
-      
-      
-      <!-- Check if ping write went through. -->
-      <cue name="Ping_Callback" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        <actions>      
-        
-          <!-- If an error then the server isn't set up, so wait to ping again. -->
-          <do_if value="event.param == 'ERROR'">
-          
-            <!-- Only keep looping if keys are still registered. -->
-            <do_if value="Globals.$key_cue_registry.keys.count != 0">
-              <!-- Restart pinging routine, after some delay. -->
-              <signal_cue_instantly cue="Ping_Server_After_Delay"/>
-            </do_if>
-            
-            <do_else>
-              <!-- Kill the parent cue; no need to connect without keys to listen to. -->
-              <include_actions ref="Cancel_Server_Access_Loop"/>
-            </do_else>
-          </do_if>
-          
-          <!-- On a game reload, this comes back as cancelled; don't loop. -->
-          <do_elseif value="event.param == 'CANCELLED'">
-            <!-- The parent cue is getting killed by other logic, so do nothing. -->
-          </do_elseif>
-          
-          <do_else>
-            <!-- Connected; continue with startup. -->
-            <set_value name="Globals.$server_connected" exact="1"/>
-            
-            <!-- Announce the wanted keys to the server. -->
-            <include_actions ref="Register_Keys_With_Server"/>
-                    
-            <!-- Can kick off a first read right away. -->
-            <signal_cue_instantly cue="Read_Message"/>
-          </do_else>
-        </actions>
-      </cue>
-      
-      
-      <!--
-        Trigger ping after long delay.
-        Should be used by the ping loop to reduce ping overhead.
-        TODO: shorter delay version for the first couple pings, backing off to a longer version if they are failing. Perhaps use checktime for this.
-      -->
-      <cue name="Ping_Server_After_Delay" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        <delay exact="10s"/>
-        <actions>
-          <signal_cue_instantly cue="Ping_Server"/>          
-        </actions>
-      </cue>
-          
-        
-        
-      <!--Read a key. 
-          Read_Message and Read_Callback will effectively loop on each other until
-          an error occurs.
-      -->
-      <cue name="Read_Message" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        <actions>
-          <!-- Timeout is used to occasionally check if the loop should stop. -->
-          <signal_cue_instantly cue="md.LIB_Named_Pipes.Read" param="table[$pipe=Globals.$pipe_name, $cue=Read_Callback, $to='1s']"/>
-        </actions>
-      </cue>
-      
-      
-      <!--Handle the read key.
-          If succesful, triggers Read_Message and Ack_Key.
-          If error, Resets.
-          
-          TODO: maybe scrap the error detection stuff and rely on general resets from lua disconnect signal
-      -->
-      <cue name="Read_Callback" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        
-        <actions>
-        
-          <!-- If error/cancelled, assume the server shut down. -->
-          <do_if value="event.param == 'ERROR'">
-            <debug_text text="'pipe error; restarting Ping_Server'" chance="Globals.$DebugChance" filter="general"/>
-            <!-- Note that the pipe disconnected. -->
-            <set_value name="Globals.$server_connected" exact="0"/>
-            <!-- Restart pinging routine. -->
-            <signal_cue_instantly cue="Ping_Server"/>
-          </do_if>
-          
-          <!-- On a game reload, this comes back as cancelled; don't loop. -->
-          <!-- TODO: is this needed now that the parent cue cancels itself on reload? -->
-          <do_elseif value="event.param == 'CANCELLED'">
-            <!-- The parent cue is getting killed by other logic, so do nothing. -->
-          </do_elseif>
-          
-          <!-- On timeout, check if the loop should stop. -->
-          <do_elseif value="event.param == 'TIMEOUT'">
-            <!-- Only keep looping if keys are still registered. -->
-            <do_if value="Globals.$key_cue_registry.keys.count != 0">
-              <signal_cue_instantly cue="Read_Message"/>
-            </do_if>
-            <do_else>
-              <!-- Kill the parent cue; no need to connect without servers to host. -->
-              <include_actions ref="Cancel_Server_Access_Loop"/>
-            </do_else>
-          </do_elseif>
-                    
-          <do_else>
-            <!-- Read succeeded with at least one key. -->
-            <!-- Handle callback cues. -->
-            <!-- TODO: support multiple keys returned, with some separator. -->
-                    
-            <!-- Start by prefixing the key combo with a '$' for table lookups. -->
-            <set_value name="$key" exact="'$' + event.param"/>
-            <debug_text text="'Received key %s.'.[$key]" chance="Globals.$DebugChance" filter="general"/>
-          
-            <!-- Is the key returned actually registered? -->
-            <do_if value="Globals.$key_cue_registry.{$key}?">
-            
-              <!-- Convenience renaming. -->
-              <set_value name="$cue_list" exact="Globals.$key_cue_registry.{$key}"/>
-              
-              <!-- Loop over the callback cues. -->
-              <do_all exact="$cue_list.count" counter="$i">
-                <!-- Verify the cue still exists before calling it. -->
-                <do_if value="$cue_list.{$i}.exists">
-                  <!-- Call the cue, with this key combo (without $). -->
-                  <signal_cue_instantly cue="$cue_list.{$i}" param="event.param"/>
-                </do_if>
-                <!-- TODO: remove non-existent cues. -->
-              </do_all>
-                        
-            </do_if>
-            
-            <do_else>
-              <!-- Key not registered. TODO: error message. -->
-            </do_else>
-            
-            <!--Acknowledge this key was read.
-                Note: this will not bother to check for errors. If the pipe dies,
-                a read will fail and catch it. -->
-            <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe=Globals.$pipe_name, $msg='ack']"/>
-            
-            <!-- Request the next key to be read, looping. -->
-            <signal_cue cue="Read_Message"/>
-            
-          </do_else> <!-- End handling of callback cues. -->      
-        </actions>
-      </cue>
-      
-    </cues>
-  </cue> <!-- end Server_Access_Loop -->
     
 </cues>
 
