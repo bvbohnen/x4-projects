@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="LIB_Named_Pipes" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Named_Pipes" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
 
 <!--
 MD API support for working with named pipes for inter-process communication.
@@ -50,10 +50,10 @@ TODO:
   <!-- Setting up the Lua side of this test. -->
   <cue name="Load_Lua_Files" instantiate="true">
     <conditions>
-      <event_ui_triggered screen="'Lua_Loader_Api'" control="'Ready'" />
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
     </conditions>
     <actions>
-      <raise_lua_event name="'Lua_Loader_Api.Load'" param="'extensions.named_pipes_api.Named_Pipes'"/>
+      <raise_lua_event name="'Lua_Loader.Load'" param="'extensions.named_pipes_api.Named_Pipes'"/>
     </actions>
   </cue>
   
@@ -102,7 +102,7 @@ TODO:
   -->
   <cue name="Reset_On_Lua_Reload" instantiate="true">
     <conditions>
-      <event_ui_triggered screen="'Named_Pipes_Api'" control="'reloaded'" />
+      <event_ui_triggered screen="'Named_Pipes'" control="'reloaded'" />
     </conditions>
     <actions>
       <!-- Make sure the global registry is reset. -->
@@ -162,7 +162,7 @@ TODO:
       nothing.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Close" param="'mypipe'">
+      <signal_cue_instantly name="md.Named_Pipes.Close" param="'mypipe'">
   -->
   <cue name="Close" instantiate="true">
     <conditions>
@@ -215,7 +215,7 @@ TODO:
       Checks receive 'SUCCESS' or 'ERROR'.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Write" 
+      <signal_cue_instantly name="md.Named_Pipes.Write" 
         param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback, $time=5s]">
   -->
   <cue name="Check" instantiate="true">
@@ -249,7 +249,7 @@ TODO:
       Writes receive 'SUCCESS' or 'ERROR'.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Write" 
+      <signal_cue_instantly name="md.Named_Pipes.Write" 
         param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback]">
   -->
   <cue name="Write" instantiate="true">
@@ -271,7 +271,7 @@ TODO:
     path list.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Write_Special" 
+      <signal_cue_instantly name="md.Named_Pipes.Write_Special" 
         param="table[$pipe='mypipe', $msg='package.path', $cue=Write_Callback, $time=5s]">
   -->
   <cue name="Write_Special" instantiate="true">
@@ -303,7 +303,7 @@ TODO:
       If the read is cancelled on game or ui reload, returns 'CANCELLED'.
     
     Usage example:
-      <signal_cue_instantly name="md.LIB_Named_Pipes.Read" 
+      <signal_cue_instantly name="md.Named_Pipes.Read" 
         param="table[$pipe = 'mypipe', $cue = Read_Callback, $time = 5s]">
         
       ...
@@ -472,7 +472,7 @@ TODO:
       -->
       <cue name="Capture_Lua_Response" >
         <conditions>
-            <event_ui_triggered screen="'Named_Pipes_Api'" control="$lua_signal" />
+            <event_ui_triggered screen="'Named_Pipes'" control="$lua_signal" />
         </conditions>
         
         <actions>
