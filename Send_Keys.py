@@ -117,7 +117,7 @@ def main():
     global key_buffer
     
     # Max keys in flight to x4, not yet acknowledged.
-    max_keys_piped = 5
+    max_keys_piped = 10
     # Current count of piped keys.
     keys_piped = 0
     

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="LIB_Key_Capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Key_Capture" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xsi:noNamespaceSchemaLocation="md.xsd">
 
 <!--
 MD API support for capturing key presses.
@@ -25,11 +27,11 @@ TODO:
   -->  
   <cue name="Register_Pipe_Server" instantiate="true">
     <conditions>
-      <event_cue_signalled cue="md.LIB_Pipe_Server.Reloaded" />
+      <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
     </conditions>
     <actions>
       <signal_cue_instantly 
-        cue="md.LIB_Pipe_Server.Register_Module" 
+        cue="md.Pipe_Server_Host.Register_Module" 
         param="'extensions/key_capture_api/Send_Keys.py'"/>
     </actions>
   </cue>
@@ -39,7 +41,7 @@ TODO:
       Needs a cue wrapping it, else get property errors on the library refs. -->
   <cue name="Server_Reader_Wrapper">
     <cues>
-      <cue name="Server_Reader" ref="md.LIB_Pipe_Server_Support.Server_Reader">
+      <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
         <param name="Actions_On_Init"     value="Actions_On_Init"/>
         <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
         <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
@@ -50,8 +52,7 @@ TODO:
   
 
   <library name="Actions_On_Init">
-    <actions>
-    
+    <actions>    
       <!--
       - Table, indexed by key descriptor (string), holding lists of cues.
       - Key descriptors have an extra '$' prefixed, due to x4 quirkiness.
@@ -64,24 +65,29 @@ TODO:
       
       <!-- Name of the pipe. -->
       <set_value name="$Pipe_Name" exact="'x4_keys'" />
+
+      <set_value name="$DebugChance" exact="100" />
     </actions>
   </library>
+  
   
   <library name="Actions_On_Reload">
     <actions>
       <include_actions ref="$Actions_On_Init"/>
       
       <!-- Send a signal that all users listen to. -->
-      <signal_cue_instantly cue="md.LIB_Key_Capture.Reloaded"/>
+      <signal_cue_instantly cue="md.Key_Capture.Reloaded"/>
     </actions>
   </library>
 
+  
   <library name="Actions_On_Connect">
     <actions>
       <!-- Announce the wanted keys to the server. -->
-      <include_actions ref="md.LIB_Key_Capture.Register_Keys_With_Server"/>
+      <include_actions ref="md.Key_Capture.Register_Keys_With_Server"/>
     </actions>
   </library>
+  
   
   <library name="Actions_On_Read">
     <actions>
@@ -91,7 +97,8 @@ TODO:
               
       <!-- Start by prefixing the key combo with a '$' for table lookups. -->
       <set_value name="$key" exact="'$' + event.param"/>
-      <debug_text text="'Received key %s.'.[$key]" chance="$DebugChance" filter="general"/>
+      <debug_text text="'Received key %s.'.[$key]" 
+                  chance="$DebugChance" filter="general"/>
     
       <!-- Is the key returned actually registered? -->
       <do_if value="$key_cue_registry.{$key}?">
@@ -118,7 +125,9 @@ TODO:
       <!--Acknowledge this key was read.
           Note: this will not bother to check for errors. If the pipe dies,
           a read will fail and catch it. -->
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe=$Pipe_Name, $msg='ack']"/>
+      <signal_cue_instantly 
+        cue="md.Named_Pipes.Write" 
+        param="table[$pipe=$Pipe_Name, $msg='ack']"/>
     </actions>
   </library>
   
@@ -153,11 +162,11 @@ TODO:
     
       <cue name="Register_Keys" instantiate="true">
         <conditions>
-          <event_cue_signalled cue="md.LIB_Key_Capture.Reloaded" />
+          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
         </conditions>
         <actions>
           <signal_cue_instantly 
-            cue="md.LIB_Key_Capture.Register_Key" 
+            cue="md.Key_Capture.Register_Key" 
             param="table[$key='w', $cue=OnKeyPress]"/>
         </actions>
       </cue>      
@@ -180,12 +189,14 @@ TODO:
       <!-- Check if the cue is already recorded for this key. -->
       <do_if value="Server_Reader.$key_cue_registry.{$key}.indexof.{$cue} != 0">
         <!-- Print some warning. -->
-        <debug_text text="'Warning, cue %s already registered to key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, cue %s already registered to key %s.'.[$cue.name, $key]" 
+                    chance="Server_Reader.$DebugChance" filter="general"/>
       </do_if>
       <do_else>
         <!-- It isn't recorded, so add it in. -->
         <append_to_list name="Server_Reader.$key_cue_registry.{$key}" exact="$cue" />
-        <debug_text text="'Cue %s registered to key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Cue %s registered to key %s.'.[$cue.name, $key]" 
+                    chance="Server_Reader.$DebugChance" filter="general"/>
       </do_else>
       
       <!-- Update the server. If it isn't connected, ignore any error. -->
@@ -204,8 +215,12 @@ TODO:
     If this was the only cue registered (across all keys), the key listerner
     loop will stop itself.
     
+    TODO: test this.
+    
     Usage example:
-      <signal_cue_instantly cue="md.LIB_Key_Capture.Unregister_Key" param="table[$key='w', $cue=OnKeyPress]">
+      <signal_cue_instantly 
+        cue="md.Key_Capture.Unregister_Key" 
+        param="table[$key='w', $cue=OnKeyPress]">
   -->
   <cue name="Unregister_Key" instantiate="true" namespace="this">
     <conditions>
@@ -219,25 +234,29 @@ TODO:
       <!-- Make sure there is a table entry for the key. -->
       <do_if value="not Server_Reader.$key_cue_registry.{$key}?">
         <!-- Print some warning. -->
-        <debug_text text="'Warning, key %s has no registered cues.'.[$key]" chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, key %s has no registered cues.'.[$key]" 
+                    chance="Server_Reader.$DebugChance" filter="general"/>
       </do_if>
       
       <!-- Check if the cue is recorded for this key. -->
       <set_value name="$cue_index" exact="Server_Reader.$key_cue_registry.{$key}.indexof.{$cue}"/>
       <do_if value="$cue_index == 0">
         <!-- It isn't recorded, so print a warning. -->
-        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" 
+                    chance="Server_Reader.$DebugChance" filter="general"/>
       </do_if>
       
       <do_else>
         <!-- Proceed with removal. -->
         <remove_value name="Server_Reader.$key_cue_registry.{$key}.{$cue_index}" />
-        <debug_text text="'Removed cue %s from key %s.'.[$cue.name, $key]" chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Removed cue %s from key %s.'.[$cue.name, $key]" 
+                    chance="Server_Reader.$DebugChance" filter="general"/>
         
         <!-- If the key's cue list is empty, also remove the key itself. -->
         <do_if value="Server_Reader.$key_cue_registry.{$key}.count == 0">
           <remove_value name="Server_Reader.$key_cue_registry.{$key}" />
-          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]" chance="Server_Reader.$DebugChance" filter="general"/>
+          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]" 
+                      chance="Server_Reader.$DebugChance" filter="general"/>
           
           <!-- Update the server. If it isn't connected, ignore any error. -->
           <include_actions ref="Register_Keys_With_Server"/>
@@ -257,11 +276,14 @@ TODO:
         <!--Start by merging the keys together, semicolon separated. -->
         <set_value name="$joined_keys" exact="''" />
         <do_all exact="Server_Reader.$key_cue_registry.keys.count" counter="$i">
-          <set_value name="$joined_keys" exact="$joined_keys + Server_Reader.$key_cue_registry.keys.list.{$i} + ';'"/>
+          <set_value name="$joined_keys" 
+            exact="$joined_keys + Server_Reader.$key_cue_registry.keys.list.{$i} + ';'"/>
         </do_all>
         
         <!-- Send this to the server. -->
-        <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'setkeys:'+$joined_keys ]"/>
+        <signal_cue_instantly 
+          cue="md.Named_Pipes.Write" 
+          param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'setkeys:'+$joined_keys ]"/>
         
       </do_if>
     </actions>
