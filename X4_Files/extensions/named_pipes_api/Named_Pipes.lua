@@ -60,7 +60,7 @@ Reading a pipe from MD:
     an instance), conditioned on response signal:
     
         <event_ui_triggered 
-            screen="'Named_Pipes_Api'" 
+            screen="'Named_Pipes'" 
             control="'pipeRead_complete_<id>'" />
         
     The returned value will be in "event.param3":
@@ -97,7 +97,7 @@ Writing a pipe from MD:
     Optionally capture the response signal, indicating success or failure.
     
         <event_ui_triggered 
-            screen="'Named_Pipes_Api'" 
+            screen="'Named_Pipes'" 
             control="'pipeWrite_complete_<id>'" />
     
     The returned status is "ERROR" on an error, else "SUCCESS".
@@ -126,7 +126,7 @@ Checking pipe status:
         <raise_lua_event name="'pipeCheck'" param="'<pipe_name>;<id>'" />
     
         <event_ui_triggered 
-            screen="'Named_Pipes_Api'" 
+            screen="'Named_Pipes'" 
             control="'pipeCheck_complete_<id>'" />
             
     In this case, event.param2 holds SUCCESS if the pipe appears to be
@@ -161,7 +161,7 @@ Detect a pipe closed:
     The signal name is tied to the pipe name.
     
         <event_ui_triggered 
-            screen="'Named_Pipes_Api'" 
+            screen="'Named_Pipes'" 
             control="'<pipe_name>_disconnected'" />
 
     
@@ -338,8 +338,8 @@ function Raise_Signal(name, return_value)
     
     -- Switching to AddUITriggeredEvent
     -- This will give the return_value in event.param3
-    -- Use <event_ui_triggered screen="'Named_Pipes_Api'" control="'???'" />
-    AddUITriggeredEvent("Named_Pipes_Api", name, return_value)
+    -- Use <event_ui_triggered screen="'Named_Pipes'" control="'???'" />
+    AddUITriggeredEvent("Named_Pipes", name, return_value)
 end
 
 

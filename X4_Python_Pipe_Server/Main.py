@@ -158,7 +158,9 @@ def Main():
                         # This will happen when x4 reloads saves and such, and all
                         # md scripts re-announce their server files.
                         if module_path in module_relpaths:
+                            print('Module was already loaded: {}'.format(module_path))
                             continue
+
                         # Record this path as seen.
                         module_relpaths.append(module_path)
 
@@ -175,6 +177,8 @@ def Main():
                         if main != None:
                             thread = Server_Thread(module.main)
                             threads.append(thread)
+                        else:
+                            print('Module lacks "main()": {}'.format(module_path))
 
 
         except win32api.error as ex:

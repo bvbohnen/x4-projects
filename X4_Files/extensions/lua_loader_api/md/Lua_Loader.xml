@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="Lua_Loader_Api" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Lua_Loader" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
 
 <cues>
   
@@ -12,7 +12,7 @@
       </check_any>
     </conditions>    
     <actions>
-      <raise_lua_event name="'Lua_Loader_Api.Signal'"/>      
+      <raise_lua_event name="'Lua_Loader.Signal'"/>      
     </actions>    
   </cue>
   

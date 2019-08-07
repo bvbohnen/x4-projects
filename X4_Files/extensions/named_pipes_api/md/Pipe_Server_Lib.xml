@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="LIB_Pipe_Server_Support" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Pipe_Server_Lib" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xsi:noNamespaceSchemaLocation="md.xsd">
 
 <!--
 Library of functions to aid in writing MD interfaces to external servers.
@@ -58,7 +60,9 @@ Notes on server access looping cues:
     * Actions_On_Connect
       - Optional library of actions to take upon connecting to the server.
     * Actions_On_Read
-      - Optional library of actions to take when reading a message from the server.
+      - Optional library of actions to take when reading a message from 
+        the server.
+      - The message will be in event.param.
       
     Interface variables:
     * Start_Reading
@@ -78,8 +82,29 @@ Notes on server access looping cues:
         have a valid connection. 0 before connection is set up, or after
         an error/disconnect. Used to suppress some writes before a
         connection is made, though shouldn't be critical to functionality.
+        
+        
+    Note: 
+      x4 has problems when a cue using this library is created alongside
+      the action-libraries to be given as parameters.  While other cues can
+      be passed in this way, libraries cannot (assume md bug).
+      
+      As a workaround, a dummy wrapper cue can be wrapped around the cue
+      that refs this library.
+      
+      Example:
+        <cue name="Server_Reader_Wrapper">
+          <cues>
+            <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
+              <param name="Actions_On_Init"     value="Actions_On_Init"/>
+              <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
+              <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
+              <param name="Actions_On_Read"     value="Actions_On_Read"/>
+            </cue>
+          </cues>
+        </cue>
+    
   -->
-  <!-- TODO: is "this" namespace needed to be specified? unclear from docs. -->  
   <library name="Server_Reader">
     <params>
       <!-- Put whatever generic name for the default pipe. -->
@@ -131,8 +156,9 @@ Notes on server access looping cues:
       <cue name="Reset_On_Lua_Reload" instantiate="true">
         <conditions>
           <check_any>
-            <event_cue_signalled cue="md.LIB_Named_Pipes.Reloaded" />
-            <event_ui_triggered screen="'Named_Pipes_Api'" control="'%s_disconnected'.[$Pipe_Name]" />
+            <event_cue_signalled cue="md.Named_Pipes.Reloaded" />
+            <event_ui_triggered screen="'Named_Pipes'" 
+                                control="'%s_disconnected'.[$Pipe_Name]" />
           </check_any>
         </conditions>
         <actions>
@@ -148,7 +174,8 @@ Notes on server access looping cues:
                TODO: maybe do this before user actions. -->
           <signal_cue_instantly cue="Reloaded"/>
           
-          <debug_text text="'reload triggered.'" chance="$DebugChance" filter="general"/>
+          <debug_text text="'reload triggered.'" 
+                      chance="$DebugChance" filter="general"/>
         </actions>
       </cue>
       
@@ -229,7 +256,9 @@ Notes on server access looping cues:
               <event_cue_signalled/>
             </conditions>
             <actions>
-              <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe=$Pipe_Name, $msg='ping', $cue=Ping_Callback]"/>
+              <signal_cue_instantly 
+                cue="md.Named_Pipes.Write" 
+                param="table[$pipe=$Pipe_Name, $msg='ping', $cue=Ping_Callback]"/>
             </actions>
           </cue>
           
@@ -248,18 +277,10 @@ Notes on server access looping cues:
                 been activated.
               -->
               <do_if value="event.param == 'ERROR'">
-              
-                <!-- Only keep looping if modules are still registered. -->
-                <!-- TODO: fix this. Another include_actions to set a $stop variable? -->
-                <do_if value="$registered_modules.count != 0">
-                  <!-- Restart pinging routine, after some delay. -->
-                  <signal_cue_instantly cue="Ping_Server_After_Delay"/>
-                </do_if>
-                
-                <do_else>
-                  <!-- Kill the parent cue; no need to connect without servers to host. -->
-                  <include_actions ref="Cancel_Server_Access_Loop"/>
-                </do_else>
+                <!-- Restart pinging routine, after some delay. -->
+                <signal_cue_instantly cue="Ping_Server_After_Delay"/>
+                <!--TODO: maybe a way to check if loop should stop, 
+                    with a flag or user actions.-->
               </do_if>
               
               <!-- On a game reload, this comes back as cancelled; don't loop. -->
@@ -286,7 +307,8 @@ Notes on server access looping cues:
           <!--
             Trigger ping after long delay.
             Should be used by the ping loop to reduce ping overhead.
-            TODO: shorter delay version for the first couple pings, backing off to a longer version if they are failing.
+            TODO: shorter delay version for the first couple pings, backing 
+            off to a longer version if they are failing.
             TODO: Perhaps use checktime for this instead of delay.
           -->
           <cue name="Ping_Server_After_Delay">
@@ -304,7 +326,9 @@ Notes on server access looping cues:
           <!--Send a read request, wait for timeout or error or message.
               Used to detect when the server host disconnects.
               
-              TODO: maybe a lua level option to reduce how often the pipe reads are attempted; every frame is probably unnecessary (though perhaps has no noticeable overhead).
+              TODO: maybe a lua level option to reduce how often the pipe 
+              reads are attempted; every frame is probably unnecessary 
+              (though perhaps has no noticeable overhead).
           -->
           <cue name="Read_Message" instantiate="true">
             <conditions>
@@ -312,7 +336,9 @@ Notes on server access looping cues:
             </conditions>
             <actions>
               <!-- Timeout is used to occasionally check if the loop should stop. -->
-              <signal_cue_instantly cue="md.LIB_Named_Pipes.Read" param="table[$pipe=$Pipe_Name, $cue=Read_Callback, $to='1s']"/>
+              <signal_cue_instantly 
+                cue="md.Named_Pipes.Read" 
+                param="table[$pipe=$Pipe_Name, $cue=Read_Callback, $to='1s']"/>
             </actions>
           </cue>
           
@@ -339,13 +365,17 @@ Notes on server access looping cues:
             <actions>
             
               <!-- If error, assume the server shut down. -->
-              <do_if value="event.param == 'ERROR'">            
-                <!-- Lua should have signalled the disconnect, killing this cue by other logic, but be safe here. -->
-                <debug_text text="'pipe error; restarting Ping_Server'" chance="$DebugChance" filter="general"/>
+              <do_if value="event.param == 'ERROR'">
+                
+                <!--Lua should have signalled the disconnect, killing this 
+                    cue by other logic, but be safe here. -->                
                 <!-- Note that the pipe disconnected. -->
                 <set_value name="$server_connected" exact="0"/>
+                
                 <!-- Restart pinging routine. -->
-                <signal_cue_instantly cue="Ping_Server"/>
+                <signal_cue_instantly cue="Ping_Server"/>                
+                <debug_text text="'pipe error; restarting Ping_Server'" 
+                            chance="$DebugChance" filter="general"/>                
               </do_if>
               
               <!-- On a game reload, this comes back as cancelled; don't loop. -->
@@ -353,19 +383,11 @@ Notes on server access looping cues:
                 <!-- The parent cue is getting killed by other logic, so do nothing. -->
               </do_elseif>
               
-              <!-- On timeout, check if the loop should stop. -->
+              <!-- On timeout, try another read. -->
               <do_elseif value="event.param == 'TIMEOUT'">
-              
-                <!-- Only keep looping if modules are still registered. -->
-                <!-- TODO: fix this. -->
-                <do_if value="$registered_modules.count != 0">
-                  <signal_cue_instantly cue="Read_Message"/>
-                </do_if>
-                
-                <do_else>
-                  <!-- Kill the parent cue; no need to connect without servers to host. -->
-                  <include_actions ref="Cancel_Server_Access_Loop"/>
-                </do_else>
+                <signal_cue_instantly cue="Read_Message"/>
+                <!--TODO: maybe a way to check if loop should stop, 
+                    with a flag or user actions.-->            
               </do_elseif>
                     
               <do_else>

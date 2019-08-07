@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="LIB_Pipe_Server" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Pipe_Server_Host" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
 
 <!--
 MD API for interfacing with an external Python based pipe server.
@@ -36,11 +36,11 @@ Usage:
   
     <cue name="Register_Pipe_Server" instantiate="true">
       <conditions>
-        <event_cue_signalled cue="md.LIB_Pipe_Server.Reloaded" />
+        <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
       </conditions>
       <actions>
         <signal_cue_instantly 
-          cue="md.LIB_Pipe_Server.Register" 
+          cue="md.Pipe_Server_Host.Register" 
           param="'extensions/<mod_folder_name>/<python file>.py'"/>
       </actions>
     </cue>
@@ -68,7 +68,7 @@ Usage:
       Needs a cue wrapping it, else get property errors on the library refs. -->
   <cue name="Server_Reader_Wrapper">
     <cues>
-      <cue name="Server_Reader" ref="md.LIB_Pipe_Server_Support.Server_Reader">
+      <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
         <param name="Actions_On_Init"     value="Actions_On_Init"/>
         <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
         <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
@@ -84,28 +84,33 @@ Usage:
       <set_value name="$registered_modules" exact="[]"/>
       <!-- Name of the pipe. -->
       <set_value name="$Pipe_Name" exact="'x4_python_host'" />
+
+      <set_value name="$DebugChance" exact="100" />
     </actions>
   </library>
+  
   
   <library name="Actions_On_Reload">
     <actions>
       <include_actions ref="$Actions_On_Init"/>
       
       <!-- Send a signal that all users listen to. -->
-      <signal_cue_instantly cue="md.LIB_Pipe_Server.Reloaded"/>
+      <signal_cue_instantly cue="md.Pipe_Server_Host.Reloaded"/>
     </actions>
   </library>
 
+  
   <library name="Actions_On_Connect">
     <actions>
       <!--Send the lua side package.path string to the server, 
           containing the path to this x4 installation. -->
-      <signal_cue_instantly cue="md.LIB_Named_Pipes.Write_Special" param="table[$pipe = $Pipe_Name, $msg = 'package.path' ]"/>
+      <signal_cue_instantly cue="md.Named_Pipes.Write_Special" param="table[$pipe = $Pipe_Name, $msg = 'package.path' ]"/>
       
       <!-- Announce the modules to start up. -->
-      <include_actions ref="md.LIB_Pipe_Server.Register_Modules_With_Server"/>                    
+      <include_actions ref="md.Pipe_Server_Host.Register_Modules_With_Server"/>                    
     </actions>
   </library>
+  
   
   <library name="Actions_On_Read">
     <actions>
@@ -142,11 +147,11 @@ Usage:
     
       <cue name="Register_Pipe_Server" instantiate="true">
         <conditions>
-          <event_cue_signalled cue="md.LIB_Pipe_Server.Reloaded" />
+          <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
         </conditions>
         <actions>
           <signal_cue_instantly 
-            cue="md.LIB_Pipe_Server.Register_Module" 
+            cue="md.Pipe_Server_Host.Register_Module" 
             param="'extensions/key_capture_api/Send_Keys.py'"/>
         </actions>
       </cue>
@@ -189,7 +194,7 @@ Usage:
         </do_all>
         
         <!-- Send this to the server. -->
-        <signal_cue_instantly cue="md.LIB_Named_Pipes.Write" param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'modules:'+$joined_modules ]"/>
+        <signal_cue_instantly cue="md.Named_Pipes.Write" param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'modules:'+$joined_modules ]"/>
         
       </do_if>
     </actions>

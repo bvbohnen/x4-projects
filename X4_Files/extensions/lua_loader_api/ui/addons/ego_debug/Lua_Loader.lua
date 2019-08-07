@@ -5,7 +5,7 @@ to initialize the globals table.
 
 Usage is kept simple:
     When the ui reloads or a game is loaded, a ui event is raised.
-    User MD code will set a cue to trigger on this event and signal to
+    User MD code will set up a cue to trigger on this event and signal to
     lua which file to load.
     Lua will then "require" the file, effectively loading it into the game.
 
@@ -17,10 +17,10 @@ Example from MD:
 
     <cue name="Load_Lua_Files" instantiate="true">
     <conditions>
-        <event_ui_triggered screen="'Lua_Loader_Api'" control="'Ready'" />
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
     </conditions>
     <actions>
-        <raise_lua_event name="'Lua_Loader_Api.Load'" param="'extensions.named_pipes_api.Named_Pipes'"/>
+        <raise_lua_event name="'Lua_Loader.Load'" param="'extensions.named_pipes_api.Named_Pipes'"/>
     </actions>
     </cue>
   
@@ -33,18 +33,18 @@ local function on_Load_Lua_File(_, file_path)
     DebugError("LUA Loader API: loaded "..file_path)
 end
 local function Announce_Reload()
-    -- DebugError("LUA Loader API: Signalling 'Lua_Loader_Api, Ready'")
+    DebugError("LUA Loader API: Signalling 'Lua_Loader, Ready'")
     -- Send a ui signal, telling all md cues to rerun.
-    AddUITriggeredEvent("Lua_Loader_Api", "Ready")
+    AddUITriggeredEvent("Lua_Loader", "Ready")
 end
 local function Init()    
     DebugError("LUA Loader API: Running Init()")
     -- Hook up an md->lua signal.
-    RegisterEvent("Lua_Loader_Api.Load", on_Load_Lua_File)
+    RegisterEvent("Lua_Loader.Load", on_Load_Lua_File)
     
     -- Re-announce the UI signal on game reload, signalled by MD.
     -- (Used since ui gets set up and signals thrown away before md loads).
-    RegisterEvent("Lua_Loader_Api.Signal", Announce_Reload)
+    RegisterEvent("Lua_Loader.Signal", Announce_Reload)
     
     -- Also call the function once on ui reload itself, to catch /reloadui
     -- commands while the md is running.
