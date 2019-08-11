@@ -22,9 +22,17 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Change_Log.py" />
+    <Compile Include="extensions\key_capture_api\change_log.md" />
+    <Compile Include="extensions\lua_loader_api\change_log.md" />
+    <Compile Include="extensions\named_pipes_api\change_log.md" />
+    <Compile Include="Make_Documentation.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="extensions\key_capture_api\Send_Keys.py" />
     <Compile Include="Make_Release.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Version.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="__init__.py" />
@@ -48,17 +56,21 @@
   <ItemGroup>
     <Content Include="extensions\key_capture_api\content.xml" />
     <Content Include="extensions\key_capture_api\md\Key_Capture.xml" />
+    <Content Include="extensions\key_capture_api\Readme.md" />
+    <Content Include="extensions\key_capture_api\readme_intro.md" />
     <Content Include="extensions\key_capture_api_test\md\Test_Key_Capture.xml" />
     <Content Include="extensions\key_capture_api_test\content.xml" />
     <Content Include="extensions\lua_loader_api\content.xml" />
     <Content Include="extensions\lua_loader_api\md\Lua_Loader.xml" />
-    <Content Include="extensions\lua_loader_api\readme.md" />
+    <Content Include="extensions\lua_loader_api\Readme.md" />
     <Content Include="extensions\lua_loader_api\ui\addons\ego_debug\Lua_Loader.lua" />
     <Content Include="extensions\lua_loader_api\ui\addons\ego_debug\ui.xml" />
     <Content Include="extensions\named_pipes_api\content.xml" />
     <Content Include="extensions\named_pipes_api\md\Named_Pipes.xml" />
     <Content Include="extensions\named_pipes_api\md\Pipe_Server_Host.xml" />
     <Content Include="extensions\named_pipes_api\md\Pipe_Server_Lib.xml" />
+    <Content Include="extensions\named_pipes_api\Readme.md" />
+    <Content Include="extensions\named_pipes_api\readme_intro.md" />
     <Content Include="extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
     <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
     <Content Include="extensions\named_pipes_api_test\content.xml" />
