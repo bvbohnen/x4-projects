@@ -3,6 +3,7 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
           xsi:noNamespaceSchemaLocation="md.xsd">
 
+<!--@doc-title Key Capture API -->
 <!--
 MD API support for capturing key presses.
 This makes use of the Named Pipe API and an external python server.
@@ -10,15 +11,19 @@ Python will handle keypress detection, and will transmit to this MD script
 which in turn handles callbacks to user specified cues.
 
 Goals:
-  - Allow user to register a key with a cue.
-  - When key pressed, call the user cue.
+ - Allow user to register a key with a cue.
+ - When key pressed, call the user cue.
   
-  
+-->
+<!--
 TODO:
+  Test unregistering.
+  
+  Turn off server if all keys unregistered.
+
   Add an option to suppress further key matching when a key is held down,
   eg. ignore the extra 'press' events sent by the keyboard without a 'release'
-  event.
-  
+  event.  
 -->
 <cues>
   
@@ -145,31 +150,31 @@ TODO:
 
 
       
-  <!--
+  <!--@doc-cue
     User function to register a key with a cue.
     If this is the first cue registered, it will start the key listening loop.
     This should be re-sent each time Reloaded is signalled.
     
     Param  : Table with the following items:
-      key  : String specifying the key/combo to capture.
-             TODO: document key syntax.
-      cue  : Callback, the cue to call when the key is pressed.
+     - key  : String specifying the key/combo to capture.
+     - cue  : Callback, the cue to call when the key is pressed.
       
     Returns:
       Callback cue will be given the key pressed in event.param.
     
     Usage example:
-    
-      <cue name="Register_Keys" instantiate="true">
-        <conditions>
-          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-        </conditions>
-        <actions>
-          <signal_cue_instantly 
-            cue="md.Key_Capture.Register_Key" 
-            param="table[$key='w', $cue=OnKeyPress]"/>
-        </actions>
-      </cue>      
+      <code>
+        <cue name="Register_Keys" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+          </conditions>
+          <actions>
+            <signal_cue_instantly 
+              cue="md.Key_Capture.Register_Key" 
+              param="table[$key='shift w', $cue=OnKeyPress]"/>
+          </actions>
+        </cue>
+      </code>
   -->
   <cue name="Register_Key" instantiate="true" namespace="this">
     <conditions>
@@ -209,18 +214,20 @@ TODO:
   </cue>
   
     
-  <!--
+  <!--@doc-cue
     User function to unregister a key/cue. 
     Params are the same as for Register_Key.
     If this was the only cue registered (across all keys), the key listerner
     loop will stop itself.
     
-    TODO: test this.
+    Note: in development, untested.
     
     Usage example:
-      <signal_cue_instantly 
-        cue="md.Key_Capture.Unregister_Key" 
-        param="table[$key='w', $cue=OnKeyPress]">
+      <code>
+        <signal_cue_instantly 
+          cue="md.Key_Capture.Unregister_Key" 
+          param="table[$key='w', $cue=OnKeyPress]">
+      </code>
   -->
   <cue name="Unregister_Key" instantiate="true" namespace="this">
     <conditions>

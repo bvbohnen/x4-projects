@@ -8,34 +8,134 @@ TODO
 from pathlib import Path
 import os
 import re
+import sys
+import shutil
 import zipfile
-import Change_Log
+import Version
+import Make_Documentation
 
 this_dir = Path(__file__).parent
 
-def Make_Release():
+# Set up an import from the customizer for some text processing.
+x4_customizer_dir = this_dir.parents[1] / 'X4_Customizer'
+sys.path.append(str(x4_customizer_dir))
+import Framework as X4_Customizer
+
+# Dict matching each release zip with the files it includes.
+# TODO: cat/dat packing of lua_loader_api (run the bat, or rewrite).
+# TODO: maybe go back to globbing, but this is safer against unwanted
+# files.
+release_files_specs = {
+    'Named_Pipes_API':{ 
+        'root_path':this_dir, 
+        'change_log_dir':'extensions/named_pipes_api', 
+        'files':[
+            'ui/core/lualibs/winpipe_64.dll',
+            'extensions/named_pipes_api/Readme.md',
+            'extensions/named_pipes_api/content.xml',
+            'extensions/named_pipes_api/Named_Pipes.lua',
+            'extensions/named_pipes_api/md/Named_Pipes.xml',
+            'extensions/named_pipes_api/md/Pipe_Server_Host.xml',
+            'extensions/named_pipes_api/md/Pipe_Server_Lib.xml',
+        ]},
+    'X4_Python_Pipe_Server':{ 
+        'root_path':this_dir.parent, 
+        'change_log_dir':'X4_Python_Pipe_Server', 
+        'files':[
+            'X4_Python_Pipe_Server/__init__.py',
+            'X4_Python_Pipe_Server/Main.py',
+            'X4_Python_Pipe_Server/Classes/__init__.py',
+            'X4_Python_Pipe_Server/Classes/Pipe.py',
+            'X4_Python_Pipe_Server/Classes/Server_Thread.py',
+        ]},
+    'Key_Capture_API':{ 
+        'root_path':this_dir, 
+        'change_log_dir':'extensions/key_capture_api', 
+        'files':[
+            'extensions/key_capture_api/Readme.md',
+            'extensions/key_capture_api/content.xml',
+            'extensions/key_capture_api/Send_Keys.py',
+            'extensions/key_capture_api/md/Key_Capture.xml',
+        ]},
+    'Lua_Loader_API':{ 
+        'root_path':this_dir, 
+        'change_log_dir':'extensions/lua_loader_api', 
+        'files':[
+            'extensions/lua_loader_api/Readme.md',
+            'extensions/lua_loader_api/content.xml',
+            'extensions/lua_loader_api/subst_01.cat',
+            'extensions/lua_loader_api/subst_01.dat',
+            'extensions/lua_loader_api/md/Lua_Loader.xml',
+            'extensions/lua_loader_api/ui/addons/ego_debug/Lua_Loader.lua',
+            'extensions/lua_loader_api/ui/addons/ego_debug/ui.xml',
+        ]},
+    }
+
+def Run():
+
+    # Update documentation.
+    Make_Documentation.Run()
+
     # TODO: consider cat packing the extension files, using x4 customizer.
 
 
-    # Get a list of paths to files to zip up.
-    file_paths = []
-    # (Most) Everything from extensions.
-    for file in (this_dir / 'extensions').glob('**/*'):
-        # Skip folders.
-        if file.is_dir():
-            continue
-        file_paths.append(file)
-    # The dll.
-    file_paths.append(this_dir / 'ui'/'core'/'lualibs'/'winpipe_64.dll')
-    
-    # Edit the content.xml with the latest version.
-    Update_Content_Version()    
+    # Pack up the subst cat/dat for the lua_loader_api.
+    # This relies on x4 customizer, assumed to be in the same
+    # parent directory as this git repo.
+    lua_loader_path = this_dir / 'extensions/lua_loader_api'
 
-    # Create a new zip file.
-    # TODO: update code from customizer.
-    # Put this in the top level directory.
-    version_name = 'X4_Named_Pipes_API_v{}'.format(Change_Log.Get_Version())
-    zip_path = this_dir.parent / (version_name + '.zip')
+    # Make a copy of the lua to xpl.
+    shutil.copy(lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.lua',
+                lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.xpl')
+
+    # This uses the argparse interface, so args need to be strings.
+    X4_Customizer.Main.Run(
+                '-nogui', 'Cat_Pack', '-argpass', 
+                # Source dir.
+                str(lua_loader_path), 
+                # Dest file.
+                str(lua_loader_path / 'subst_01.cat'), 
+                # Want the ui.xml and the xpl version of the lua.
+                '-include', 'ui/*.xml', 'ui/*.xpl')
+    
+
+    # -Removed; switched to manually giving file names.
+    ## Get a list of paths to files to zip up.
+    #file_paths = []
+    ## (Most) Everything from extensions.
+    #for file in (this_dir / 'extensions').glob('**/*'):
+    #    # Skip folders.
+    #    if file.is_dir():
+    #        continue
+    #    file_paths.append(file)
+    ## The dll.
+    #file_paths.append(this_dir / 'ui'/'core'/'lualibs'/'winpipe_64.dll')
+
+    # Make the release folder, if needed.
+    release_dir = this_dir.parent / 'Release'
+    if not release_dir.exists():
+        release_dir.mkdir()
+    
+    for project_name, spec in release_files_specs.items():
+        # Prefix all file paths with their root_path.
+        file_paths = [spec['root_path'] / x for x in spec['files']]
+
+        # Look up the version number, and put it into the name.
+        version = Version.Get_Version(spec['root_path'] / spec['change_log_dir'])
+        # Put zips in a release folder.
+        zip_path = release_dir / ('{}_v{}.zip'.format(project_name, version))
+
+        # Add all files to the zip.
+        Make_Zip(zip_path, spec['root_path'], file_paths)
+
+    return
+
+
+def Make_Zip(zip_path, root_path, file_paths):
+    '''
+    Make a single zip file out of the selected paths.
+    '''
+
     # Optionally open it with compression.
     if False:
         zip_file = zipfile.ZipFile(zip_path, 'w')
@@ -62,10 +162,10 @@ def Make_Release():
             # Give a full path.
             path,
             # Give an alternate internal path and name.
-            # This will be relative to the top dir.
+            # This will be relative to the root dir.
             # Note: relpath seems to bugger up if the directories match,
             #  returning a blank instead of the file name.
-            arcname = os.path.join(version_name, os.path.relpath(path, this_dir))
+            arcname = os.path.relpath(path, root_path)
             )
 
     # Close the zip; this needs to be explicit, according to the
@@ -77,59 +177,5 @@ def Make_Release():
     return
 
 
-def Update_Content_Version():
-    '''
-    Update the content.xml file with the current version number,
-    adjusted for x4 version coding.
-    '''
-    # Get the new version to put in here.
-    # Code copied from x4 customizer:
-    #
-    # Content version needs to have 3+ digits, with the last
-    #  two being sub version. This doesn't mesh will with
-    #  the version in the Change_Log, but can do a simple conversion of
-    #  the top two version numbers.
-    version_split = Change_Log.Get_Version().split('.')
-    # Should have at least 2 version numbers, sometimes a third.
-    assert len(version_split) >= 2
-    # This could go awry on weird version strings, but for now just assume
-    # they are always nice integers, and the second is 1-2 digits.
-    version_major = version_split[0]
-    version_minor = version_split[1].zfill(2)
-    assert len(version_minor) == 2
-    # Combine together.
-    version = version_major + version_minor
-
-
-    # Do text editing for this instead of using lxml; don't want
-    # to mess up manual layout and such.
-    content_xml_path = this_dir / 'extensions'/'named_pipes_api'/'content.xml'
-    with open(content_xml_path, 'r') as file:
-        text = file.read()
-
-    # Get the text chunk from 'content' to 'version=".?"'.
-    # This skips over the xml header version attribute.
-    match_content = re.search(r'<content.*?version=".*?"', text)
-
-    # From this chunk of the string, get just the version value.
-    # Use look-behind for the version=" and look-ahead for the closing ".
-    # This should just give the positions of the numeric version text.
-    match_version = re.search(r'(?<=version=").*?(?=")', 
-                              text[match_content.start() : ])
-
-    # Do a text replacement.
-    # Compute the position to begin.
-    # Note: .end() gives the spot after the last matched character.
-    version_start = match_content.start() + match_version.start()
-    version_end   = match_content.start() + match_version.end()
-    # Use slicing to replace.
-    text = text[ : version_start] + version + text[version_end : ]
-
-    with open(content_xml_path, 'w') as file:
-        file.write(text)
-
-    return
-
-
 if __name__ == '__main__':
-    Make_Release()
+    Run()

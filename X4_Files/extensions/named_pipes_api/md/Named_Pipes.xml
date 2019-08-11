@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="Named_Pipes" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Named_Pipes" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xsi:noNamespaceSchemaLocation="md.xsd">
 
-<!--
+<!-- @doc-title MD Named Pipe API -->
+  
+<!-- @doc-overview
 MD API support for working with named pipes for inter-process communication.
 An external server (eg. written in Python) will create an OS named pipe,
 and this api will connect to it as a client.
@@ -10,40 +14,41 @@ This will tie into related functions in an accompanying lua script.
 Note: lua module supports only Windows named pipes.
 
 Goals:
-  - Allow user to access one or more named pipes, with arbitrary names.
-  - Handle pipe write and read requests, in a non-blocking manner.
-  - Recover safely on game save/reload, server shutdown/restart, ui reload, etc.
+ - Allow user to access one or more named pipes, with arbitrary names.
+ - Handle pipe write and read requests, in a non-blocking manner.
+ - Recover safely on game save/reload, server shutdown/restart, ui reload, etc.
   
 Operation notes:
-  - The actual OS level pipe connections are handled in lua.
-  - Minimal global state is tracked here; each access cue is self-sufficient.
-  - Read/Write requests kick off cue instances that schedule the operation
-    with the lua code, and then listen for a lua callback, ui reload (which
-    wipes lua state), or timeout.
-  - A user-supplied callback cue is called when access completes.
-  - Any access error returns a special message to the callback cue.
-  - Any pipe error will trigger an error on all pending accesses.
-  - Such pipe errors will occur on game reloading, ui reload, server shutdown.
+ - The actual OS level pipe connections are handled in lua.
+ - Minimal global state is tracked here; each access cue is self-sufficient.
+ - Read/Write requests kick off cue instances that schedule the operation
+   with the lua code, and then listen for a lua callback, ui reload (which
+   wipes lua state), or timeout.
+ - A user-supplied callback cue is called when access completes.
+ - Any access error returns a special message to the callback cue.
+ - Any pipe error will trigger an error on all pending accesses.
+ - Such pipe errors will occur on game reloading, ui reload, server shutdown.
     
 Usage:
-  - See Read and Write cues below for how to call them.
-  - User code should expect errors to occur often, and handle as needed.
-  - Exact message protocol and transaction behavior depends on the external
-    server handling a specific pipe.
-  - If the OS pipe gets broken, the server should shutdown and remake
-    the pipe, as the lua client cannot reconnect to the old pipe
-    (in testing so far).
+ - See Read and Write cues below for how to call them.
+ - User code should expect errors to occur often, and handle as needed.
+ - Exact message protocol and transaction behavior depends on the external
+   server handling a specific pipe.
+ - If the OS pipe gets broken, the server should shutdown and remake
+   the pipe, as the lua client cannot reconnect to the old pipe
+   (in testing so far).
     
 Note on timeouts:
-  - If an access times out in the MD, it will still be queued for service
-    in the lua until the pipe is closed.
-  - This is intentional, so that if the server is behaving correctly but
-    tardy, writes and reads will still get serviced in the correct
-    order.
-    
+ - If an access times out in the MD, it will still be queued for service
+   in the lua until the pipe is closed.
+ - This is intentional, so that if the server is behaving correctly but
+   tardy, writes and reads will still get serviced in the correct
+   order.
+-->
+<!--
 TODO:
-  - Test through multiple save/reloads.
-  - Add Transact function (convenient write+read, lower overhead).
+ - Test through multiple save/reloads.
+ - Add Transact function (convenient write+read, lower overhead).
 -->
 <cues>
 
@@ -53,7 +58,8 @@ TODO:
       <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
     </conditions>
     <actions>
-      <raise_lua_event name="'Lua_Loader.Load'" param="'extensions.named_pipes_api.Named_Pipes'"/>
+      <raise_lua_event name="'Lua_Loader.Load'" 
+                       param="'extensions.named_pipes_api.Named_Pipes'"/>
     </actions>
   </cue>
   
@@ -146,111 +152,35 @@ TODO:
       <set_value name="$access_id" exact="'' + Globals.$access_counter"/>
     </actions>
   </library>
-  
-  
-  <!--
-    User function to close a pipe.
-    This is passed down to the lua level, where the pipe file is closed and
-    all pending accesses killed (return errors).
-    Does nothing if the pipe does not exist.    
-    Called through signal_cue_instantly.
     
-    Args:
-      param  : Name of the pipe being opened, with no OS prefix.
-      
-    Returns:
-      nothing.
-    
-    Usage example:
-      <signal_cue_instantly name="md.Named_Pipes.Close" param="'mypipe'">
-  -->
-  <cue name="Close" instantiate="true">
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>    
-    <actions>
-      <debug_text text="'%s closing if open.'.[event.param, $command]" chance="Globals.$DebugChance" filter="general"/>
-      <!-- Just need to send down the pipe name. -->
-      <raise_lua_event name="'pipeClose'" param="event.param"/>
-    </actions>
-  </cue>
-    
-    
-  <!-- Set the pipe to suppress reads when paused. -->
-  <cue name="Suppress_Paused_Reads" instantiate="true">
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>    
-    <actions>
-      <raise_lua_event name="'pipeSuppressPausedReads'" param="event.param"/>
-    </actions>
-  </cue>
   
-  <!-- Set the pipe to no longer suppress reads when paused. -->
-  <cue name="Unsuppress_Paused_Reads" instantiate="true">
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>    
-    <actions>
-      <raise_lua_event name="'pipeUnsuppressPausedReads'" param="event.param"/>
-    </actions>
-  </cue>
-  
-  <!--
-    User function to check if a pipe is connected to a server, making
-    the connection if needed.
-    Note: if a pipe was connected in the past but the server has since closed,
-    and no other operations have been attempted in the meantime, this
-    function will report the pipe as still connected.
-    Note: this may return prior to following writes or reads.
-    Called through signal_cue_instantly.
+  <!--@doc-cue
     
-    Args:
-      param  : Table with the following items:
-        pipe : Name of the pipe being checked, without OS path prefix.
-        cue  : Callback, the cue to call when the check completes.
-      
-    Returns:
-      Value is is sent as event.param to the callback cue.
-      Checks receive 'SUCCESS' or 'ERROR'.
-    
-    Usage example:
-      <signal_cue_instantly name="md.Named_Pipes.Write" 
-        param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback, $time=5s]">
-  -->
-  <cue name="Check" instantiate="true">
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>    
-    <actions>
-      <!-- Add the command to the param table, and pass it along. -->
-      <set_value name="event.param.{'$command'}" exact="'Check'" />
-      <signal_cue_instantly cue="Access_Handler" param="event.param"/>
-    </actions>
-  </cue>
-  
-  
-  
-  <!--
     User function to write a pipe.
     Called through signal_cue_instantly.
     
-    Args:
-      param  : Table with the following items:
-        pipe : Name of the pipe being written, without OS path prefix.
-        msg  : Message string to write to the pipe.
-        cue  : Callback, optional, the cue to call when the write completes.
-        time : Timeout, optional, the time until an unsent write is cancelled.
+    Param:
+      Table with the following items:
+      - pipe : Name of the pipe being written, without OS path prefix.
+      - msg  : Message string to write to the pipe.
+      - cue  : Callback, optional, the cue to call when the write completes.
+      - time : Timeout, optional, the time until an unsent read is cancelled.
                Currently not meaningful, as write stalling on a full pipe
                is not supported at the lua level.
       
     Returns:
-      Value is is sent as event.param to the callback cue.
-      Writes receive 'SUCCESS' or 'ERROR'.
+    - Result is sent as event.param to the callback cue.
+    - Writes receive 'SUCCESS' or 'ERROR'.
     
     Usage example:
-      <signal_cue_instantly name="md.Named_Pipes.Write" 
-        param="table[$pipe='mypipe', $msg='hello', $cue=Write_Callback]">
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Write" 
+          param="table[
+            $pipe='mypipe', 
+            $msg='hello', 
+            $cue=Write_Callback]">
+      </code>
   -->
   <cue name="Write" instantiate="true">
     <conditions>
@@ -264,15 +194,23 @@ TODO:
   </cue>
   
   
-  <!--
+  <!--@doc-cue
+  
     As Write, but sends a special command in the message to the lua, which
     determines the actual message to send.  The only currently supported
     command is "package.path", which sends the current lua package import
     path list.
     
     Usage example:
-      <signal_cue_instantly name="md.Named_Pipes.Write_Special" 
-        param="table[$pipe='mypipe', $msg='package.path', $cue=Write_Callback, $time=5s]">
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Write_Special" 
+          param="table[
+            $pipe='mypipe', 
+            $msg='package.path', 
+            $cue=Write_Callback, 
+            $time=5s]">
+      </code>
   -->
   <cue name="Write_Special" instantiate="true">
     <conditions>
@@ -286,44 +224,53 @@ TODO:
   </cue>
   
   
-  <!--
+  <!--@doc-cue
     User function to read a pipe.
     Called through signal_cue_instantly.
     
-    Args:
-      param  : Table with the following items:
-        pipe : Name of the pipe being written, without OS path prefix.
-        cue  : Callback, optional, the cue to call when the write completes.
-        time : Timeout, optional, the time until an unsent write is cancelled.
+    Param:
+      Table with the following items:
+      - pipe : Name of the pipe being written, without OS path prefix.
+      - cue  : Callback, optional, the cue to call when the read completes.
+      - time : Timeout, optional, the time until a pending read is cancelled.
       
     Returns:
-      Whatever is read from the pipe in event.param to the callback cue.
-      If the read fails on bad pipe, returns 'ERROR'.
-      If the read times out, returns 'TIMEOUT'.
-      If the read is cancelled on game or ui reload, returns 'CANCELLED'.
+    - Whatever is read from the pipe in event.param to the callback cue.
+    - If the read fails on bad pipe, returns 'ERROR'.
+    - If the read times out, returns 'TIMEOUT'.
+    - If the read is cancelled on game or ui reload, returns 'CANCELLED'.
     
     Usage example:
-      <signal_cue_instantly name="md.Named_Pipes.Read" 
-        param="table[$pipe = 'mypipe', $cue = Read_Callback, $time = 5s]">
-        
-      ...
-      <cue name="Read_Callback" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        <actions>
-          <set_value name="$read_result" exact="event.param"/>
-          <do_if value="$read_result == 'ERROR' or $read_result == 'CANCELLED'">
-            <stuff to do on pipe error>
-          </do_if>
-          <do_elseif value="$read_result == 'TIMEOUT'">
-            <stuff to do on pipe timeout>
-          </do_elseif>
-          <do_else>
-            <stuff to do on read success>
-          </do_else>
-        </actions>
-      </cue>
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Read" 
+          param="table[
+            $pipe = 'mypipe', 
+            $cue = Read_Callback, 
+            $time = 5s]">
+          
+        ...
+        <cue name="Read_Callback" instantiate="true">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$read_result" exact="event.param"/>
+            <do_if value="$read_result == 'ERROR'">
+              <stuff to do on pipe error>
+            </do_if>
+            <do_elseif value="$read_result == 'CANCELLED'">
+              <stuff to do on cancelled request>
+            </do_elseif>
+            <do_elseif value="$read_result == 'TIMEOUT'">
+              <stuff to do on pipe timeout>
+            </do_elseif>
+            <do_else>
+              <stuff to do on read success>
+            </do_else>
+          </actions>
+        </cue>
+      </code>
   -->
   <cue name="Read" instantiate="true">
     <conditions>
@@ -335,8 +282,124 @@ TODO:
       <signal_cue_instantly cue="Access_Handler" param="event.param"/>
     </actions>
   </cue>
+
   
+  <!--@doc-cue
+    User function to check if a pipe is connected to a server, making
+    the connection if needed.
+    Note: if a pipe was connected in the past but the server has since closed,
+    and no other operations have been attempted in the meantime, this
+    function will report the pipe as still connected.
+    Note: this may return prior to following writes or reads.
+    Called through signal_cue_instantly.
     
+    Param:
+      Table with the following items:
+      - pipe : Name of the pipe being checked, without OS path prefix.
+      - cue  : Callback, the cue to call when the check completes.
+      
+    Returns:
+    - Value is is sent as event.param to the callback cue.
+    - Checks receive 'SUCCESS' or 'ERROR'.
+    
+    Usage example:
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Write" 
+          param="table[
+            $pipe='mypipe', 
+            $msg='hello', 
+            $cue=Write_Callback, 
+            $time=5s]">
+      </code>
+  -->
+  <cue name="Check" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!-- Add the command to the param table, and pass it along. -->
+      <set_value name="event.param.{'$command'}" exact="'Check'" />
+      <signal_cue_instantly cue="Access_Handler" param="event.param"/>
+    </actions>
+  </cue>
+
+
+  <!--@doc-cue
+    User function to close a pipe.
+    This is passed down to the lua level, where the pipe file is closed and
+    all pending accesses killed (return errors).
+    Does nothing if the pipe does not exist.
+    
+    Param:
+      Name of the pipe being opened.
+          
+    Usage example:
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Close" 
+          param="'mypipe'">
+      </code>
+  -->
+  <cue name="Close" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'%s closing if open.'.[event.param, $command]"
+                  chance="Globals.$DebugChance" filter="general"/>
+      <!-- Just need to send down the pipe name. -->
+      <raise_lua_event name="'pipeClose'" param="event.param"/>
+    </actions>
+  </cue>
+
+
+  <!-- (Not well tested, so don't @doc this)
+    Set the pipe to suppress reads when paused.
+    
+    Param:
+      Name of the pipe affected.
+    
+    Usage example:
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Suppress_Paused_Reads" 
+          param="'mypipe'">
+      </code>
+  -->
+  <cue name="Suppress_Paused_Reads" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'pipeSuppressPausedReads'" param="event.param"/>
+    </actions>
+  </cue>
+
+  
+  <!--
+    Set the pipe to no longer suppress reads when paused. 
+    
+    Param:
+      Name of the pipe affected.
+    
+    Usage example:
+      <code>
+        <signal_cue_instantly 
+          name="md.Named_Pipes.Suppress_Paused_Reads" 
+          param="'mypipe'">
+      </code>
+  -->
+  <cue name="Unsuppress_Paused_Reads" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'pipeUnsuppressPausedReads'" param="event.param"/>
+    </actions>
+  </cue>
+
+
   <!--
     Start a new pipe access.
     Primarily for internal use.
@@ -344,8 +407,8 @@ TODO:
     Also used by Check, mainly for the callback handling, though checks
     don't use timeout meaningfully.
     
-    Args:
-      param  : Table with the following possible items:
+    Param:
+      Table with the following items:
       * pipe
         - String, name of the pipe being accessed, without path prefix.
       * command

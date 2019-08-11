@@ -1,4 +1,4 @@
-
+# Note: this is not currently used, but could prove useful at some point.
 
 class Log_Reader:
     '''

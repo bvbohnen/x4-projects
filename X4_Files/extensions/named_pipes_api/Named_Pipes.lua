@@ -1,170 +1,200 @@
---[[
-Support for communicating through windows named pipes with
-an external process.
+-- @doc-title Lua Pipe API
+
+--[[ @doc-overview
+
+Lua support for communicating through windows named pipes with
+an external process, with the help of the winpipe api dll, which
+wraps select windows OS functions.
 
 The external process will be responsible for serving pipes.
 X4 will act purely as a client.
 
 Behavior:
+ - MD triggers lua functions using raise_lua_event.
+ - Lua responds to MD by signalling the galaxy object with specific names.
+ - When loaded, sends the signal "lua_named_pipe_api_loaded".
+ 
+ - Requested reads and writes will be tagged with a unique <id> string,
+   used to uniquify the signal raised when the request has completed.
+ 
+ - Requests are queued, and will be served as the pipe becomes available.
+ - Multiple requests may be serviced within the same frame.
+ 
+ - Pipe access is non-blocking; reading an empty pipe will not error, but
+   instead kicks off a polling loop that will retry the pipe each frame 
+   until the request succeeds or the pipe goes bad (eg. server disconnect).
+ 
+ - If the write buffer to the server fills up and doesn't have room for
+   a new message, or the new message is larger than the entire buffer,
+   the pipe will be treated as bad and closed. (This is due to windows
+   not properly distinguishing these cases from broken pipes in
+   its error codes.)
+ 
+ - Pipe file handles are opened automatically when handling requests.
+ - If a prior opened file handle goes bad when processing a request,
+   one attempt will be made to reopen the file before the request will
+   error out.
+ 
+ - Whenever the UI is reloaded, all queued requests and open pipes will
+   be destroyed, with no signals to MD.  The MD is responsible for
+   cancelling out such requests on its end, and the external server
+   is responsible for resetting its provided pipe in this case.
+ 
+ - The pipe file handle will (should) be closed properly on UI/game reload,
+   triggering a closed pipe error on the server, which the server should deal
+   with reasonably (eg. restarting the server side pipe).
+]]
+   
+--[[ @doc-functions
+* Reading a pipe from MD:
 
-    MD triggers lua functions using raise_lua_event.
-    Lua responds to MD by signalling the galaxy object with specific names.
-    When loaded, sends the signal "lua_named_pipe_api_loaded".
-    
-    Requested reads and writes will be tagged with a unique <id> string,
-    used to uniquify the signal raised when the request has completed.
-    
-    Requests are queued, and will be served as the pipe becomes available.
-    Multiple requests may be serviced within the same frame.
-    
-    Pipe access is non-blocking; reading an empty pipe will not error, but
-    instead kicks off a polling loop that will retry the pipe each frame 
-    until the request succeeds or the pipe goes bad (eg. server disconnect).
-    
-    If the write buffer to the server fills up and doesn't have room for
-    a new message, or the new message is larger than the entire buffer,
-    the pipe will be treated as bad and closed. (This is due to windows
-    not properly distinguishing these cases from broken pipes in
-    its error codes.)
-    
-    Pipe file handles are opened automatically when handling requests.
-    If a prior opened file handle goes bad when processing a request,
-    one attempt will be made to reopen the file before the request will
-    error out.
-    
-    Whenever the UI is reloaded, all queued requests and open pipes will
-    be destroyed, with no signals to MD.  The MD is responsible for
-    cancelling out such requests on its end, and the external server
-    is responsible for resetting its provided pipe in this case.
-    
-    The pipe file handle will (should) be closed properly on UI/game reload,
-    triggering a closed pipe error on the server, which the server should deal
-    with reasonably (eg. restarting the server side pipe).
-    
+  Start with a trigger:
+    <code>
+      <raise_lua_event 
+          name="'pipeRead'" 
+          param="'<pipe_name>;<id>'"/>
+    </code>
+  Example:
+    <code>
+      <raise_lua_event 
+          name="'pipeRead'" 
+          param="'myX4pipe;1234'"/>
+    </code>
+      
+  Capture completion with a new subcue (don't instantiate if already inside
+  an instance), conditioned on response signal:
+    <code>  
+      <event_ui_triggered 
+          screen="'Named_Pipes'" 
+          control="'pipeRead_complete_<id>'" />
+    </code>
+      
+  The returned value will be in "event.param3":
+    <code>  
+      <set_value 
+          name="$pipe_read_value" 
+          exact="event.param3" />
+    </code>
+      
+  <pipe_name> should be the unique name of the pipe being connected to.
+  Locally, this name is prefixed with "\\.\pipe\".
 
-Reading a pipe from MD:
-
-    Start with a trigger:
+  <id> is a string that uniquely identifies this read from other accesses
+  that may be pending in the same time frame.
+  
+  If the read fails due to a closed pipe, a return signal will still be sent,
+  but param2 will contain "ERROR".
     
-        <raise_lua_event 
-            name="'pipeRead'" 
-            param="'<pipe_name>;<id>'"/>
+    
+* Writing a pipe from MD:
+
+  The message to be sent will be suffixed to the pipe_name and id, separated
+  by semicolons.
+    <code>  
+      <raise_lua_event 
+        name="'pipeWrite'" 
+        param="'<pipe_name>;<id>;<message>'"/>
+    </code>  
             
-        Example:
+  Example:
+    <code>  
+      <raise_lua_event 
+        name="'pipeWrite'" 
+        param="'myX4pipe;1234;hello'"/>
+    </code>  
         
-        <raise_lua_event 
-            name="'pipeRead'" 
-            param="'myX4pipe;1234'"/>
+  Optionally capture the response signal, indicating success or failure.
+    <code>  
+      <event_ui_triggered 
+        screen="'Named_Pipes'" 
+        control="'pipeWrite_complete_<id>'" />
+    </code>  
+    
+  The returned status is "ERROR" on an error, else "SUCCESS".
+    <code>  
+      <set_value name="$status" exact="event.param3" />
+    </code>  
         
-    Capture completion with a new subcue (don't instantiate if already inside
-    an instance), conditioned on response signal:
-    
-        <event_ui_triggered 
-            screen="'Named_Pipes'" 
-            control="'pipeRead_complete_<id>'" />
         
-    The returned value will be in "event.param3":
-    
-        <set_value 
-            name="$pipe_read_value" 
-            exact="event.param3" />
-        
-    <pipe_name> should be replaced with the full path name of the pipe
-    being connected to. Example: "\\.\pipe\x4_pipe", with doubled backslashes
-    as needed for escapes in the string creation.
-    <id> is a string that uniquely identifies this read from other accesses
-    that may be pending in the same time frame.
-    
-    If the read fails due to a closed pipe, a return signal will still be sent,
-    but param2 will contain "ERROR".
-    
-    
-Writing a pipe from MD:
+* Special writes:
 
-    The message to be sent will be suffixed to the pipe_name and id, separated
-    by semicolons.
-    
-        <raise_lua_event 
-            name="'pipeWrite'" 
-            param="'<pipe_name>;<id>;<message>'"/>    
-            
-        Example:
+  Certain write messages will be mapped to special values to be written,
+  determined lua side.  This uses "pipeWriteSpecial" as the event name,
+  and the message is the special command.
+  
+  Currently, the only such command is "package.path", sending the current
+  value in lua for that.
+  
+    <code>  
+      <raise_lua_event 
+          name="'pipeWriteSpecial'" 
+          param="'myX4pipe;1234;package.path'"/>
+    </code>  
         
-        <raise_lua_event 
-            name="'pipeWrite'" 
-            param="'myX4pipe;1234;hello'"/>
-        
-    Optionally capture the response signal, indicating success or failure.
     
-        <event_ui_triggered 
-            screen="'Named_Pipes'" 
-            control="'pipeWrite_complete_<id>'" />
-    
-    The returned status is "ERROR" on an error, else "SUCCESS".
-    
-        <set_value name="$status" exact="event.param3" />
-        
-        
-Special writes:
+* Checking pipe status:
 
-    Certain write messages will be mapped to special values to be written,
-    determined lua side.  This uses "pipeWriteSpecial" as the event name,
-    and the message is the special command.
-    
-    Currently, the only such command is "package.path", sending the current
-    value in lua for that.
-    
-        <raise_lua_event 
-            name="'pipeWriteSpecial'" 
-            param="'myX4pipe;1234;package.path'"/>
-        
-    
-Checking pipe status:
-
-    Test if the pipe is connected in a similar way to reading:
-    
-        <raise_lua_event name="'pipeCheck'" param="'<pipe_name>;<id>'" />
-    
-        <event_ui_triggered 
-            screen="'Named_Pipes'" 
-            control="'pipeCheck_complete_<id>'" />
-            
-    In this case, event.param2 holds SUCCESS if the pipe appears to be
-    succesfully opened, ERROR if not. Note that this does not robustly
-    test the pipe, only if the File is open, so it will report success
-    even if the server has disconnected if no operations have been
-    performed since that disconnect.
+  Test if the pipe is connected in a similar way to reading:
+    <code>  
+      <raise_lua_event 
+        name="'pipeCheck'" 
+        param="'<pipe_name>;<id>'" />
+    </code>  
+    <code>
+      <event_ui_triggered 
+        screen="'Named_Pipes'" 
+        control="'pipeCheck_complete_<id>'" />
+    </code>
+          
+  In this case, event.param2 holds SUCCESS if the pipe appears to be
+  succesfully opened, ERROR if not. Note that this does not robustly
+  test the pipe, only if the File is open, so it will report success
+  even if the server has disconnected if no operations have been
+  performed since that disconnect.
     
     
-Close pipe:
-
-    Closing out a pipe has no callback.
+* Close pipe:
+    <code>
+      <raise_lua_event 
+          name="'pipeClose'" 
+          param="'<pipe_name>'" />
+    </code>
     
-        <raise_lua_event name="'pipeClose'" param="'<pipe_name>'" />
-    
-    This will close the File handle, and will force all pending reads
-    and writes to signal errors.
+  Closing out a pipe has no callback.
+  This will close the File handle, and will force all pending reads
+  and writes to signal errors.
         
       
-Set a pipe to throw away reads during a pause:
-    <raise_lua_event name="'pipeSuppressPausedReads'" param="'<pipe_name>'" />
+* Set a pipe to throw away reads during a pause:
+    <code>
+      <raise_lua_event 
+        name="'pipeSuppressPausedReads'" 
+        param="'<pipe_name>'" />
+    </code>
     
-Undo this with:
-    <raise_lua_event name="'pipeUnsuppressPausedReads'" param="'<pipe_name>'" />
+* Undo this with:
+    <code>
+      <raise_lua_event 
+        name="'pipeUnsuppressPausedReads'" 
+        param="'<pipe_name>'" />
+    </code>
         
 
-Detect a pipe closed:
+* Detect a pipe closed:
 
-    When there is a pipe error, this api will make one attempt to reconnect
-    before returning an ERROR. Since the user may need to know about these
-    disconnect events, a signal will be raised when they happen.
-    The signal name is tied to the pipe name.
-    
-        <event_ui_triggered 
-            screen="'Named_Pipes'" 
-            control="'<pipe_name>_disconnected'" />
+  When there is a pipe error, this api will make one attempt to reconnect
+  before returning an ERROR. Since the user may need to know about these
+  disconnect events, a signal will be raised when they happen.
+  The signal name is tied to the pipe name.
+  
+    <code>
+      <event_ui_triggered 
+        screen="'Named_Pipes'" 
+        control="'<pipe_name>_disconnected'" />
+    </code>
 
-    
+]]
+--[[
 TODO:    
     Add api hooks for other lua functions, instead of requiring callbacks
     to be ui signals for md always.
@@ -1224,67 +1254,3 @@ Challenges:
     avoided.
     
 ]]
-
---[[
-A couple old, quick winapi tests.
-local winapi = require("winapi")
--- Launching the calculator works!
--- winapi.shell_exec('open','calc.exe')
-
--- Match this name to what was opened python-side.
--- Result: test succesfully sent message to python.
-local pipe = winapi.open_pipe("\\\\.\\pipe\\x4pipe")
-pipe:write 'hello\n'
-pipe:close()
-]]
-
-
--- Old ffi related notes/attempts:
---
--- Testing using ffi for file access, since x4 doesn't include the io library.
--- One possibility (maybe overly complex):
---     https://github.com/luapower/stdio/blob/master/stdio.lua
---
--- Simpler example:
---  https://stackoverflow.com/questions/30585574/write-to-file-using-lua-ffi
--- Above failed to find fopen/etc.
---
--- New approach: 
--- Get C ffi functions from: https://github.com/jmckaskill/luaffi
--- Download lua 5.1 binary (exe)
--- Grab X4 lua dll; obtain lib file using:
---  https://stackoverflow.com/questions/9946322/how-to-generate-an-import-library-lib-file-from-a-dll
--- Edit bat file: change paths, comment out "/I"msvc"" or else comment the bool header to not define _Bool.
---  (VS2017 already defined _Bool as bool, causing errors.)
---  (Also change the output target from ffi.dll to something else.)
--- Put this dll in x4/ui/core/lualibs
--- Require it here
--- ???
--- profit
--- Result: sorta success, though the luaffi only has limited functionality
---  and nothing for opening/closing files, just stuff for writing them.
---  Hence, the "fopen" still fails to be found.
---
---
--- ffi.cdef[[
--- typedef struct {
---   char *fpos;
---   void *base;
---   unsigned short handle;
---   short flags;
---   short unget;
---   unsigned long alloc;
---   unsigned short buffincrement;
--- } FILE;
--- 
--- FILE *fopen(const char *filename, const char *mode);
--- int fprintf(FILE *stream, const char *format, ...);
--- int fclose(FILE *stream);
--- ]]
--- -- Apparently ffi.load goes after the cdef?
--- local clib = ffi.load("C:\\Steam\\steamapps\\common\\X4 Foundations\\ui\\core\\lualibs\\ffi_c.dll")
--- 
--- local f = C.fopen("ffi_test.txt", "a+")
--- C.fprintf(f, "Hello World")
--- C.fclose(f)
-
