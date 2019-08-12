@@ -18,7 +18,7 @@ this_dir = Path(__file__).parent
 # Set up an import from the customizer for some text processing.
 x4_customizer_dir = this_dir.parents[1] / 'X4_Customizer'
 sys.path.append(str(x4_customizer_dir))
-from Framework.Make_Documentation import Merge_Lines
+from Framework.Make_Documentation import Merge_Lines, Get_BB_Text
 
 
 def Run():
@@ -40,7 +40,13 @@ def Make_Lua_Loader_Doc():
     # Run the update function on the content.xml.
     Version.Update_Content_Version(ext_dir)
 
-    # TODO: maybe update the readme; for now it is all handwritten.
+    # The readme is all hand written for now.
+
+    # Set up the bbcode version.
+    Make_BB_Code(ext_dir, header_lines = [
+        r'Download: [url]https://github.com/bvbohnen/X4_Named_Pipes_API/releases[/url]',
+        '',
+        ])
     return
 
 
@@ -74,6 +80,8 @@ def Make_Named_Pipes_Doc():
     with open(doc_path, 'w') as file:
         file.write('\n'.join(doc_lines))
 
+    # Set up the bbcode version.
+    Make_BB_Code(ext_dir)
     return
 
 
@@ -100,6 +108,9 @@ def Make_Key_Capture_Doc():
 
     with open(doc_path, 'w') as file:
         file.write('\n'.join(doc_lines))
+
+    # Set up the bbcode version.
+    Make_BB_Code(ext_dir)
     return
 
 
@@ -274,9 +285,21 @@ def Get_Lua_Text(lua_path):
     return Sections_To_Lines(doc_text_dict)
 
 
+def Make_BB_Code(ext_dir, header_lines = []):
+    '''
+    Turn the ext_dir's readme into a bbcode txt file.
+    Output is placed in the release folder.
+    '''
+    release_dir = this_dir.parent / 'Release'
+    if not release_dir.exists():
+        release_dir.mkdir()
 
-
-    return ret_text_lines
+    # Grab the readme contents.
+    doc_lines = (ext_dir / 'Readme.md').read_text().splitlines()
+    # Generate a bbcode version, prefixing with custom header.
+    bb_lines = header_lines + Get_BB_Text(doc_lines)
+    (release_dir / (ext_dir.name + '_bb_readme.txt')).write_text('\n'.join(bb_lines))
+    return
 
 
 if __name__ == '__main__':
