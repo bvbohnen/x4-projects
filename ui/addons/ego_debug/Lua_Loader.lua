@@ -21,7 +21,8 @@ Example from MD:
         <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
     </conditions>
     <actions>
-        <raise_lua_event name="'Lua_Loader.Load'" param="'extensions.named_pipes_api.Named_Pipes'"/>
+        <raise_lua_event name="'Lua_Loader.Load'" 
+            param="'extensions.named_pipes_api.Named_Pipes'"/>
     </actions>
     </cue>
   
@@ -31,11 +32,25 @@ The file extension may be ".lua" or ".txt", where the latter may be
 needed to distribute lua files through steam workshop.
 The lua file needs to be loose, not packed in a cat/dat.
 
+When a loading is complete, a message is printed to the debuglog, and
+a ui signal is raised. The "control" field will be "Loaded " followed
+by the original file_path. This can be used to set up loading
+dependencies, so that one lua file only loads after a prior one.
+
+Example dependency condition:
+
+    <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" 
+            control="'Loaded extensions.named_pipes_api.Named_Pipes'" />
+    </conditions>
     
 ]]
 local function on_Load_Lua_File(_, file_path)
     require(file_path)
     DebugError("LUA Loader API: loaded "..file_path)
+    -- Generic signal that the load completed, for use when there
+    -- are inter-lua dependencies (to control loading order).
+    AddUITriggeredEvent("Lua_Loader", "Loaded "..file_path)
 end
 
 local function Announce_Reload()

@@ -7,3 +7,5 @@ Change Log
   - Shortened lua signal names.
 * 0.10
   - Added support for loading txt files.
+* 0.11
+  - Added loading confirmation ui signal.
