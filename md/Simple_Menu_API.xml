@@ -18,23 +18,6 @@ Note on raise_lua_event param:
   table (becomes nil)
   list (becomes nil)
 
-Initial plan:
-- Relatively raw api that directly maps to lua gui functions.
-- Creating a menu will require a column count.
-- Individual cue calls to add rows.
-- Add widgets to a row giving column offset, widget type by cue name,
-  widget text merged with column offset in lua param, callbacks stored
-  api side.
-- Lua button presses callback to api intermediate cue with row/column and new
-  text (for text fields) in a merged string.
-- Api callback cue splits the string, looks up user callback cue, and passes
-  along the row/column/text in a nicer form (maybe table or split event params).
-- Cell texts can be updated on the fly by user cue calls, though widget types
-  cannot be changed.
-- Note: watch out for menu creation delay, as it requires cue calls and lua
-  events for every widget; hopefully they are all same-frame or maybe one
-  frame delayed for the bunch.
-
 -->
   
 <cues>
@@ -57,19 +40,7 @@ Initial plan:
     Globals reset each time the game is loaded, to enable easy changing
     of constants.
     
-    Attributes:          
-    * command_arg_spec
-      - Table, keyed by lua api command name, holding a list of subtables
-        that specify argument fields for each command.
-      - Set up once on loading, and constant afterwards.
-      - Each field will have these members:
-        * name
-          - String, name of the arg, matching MD api interface.
-        * default
-          - Optional string, default value if the field not given by user.
-          - If not present, an error is thrown on missing field.
-       - Pending development; for now such tables will be redefined on
-         every api call (so they update with refreshmd).
+    Attributes:
      * callback_cue
        - User provided cue to call when player interacts with the menu.
   -->
@@ -99,9 +70,7 @@ Initial plan:
     <actions>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
       <set_value name="Globals.$DebugChance" exact="100" />
-
       <set_value name="Globals.$callback_cue" exact="null" />
-      <set_value name="Globals.$command_arg_spec" exact="table[]" />
     </actions>
   </library>
 
