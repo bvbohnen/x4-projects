@@ -82,7 +82,10 @@ Notes on server access looping cues:
         have a valid connection. 0 before connection is set up, or after
         an error/disconnect. Used to suppress some writes before a
         connection is made, though shouldn't be critical to functionality.
-        
+    * ping_count
+      - Int, how many failed pings have occurred.
+      - Used to increase ping delay after failures.
+      - Not an exactly count; only goes up to the highest delay.
         
     Note: 
       x4 has problems when a cue using this library is created alongside
@@ -143,7 +146,8 @@ Notes on server access looping cues:
           <set_value name="$server_access_loop_cue" exact="null"/>
           <!-- Server is never connected at reset. -->
           <set_value name="$server_connected" exact="0"/>
-                    
+          <!-- Clear failed ping count. -->
+          <set_value name="$ping_count" exact="0"/>
         </actions>
       </library>
 
@@ -277,8 +281,18 @@ Notes on server access looping cues:
                 been activated.
               -->
               <do_if value="event.param == 'ERROR'">
-                <!-- Restart pinging routine, after some delay. -->
-                <signal_cue_instantly cue="Ping_Server_After_Delay"/>
+                <!--
+                  Restart pinging routine, after some delay.
+                  First ping gets shorter delay; further failures get longer
+                  delay.
+                -->
+                <do_if value="$ping_count == 0">
+                  <set_value name="$ping_count" exact="$ping_count + 1"/>
+                  <signal_cue_instantly cue="Ping_Server_After_Delay_1"/>
+                </do_if>
+                <do_else>
+                  <signal_cue_instantly cue="Ping_Server_After_Delay_2"/>
+                </do_else>
                 <!--TODO: maybe a way to check if loop should stop, 
                     with a flag or user actions.-->
               </do_if>
@@ -305,13 +319,26 @@ Notes on server access looping cues:
           
           
           <!--
-            Trigger ping after long delay.
+            Trigger ping after various delays.
             Should be used by the ping loop to reduce ping overhead.
-            TODO: shorter delay version for the first couple pings, backing 
-            off to a longer version if they are failing.
+            Use shorter delay version for the first couple pings, backing 
+            off to a longer version if they are failing, since first ping
+            can commonly fail on game loading before pipe server is
+            set up.
             TODO: Perhaps use checktime for this instead of delay.
           -->
-          <cue name="Ping_Server_After_Delay">
+          <cue name="Ping_Server_After_Delay_1">
+            <conditions>
+              <event_cue_signalled/>
+            </conditions>
+            <delay exact="0.5s"/>
+            <actions>
+              <signal_cue_instantly cue="Ping_Server"/>
+              <reset_cue cue="this"/>
+            </actions>
+          </cue>
+          
+          <cue name="Ping_Server_After_Delay_2">
             <conditions>
               <event_cue_signalled/>
             </conditions>
