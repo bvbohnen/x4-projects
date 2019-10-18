@@ -4,7 +4,7 @@ Interfaces with MD script commands which will populate the menu and
 capture callbacks.
 
 Much of this was initially patterned after menu_userquestion.lua, a relative
-short egosoft lua file.
+short egosoft lua file, with various bits of gameoptions.lua copied in.
 
 TODO: look at gameoptions around line 2341 for different widget types
 and how ego makes them somewhat generic and string based.
