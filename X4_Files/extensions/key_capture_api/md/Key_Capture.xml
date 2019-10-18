@@ -43,7 +43,8 @@ TODO:
       
       
   <!-- Use the generic server reader library.
-      Needs a cue wrapping it, else get property errors on the library refs. -->
+      Needs a cue wrapping it, else get property errors on the library refs.
+      -->
   <cue name="Server_Reader_Wrapper">
     <cues>
       <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">

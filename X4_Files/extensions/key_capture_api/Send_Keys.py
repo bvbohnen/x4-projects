@@ -194,6 +194,12 @@ def main():
             # Acks will update the piped keys counter.
             # TODO: think about how to make more robust; really want a
             # way to sample the client pipe fill.
+            # Note: if something messed up x4 side somehow, its md cue may
+            # cancel a read request (sends no ack) but the lua side would
+            # still process the read (gets the combo), in which case a combo
+            # is transferred but not acked.
+            # So, instead of tracking acks, try to think of another approach.
+            # TODO; keys_piped check commented out further below.
             elif message == 'ack':
                 keys_piped -= 1
 
@@ -237,10 +243,11 @@ def main():
             
             # Start transmitting.
             for combo in matched_combos:
-                # Only go up to the max that can be piped at once.
-                if keys_piped >= max_keys_piped:
-                    print('Suppressing combo; max pipe reached.')
-                    break
+                #-Removed; janky and needs better solution.
+                ## Only go up to the max that can be piped at once.
+                #if keys_piped >= max_keys_piped:
+                #    print('Suppressing combo; max pipe reached.')
+                #    break
 
                 # Transmit to x4.
                 # Note: this doesn't put the '$' back for now, since that

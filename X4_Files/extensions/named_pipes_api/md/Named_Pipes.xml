@@ -49,6 +49,7 @@ Note on timeouts:
 TODO:
  - Test through multiple save/reloads.
  - Add Transact function (convenient write+read, lower overhead).
+ - Maybe rename lua call signals to prefix with Named_Pipes.
 -->
 <cues>
 

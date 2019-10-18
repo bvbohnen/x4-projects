@@ -52,9 +52,13 @@
     <Folder Include="extensions\key_capture_api_test\" />
     <Folder Include="extensions\named_pipes_api_test\" />
     <Folder Include="extensions\named_pipes_api_test\md\" />
+    <Folder Include="extensions\simple_menu_api\" />
+    <Folder Include="extensions\simple_menu_api\md\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="extensions\key_capture_api\content.xml" />
+    <Content Include="extensions\key_capture_api\md\KC_Extra_Commands.xml" />
+    <Content Include="extensions\key_capture_api\md\KC_Menu.xml" />
     <Content Include="extensions\key_capture_api\md\Key_Capture.xml" />
     <Content Include="extensions\key_capture_api\Readme.md" />
     <Content Include="extensions\key_capture_api\readme_intro.md" />
@@ -74,6 +78,9 @@
     <Content Include="extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
     <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
     <Content Include="extensions\named_pipes_api_test\content.xml" />
+    <Content Include="extensions\simple_menu_api\content.xml" />
+    <Content Include="extensions\simple_menu_api\Simple_Menu.lua" />
+    <Content Include="extensions\simple_menu_api\md\Simple_Menu_API.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
