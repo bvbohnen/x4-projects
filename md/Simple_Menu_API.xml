@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Simple_Menu_API" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xsi:noNamespaceSchemaLocation="md.xsd">
+
+<!--
+MD api for interfacing with a simple lua menu.
+The menu will support a 2d table of labels, buttons, and text fields.
+On player interaction, the lua will inform this api, which will in turn
+activate callback cues provided by the api user.
+
+Note on raise_lua_event param:
+- Can pass:
+  string
+  integer (becomes number)
+  float (becomes number)
+- Can't pass:
+  table (becomes nil)
+  list (becomes nil)
+
+Initial plan:
+- Relatively raw api that directly maps to lua gui functions.
+- Creating a menu will require a column count.
+- Individual cue calls to add rows.
+- Add widgets to a row giving column offset, widget type by cue name,
+  widget text merged with column offset in lua param, callbacks stored
+  api side.
+- Lua button presses callback to api intermediate cue with row/column and new
+  text (for text fields) in a merged string.
+- Api callback cue splits the string, looks up user callback cue, and passes
+  along the row/column/text in a nicer form (maybe table or split event params).
+- Cell texts can be updated on the fly by user cue calls, though widget types
+  cannot be changed.
+- Note: watch out for menu creation delay, as it requires cue calls and lua
+  events for every widget; hopefully they are all same-frame or maybe one
+  frame delayed for the bunch.
+
+-->
+  
+<cues>
+
+  <!-- Register the lua file. -->
+  <cue name="Load_Lua_Files" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                       param="'extensions.simple_menu_api.Simple_Menu'"/>
+    </actions>
+  </cue>
+
+  <!--
+    Static cue that holds some shared state information or constants.
+    When this script is installed, a new instance of this cue is created,
+    and will afterwards be live until the script is removed.
+    Globals reset each time the game is loaded, to enable easy changing
+    of constants.
+    
+    Attributes:          
+    * command_arg_spec
+      - Table, keyed by lua api command name, holding a list of subtables
+        that specify argument fields for each command.
+      - Set up once on loading, and constant afterwards.
+      - Each field will have these members:
+        * name
+          - String, name of the arg, matching MD api interface.
+        * default
+          - Optional string, default value if the field not given by user.
+          - If not present, an error is thrown on missing field.
+       - Pending development; for now such tables will be redefined on
+         every api call (so they update with refreshmd).
+     * callback_cue
+       - User provided cue to call when player interacts with the menu.
+  -->
+  <cue name="Globals">
+    <!-- When first created, set up globals. -->
+    <actions>
+      <include_actions ref="Reset_Globals"/>
+    </actions>
+    <cues>
+      <!--
+        Reset when the lua reloads.
+        This is mostly aimed at helping with development/debug.
+      -->
+      <cue name="Reset_On_Lua_Reload" instantiate="true">
+        <conditions>
+          <event_ui_triggered screen="'Named_Pipes'" control="'reloaded'" />
+        </conditions>
+        <actions>
+          <include_actions ref="Reset_Globals"/>
+        </actions>
+      </cue>
+    </cues>
+  </cue>
+
+  <!-- TODO: can this lib be put into the cues list above? -->
+  <library name="Reset_Globals">
+    <actions>
+      <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
+      <set_value name="Globals.$DebugChance" exact="100" />
+
+      <set_value name="Globals.$callback_cue" exact="null" />
+      <set_value name="Globals.$command_arg_spec" exact="table[]" />
+    </actions>
+  </library>
+
+  <!-- 
+    Small helper lib function to fill the command field for an args table.
+    If the user event/param was none (not given, eg. command doesn't require
+    args), this makes a default table first.
+    The command name should be in $command first.
+    Returns a table in $args.
+    -->
+  <library name="Fill_Command">
+    <actions>
+      <do_if value="$args == null">
+        <set_value name="$args" exact="table[]"/>
+      </do_if>
+      <set_value name="$args.{'$command'}" exact="$command"/>
+    </actions>
+  </library>
+  
+  
+  <!--
+    Create a fresh menu, with just a header.
+    To be followed by Add_Row and similar cue calls to fill in the menu.
+    
+    Param:
+      Table with the following items:
+      - columns   : Integer, total number of columns in the menu table.
+      - title     : Text to display in the table header.
+      - callback  : Cue which will be signalled when the user interracts with
+                    table buttons or text fields.
+                    TODO: define callback params.
+    -->
+  <cue name="Create_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Create_Menu'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Displays the current menu.
+    Call this after all contents have been initialized.
+  <cue name="Display_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Simple_Menu.Display_Menu'"/>
+    </actions>
+  </cue>
+    -->
+  
+  <!--
+    Close any currently displayed menu.
+    -->
+  <cue name="Close_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Close_Menu'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Add a row to the current menu.
+    -->
+  <cue name="Add_Row" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Add_Row'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Make a label cell for displaying text.
+    Adds to the most recent row.
+    
+    Param:
+      Table with the following items:
+      - col       : Integer, column to place the widget in.
+      - text      : Text to display, without semicolons.
+      - mouseover : Optional, extra text to display on mouseover.
+    -->
+  <cue name="Make_Label" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_Label'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Make a pressable button cell.
+    Adds to the most recent row.
+    
+    Param:
+      Table with the following items:
+      - col       : Integer, column to place the widget in.
+      - text      : Text to display, without semicolons.
+    -->
+  <cue name="Make_Button" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_Button'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Make a edit box cell, for text entry.
+    Adds to the most recent row.
+    
+    Param:
+      Table with the following items:
+      - col       : Integer, column to place the widget in.
+      - text      : Optional, initial text to display, without semicolons.
+    -->
+  <cue name="Make_EditBox" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_EditBox'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Make a horizontal slider cell.
+    Adds to the most recent row.
+    
+    Param:
+      Table with the following items:
+      - col       : Integer, column to place the widget in.
+      - min       : Int, min value.
+      - max       : Int, max value.
+      - value     : Int, initial value.
+      - step      : Int, step size.
+    -->
+  <cue name="Make_Slider" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_Slider'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Make a dropdown selection cell.
+    Adds to the most recent row.
+    Pending development
+    TODO: how to transfer list of option strings nicely?
+    
+    Param:
+      Table with the following items:
+      - col       : Integer, column to place the widget in.
+      - options   : List of option strings.
+      - initial   : String, initially selected option. (Or maybe int?)
+    -->
+  <cue name="Make_Dropdown" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_Dropdown'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Fill_Command"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  
+  <!--
+    Local cue for packaging up a request and sending it to lua.
+    Handles param packing into a string, and filling optional fields.
+    
+    Param:
+      Table with the following items:
+      - command   : String, command to send to lua.
+      - ...       : Any args requied for the command.
+  -->
+  <cue name="Send_Command" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+
+      <!-- 
+        Construct the unified string of args.
+        For future proofing, these will use named args, where name is comma
+        separated from the value, and semicolons between args.
+        Lua side will handle validation and defaults for optional args.
+      -->
+      <set_value name="$args_str" exact="''" />
+      
+      <!-- Removed; was for in-order args. -->
+      <!-- Loop over the fields. 
+      <do_all exact="event.param.{'$fields'}.count" counter="$i">-->
+        
+        <!-- Pick apart field spec.
+        <set_value name="$name" exact="event.param.{'$fields'}.{$i}.{1}" />
+        <set_value name="$default" exact="event.param.{'$fields'}.{$i}.{2}" /> -->
+        
+        <!-- Put user arg or default (if not given) into 'arg'.
+        <do_if value="event.param.{'$user_args'}.{$name}?">
+          <set_value name="$arg" exact="event.param.{'$user_args'}.{$name}" />
+        </do_if>
+        <do_else> -->
+          <!-- If there is a default, use it.
+          <do_if value="$default != null">
+            <set_value name="$arg" exact="$default" />
+          </do_if>
+          <do_else> -->
+            <!-- Error.
+            <debug_text text="'Missing required arg: %s'.[$name]" 
+                      chance="Globals.$DebugChance" filter="general"/>
+          </do_else>
+        </do_else> -->
+          
+        <!-- 
+          Add to the running args string. Add semicolon after first arg. 
+          This could also switch to putting a semicolon after the arg, but that
+          would need a lua update and would prevent the last arg from allowing
+          semicolons, and they may be wanted in some cases (eg. longer text
+          blocks).
+        <do_if value="$i != 1">
+          <set_value name="$args" exact="$args + ';'" />
+        </do_if>
+        <set_value name="$args" exact="$args + $arg" />
+      </do_all>
+        -->
+        
+      <!-- Loop over the param table's keys. -->
+      <do_all exact="event.param.keys.list.count" counter="$i">
+        <!-- Isolate key and value. -->
+        <set_value name="$key" exact="event.param.keys.list.{$i}" />
+        <set_value name="$value" exact="event.param.{$key}" />
+        
+        <!-- 
+          Add to the running args string. Add prefix semicolon after first arg.
+          This makes separting in lua a bit easier.
+          -->
+        <do_if value="$i != 1">
+          <set_value name="$args_str" exact="$args_str + ';'" />
+        </do_if>
+        <!-- Add to the running args string. -->
+        <set_value name="$args_str" exact="$args_str + $key + ',' + $value" />
+      </do_all>
+      
+      <debug_text text="'Sending Process_Command with args: %s'.[$args_str]" 
+                chance="Globals.$DebugChance" filter="general"/>
+
+      <!-- Signal the lua function. -->
+      <raise_lua_event name="'Simple_Menu.Process_Command'" param="$args_str"/>
+    </actions>
+  </cue>
+  
+</cues>
+
+</mdscript>
