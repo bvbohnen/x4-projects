@@ -45,7 +45,7 @@ local menu = {
     ftable = nil,
     -- List of rows in the table, in order, added by user.
     -- Does not include header rows.
-    user_rows = {},
+    user_rows = {}
 }
 
 -- Generic config, mimicking ego code.
@@ -89,7 +89,7 @@ config.table = {
     arrowColumnWidth = 20,
     infoColumnWidth = 330,
 }
--- Copied from ego menu for title.
+-- Copied from ego menu for fonts.
 config.headerTextProperties = {
     font = config.fontBold,
     fontsize = config.headerFontSize,
@@ -97,6 +97,21 @@ config.headerTextProperties = {
     y = 6,
     minRowHeight = config.headerTextHeight,
     titleColor = Helper.defaultSimpleBackgroundColor,
+}
+config.infoTextProperties = {
+    font = config.font,
+    fontsize = config.infoFontSize,
+    x = config.infoTextOffsetX,
+    y = 2,
+    wordwrap = true,
+    minRowHeight = config.infoTextHeight,
+    titleColor = Helper.defaultSimpleBackgroundColor,
+}
+config.standardTextProperties = {
+    font = config.font,
+    fontsize = config.standardFontSize,
+    x = config.standardTextOffsetX,
+    y = 2,
 }
 
 
@@ -138,10 +153,9 @@ end
 -------------------------------------------------------------------------------
 -- MD to lua event handling.
 
--- Split a string on the first semicolon.
+-- Split a string on the first separator.
 -- Note: works on the MD passed arrays of characters.
--- Returns two substrings.
--- Copied from name pipes api.
+-- Returns two substrings, left and right of the sep.
 function Split_String(this_string, separator)
 
     -- Get the position of the separator.
@@ -158,34 +172,18 @@ function Split_String(this_string, separator)
     return left, right
 end
 
--- Split a string of args, semicolon separated.
--- Returns the separated args.
--- The final arg may contain excess semicolons.
--- Removed in favor of named args put in a table.
---function Split_Args(arg_string, num_args)
---    local args = {}
---    local remainder = arg_string
---    local next_arg
---    -- Each iteration splits off one arg.
---    for i = 1, num_args-1 do 
---        next_arg, remainder = Split_String(remainder, ";")
---        args[i] = next_arg
---    end
---    -- Remainder has the final arg.
---    args[num_args] = remainder
---    return unpack(args)
---end
-
--- Take an arg string and convert to a table.
-function Tabulate_Args(arg_string)
-    local args = {}
-    -- Early return for empty args.
-    if arg_string == "" then
-        return args
+-- Split a string as many times as possible.
+-- Returns a list of substrings.
+function Split_String_Multi(this_string, separator)
+    substrings = {}
+    
+    -- Early return for empty string.
+    if this_string == "" then
+        return substrings
     end
     
     -- Use Split_String to iteratively break apart the args in a loop.
-    local remainder = arg_string
+    local remainder = this_string
     local left, right
     
     -- Loop until Split_String fails to find the separator.
@@ -193,33 +191,48 @@ function Tabulate_Args(arg_string)
     while success do
     
         -- pcall will error and set sucess=false if no separators remaining.
-        success, left, right = pcall(Split_String, remainder, ";")
+        success, left, right = pcall(Split_String, remainder, separator)
         
-        -- On success, the next arg is in named_arg.
-        -- On failure, the final arg is still in remainder.
-        local named_arg
+        -- On success, the next substring is in left.
+        -- On failure, the final substring is still in remainder.
+        local substring
         if success then
-            named_arg = left
+            substring = left
             remainder = right
         else
-            named_arg = remainder
+            substring = remainder
         end
         
+        -- Add to the running list.
+        table.insert(substrings, substring)
+    end
+    return substrings
+end
+
+
+-- Take an arg string and convert to a table.
+function Tabulate_Args(arg_string)
+    local args = {}    
+    -- Start with a full split on semicolons.
+    local named_args = Split_String_Multi(arg_string, ";")
+    -- Loop over each named arg.
+    for i = 1, #named_args do
         -- Split the named arg on comma.
-        local key, value = Split_String(named_arg, ",")
+        local key, value = Split_String(named_args[i], ",")
         -- Keys have a prefixed $ due to md dumbness; remove it here.
         key = string.sub(key, 2, -1)
         args[key] = value
     end
-    return args
+    return args    
 end
 
 -- Handle validation of arguments, filling in defaults.
 -- 'args' is a table with the named user provided arguments.
 -- 'arg_specs' is a list of sublists of [name, default].
 -- If a name is missing from user args, the default is added to 'args'.
--- If the default is nil in this case, it is treated as non-optionl and an
--- error is thrown.
+--  If the default is the "nil" string, nothing is added.
+--  If the default is nil in this case, it is treated as non-optional and an
+--  error is thrown.
 function Validate_Args(args, arg_specs)
     -- Loop over the arg_specs list.
     for i = 1, #arg_specs do 
@@ -232,6 +245,9 @@ function Validate_Args(args, arg_specs)
             if default == nil then
                 -- Treat as non-recoverable, with hard error instead of DebugError.
                 error("Args missing non-optional field: "..name)
+            -- Do nothing if default is explicitly nil; this leaves the arg
+            -- as nil for later uses.
+            elseif default == "nil" then
             else
                 -- Use the default.
                 args[name] = default
@@ -257,6 +273,13 @@ function Handle_Process_Command(_, param)
     end
 end
 
+-- Signalling results from lua to md.
+-- Takes the row,col of the activated widget, and an optional new value
+-- for that widget.
+-- TODO: think about this more.
+function Raise_Signal(name, row, col, value)
+    AddUITriggeredEvent("Simple_Menu", name, value)
+end
 
 -------------------------------------------------------------------------------
 -- General event processing.
@@ -306,42 +329,51 @@ function Process_Command(args)
         
         -- TODO: should this flag be set here, or at onShowMenu?
         menu.is_open = true
-    end
     
     -- Close the menu if open.
-    if args.command == "Close_Menu" then
+    elseif args.command == "Close_Menu" then
         Close_Menu()
-    end
     
-    if args.command == "Add_Row" then
+    elseif args.command == "Add_Row" then
         -- Add one generic row.
-        local new_row = menu.ftable:addRow(false, { fixed = true, bgColor = Helper.color.transparent })
+        local new_row = menu.ftable:addRow({}, { fixed = true, bgColor = Helper.color.transparent })
         -- Store in user row table for each reference.
         table.insert(menu.user_rows, new_row)
-    end
     
-    if args.command == "Make_Label" then
-        
-        -- Ensure needed args are present, and fill any defaults.
-        Validate_Args(args, {
-            {"col"}, 
-            {"text"},
-            {"mouseover",""}
-        })
+    
+    -- Various widget makers begin with 'Make'.
+    elseif string.sub(args.command, 1, #"Make") == "Make" then
+    
+        -- These share some setup code.
+        -- Notably, they generally require a column, and operate on the most
+        -- recent row.
         -- Make sure column count is a number, and adjust right by
         -- 1 to account for the backarrow column.
-        local col = tonumber(args.col) + 1
+        local col, user_col
+        if args.col ~= nil then
+            user_col = tonumber(args.col)
+            col = user_col + 1
+        end
         
-        -- Do nothing if no user rows present yet.
+        -- Error if no rows present yet.
         if #menu.user_rows == 0 then
-            DebugError("Simple_Menu.Make_Label: no user rows")
-        else
-            -- This will apply to the most recently added user row.
-            local row = menu.user_rows[#menu.user_rows]
+            error("Simple_Menu.Make_Label: no user rows for Make command")
+        end
+        -- Set the last row index, and pick out the row object.
+        local row_index = #menu.user_rows
+        local row = menu.user_rows[row_index]
+    
+        if args.command == "Make_Label" then
+            Validate_Args(args, {
+                {"col"}, 
+                {"text"},
+                {"mouseover",""}
+            })
+            
             -- Set up a text box.
             -- TODO: maybe support colspan.
             -- TODO: a good font setting
-            row[col]:createText(args.text, Helper.headerRowCenteredProperties)
+            row[col]:createText(args.text, config.standardTextProperties)
             -- Set any default properties.
             -- TODO: merge these into the createText call.
             row[col].properties.wordwrap = true
@@ -349,7 +381,144 @@ function Process_Command(args)
             if args.mouseover ~= "" then
                 row[col].properties.mouseOverText = args.mouseover
             end
+        
+        -- Simple clickable buttons.
+        elseif args.command == "Make_Button" then
+            Validate_Args(args, {
+                {"col"}, 
+                {"text"}
+            })
+            row[col]:createButton():setText(args.text, { halign = "center" })
+            
+            -- Handler function.
+            row[col].handlers.onClick = function()
+                -- Debug
+                CallEventScripts("directChatMessageReceived", 
+                    "Menu;Button clicked on ("..row_index..","..user_col..")")
+                    
+                -- Return a table of results.
+                -- Note: this should not prefix with '$' like the md, but
+                -- the conversion to md will add such prefixes automatically.
+                -- Note: this row/col does not include title row or arrow
+                -- column.
+                AddUITriggeredEvent("Simple_Menu", "Event", {
+                    ["row"] = row_index,
+                    ["col"] = user_col
+                    })
+            end
+            
+        
+        -- Editable text boxes.
+        elseif args.command == "Make_EditBox" then
+            Validate_Args(args, {
+                {"col"}, 
+                {"text",""}
+            })
+            row[col]:createEditBox():setText(args.text, config.standardTextProperties)
+            
+            -- Capture changed text.
+            row[col].handlers.onTextChanged = function(_, text) 
+                CallEventScripts("directChatMessageReceived", 
+                    "Menu;Text on ("..row_index..","..user_col..") changed to: "..text)
+                AddUITriggeredEvent("Simple_Menu", "Event", {
+                    ["row"] = row_index,
+                    ["col"] = user_col,
+                    ["text"] = text,
+                    })
+                end
+                
+        
+        -- Sliders for picking a value in a range.
+        elseif args.command == "Make_Slider" then
+            Validate_Args(args, {
+                {"col"}, 
+                {"min"},
+                {"minSelect","nil"},
+                {"max"},
+                {"maxSelect","nil"},
+                {"start"},
+                {"step"},
+                {"suffix",""}
+            })
+            
+            row[col]:createSliderCell({ 
+                valueColor = config.sliderCellValueColor, 
+                min = args.min, 
+                minSelect = args.minSelect, 
+                max = args.max, 
+                maxSelect = args.maxSelect, 
+                start = args.start, 
+                step = args.step, 
+                suffix = args.suffix, 
+                -- Set some default flags for now.
+                exceedMaxValue = false, 
+                hideMaxValue = true, 
+                readOnly = false }
+                ):setText(args.text, { color = Helper.color.white})
+                
+            -- Capture changed value.
+            row[col].handlers.onSliderCellChanged = function(_, value)
+                CallEventScripts("directChatMessageReceived", 
+                    "Menu;Slider on ("..row_index..","..user_col..") changed to: "..value)
+                AddUITriggeredEvent("Simple_Menu", "Event", {
+                    ["row"] = row_index,
+                    ["col"] = user_col,
+                    ["value"] = value,
+                    })
+                end
+                
+        
+        -- Dropdown menu of options.
+        elseif args.command == "Make_Dropdown" then
+            Validate_Args(args, {
+                {"col"}, 
+                {"options"},
+                {"start","nil"},
+            })
+            
+            -- The options will be passed as a comma separated list; split
+            -- them apart here.
+            local option_names = Split_String_Multi(args.options, ',')
+            -- It seems the widget treats each option as a subtable with
+            -- the following fields; fill them all in.
+            local options = {}
+            for i = 1, #option_names do
+                table.insert(options, {
+                    -- Set the id to match the index.
+                    id = i,
+                    text = option_names[i], 
+                    -- Don't use any icon (ego code set this "" instead of nil).
+                    icon = "", 
+                    -- Unclear what this would do.
+                    displayremoveoption = false 
+                    })
+            end
+            
+            row[col]:createDropDown(options, { 
+                active = true, 
+                -- This appears to take the id of the start option, an int,
+                -- so convert from the md string.
+                startOption = tonumber(args.start), 
+                -- Unclear what this is.
+                textOverride = "" 
+                })
+                
+            -- Capture changed option, using its id/index.
+            row[col].handlers.onDropDownConfirmed = function(_, option_id)
+                CallEventScripts("directChatMessageReceived", 
+                    "Menu;Dropdown on ("..row_index..","..user_col..") changed to: "..option_id)
+                AddUITriggeredEvent("Simple_Menu", "Event", {
+                    ["row"] = row_index,
+                    ["col"] = user_col,
+                    -- Convert this back into a number for easy usage in md.
+                    ["option"] = tonumber(option_id),
+                    })
+                end            
         end
+        
+    else
+        -- If here, the command wasn't recognized.
+        DebugError("Simple_Menu.Process_Command: unknown command: "..args.command)
     end
 end
 
@@ -359,7 +528,6 @@ function Close_Menu()
         menu.onCloseElement("back", true)
     end
 end
-
 
 -------------------------------------------------------------------------------
 -- Menu methods.
@@ -385,9 +553,11 @@ function menu.createInfoFrame()
     --Helper.clearDataForRefresh(menu, menu.infoLayer)
 
     -- Set frame properties using a table to be passed as an arg.
+    -- Note: Helper.scaleX/Y will multiply by the ui scaling factor.
+    -- TODO: work on scaling options.
     local frameProperties = {
         standardButtons = {},
-        -- Scale width to resolution and pad enough for borders.
+        -- Scale width and pad enough for borders.
         width = Helper.scaleX(menu.width) + 2 * Helper.borderSize,
 
         -- Center the frame along x.
