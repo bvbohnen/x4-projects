@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Simple_Menu_API_Test" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xsi:noNamespaceSchemaLocation="md.xsd">
+
+  <!--
+  The menu itself will be hardcoded to a specific key combo,
+  current ctrl-shift-c.
+  -->
+
+  <cues>
+
+    <!-- Register default menu-open key with the key capture api. -->
+    <cue name="Register_Keys" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly
+          cue="md.Key_Capture.Register_Key"
+          param="table[$key='ctrl shift c', $cue=Open_Menu]"/>
+      </actions>
+    </cue>
+
+    <!--
+    Open a menu for customizing keys.
+    Initial version is mostly just for testing.
+    -->
+    <cue name="Open_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <!-- Create a new blank menu. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Create_Menu"
+          param = "table[
+            $columns=2, 
+            $title='Simple Menu Test',
+            ]"/>
+
+        <!-- Header; col 2 will be labels, col 3 widgets. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=1, 
+            $text='Type', 
+            $mouseover='Type of widget being tested'
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=2, 
+            $text='Widget', 
+            $mouseover='Interractable widget'
+            ]"/>
+
+        <!-- Button -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=1, 
+            $text='Button test', 
+            $mouseover='Mouseover test'
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Button"
+          param = "table[
+            $col=2, 
+            $text='Button',
+            $cue=Handle_Menu_Action
+            ]"/>
+
+        <!-- EditBox -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=1, 
+            $text='Editbox test', 
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_EditBox"
+          param = "table[
+            $col=2, 
+            $text='edit me',
+            $cue=Handle_Menu_Action
+            ]"/>
+
+        <!-- Slider, as percentage, 0 to 100, limited to 5 to 95. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=1, 
+            $text='Slider test', 
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Slider"
+          param = "table[
+            $col = 2, 
+            $min        = 0, 
+            $minSelect  = 5, 
+            $max        = 100, 
+            $maxSelect  = 95, 
+            $start      = 50, 
+            $step       = 1, 
+            $suffix     =' %', 
+            $cue=Handle_Menu_Action
+            ]"/>
+
+        <!-- Dropdown -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=1, 
+            $text='Dropdown test', 
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Dropdown"
+          param = "table[
+            $col=2, 
+            $options='white,red,green,blue',
+            $start=1,
+            $cue=Handle_Menu_Action
+            ]"/>
+            
+      </actions>
+    </cue>
+
+    <!--
+    Handle user interaction with the menu.
+    TODO: develop.
+    -->
+    <cue name="Handle_Menu_Action" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <debug_text text="'Response: %s'.[event.param]" 
+                chance="100" filter="general"/>
+      </actions>
+    </cue>
+
+  </cues>
+
+</mdscript>

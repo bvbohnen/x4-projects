@@ -530,8 +530,6 @@ TODO:
       
       <!--
         Listen for the lua completion signal, get result.
-        This is handled by a lua created object event, sent to the galaxy,
-        suffixed by the access_id.
         Services both reads and writes.
       -->
       <cue name="Capture_Lua_Response" >
