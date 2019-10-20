@@ -681,7 +681,7 @@ function menu.createInfoFrame()
     menu.infoFrame = Helper.createFrameHandle(menu, frameProperties)
 
     -- Want to fill the frame with a simple table to be populated.
-    -- Set table properties using a table.
+    -- Set (widget) table properties using a (lua) table.
     local tableProperties = {
         width = Helper.scaleX(menu.width),
         x = Helper.borderSize,
@@ -698,7 +698,7 @@ function menu.createInfoFrame()
     -- Is this resizing the frame to fit the table?
     -- TODO: replace this with general resizing for contents, or put
     -- the burdon on the user.
-    menu.infoFrame.properties.height = menu.ftable.properties.y + menu.ftable:getVisibleHeight() + Helper.borderSize
+    menu.infoFrame.properties.height = private.ftable.properties.y + private.ftable:getVisibleHeight() + Helper.borderSize
 
     -- Enable display of the frame.
     -- Note: this may also need to be called on the fly if later changes
