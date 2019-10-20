@@ -538,7 +538,7 @@ function Process_Command(args)
                 {n="maxSelect" , t='int' , d="nil"},
                 {n="start"     , t='int'},
                 {n="step"      , t='int'},
-                {n="suffix"    , t='int' , d=""}
+                {n="suffix"    , d=""}
             })
             
             row[col]:createSliderCell({ 
