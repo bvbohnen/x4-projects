@@ -33,3 +33,5 @@ Change Log
 * 0.9
   - Added the Server_Reader library function which handles connecting
     to and continually reading a pipe, and updated Pipe_Server_Lib.
+* 0.91
+  - Minor tweaks.
