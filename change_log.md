@@ -9,4 +9,6 @@ Change Log
 * 0.9
   - Made use of Pipe_Server_Lib to simplify MD code.
   - Added requirement that keys be re-registered when it reloads.
+* 0.91
+  - Removed ack-based flow control.
 
