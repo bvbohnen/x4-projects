@@ -21,24 +21,13 @@
           param="table[$key='ctrl shift c', $cue=Open_Menu]"/>
       </actions>
     </cue>
-
+    
     <!--
-    Open a menu for customizing keys.
-    Initial version is mostly just for testing.
+      Menu content filler lib function.
+      Shared between standalone and option menu tests.
     -->
-    <cue name="Open_Menu" instantiate="true" namespace="this">
-      <conditions>
-        <event_cue_signalled/>
-      </conditions>
-      <actions>
-        <!-- Create a new blank menu. -->
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Create_Menu"
-          param = "table[
-            $columns=2, 
-            $title='Simple Menu Test',
-            ]"/>
-
+  <library name="Fill_Menu">
+    <actions>
         <!-- Header; col 2 will be labels, col 3 widgets. -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
         <signal_cue_instantly
@@ -128,9 +117,67 @@
             $cue=Handle_Menu_Action
             ]"/>
             
+        <!-- Ready to display. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
+          
+    </actions>
+  </library>
+    
+
+    <!--
+      Open a menu from keypress.
+    -->
+    <cue name="Open_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <!-- Create a new blank menu. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Create_Menu"
+          param = "table[
+            $columns=2, 
+            $title='Simple Menu Test',
+            ]"/>
+
+        <include_actions ref="Fill_Menu"/>
+      </actions>
+    </cue>
+    
+    
+    <!--
+      Register an options menu.
+    -->
+    <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+      </conditions>
+      <actions>
+        <!-- Create a new blank menu. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $columns=2, 
+            $title='Simple Menu Options Test',
+            $cue=Build_Options_Menu
+            ]"/>
+
       </actions>
     </cue>
 
+    <!--
+      Callback for building the options menu.
+    -->
+    <cue name="Build_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <include_actions ref="Fill_Menu"/>
+      </actions>
+    </cue>
+        
+        
     <!--
     Handle user interaction with the menu.
     TODO: develop.

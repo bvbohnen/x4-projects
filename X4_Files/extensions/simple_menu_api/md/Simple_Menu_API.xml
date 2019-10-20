@@ -48,6 +48,11 @@ Note on raise_lua_event param:
     * callback_cues
       - Table of tables of callback cues provided by the user for widget events.
       - Outer table keyed by widget row, inner table by widget column.
+    * options_submenu_specs
+      - List holding specifications for options submenus, accessible through
+        the normal options menu.
+      - Values are described in Register_Options_Menu, with an extra 'id'
+        field matching their list index.
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -65,6 +70,8 @@ Note on raise_lua_event param:
         </conditions>
         <actions>
           <include_actions ref="Reset_Globals"/>
+          <!-- Send a signal that all users listen to. -->
+          <signal_cue_instantly cue="Reloaded"/>
         </actions>
       </cue>
     </cues>
@@ -77,8 +84,24 @@ Note on raise_lua_event param:
       <set_value name="Globals.$DebugChance" exact="100" />
       <set_value name="Globals.$callback_cues" exact="table[]" />
       <set_value name="Globals.$row" exact="0" />
+      <set_value name="Globals.$options_submenu_specs" exact="[]" />      
     </actions>
   </library>
+
+  
+  <!--
+    Dummy cue used for signalling.
+    Users that are registering options menus should listen to this
+    cue being signalled.
+  -->  
+  <cue name="Reloaded" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+    </actions>
+  </cue>
+
 
   <!-- 
     Helper lib function to do some processing on user provided call args.
@@ -109,14 +132,110 @@ Note on raise_lua_event param:
   </library>
   
   
+  <!-- 
+    Serializes an args table into a string, for passing to lua.
+    The table should be flat, with no subtables or sublists.
+    
+    Input table should be in $args.
+    Results strings is in $args_str.
+    Overwrites $i, $key, $value.
+    -->
+  <library name="Serialize_Args">
+    <actions>
+      <set_value name="$args_str" exact="''" />
+              
+      <!-- Loop over the param table's keys. -->
+      <do_all exact="$args.keys.list.count" counter="$i">
+        <!-- Isolate key and value. -->
+        <set_value name="$key" exact="$args.keys.list.{$i}" />
+        <set_value name="$value" exact="$args.{$key}" />
+        
+        <!-- 
+          Add to the running args string. Add prefix semicolon after first arg.
+          This makes separting in lua a bit easier.
+          -->
+        <do_if value="$i != 1">
+          <set_value name="$args_str" exact="$args_str + ';'" />
+        </do_if>
+        <!-- Add to the running args string. -->
+        <set_value name="$args_str" exact="$args_str + $key + ',' + $value" />
+      </do_all>
+    </actions>
+  </library>
+  
+  <!--
+    Register an options menu, which will be accessible as a submenu of
+    the normal game options.
+    
+    Param:
+      Table with the following items:
+      * $title
+        - Text to display in the table header.
+      * $columns
+        - Integer, total number of columns in the menu table.
+      * $cue
+        - Cue to be called when the submenu needs to be built.
+        - This cue should use addRow and makeX functions to build the menu.
+        - Do not call Create_Menu from this cue.
+        
+        
+    Call this each time the Reloaded cue is signalled. Example:
+    
+      <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+        <conditions>
+          <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+        </conditions>
+        <actions>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Register_Options_Menu"
+            param = "table[
+              $title   = 'My Menu',
+              $cue     = Fill_Options_Menu,
+              $columns = 2, 
+              ]"/>
+        </actions>
+      </cue>
+    
+    -->
+  <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!-- Select an id for the menu, based on the next spec index. -->
+      <set_value name="event.param.{'$id'}" exact="Globals.$options_submenu_specs.count +1" />
+      
+      <!-- Record the args using the menu id. -->
+      <append_to_list  name="Globals.$options_submenu_specs" exact="event.param" />
+      
+      <!-- Convert the table to a string. -->
+      <set_value name="$args" exact="event.param" />
+      <include_actions ref="Serialize_Args"/>
+            
+      <debug_text text="'Sending Register_Options_Menu with args: %s'.[$args_str]" 
+                chance="Globals.$DebugChance" filter="general"/>
+
+      <!-- Signal the lua function. -->
+      <raise_lua_event name="'Simple_Menu.Register_Options_Menu'" param="$args_str"/>
+    </actions>
+  </cue>
+  
+  
   <!--
     Create a fresh menu, with just a header.
+    Note: these menus are not attached to the normal options menu.
     To be followed by Add_Row and similar cue calls to fill in the menu.
     
     Param:
       Table with the following items:
-      - columns   : Integer, total number of columns in the menu table.
-      - title     : Text to display in the table header.
+      * columns
+        - Integer, total number of columns in the menu table.
+      * title
+        - Text to display in the table header.
+      * height
+        - Int, optional, menu height. Default expands to fit contents.
+      * width
+        - Int, optional, menu width. Defaults to a predefined width.
     -->
   <cue name="Create_Menu" instantiate="true" namespace="this">
     <conditions>
@@ -135,19 +254,6 @@ Note on raise_lua_event param:
   </cue>
   
   <!--
-    Displays the current menu.
-    Call this after all contents have been initialized.
-  <cue name="Display_Menu" instantiate="true" namespace="this">
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>
-    <actions>
-      <raise_lua_event name="'Simple_Menu.Display_Menu'"/>
-    </actions>
-  </cue>
-    -->
-  
-  <!--
     Close any currently displayed menu.
     -->
   <cue name="Close_Menu" instantiate="true" namespace="this">
@@ -156,6 +262,23 @@ Note on raise_lua_event param:
     </conditions>
     <actions>
       <set_value name="$command" exact="'Close_Menu'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Process_Args"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  <!--
+    Display the menu.
+    Mainly for use with options menus, which require this to know when
+    all build commands are complete.
+    -->
+  <cue name="Display_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Display_Menu'"/>
       <set_value name="$args" exact="event.param"/>
       <include_actions ref="Process_Args"/>
       <signal_cue_instantly cue="Send_Command" param="$args"/>
@@ -335,32 +458,15 @@ Note on raise_lua_event param:
       <event_cue_signalled/>
     </conditions>
     <actions>
-
       <!-- 
         Construct the unified string of args.
         For future proofing, these will use named args, where name is comma
         separated from the value, and semicolons between args.
         Lua side will handle validation and defaults for optional args.
       -->
-      <set_value name="$args_str" exact="''" />
-              
-      <!-- Loop over the param table's keys. -->
-      <do_all exact="event.param.keys.list.count" counter="$i">
-        <!-- Isolate key and value. -->
-        <set_value name="$key" exact="event.param.keys.list.{$i}" />
-        <set_value name="$value" exact="event.param.{$key}" />
-        
-        <!-- 
-          Add to the running args string. Add prefix semicolon after first arg.
-          This makes separting in lua a bit easier.
-          -->
-        <do_if value="$i != 1">
-          <set_value name="$args_str" exact="$args_str + ';'" />
-        </do_if>
-        <!-- Add to the running args string. -->
-        <set_value name="$args_str" exact="$args_str + $key + ',' + $value" />
-      </do_all>
-      
+      <set_value name="$args" exact="event.param" />
+      <include_actions ref="Serialize_Args"/>
+            
       <debug_text text="'Sending Process_Command with args: %s'.[$args_str]" 
                 chance="Globals.$DebugChance" filter="general"/>
 
@@ -403,11 +509,43 @@ Note on raise_lua_event param:
       </do_if>
       <!-- Print warning if no callback valid. -->
       <do_else>
-        <debug_text text="'Capture_Lua_Response found no callback for row,col: (%s,%s)'.[$response.{'$row'}, $response.{'$col'}]" 
+        <debug_text text="'Found no callback for row,col: (%s,%s)'.[$response.{'$row'}, $response.{'$col'}]" 
               chance="Globals.$DebugChance" filter="general"/>
       </do_else>
       
     </actions>        
+  </cue>
+  
+    
+  <!--
+    Listen for the lua requests to build an option menu.
+  -->
+  <cue name="Capture_Lua_Display_Custom_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Simple_Menu'" control="'Display_Custom_Menu'" />
+    </conditions>
+    
+    <actions>
+      <!-- Grab the menu id (longfloat) requested. -->
+      <set_value name="$id" exact="event.param3" />
+                
+      <!-- Look up the callback cue for this submenu. -->
+      <!-- Use @, so if a cue isn't found this yields null. -->
+      <set_value name="$cue" exact="@Globals.$options_submenu_specs.{$id}.{'$cue'}" />
+      
+      <!-- Handle the callback, if found and still existing. -->
+      <do_if value="$cue.exists">
+        <debug_text text="'Calling %s'.[$cue]" 
+              chance="Globals.$DebugChance" filter="general"/>
+        <signal_cue_instantly cue="$cue"/>
+      </do_if>
+      <!-- Print warning if no callback valid. -->
+      <do_else>
+        <debug_text text="'Found no callback for menu id: %s'.[$id]" 
+              chance="Globals.$DebugChance" filter="general"/>
+      </do_else>
+      
+    </actions>
   </cue>
   
 </cues>
