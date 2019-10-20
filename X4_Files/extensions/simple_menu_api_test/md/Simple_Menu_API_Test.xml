@@ -116,9 +116,6 @@
             $start=1,
             $cue=Handle_Menu_Action
             ]"/>
-            
-        <!-- Ready to display. -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
           
     </actions>
   </library>
@@ -174,6 +171,9 @@
       </conditions>
       <actions>
         <include_actions ref="Fill_Menu"/>
+            
+        <!-- Ready to display. (This is not used for standalone menus.) -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
       </actions>
     </cue>
         
