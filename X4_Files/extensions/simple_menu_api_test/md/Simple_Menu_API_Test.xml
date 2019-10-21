@@ -22,6 +22,8 @@
       </actions>
     </cue>
     
+    
+    
     <!--
       Menu content filler lib function.
       Shared between standalone and option menu tests.
@@ -135,6 +137,8 @@
           param = "table[
             $columns=2, 
             $title='Simple Menu Test',
+            $height=100,
+            $width=500,
             ]"/>
 
         <include_actions ref="Fill_Menu"/>
@@ -150,13 +154,25 @@
         <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
       </conditions>
       <actions>
-        <!-- Create a new blank menu. -->
+        <!-- Register the parent menu. -->
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
+            $id='simple_menu_options_test_0',
             $columns=2, 
             $title='Simple Menu Options Test',
             $cue=Build_Options_Menu
+            ]"/>
+            
+        <!-- Register a private child menu. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id='simple_menu_options_test_1',
+            $columns=2, 
+            $title='Simple Menu Options Child Test',
+            $cue=Build_Options_Menu_Child,
+            $private=1,
             ]"/>
 
       </actions>
@@ -170,6 +186,15 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+      
+        <!-- Link to the child submenu. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='simple_menu_options_test_1',
+              $text='Open child test menu',
+              ]"/>
+      
+        <!-- Fill in some default widgets. -->
         <include_actions ref="Fill_Menu"/>
             
         <!-- Ready to display. (This is not used for standalone menus.) -->
@@ -177,6 +202,21 @@
       </actions>
     </cue>
         
+    <!--
+      Callback for building the child options menu.
+    -->
+    <cue name="Build_Options_Menu_Child" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <!-- To be lazy, use the default fill again. -->
+        <include_actions ref="Fill_Menu"/>
+            
+        <!-- Ready to display. (This is not used for standalone menus.) -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
+      </actions>
+    </cue>
         
     <!--
     Handle user interaction with the menu.

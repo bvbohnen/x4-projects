@@ -78,6 +78,7 @@
     <Content Include="extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
     <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
     <Content Include="extensions\named_pipes_api_test\content.xml" />
+    <Content Include="extensions\simple_menu_api\change_log.md" />
     <Content Include="extensions\simple_menu_api\content.xml" />
     <Content Include="extensions\simple_menu_api\Simple_Menu.lua" />
     <Content Include="extensions\simple_menu_api\md\Simple_Menu_API.xml" />

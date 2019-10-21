@@ -49,10 +49,10 @@ Note on raise_lua_event param:
       - Table of tables of callback cues provided by the user for widget events.
       - Outer table keyed by widget row, inner table by widget column.
     * options_submenu_specs
-      - List holding specifications for options submenus, accessible through
+      - Table holding specifications for options submenus, accessible through
         the normal options menu.
-      - Values are described in Register_Options_Menu, with an extra 'id'
-        field matching their list index.
+      - Key is the registered submenu id.
+      - Values are tables described in Register_Options_Menu..
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -84,7 +84,7 @@ Note on raise_lua_event param:
       <set_value name="Globals.$DebugChance" exact="100" />
       <set_value name="Globals.$callback_cues" exact="table[]" />
       <set_value name="Globals.$row" exact="0" />
-      <set_value name="Globals.$options_submenu_specs" exact="[]" />      
+      <set_value name="Globals.$options_submenu_specs" exact="table[]" />      
     </actions>
   </library>
 
@@ -169,6 +169,10 @@ Note on raise_lua_event param:
     
     Param:
       Table with the following items:
+      * $id
+        - String, unique identifier for this menu.
+        - Needs to differ from egosoft menu names, as well as any other
+          mod registered menus.
       * $title
         - Text to display in the table header.
       * $columns
@@ -177,8 +181,13 @@ Note on raise_lua_event param:
         - Cue to be called when the submenu needs to be built.
         - This cue should use addRow and makeX functions to build the menu.
         - Do not call Create_Menu from this cue.
-        
-        
+      * $private
+        - Int 0 or 1, optional, controls if the menu will be listed automatically
+          in the general list of Extension Options menus.
+        - Defaults to 0, non-private.
+        - Set to private for submenus you will manually link to using
+          Add_Submenu_Link.
+                
     Call this each time the Reloaded cue is signalled. Example:
     
       <cue name="Register_Options_Menu" instantiate="true" namespace="this">
@@ -189,6 +198,7 @@ Note on raise_lua_event param:
           <signal_cue_instantly
             cue="md.Simple_Menu_API.Register_Options_Menu"
             param = "table[
+              $id      = 'my_unique_menu_1',
               $title   = 'My Menu',
               $cue     = Fill_Options_Menu,
               $columns = 2, 
@@ -203,10 +213,10 @@ Note on raise_lua_event param:
     </conditions>
     <actions>
       <!-- Select an id for the menu, based on the next spec index. -->
-      <set_value name="event.param.{'$id'}" exact="Globals.$options_submenu_specs.count +1" />
+      <!-- <set_value name="event.param.{'$id'}" exact="Globals.$options_submenu_specs.count +1" /> -->
       
-      <!-- Record the args using the menu id. -->
-      <append_to_list  name="Globals.$options_submenu_specs" exact="event.param" />
+      <!-- Record the args using the menu id, $ prefixed. -->
+      <set_value  name="Globals.$options_submenu_specs.{'$'+event.param.{'$id'}}" exact="event.param" />
       
       <!-- Convert the table to a string. -->
       <set_value name="$args" exact="event.param" />
@@ -270,7 +280,7 @@ Note on raise_lua_event param:
   
   <!--
     Display the menu.
-    Mainly for use with options menus, which require this to know when
+    Mainly for use with options menus, which requires this to know when
     all build commands are complete.
     -->
   <cue name="Display_Menu" instantiate="true" namespace="this">
@@ -286,7 +296,36 @@ Note on raise_lua_event param:
   </cue>
   
   <!--
+    Add a link to another options menu.
+    The other option menu will need to registered by Register_Options_Menu.
+    This will add a new row to the menu table, though that row will be
+    ignored for the Make_ commands.
+    Only for use with options menus, not those made through Create_Menu.
+    
+    Param:
+      Table with the following items:
+      * text
+        - String, text to display in the selection line.
+      * menu_id
+        - String, unique id of the submenu to be opened, as set at
+          registration.
+    -->
+  <cue name="Add_Submenu_Link" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Add_Submenu_Link'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Process_Args"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
+  
+  <!--
     Add a row to the current menu.
+    Following Make_ commands add to the most recently added row.
     -->
   <cue name="Add_Row" instantiate="true" namespace="this">
     <conditions>
@@ -526,12 +565,12 @@ Note on raise_lua_event param:
     </conditions>
     
     <actions>
-      <!-- Grab the menu id (longfloat) requested. -->
+      <!-- Grab the menu id requested. -->
       <set_value name="$id" exact="event.param3" />
-                
-      <!-- Look up the callback cue for this submenu. -->
+
+      <!-- Look up the callback cue for this submenu, using $ prefixed id. -->
       <!-- Use @, so if a cue isn't found this yields null. -->
-      <set_value name="$cue" exact="@Globals.$options_submenu_specs.{$id}.{'$cue'}" />
+      <set_value name="$cue" exact="@Globals.$options_submenu_specs.{'$'+$id}.{'$cue'}" />
       
       <!-- Handle the callback, if found and still existing. -->
       <do_if value="$cue.exists">
