@@ -9,3 +9,8 @@ Change Log
 * 0.3
   - Added submenu support to options menus.
   - Added size/position control to standalone menu.
+* 0.4
+  - Refined frame offset and size calculations.
+  - Enabled vertical scrollbars.
+  - Added "echo" arg to widgets.
+  - Added callback support on menu closing.

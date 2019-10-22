@@ -9,15 +9,6 @@ The menu will support a 2d table of labels, buttons, and text fields.
 On player interaction, the lua will inform this api, which will in turn
 activate callback cues provided by the api user.
 
-Note on raise_lua_event param:
-- Can pass:
-  string
-  integer (becomes number)
-  float (becomes number)
-- Can't pass:
-  table (becomes nil)
-  list (becomes nil)
-
 -->
   
 <cues>
@@ -45,14 +36,23 @@ Note on raise_lua_event param:
       - Int, the index of the latest added row.
       - Starts at 1 for the first row.
       - Only considers user rows, not those implicit in the menu (eg. title).
-    * callback_cues
-      - Table of tables of callback cues provided by the user for widget events.
+    * menu_properties
+      - Table holding the menu creation args of the most recent menu.
+    * widget_properties
+      - Table of tables of properties provided by the user for widgets, to
+        be returned during callbacks.
       - Outer table keyed by widget row, inner table by widget column.
+      - Only recorded for widgets with callback cues.
+      - Uses a shallow copy of the user args table.
+      - Locally used for the callback cue storage, with echoing behavior
+        intended to aid the user in handling callbacks.
+      - TODO: consider storing a copy of the args table, instead of the
+        actual table.
     * options_submenu_specs
       - Table holding specifications for options submenus, accessible through
         the normal options menu.
       - Key is the registered submenu id.
-      - Values are tables described in Register_Options_Menu..
+      - Values are tables described in Register_Options_Menu.
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -82,9 +82,10 @@ Note on raise_lua_event param:
     <actions>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
       <set_value name="Globals.$DebugChance" exact="100" />
-      <set_value name="Globals.$callback_cues" exact="table[]" />
+      <set_value name="Globals.$widget_properties" exact="table[]" />
       <set_value name="Globals.$row" exact="0" />
-      <set_value name="Globals.$options_submenu_specs" exact="table[]" />      
+      <set_value name="Globals.$options_submenu_specs" exact="table[]" />
+      <set_value name="Globals.$menu_properties" exact="table[]" />
     </actions>
   </library>
 
@@ -118,16 +119,6 @@ Note on raise_lua_event param:
       </do_if>
       <!-- Add the command to it. -->
       <set_value name="$args.{'$command'}" exact="$command"/>
-      
-      <!-- If there is a callback cue, record it. -->
-      <do_if value="$args.{'$cue'}?">
-        <!-- The row already has a prepared subtable, so just fill the col. -->
-        <set_value name="Globals.$callback_cues.{Globals.$row}.{$args.{'$col'}}" exact="$args.{'$cue'}" />
-        
-        <debug_text text="'Recorded callback to %s for row,col: (%s,%s)'.[$args.{'$cue'}, Globals.$row, $args.{'$col'}]" 
-              chance="Globals.$DebugChance" filter="general"/>
-      </do_if>
-      
     </actions>
   </library>
   
@@ -139,6 +130,15 @@ Note on raise_lua_event param:
     Input table should be in $args.
     Results strings is in $args_str.
     Overwrites $i, $key, $value.
+    
+    Note on raise_lua_event param:
+    - Can pass:
+      string
+      integer (becomes number)
+      float (becomes number)
+    - Can't pass:
+      table (becomes nil)
+      list (becomes nil)
     -->
   <library name="Serialize_Args">
     <actions>
@@ -150,15 +150,18 @@ Note on raise_lua_event param:
         <set_value name="$key" exact="$args.keys.list.{$i}" />
         <set_value name="$value" exact="$args.{$key}" />
         
-        <!-- 
-          Add to the running args string. Add prefix semicolon after first arg.
-          This makes separting in lua a bit easier.
-          -->
-        <do_if value="$i != 1">
-          <set_value name="$args_str" exact="$args_str + ';'" />
+        <!-- Skip data like tables/lists that the user is echoing. -->
+        <do_if value="$key != '$echo'">        
+          <!-- 
+            Add to the running args string. Add prefix semicolon after first arg.
+            This makes separting in lua a bit easier.
+            -->
+          <do_if value="$i != 1">
+            <set_value name="$args_str" exact="$args_str + ';'" />
+          </do_if>
+          <!-- Add to the running args string. -->
+          <set_value name="$args_str" exact="$args_str + $key + ',' + $value" />
         </do_if>
-        <!-- Add to the running args string. -->
-        <set_value name="$args_str" exact="$args_str + $key + ',' + $value" />
       </do_all>
     </actions>
   </library>
@@ -242,10 +245,20 @@ Note on raise_lua_event param:
         - Integer, total number of columns in the menu table.
       * title
         - Text to display in the table header.
-      * height
-        - Int, optional, menu height. Default expands to fit contents.
       * width
         - Int, optional, menu width. Defaults to a predefined width.
+      * height
+        - Int, optional, menu height. Default expands to fit contents.
+      * offsetX
+      * offsetY
+        - Ints, optional, amount of space between menu and screen edge.
+        - Positive values taken from top/left of screen, negative values
+          from bottom/right of screen.
+        - Defaults will center the menu.
+      * onClose_cue
+        - Cue, optional, signalled when the menu is closed.
+        - The event.param will be "back" or "close" depending on if the
+          menu back button was pressed.
     -->
   <cue name="Create_Menu" instantiate="true" namespace="this">
     <conditions>
@@ -254,7 +267,10 @@ Note on raise_lua_event param:
     <actions>
       <!-- Reset old state. -->
       <set_value name="Globals.$row" exact="0" />
-      <set_value name="Globals.$callback_cues" exact="table[]" />
+      <set_value name="Globals.$widget_properties" exact="table[]" />
+      
+      <!-- Save a copy of the args. -->
+      <set_value name="Globals.$menu_properties" exact="event.param.clone"/>      
       
       <set_value name="$command" exact="'Create_Menu'"/>
       <set_value name="$args" exact="event.param"/>
@@ -334,7 +350,7 @@ Note on raise_lua_event param:
     <actions>
       <!-- Update the row count, and expand the callback table. -->
       <set_value name="Globals.$row" exact="Globals.$row + 1" />
-      <set_value name="Globals.$callback_cues.{Globals.$row}" exact="table[]" />
+      <set_value name="Globals.$widget_properties.{Globals.$row}" exact="table[]" />
       
       <set_value name="$command" exact="'Add_Row'"/>
       <set_value name="$args" exact="event.param"/>
@@ -374,10 +390,12 @@ Note on raise_lua_event param:
       - col       : Integer, column to place the widget in.
       - cue       : Cue to callback on interact event.
       - text      : Text to display, without semicolons.
+      - echo      : Optional, anything, returned on callback.
       
     onClick event returns a table with:
       - row       : Longfloat, row of the widget.
       - col       : Longfloat, col of the widget.
+      - echo      : Present if param had echo.
     -->
   <cue name="Make_Button" instantiate="true" namespace="this">
     <conditions>
@@ -396,16 +414,23 @@ Note on raise_lua_event param:
     Adds to the most recent row.
     Every letter change will trigger a callback.
     
+    Warning: due to a (likely) typo bug, x4 is limited to 5 text edit boxes.
+    If many edit fields are needed, consider using sliders for numeric values
+    (limit 50), where users can click the slider displayed value to use it
+    like an editbox.
+    
     Param:
       Table with the following items:
       - col       : Integer, column to place the widget in.
       - cue       : Cue to callback on interact event.
       - text      : Optional, initial text to display, without semicolons.
+      - echo      : Optional, anything, returned on callback.
       
     onTextChanged event returns a table with:
       - row       : Longfloat, row of the widget.
       - col       : Longfloat, col of the widget.
       - text      : String, new text in the box.
+      - echo      : Present if param had echo.
     -->
   <cue name="Make_EditBox" instantiate="true" namespace="this">
     <conditions>
@@ -427,19 +452,21 @@ Note on raise_lua_event param:
     Param:
       Table with the following items:
       - col            : Integer, column to place the widget in.
-      - cue       : Cue to callback on interact event.
+      - cue            : Cue to callback on interact event.
       - min            : Int, min value.
       - minSelect      : Int, optional, min selectable value if different than min.
       - max            : Int, max value.
       - maxSelect      : Int, optional, max selectable value if different than max.
-      - start          : Int, initial value.
-      - step           : Int, step size.
+      - start          : Int, optional, initial value; defaults 0.
+      - step           : Int, optional, step size; defaults 1.
       - suffix         : String, optional, suffix displayed on the value, eg. " %".
+      - echo      : Optional, anything, returned on callback.
       
     onSliderCellChanged event returns a table with:
       - row       : Longfloat, row of the widget.
       - col       : Longfloat, col of the widget.
       - value     : Longfloat, the new slider value.
+      - echo      : Present if param had echo.
     -->
   <cue name="Make_Slider" instantiate="true" namespace="this">
     <conditions>
@@ -464,11 +491,13 @@ Note on raise_lua_event param:
       - cue       : Cue to callback on interact event.
       - options   : String, comma separated listing of selectable options.
       - start     : Int, optional, index of the initially selected option.
+      - echo      : Optional, anything, returned on callback.
       
     onDropDownConfirmed event returns a table with:
       - row       : Longfloat, row of the widget.
       - col       : Longfloat, col of the widget.
       - option    : Longfloat, the index of the selected option.
+      - echo      : Present if param had echo.
     -->
   <cue name="Make_Dropdown" instantiate="true" namespace="this">
     <conditions>
@@ -497,13 +526,25 @@ Note on raise_lua_event param:
       <event_cue_signalled/>
     </conditions>
     <actions>
+      <set_value name="$args" exact="event.param" />
+            
+      <!-- If there is a callback cue, record it (should be a Make_ command). -->
+      <!-- TODO: verify this is a Make_ command, and not something else that uses cue. -->
+      <do_if value="$args.{'$cue'}?">
+        <!-- The row already has a prepared subtable, so just fill the col. -->
+        <!-- Use a shallow copy for this, to avoid errors if the user reuses tables. -->
+        <set_value name="Globals.$widget_properties.{Globals.$row}.{$args.{'$col'}}" exact="$args.clone" />
+        
+        <debug_text text="'Recorded callback to %s for row,col: (%s,%s)'.[$args.{'$cue'}, Globals.$row, $args.{'$col'}]" 
+              chance="Globals.$DebugChance" filter="general"/>
+      </do_if>
+      
       <!-- 
         Construct the unified string of args.
         For future proofing, these will use named args, where name is comma
         separated from the value, and semicolons between args.
         Lua side will handle validation and defaults for optional args.
       -->
-      <set_value name="$args" exact="event.param" />
       <include_actions ref="Serialize_Args"/>
             
       <debug_text text="'Sending Process_Command with args: %s'.[$args_str]" 
@@ -517,8 +558,13 @@ Note on raise_lua_event param:
   
   <!--
     Listen for the lua response signals, sent on player interraction with
-    widgets.  Pass results to the user provided callback for the widget.
+    widgets. Handle callbacks to user cues.
     
+    The callback will echo the original widget args table, annotated with
+    the data returned from lua. User code may use this feature to attach
+    data to widgets at creation time, and use that echo'd data in
+    callback handling.
+        
     Note: all events will return a generic table with results, which is
     translated correctly from lua tables. This table will always have
     $row and $col of the widget the player modified, along with any
@@ -538,14 +584,33 @@ Note on raise_lua_event param:
                 
       <!-- Look up the callback cue for this row/col. -->
       <!-- Use @, so if a cue isn't found this yields null. -->
-      <set_value name="$cue" exact="@Globals.$callback_cues.{$response.{'$row'}}.{$response.{'$col'}}" />
+      <set_value name="$args_table" exact="@Globals.$widget_properties.{$response.{'$row'}}.{$response.{'$col'}}" />
+      <set_value name="$cue" exact="@$args_table.{'$cue'}" />
       
       <!-- Handle the callback, if found and still existing. -->
       <do_if value="$cue.exists">
         <debug_text text="'Calling %s'.[$cue]" 
               chance="Globals.$DebugChance" filter="general"/>
+              
+        <!-- Removed; switching to explicit $echo param.
+          Add fields from the lua returned param to the args table.
+          This could also add args to the lua response, but there are likely
+          more args than lua table entries, so this form should be faster.          
+
+        <do_all exact="$response.keys.list.count" counter="$i">
+          <set_value name="$key" exact="$response.keys.list.{$i}" />
+          <set_value name="$args_table.{$key}" exact="$response.{$key}" />
+        </do_all>
+        -->
+
+        <!-- Add the $echo to the response. -->
+        <do_if value="$args_table.{'$echo'}?">
+          <set_value name="$response" exact="$args_table.{'$echo'}" />
+        </do_if>
+        
         <signal_cue_instantly cue="$cue" param="$response"/>
       </do_if>
+      
       <!-- Print warning if no callback valid. -->
       <do_else>
         <debug_text text="'Found no callback for row,col: (%s,%s)'.[$response.{'$row'}, $response.{'$col'}]" 
@@ -581,6 +646,37 @@ Note on raise_lua_event param:
       <!-- Print warning if no callback valid. -->
       <do_else>
         <debug_text text="'Found no callback for menu id: %s'.[$id]" 
+              chance="Globals.$DebugChance" filter="general"/>
+      </do_else>
+      
+    </actions>
+  </cue>
+  
+  
+  <!--
+    Listen for the lua signal of a closed standalone menu.
+    event.param3 is a string, either "back" or "close", depending on
+    if a back button was used or not.
+  -->
+  <cue name="Capture_Lua_Menu_Close" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Simple_Menu'" control="'onCloseElement'" />
+    </conditions>
+    
+    <actions>
+      <!-- Look up the callback cue. -->
+      <!-- Use @, so if a cue isn't found this yields null. -->
+      <set_value name="$cue" exact="@Globals.$menu_properties.{'$onClose_cue'}" />
+      
+      <!-- Handle the callback, if found and still existing. -->
+      <do_if value="$cue.exists">
+        <debug_text text="'Calling %s'.[$cue]" 
+              chance="Globals.$DebugChance" filter="general"/>
+        <signal_cue_instantly cue="$cue" param="event.param3" />
+      </do_if>
+      <!-- Print warning if no callback valid. -->
+      <do_else>
+        <debug_text text="'Found no callback for menu closing.'" 
               chance="Globals.$DebugChance" filter="general"/>
       </do_else>
       
