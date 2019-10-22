@@ -3,14 +3,25 @@ Lua side of the simple menu api.
 Interfaces with MD script commands which will populate the menu and
 capture callbacks.
 
-Much of this was initially patterned after menu_userquestion.lua, a relative
-short egosoft lua file, with various bits of gameoptions.lua copied in.
-
-TODO: look at gameoptions around line 2341 for different widget types
-and how ego makes them somewhat generic and string based.
-Maybe emulate this format.
+Handy ego reference code:
+- widget_fullscreen.lua
+  Has a variety of element fundamental settings near the top.
+  Around ~1476 starts some global functions.
+- helper.lua
+  Has scattered documentation on widget creation properties.
+  Around ~2963 are default args for various widgets.
 ]]
 
+-------------------------------------------------------------------------------
+-- Global config customization.
+-- A lot of ui config is in widget_fullscreen.lua, where its 'config'
+-- table is global, allowing editing of various values.
+
+-- Rename the global config, to not interfere with local.
+local global_config = config
+if global_config == nil then
+    error("Failed to find global config from widget_fullscreen.lua")
+end
 
 -------------------------------------------------------------------------------
 -- Local data tables.
@@ -19,7 +30,7 @@ local debugger = {
     -- Send chat messages on player actions to widgets.
     actions_to_chat = true,
     -- Print all commands run.
-    announce_commands = true,
+    announce_commands = false,
     -- Generic filter on messages.
     verbose = true,
 }
@@ -57,13 +68,8 @@ local menu = {
     },
     
     -- The main frame, named to match ego code.
+    -- TODO: naming probably not important.
     infoFrame = nil,
-    -- The table widget, which is the sole occupant of the frame.
-    -- (Not called 'table' because that is reserved in lua.)
-    ftable = nil,
-    -- List of rows in the table, in order, added by user.
-    -- Does not include header rows.
-    user_rows = {}
 }
 
 -- Proxy for the gameoptions menu, linked further below.
@@ -81,10 +87,16 @@ local menu_data = {
     frame = nil,
     -- The table widget, which is the sole occupant of the frame.
     -- (Not called 'table' because that is reserved in lua.)
-    ftable = nil,
+    ftable = nil,    
+    -- Single row table holding the title.
+    title_table = nil,
     -- List of rows in the table, in order, added by user.
     -- Does not include header rows.
     user_rows = {},
+    
+    -- Mode will be a string, either "options" or "standalone", based on
+    -- the active menu type.
+    mode = nil,
     
     -- Flag, if incoming commands (other than creating/closing tables)
     -- need to be delayed. True for standalone menus, false for options
@@ -166,9 +178,23 @@ config.standardTextProperties = {
 function menu.cleanup()
     menu.is_open = false
     menu.infoFrame = nil
+    -- Reset menu_data as well. This is somewhat redundant with reset
+    -- on opening a new menu, but should let garbage collection run
+    -- sooner when the current menu closed properly.
+    menu_data_reset()
+end
+
+-- Reset any menu data to a clean state.
+-- For safety, call this when opening a new menu, protecting against cases
+-- where a prior attempted menu errored out with leftover queued commands
+-- or similar.
+function menu_data_reset()
     menu_data.frame = nil
     menu_data.ftable = nil
+    menu_data.title_table = nil
     menu_data.user_rows = {}
+    menu_data.queued_events = {}
+    menu_data.mode = nil
 end
 
 -- Forward function declarations.
@@ -189,6 +215,22 @@ local function init()
     if Helper then
         Helper.registerMenu(menu)
     end
+    
+    -- Signal to md that a reload event occurred.
+    Raise_Signal("reloaded")
+    
+    -- Bugfix for editboxes, where were limited to 5 instead of 50.
+    -- Removed; doesn't work, since the original value already was used
+    -- to initialize a data structure with room for only 5, and that
+    -- sturcture is private.
+    -- global_config.editbox.maxElements = 50
+    
+    -- Increase mouseover font size, since 9 is a bit small, and there
+    -- is no way for increasing it through widget text properties or similar.
+    -- TODO: make this configurable, maybe in a menu.
+    -- Removed; works fine, but want to eventually put it in a menu
+    -- for per-player customization.
+    --global_config.mouseOverText.fontsize = 12
 end
 
 
@@ -279,6 +321,12 @@ If a name is missing from user args, the default is added to 'args'.
  If the default is the "nil" string, nothing is added.
  If the default is nil, it is treated as non-optional.
 Type is "str" or "int"; the latter will get converted to a number.
+If the original arg is a string "nil" or "null", it will be converted
+ to nil, prior to checking if optional and filling a default.
+ 
+TODO: maybe support dynamic code execution for complex args that want
+ to use lua data (eg. Helper.viewWidth for window size adjustment sliders),
+ using loadstring(). This is probably a bit niche, though.
 ]]
 function Validate_Args(args, arg_specs)
     -- Loop over the arg_specs list.
@@ -286,6 +334,11 @@ function Validate_Args(args, arg_specs)
         local name    = arg_specs[i].n
         local default = arg_specs[i].d
         local arttype = arg_specs[i].t
+        
+        -- Convert "none" and "nil" to nil; eg. treat arg as not given.
+        if args[name] == "nil" or args[name] == "none" then
+            args[name] = nil
+        end
         
         -- In lua, if a name is missing from args its lookup will be nil.
         if args[name] == nil then
@@ -399,9 +452,7 @@ function Process_Command(args)
         Close_Menu()
         
         -- Clear old menu_data to be safe.
-        -- TODO: standalone function for this.
-        menu_data.ftable = nil
-        menu_data.user_rows = {}
+        menu_data_reset()
         -- Delay following commands since the menu isn't set up immediately.
         menu_data.delay_commands = true
         
@@ -417,7 +468,7 @@ function Process_Command(args)
         -- Store the args into the menu, to be used when onShowMenu gets
         -- its delayed call.
         menu.user_settings = args
-                
+                        
         -- OpenMenu is an exe side function.
         -- TODO: what are the args?
         -- Will automatically call onShowMenu(), but after some delay during
@@ -440,7 +491,8 @@ function Process_Command(args)
     -- Add a new row.
     elseif args.command == "Add_Row" then
         -- Add one generic row.
-        local new_row = menu_data.ftable:addRow({}, { fixed = true, bgColor = Helper.color.transparent })
+        -- First arg is selectability; must be true for rows with widgets.
+        local new_row = menu_data.ftable:addRow(true, { bgColor = Helper.color.transparent })
         -- Store in user row table for each reference.
         table.insert(menu_data.user_rows, new_row)
         
@@ -455,6 +507,11 @@ function Process_Command(args)
         })
         
         -- TODO: verify this is for an options menu, not standalone.
+        -- Just skip for now if in wrong mode.
+        if not menu_data.mode == "options" then
+            DebugError("Add_Submenu_Link not supported for options menus")
+            return
+        end
         -- TODO: make text optional, and just use the title of the submenu
         -- by default.
         
@@ -477,15 +534,12 @@ function Process_Command(args)
             -- TODO: colspan, font
         })
         
-        -- These share some setup code.
-        -- Notably, they generally require a column, and operate on the most
-        -- recent row.
-        -- Make sure column count is a number, and adjust right by
-        -- 1 to account for the backarrow column.
-        local col, user_col
-        if args.col ~= nil then
-            user_col = tonumber(args.col)
-            col = user_col + 1
+        -- Rename the column for convenience.
+        local col = args.col
+        -- There may or may not be an implicit column for a back arrow.
+        -- Arrows are in options menus, not standalone.
+        if menu_data.mode == "options" then
+            col = col + 1
         end
         
         -- Error if no rows present yet.
@@ -528,17 +582,17 @@ function Process_Command(args)
                 -- Debug
                 if debugger.actions_to_chat then
                     CallEventScripts("directChatMessageReceived", 
-                    "Menu;Button clicked on ("..row_index..","..user_col..")")
+                    "Menu;Button clicked on ("..row_index..","..args.col..")")
                 end
                     
                 -- Return a table of results.
                 -- Note: this should not prefix with '$' like the md, but
                 -- the conversion to md will add such prefixes automatically.
                 -- Note: this row/col does not include title row or arrow
-                -- column.
+                -- column; use args.col for the original user-view column.
                 Raise_Signal("Event", {
                     ["row"] = row_index,
-                    ["col"] = user_col
+                    ["col"] = args.col
                     })
             end
             
@@ -554,12 +608,12 @@ function Process_Command(args)
             row[col].handlers.onTextChanged = function(_, text) 
                 if debugger.actions_to_chat then
                     CallEventScripts("directChatMessageReceived", 
-                    "Menu;Text on ("..row_index..","..user_col..") changed to: "..text)
+                    "Menu;Text on ("..row_index..","..args.col..") changed to: "..text)
                 end
                 
                 Raise_Signal("Event", {
                     ["row"] = row_index,
-                    ["col"] = user_col,
+                    ["col"] = args.col,
                     ["text"] = text,
                     })
                 end
@@ -572,8 +626,8 @@ function Process_Command(args)
                 {n="minSelect" , t='int' , d="nil"},
                 {n="max"       , t='int'},
                 {n="maxSelect" , t='int' , d="nil"},
-                {n="start"     , t='int'},
-                {n="step"      , t='int'},
+                {n="start"     , t='int' , d="nil"},
+                {n="step"      , t='int' , d="nil"},
                 {n="suffix"    , d=""}
             })
             
@@ -596,12 +650,12 @@ function Process_Command(args)
             row[col].handlers.onSliderCellChanged = function(_, value)
                 if debugger.actions_to_chat then
                     CallEventScripts("directChatMessageReceived", 
-                    "Menu;Slider on ("..row_index..","..user_col..") changed to: "..value)
+                    "Menu;Slider on ("..row_index..","..args.col..") changed to: "..value)
                 end
                 
                 Raise_Signal("Event", {
                     ["row"] = row_index,
-                    ["col"] = user_col,
+                    ["col"] = args.col,
                     ["value"] = value,
                     })
                 end
@@ -645,12 +699,12 @@ function Process_Command(args)
             row[col].handlers.onDropDownConfirmed = function(_, option_id)
                 if debugger.actions_to_chat then
                     CallEventScripts("directChatMessageReceived", 
-                    "Menu;Dropdown on ("..row_index..","..user_col..") changed to: "..option_id)
+                    "Menu;Dropdown on ("..row_index..","..args.col..") changed to: "..option_id)
                 end
                 
                 Raise_Signal("Event", {
                     ["row"] = row_index,
-                    ["col"] = user_col,
+                    ["col"] = args.col,
                     -- Convert this back into a number for easy usage in md.
                     ["option"] = tonumber(option_id),
                     })
@@ -673,7 +727,7 @@ end
 function Close_Menu()
     if menu.is_open == true then
         -- Reuses the ui close function.
-        menu.onCloseElement("back", true)
+        menu.onCloseElement("close", true)
     end
 end
 
@@ -699,7 +753,7 @@ function menu.createInfoFrame()
     -- In this case, however, nearly the entire menu is dynamic and rebuilt
     -- every time.
     --Helper.clearDataForRefresh(menu, menu.infoLayer)
-    
+        
     -- Set frame properties using a table to be passed as an arg.
     -- Note: width and X offset are known here; height and Y offset are
     -- computed later based on contents.
@@ -707,13 +761,10 @@ function menu.createInfoFrame()
         -- TODO: don't override this; will get close/back buttons by default,
         -- and so don't need a back arrow.
         --standardButtons = {},
+        
+        -- Calculate horizontal sizing/position.
         -- Scale width and pad enough for borders.
         width = Helper.scaleX(menu.user_settings.width) + 2 * Helper.borderSize,
-
-        -- Center the frame along x.
-        -- TODO: make use of offsetX from user.
-        x = (Helper.viewWidth - Helper.scaleX(menu.user_settings.width)) / 2,
-
         layer = config.optionsLayer,
         backgroundID = "solid",
         backgroundColor = Helper.color.semitransparent,
@@ -732,6 +783,7 @@ function menu.createInfoFrame()
     menu_data.ftable = ftable
     menu_data.columns = menu.user_settings.columns
     menu_data.frame = frame
+    menu_data.mode = "standalone"
 
     -- Process all of the delayed commands, which depended on the above
     -- table being initialized.
@@ -739,6 +791,10 @@ function menu.createInfoFrame()
     
     -- Apply vertical sizing and offset.
     menu.Set_Vertical_Size(menu)
+    
+    -- Apply frame offsets.
+    -- These have to be handled after frame size is known.
+    menu.Set_Frame_Offset(menu)
    
     -- Enable display of the frame.
     -- Note: this may also need to be called on the fly if later changes
@@ -750,50 +806,76 @@ end
 
 
 -- Set up the main table for standalone menus.
--- TODO: consider merging this with the options menu code.
+-- TODO: consider merging this with the options menu code, though there are
+-- a lot of little differences that might make it not worth the effort.
 function menu.createTable(frame)
 
-    -- Set the table properties.
-    local tableProperties = {
+    -- Do not include frame borders in this width.
+    local table_width = Helper.scaleX(menu.user_settings.width)
+
+    -- Create a separate table, with one row/column, for the title.
+    -- This needs to be separate so that the main table can scroll.
+    local title_table = frame:addTable(1, { 
+        -- Non-interactive.
+        tabOrder = 0, 
+        -- Offset x/y by the frame border.
+        x = Helper.borderSize, 
+        y = Helper.borderSize, 
+        width = table_width, 
+        -- Tabbing skips this table.
+        skipTabChange = true 
+        })
+    -- Unselectable (first arg false).
+    local row = title_table:addRow(false, { fixed = true, bgColor = Helper.color.transparent })
+    row[1]:createText(menu.user_settings.title, config.headerTextProperties)
+    menu_data.title_table = title_table
+    
+    
+    -- Set up the main table.
+    local ftable = frame:addTable(menu.user_settings.columns, {
+        -- There is a header property, but its code is bugged in
+        -- widget_fullscreen, using an undefined 'tableoffsety' in
+        -- widgetSystem.setUpTable, spamming the log with errors.
+        -- header = menu.user_settings.title,
+        
         -- 1 sets the table as interactive.
         tabOrder = 1, 
         -- Sets cells to have a colored background.
         borderEnabled = true, 
+        width = table_width,
         
-        -- Do not include frame borders in this width.
-        width = Helper.scaleX(menu.user_settings.width),
-        
-        -- Offset x/y by the frame border.
+        -- Offset x by the frame border, y by title height plus border.
         x = Helper.borderSize,
-        y = Helper.borderSize,
+        y = title_table.properties.y + title_table:getVisibleHeight() + Helper.borderSize,
         
         -- Makes the table the interactive widget of the frame.
         defaultInteractiveObject = true 
-    }
-    
-    -- This will add an extra column on the left for the back arrow,
-    -- similar to ego menus.
-    -- TODO: make backarrow optional.
-    local ftable = frame:addTable(menu.user_settings.columns + 1, tableProperties)
+    })
         
-    -- Narrow the first column, else the button is super wide.
-    -- TODO: it is still kinda oddly sized.
-    -- TODO: make button optional; not really meaningful for standalone
-    -- menus besides being an obvious way to close it.
-    ftable:setColWidth(1, config.table.arrowColumnWidth, false)
-    
-    -- First row holds title.
-    -- Note: first arg needs to be '{}' instead of 'true' to avoid a ui
-    -- crash when adding a button to the first row (with log error about that
-    -- not being allowed).
-    -- TODO: make unfixed?
-    local row = ftable:addRow({}, { fixed = true, bgColor = Helper.color.transparent })
-    -- Left side will be a back button.
-    -- Sizing/fonts largely copied from ego code.
-    row[1]:createButton({ height = config.headerTextHeight }):setIcon(config.backarrow, { x = config.backarrowOffsetX })
-    row[1].handlers.onClick = function () return menu.onCloseElement("back", true) end
-    -- Make the title itself, in a header font.
-    row[2]:setColSpan(menu.user_settings.columns):createText(menu.user_settings.title, config.headerTextProperties)
+    -- Removed; no longer put a back button with title on first ftable row.
+    ---- Narrow the first column, else the button is super wide.
+    ---- TODO: it is still kinda oddly sized.
+    ---- TODO: make button optional; not really meaningful for standalone
+    ---- menus besides being an obvious way to close it.
+    --ftable:setColWidth(1, config.table.arrowColumnWidth, false)
+    --
+    ---- TODO: change title bar handling:
+    ----  a) remove back button; standard window buttons are cleaner.
+    ----  b) split title bar into a separate table or widget, so that the main table can scroll.
+    ----  c) make title bar optional.
+    --
+    ---- First row holds title.
+    ---- Note: first arg needs to be '{}' instead of 'true' to avoid a ui
+    ---- crash when adding a button to the first row (with log error about that
+    ---- not being allowed).
+    ---- TODO: make unfixed?
+    --local row = ftable:addRow({}, { fixed = true, bgColor = Helper.color.transparent })
+    ---- Left side will be a back button.
+    ---- Sizing/fonts largely copied from ego code.
+    --row[1]:createButton({ height = config.headerTextHeight }):setIcon(config.backarrow, { x = config.backarrowOffsetX })
+    --row[1].handlers.onClick = function () return menu.onCloseElement("back", true) end
+    ---- Make the title itself, in a header font.
+    --row[2]:setColSpan(menu.user_settings.columns):createText(menu.user_settings.title, config.headerTextProperties)
         
     return ftable
 end
@@ -822,9 +904,11 @@ function menu.Set_Vertical_Size(menu)
     local frame_height
     local frame_offsetY
     
-    -- Set initial y offset.
+    -- Set initial y offset, to know how much room to reserve.
+    -- In negative cases, it is offset from bottom of screen, so want
+    -- the abs() value.
     if menu.user_settings.offsetY then
-        frame_offsetY = Helper.scaleY(menu.user_settings.offsetY)
+        frame_offsetY = math.abs(Helper.scaleY(menu.user_settings.offsetY))
     else
         -- Start at 0, and adjust further after height known.
         frame_offsetY = 0
@@ -843,23 +927,51 @@ function menu.Set_Vertical_Size(menu)
         -- Max height to fit on screen with required offset.
         Helper.viewHeight - frame_offsetY, 
         
-        -- Fit the table and frame border.
-        table_height + 2 * Helper.borderSize
+        -- Fit the table, its y offset (which covers the title), and borders.
+        table_height + menu_data.ftable.properties.y + 2 * Helper.borderSize
         )
         
     -- Set the final table height, same as frame without borders.
     table_height = frame_height - 2 * Helper.borderSize
-    
-    -- Compute Y offset, if not specified by user.
-    if not menu.user_settings.offsetY then
-        -- Center on screen by using half the space not used by the frame.
-        frame_offsetY = (Helper.viewHeight - frame_height) / 2
-    end
-        
+            
     -- Update the frame and table.
     menu.infoFrame.properties.height = frame_height
-    menu.infoFrame.properties.y = frame_offsetY
     menu_data.ftable.properties.height = table_height
+end
+
+
+-- Offset the frame based on user request, or default centering.
+-- Treats negative offsets as being from the opposite edge of the screen.
+function menu.Set_Frame_Offset(menu)
+    
+    local frame_x    
+    if menu.user_settings.offsetX then
+        -- Start with scaling, whether positive or negative.
+        frame_x = Helper.scaleX(menu.user_settings.offsetX)
+        -- Check negatives.
+        if frame_x < 0 then
+            -- Adjust to be from the edge.
+            frame_x = Helper.viewWidth - menu.infoFrame.properties.width + frame_x
+        end
+    else
+        -- Center.
+        frame_x = (Helper.viewWidth - menu.infoFrame.properties.width) / 2
+    end
+    
+    -- Do the same for Y.
+    local frame_y
+    if menu.user_settings.offsetY then
+        frame_y = Helper.scaleY(menu.user_settings.offsetY)
+        if frame_y < 0 then
+            frame_y = Helper.viewHeight - menu.infoFrame.properties.height + frame_y
+        end
+    else
+        frame_y = (Helper.viewHeight - menu.infoFrame.properties.height) / 2
+    end
+    
+    -- Update the frame.
+    menu.infoFrame.properties.x = frame_x
+    menu.infoFrame.properties.y = frame_y
 end
 
 
@@ -867,6 +979,8 @@ end
 function menu.onCloseElement(dueToClose, allowAutoMenu)
     Helper.closeMenu(menu, dueToClose, allowAutoMenu)
     menu.cleanup()
+    -- Signal md.
+    Raise_Signal("onCloseElement", dueToClose)
 end
 
 -- Unused function.
@@ -1004,6 +1118,10 @@ After having trouble getting submenus to be selected. Thoughts:
     a) Monkey patch menu.viewCreated, but eh.
     b) Only use one table.
     c) Put the table with submenu options first (assuming ordering is kept).
+    
+    Later observation: the title needs to be in a separate table to allow
+    the main data table to be scrollable.  Monkeypatching viewCreated may
+    be the only reliable way to handle this.
         
 ]]
 
@@ -1076,12 +1194,20 @@ function Init_Gameoptions_Link()
         end
     end
     
+    -- Helper function to determine if optionParameter refers to a custom menu.
+    local Is_Custom_Menu = function (optionParameter)
+        if optionParameter == "simple_menu_extension_options" or custom_menu_specs[optionParameter] ~= nil then
+            return true
+        end
+        return false
+    end
+    
     -- Patch submenuHandler to catch new submenus.
     local original_submenuHandler = gameoptions_menu.submenuHandler
     gameoptions_menu.submenuHandler = function (optionParameter)
-        
+    
         -- Look for custom menus.
-        if optionParameter == "simple_menu_extension_options" or custom_menu_specs[optionParameter] ~= nil then
+        if Is_Custom_Menu(optionParameter) then
             if debugger.verbose then
                 DebugError("Simple_Menu_API opening submenu: "..optionParameter)
             end
@@ -1103,6 +1229,26 @@ function Init_Gameoptions_Link()
         end
     end
     
+    
+    -- Patch viewCreated to properly register tables.
+    local original_viewCreated = gameoptions_menu.viewCreated
+    gameoptions_menu.viewCreated = function (layer, ...)
+        -- Check if this is handling a custom menu.
+        if Is_Custom_Menu(gameoptions_menu.currentOption) then
+            if debugger.verbose then
+                DebugError("Simple_Menu_API viewCreated for submenu: "..gameoptions_menu.currentOption)
+            end
+            -- Repeat the layer check, to be safe.
+            if layer == config.optionsLayer then
+                -- Will have two tables.
+                gameoptions_menu.titleTable, gameoptions_menu.optionTable = ...
+            end
+        else
+            -- Use the original function.
+            original_viewCreated(layer, ...)
+        end
+    end
+       
     
     ---- Patch menu.onSelectElement(uitable, modified, row) purely for
     ---- debug help.
@@ -1143,27 +1289,55 @@ function Make_Menu_Shell(menu_spec)
     menu.currentOption = menu_spec.id
 
     local frame = menu.createOptionsFrame()
-
-    -- Note: due to behavior of menu.viewCreated and other code, this
-    -- will only use a single table for everything.
-    -- Add one column to those requested, for the arrow padding.
-    local ftable = frame:addTable(menu_spec.columns + 1, { 
-        tabOrder = 1, 
+        
+    -- Create a separate table, with one row for the title.
+    -- This needs to be separate so that the main table can scroll.
+    -- 2 columns, button and label.
+    local title_table = frame:addTable(2, { 
+        -- Unclear what this does, but setting 0 gets a scrollability error.
+        tabOrder = 2,
         x = menu.table.x, 
         y = menu.table.y, 
-        width = menu.table.width, 
-        maxVisibleHeight = menu.table.height })
+        width = menu.table.width,
+        -- Tabbing skips this table.
+        skipTabChange = true 
+        })
     -- Note: col widths apparently need to be set before rows are added.
-    ftable:setColWidth(1, menu.table.arrowColumnWidth, false)
+    title_table:setColWidth(1, menu.table.arrowColumnWidth, false)
     
     -- Title/back button row.
-    local row = ftable:addRow(true, { fixed = true, bgColor = Helper.color.transparent })
+    -- Must be selectable for back button to work.
+    local row = title_table:addRow(true, { fixed = true, bgColor = Helper.color.transparent })
+    
     -- Unclear what this does, but background span the whole thing.
-    row[1]:setBackgroundColSpan(menu_spec.columns + 1)
+    row[1]:setBackgroundColSpan(2)
     row[1]:createButton({ height = config.headerTextHeight }):setIcon(config.backarrow, { x = config.backarrowOffsetX })
     row[1].handlers.onClick = function () return menu.onCloseElement("back") end
-    row[2]:setColSpan(menu_spec.columns):createText(menu_spec.title, config.headerTextProperties)
-            
+    row[2]:createText(menu_spec.title, config.headerTextProperties)
+    -- Record it, in case it is ever useful to know.
+    menu_data.title_table = title_table
+        
+        
+    -- Set up the main table.
+    -- Add one column to those requested, for the arrow padding.
+    local ftable = frame:addTable(menu_spec.columns + 1, { 
+        -- 1 sets the table as interactive.
+        tabOrder = 1, 
+        
+        x = menu.table.x, 
+        -- Adjust the y position down, to make room for the title.
+        y = title_table.properties.y + title_table:getVisibleHeight() + Helper.borderSize,
+        
+        width = menu.table.width, 
+        maxVisibleHeight = menu.table.height,
+        
+        -- Makes the table the interactive widget of the frame.
+        -- TODO: maybe not needed; not used in gameoptions example.
+        defaultInteractiveObject = true 
+        })
+    -- Size the first column under the back arrow.
+    ftable:setColWidth(1, menu.table.arrowColumnWidth, false)
+                
     return frame, ftable
 end
 
@@ -1172,6 +1346,9 @@ end
 -- This will in turn list each user registered mod options menu.
 -- Patterned off of code in gameoptions, specifically menu.displayExtensions().
 function Display_Extension_Options()
+    
+    -- Clean out old menu_data.
+    menu_data_reset()
     
     -- Set up the shell menu, get the fillable table.
     local frame, ftable = Make_Menu_Shell({
@@ -1213,14 +1390,17 @@ end
 -- Set up a user's option menu.
 function Display_Custom_Menu(menu_spec)
 
+    -- Clean out old menu_data.
+    menu_data_reset()
+    
     -- Set up the shell menu, get the fillable table.
     local frame, ftable = Make_Menu_Shell(menu_spec)
     
     -- Update local menu data for user functions.
     menu_data.frame = frame
     menu_data.ftable = ftable
-    menu_data.user_rows = {}
-    menu_data.columns = menu_spec.columns
+    menu_data.columns = menu_spec.columns    
+    menu_data.mode = "options"
     -- No delay on commands; the menu is ready right away.
     menu_data.delay_commands = false
     
