@@ -1,0 +1,10 @@
+# The dat files often contain text, but are size sensitive in their packing.
+# To prevent git messing with their line endings, they will be set as
+# binary files here.
+
+# See this article for details.
+# https://help.github.com/en/articles/configuring-git-to-handle-line-endings
+
+* text=auto
+*.cat binary
+*.dat binary
