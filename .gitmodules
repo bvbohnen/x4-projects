@@ -1,0 +1,3 @@
+[submodule "x4_lua_loader_api"]
+path = x4_lua_loader_api
+url = ..\X4_Lua_Loader_API
