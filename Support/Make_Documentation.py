@@ -37,6 +37,10 @@ extension_dirs = {
         },
     }
 
+# Name to use for the generated doc file.
+gen_doc_name = "API Functions.md"
+
+
 def Run():
     Make_Lua_Loader_Doc()
     Make_Key_Capture_Doc()
@@ -72,15 +76,16 @@ def Make_Named_Pipes_Doc():
     '''
     ext_dir = extension_dirs['named_pipes_api']['src']
     doc_dir = extension_dirs['named_pipes_api']['doc']
-    doc_path = doc_dir / 'Readme.md'
     doc_lines = []
         
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
 
     # Grab the manually written part of the readme to append to.
-    doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
+    #doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
     # TODO: insert version number into title
+
+    doc_lines = []
 
     # The MD pipe api.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Named_Pipes.xml')
@@ -91,7 +96,7 @@ def Make_Named_Pipes_Doc():
     # The Lua pipe api.
     doc_lines += Get_Lua_Text(ext_dir / 'Named_Pipes.lua')
     
-    with open(doc_path, 'w') as file:
+    with open(doc_dir / gen_doc_name, 'w') as file:
         file.write('\n'.join(doc_lines))
 
     # Set up the bbcode version.
@@ -105,20 +110,21 @@ def Make_Simple_Menu_Doc():
     '''
     ext_dir = extension_dirs['simple_menu_api']['src']
     doc_dir = extension_dirs['simple_menu_api']['doc']
-    doc_path = doc_dir / 'Readme.md'
     doc_lines = []
     
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
 
     # Grab the manually written part of the readme to append to.
-    doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
+    # doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
     # TODO: insert version number into title
+
+    doc_lines = []
     
     # Add the api cues.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_API.xml')
 
-    with open(doc_path, 'w') as file:
+    with open(doc_dir / gen_doc_name, 'w') as file:
         file.write('\n'.join(doc_lines))
 
     # Set up the bbcode version.
@@ -132,20 +138,21 @@ def Make_Key_Capture_Doc():
     '''
     ext_dir = extension_dirs['key_capture_api']['src']
     doc_dir = extension_dirs['key_capture_api']['doc']
-    doc_path = doc_dir / 'Readme.md'
     doc_lines = []
     
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
 
     # Grab the manually written part of the readme to append to.
-    doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
+    #doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
     # TODO: insert version number into title
     
+    doc_lines = []
+
     # Add the api cues.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Key_Capture.xml')
 
-    with open(doc_path, 'w') as file:
+    with open(doc_dir / gen_doc_name, 'w') as file:
         file.write('\n'.join(doc_lines))
 
     # Set up the bbcode version.
