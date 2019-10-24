@@ -2,8 +2,6 @@
 Support for generating documentation readmes for the extensions.
 
 Extracts from decorated lua block comments and xml comments.
-
-TODO: maybe develop this out further.
 '''
 
 from pathlib import Path
@@ -13,18 +11,37 @@ import sys
 from itertools import chain
 import Version
 
-this_dir = Path(__file__).parent
+project_dir = Path(__file__).resolve().parents[1]
 
 # Set up an import from the customizer for some text processing.
-x4_customizer_dir = this_dir.parents[1] / 'X4_Customizer'
+x4_customizer_dir = project_dir.parent / 'X4_Customizer'
 sys.path.append(str(x4_customizer_dir))
 from Framework.Make_Documentation import Merge_Lines, Get_BB_Text
 
+extension_dirs = {
+    'named_pipes_api':{
+        'src': project_dir / 'X4_Named_Pipes_API/X4_Files/extensions/named_pipes_api',
+        'doc': project_dir / 'X4_Named_Pipes_API',
+        },
+    'key_capture_api': {
+        'src': project_dir / 'X4_Key_Capture_API/key_capture_api',
+        'doc': project_dir / 'X4_Key_Capture_API',
+        },
+    'lua_loader_api': {
+        'src': project_dir / 'X4_Lua_Loader_API/lua_loader_api',
+        'doc': project_dir / 'X4_Lua_Loader_API',
+        },
+    'simple_menu_api': {
+        'src': project_dir / 'X4_Simple_Menu_API/simple_menu_api',
+        'doc': project_dir / 'X4_Simple_Menu_API',
+        },
+    }
 
 def Run():
     Make_Lua_Loader_Doc()
     Make_Key_Capture_Doc()
     Make_Named_Pipes_Doc()
+    Make_Simple_Menu_Doc()
     return
 
 
@@ -32,19 +49,18 @@ def Make_Lua_Loader_Doc():
     '''
     Document lua_loader_api.
     '''
-    ext_dir = this_dir / 'extensions' / 'lua_loader_api'
+    ext_dir = extension_dirs['lua_loader_api']['src']
+    doc_dir = extension_dirs['lua_loader_api']['doc']
     
-    # Get the existing version string.
-    current_version = Version.Get_Version(ext_dir)
-
     # Run the update function on the content.xml.
-    Version.Update_Content_Version(ext_dir)
+    Version.Update_Content_Version(doc_dir, ext_dir)
 
     # The readme is all hand written for now.
 
     # Set up the bbcode version.
-    Make_BB_Code(ext_dir, header_lines = [
-        r'Download: [url]https://github.com/bvbohnen/X4_Named_Pipes_API/releases[/url]',
+    Make_BB_Code(doc_dir, header_lines = [
+        # TODO: put header in the source doc.
+        r'Download: [url]https://github.com/bvbohnen/x4-lua-loader-api/releases[/url]',
         '',
         ])
     return
@@ -54,18 +70,16 @@ def Make_Named_Pipes_Doc():
     '''
     Document named_pipes_api.
     '''
-    ext_dir = this_dir / 'extensions' / 'named_pipes_api'
-    doc_path = ext_dir / 'Readme.md'
+    ext_dir = extension_dirs['named_pipes_api']['src']
+    doc_dir = extension_dirs['named_pipes_api']['doc']
+    doc_path = doc_dir / 'Readme.md'
     doc_lines = []
         
-    # Get the existing version string.
-    current_version = Version.Get_Version(ext_dir)
-
     # Run the update function on the content.xml.
-    Version.Update_Content_Version(ext_dir)
+    Version.Update_Content_Version(doc_dir, ext_dir)
 
     # Grab the manually written part of the readme to append to.
-    doc_lines = (ext_dir / 'readme_intro.md').read_text().splitlines()
+    doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
     # TODO: insert version number into title
 
     # The MD pipe api.
@@ -81,7 +95,34 @@ def Make_Named_Pipes_Doc():
         file.write('\n'.join(doc_lines))
 
     # Set up the bbcode version.
-    Make_BB_Code(ext_dir)
+    Make_BB_Code(doc_dir)
+    return
+
+
+def Make_Simple_Menu_Doc():
+    '''
+    Document simple_menu_api.
+    '''
+    ext_dir = extension_dirs['simple_menu_api']['src']
+    doc_dir = extension_dirs['simple_menu_api']['doc']
+    doc_path = doc_dir / 'Readme.md'
+    doc_lines = []
+    
+    # Run the update function on the content.xml.
+    Version.Update_Content_Version(doc_dir, ext_dir)
+
+    # Grab the manually written part of the readme to append to.
+    doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
+    # TODO: insert version number into title
+    
+    # Add the api cues.
+    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_API.xml')
+
+    with open(doc_path, 'w') as file:
+        file.write('\n'.join(doc_lines))
+
+    # Set up the bbcode version.
+    Make_BB_Code(doc_dir)
     return
 
 
@@ -89,18 +130,16 @@ def Make_Key_Capture_Doc():
     '''
     Document key_capture_api.
     '''
-    ext_dir = this_dir / 'extensions' / 'key_capture_api'
-    doc_path = ext_dir / 'Readme.md'
+    ext_dir = extension_dirs['key_capture_api']['src']
+    doc_dir = extension_dirs['key_capture_api']['doc']
+    doc_path = doc_dir / 'Readme.md'
     doc_lines = []
     
-    # Get the existing version string.
-    current_version = Version.Get_Version(ext_dir)
-
     # Run the update function on the content.xml.
-    Version.Update_Content_Version(ext_dir)
+    Version.Update_Content_Version(doc_dir, ext_dir)
 
     # Grab the manually written part of the readme to append to.
-    doc_lines = (ext_dir / 'readme_intro.md').read_text().splitlines()
+    doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
     # TODO: insert version number into title
     
     # Add the api cues.
@@ -110,7 +149,7 @@ def Make_Key_Capture_Doc():
         file.write('\n'.join(doc_lines))
 
     # Set up the bbcode version.
-    Make_BB_Code(ext_dir)
+    Make_BB_Code(doc_dir)
     return
 
 
@@ -285,20 +324,20 @@ def Get_Lua_Text(lua_path):
     return Sections_To_Lines(doc_text_dict)
 
 
-def Make_BB_Code(ext_dir, header_lines = []):
+def Make_BB_Code(doc_dir, header_lines = []):
     '''
     Turn the ext_dir's readme into a bbcode txt file.
     Output is placed in the release folder.
     '''
-    release_dir = this_dir.parent / 'Release'
+    release_dir = project_dir / 'Release'
     if not release_dir.exists():
         release_dir.mkdir()
 
     # Grab the readme contents.
-    doc_lines = (ext_dir / 'Readme.md').read_text().splitlines()
+    doc_lines = (doc_dir / 'Readme.md').read_text().splitlines()
     # Generate a bbcode version, prefixing with custom header.
     bb_lines = header_lines + Get_BB_Text(doc_lines)
-    (release_dir / (ext_dir.name + '_bb_readme.txt')).write_text('\n'.join(bb_lines))
+    (release_dir / (doc_dir.name + '_bb_readme.txt')).write_text('\n'.join(bb_lines))
     return
 
 

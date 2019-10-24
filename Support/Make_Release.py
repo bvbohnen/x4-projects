@@ -14,24 +14,27 @@ import zipfile
 import Version
 import Make_Documentation
 
-this_dir = Path(__file__).parent
+project_dir = Path(__file__).resolve().parents[1]
 
 # Set up an import from the customizer for some text processing.
-x4_customizer_dir = this_dir.parents[1] / 'X4_Customizer'
+x4_customizer_dir = project_dir.parent / 'X4_Customizer'
 sys.path.append(str(x4_customizer_dir))
 import Framework as X4_Customizer
 
 # Dict matching each release zip with the files it includes.
+# Note: root_dir is where other paths are taken relative to, and also the
+#  base dir for the zip file (eg. relative paths are what will be seen
+#  when zipped).
 # TODO: cat/dat packing of lua_loader_api (run the bat, or rewrite).
 # TODO: maybe go back to globbing, but this is safer against unwanted
 # files.
 release_files_specs = {
     'Named_Pipes_API':{ 
-        'root_path':this_dir, 
-        'change_log_dir':'extensions/named_pipes_api', 
+        'root_path': project_dir / 'X4_Named_Pipes_API' / 'X4_Files',
+        'doc_path' : '..',
         'files':[
+            '../Readme.md',
             'ui/core/lualibs/winpipe_64.dll',
-            'extensions/named_pipes_api/Readme.md',
             'extensions/named_pipes_api/content.xml',
             'extensions/named_pipes_api/Named_Pipes.lua',
             'extensions/named_pipes_api/md/Named_Pipes.xml',
@@ -39,8 +42,8 @@ release_files_specs = {
             'extensions/named_pipes_api/md/Pipe_Server_Lib.xml',
         ]},
     'X4_Python_Pipe_Server':{ 
-        'root_path':this_dir.parent, 
-        'change_log_dir':'X4_Python_Pipe_Server', 
+        'root_path':project_dir / 'X4_Named_Pipes_API', 
+        'doc_path' : 'X4_Python_Pipe_Server',
         'files':[
             'X4_Python_Pipe_Server/__init__.py',
             'X4_Python_Pipe_Server/Main.py',
@@ -49,25 +52,34 @@ release_files_specs = {
             'X4_Python_Pipe_Server/Classes/Server_Thread.py',
         ]},
     'Key_Capture_API':{ 
-        'root_path':this_dir, 
-        'change_log_dir':'extensions/key_capture_api', 
+        'root_path':project_dir / 'X4_Key_Capture_API', 
+        'doc_path' : '',
         'files':[
-            'extensions/key_capture_api/Readme.md',
-            'extensions/key_capture_api/content.xml',
-            'extensions/key_capture_api/Send_Keys.py',
-            'extensions/key_capture_api/md/Key_Capture.xml',
+            'Readme.md',
+            'key_capture_api/content.xml',
+            'key_capture_api/Send_Keys.py',
+            'key_capture_api/md/Key_Capture.xml',
         ]},
     'Lua_Loader_API':{ 
-        'root_path':this_dir, 
-        'change_log_dir':'extensions/lua_loader_api', 
+        'root_path':project_dir / 'X4_Lua_Loader_API', 
+        'doc_path' : '',
         'files':[
-            'extensions/lua_loader_api/Readme.md',
-            'extensions/lua_loader_api/content.xml',
-            'extensions/lua_loader_api/subst_01.cat',
-            'extensions/lua_loader_api/subst_01.dat',
-            'extensions/lua_loader_api/md/Lua_Loader.xml',
-            'extensions/lua_loader_api/ui/addons/ego_debug/Lua_Loader.lua',
-            'extensions/lua_loader_api/ui/addons/ego_debug/ui.xml',
+            'Readme.md',
+            'lua_loader_api/content.xml',
+            'lua_loader_api/subst_01.cat',
+            'lua_loader_api/subst_01.dat',
+            'lua_loader_api/md/Lua_Loader.xml',
+            'lua_loader_api/ui/addons/ego_debug/Lua_Loader.lua',
+            'lua_loader_api/ui/addons/ego_debug/ui.xml',
+        ]},
+    'Simple_Menu_API':{ 
+        'root_path':project_dir / 'X4_Simple_Menu_API', 
+        'doc_path' : '',
+        'files':[
+            'Readme.md',
+            'simple_menu_api/content.xml',
+            'simple_menu_api/Simple_Menu.lua',
+            'simple_menu_api/md/Simple_Menu_API.xml',
         ]},
     }
 
@@ -82,7 +94,7 @@ def Run():
     # Pack up the subst cat/dat for the lua_loader_api.
     # This relies on x4 customizer, assumed to be in the same
     # parent directory as this git repo.
-    lua_loader_path = this_dir / 'extensions/lua_loader_api'
+    lua_loader_path = release_files_specs['Lua_Loader_API']['root_path'] / 'lua_loader_api'
 
     # Make a copy of the lua to xpl.
     shutil.copy(lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.lua',
@@ -99,29 +111,19 @@ def Run():
                 '-include', 'ui/*.xml', 'ui/*.xpl')
     
 
-    # -Removed; switched to manually giving file names.
-    ## Get a list of paths to files to zip up.
-    #file_paths = []
-    ## (Most) Everything from extensions.
-    #for file in (this_dir / 'extensions').glob('**/*'):
-    #    # Skip folders.
-    #    if file.is_dir():
-    #        continue
-    #    file_paths.append(file)
-    ## The dll.
-    #file_paths.append(this_dir / 'ui'/'core'/'lualibs'/'winpipe_64.dll')
-
     # Make the release folder, if needed.
-    release_dir = this_dir.parent / 'Release'
+    # Put these all in the same folder, to make it easier to upload
+    # to github/wherever when needed.
+    release_dir = project_dir / 'Release'
     if not release_dir.exists():
         release_dir.mkdir()
     
     for project_name, spec in release_files_specs.items():
         # Prefix all file paths with their root_path.
-        file_paths = [spec['root_path'] / x for x in spec['files']]
+        file_paths = [(spec['root_path'] / x).resolve() for x in spec['files']]
 
         # Look up the version number, and put it into the name.
-        version = Version.Get_Version(spec['root_path'] / spec['change_log_dir'])
+        version = Version.Get_Version(spec['root_path'] / spec['doc_path'])
         # Put zips in a release folder.
         zip_path = release_dir / ('{}_v{}.zip'.format(project_name, version))
 
@@ -158,14 +160,21 @@ def Make_Zip(zip_path, root_path, file_paths):
     # Add all files to the zip, with an extra nesting folder to
     # that the files don't sprawl out when unpacked.
     for path in file_paths:
+        # Give an alternate internal path and name.
+        # This will be relative to the root dir.
+        # Note: relpath seems to bugger up if the directories match,
+        #  returning a blank instead of the file name.
+        # Note: the path may be a parent of root_path; detect this and
+        #  just place the file in the zip root.
+        if root_path in path.parents:
+            arcname = os.path.relpath(path, root_path)
+        else:
+            arcname = path.name
         zip_file.write(
             # Give a full path.
             path,
-            # Give an alternate internal path and name.
-            # This will be relative to the root dir.
-            # Note: relpath seems to bugger up if the directories match,
-            #  returning a blank instead of the file name.
-            arcname = os.path.relpath(path, root_path)
+            # Give a in-zip path.
+            arcname = arcname,
             )
 
     # Close the zip; this needs to be explicit, according to the
