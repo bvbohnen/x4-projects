@@ -22,6 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="API Functions.md" />
     <Content Include="change_log.md" />
     <Content Include="key_capture_api\content.xml" />
     <Content Include="key_capture_api\md\KC_Extra_Commands.xml" />
