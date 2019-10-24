@@ -22,6 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="API Functions.md" />
     <Content Include="change_log.md" />
     <Content Include="X4_Files\extensions\named_pipes_api\content.xml" />
     <Content Include="X4_Files\extensions\named_pipes_api\Named_Pipes.lua" />
