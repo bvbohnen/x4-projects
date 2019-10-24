@@ -23,6 +23,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="change_log.md" />
+    <Content Include="Readme.md" />
     <Content Include="simple_menu_api\content.xml" />
     <Content Include="simple_menu_api\md\Simple_Menu_API.xml" />
     <Content Include="simple_menu_api\Simple_Menu.lua" />

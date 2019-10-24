@@ -28,11 +28,11 @@ end
 
 local debugger = {
     -- Send chat messages on player actions to widgets.
-    actions_to_chat = true,
+    actions_to_chat = false,
     -- Print all commands run.
     announce_commands = false,
     -- Generic filter on messages.
-    verbose = true,
+    verbose = false,
 }
 
 -- User registered menus to show in options.
