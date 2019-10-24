@@ -2,15 +2,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>e94cbc76-4ca6-414b-8bb9-46d7ca4ff933</ProjectGuid>
-    <ProjectHome>
-    </ProjectHome>
+    <ProjectGuid>7b984f9e-b83e-442c-b195-7f0c1e27e5ef</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>X4_Files</Name>
-    <RootNamespace>X4_Files</RootNamespace>
+    <Name>X4_Named_Pipes_API</Name>
+    <RootNamespace>X4_Named_Pipes_API</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -21,25 +22,24 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="extensions\named_pipes_api\change_log.md" />
+    <Content Include="change_log.md" />
+    <Content Include="X4_Files\extensions\named_pipes_api\content.xml" />
+    <Content Include="X4_Files\extensions\named_pipes_api\Named_Pipes.lua" />
+    <Content Include="X4_Files\extensions\named_pipes_api\md\Named_Pipes.xml" />
+    <Content Include="X4_Files\extensions\named_pipes_api\md\Pipe_Server_Host.xml" />
+    <Content Include="X4_Files\extensions\named_pipes_api\md\Pipe_Server_Lib.xml" />
+    <Content Include="X4_Files\extensions\named_pipes_api_test\content.xml" />
+    <Content Include="X4_Files\extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
+    <Content Include="Readme.md" />
+    <Content Include="readme_intro.md" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="extensions\" />
-    <Folder Include="extensions\named_pipes_api\" />
-    <Folder Include="extensions\named_pipes_api\md\" />
-    <Folder Include="extensions\named_pipes_api_test\" />
-    <Folder Include="extensions\named_pipes_api_test\md\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="extensions\named_pipes_api\content.xml" />
-    <Content Include="extensions\named_pipes_api\md\Named_Pipes.xml" />
-    <Content Include="extensions\named_pipes_api\md\Pipe_Server_Host.xml" />
-    <Content Include="extensions\named_pipes_api\md\Pipe_Server_Lib.xml" />
-    <Content Include="extensions\named_pipes_api\Readme.md" />
-    <Content Include="extensions\named_pipes_api\readme_intro.md" />
-    <Content Include="extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
-    <Content Include="extensions\named_pipes_api\Named_Pipes.lua" />
-    <Content Include="extensions\named_pipes_api_test\content.xml" />
+    <Folder Include="X4_Files\" />
+    <Folder Include="X4_Files\extensions\" />
+    <Folder Include="X4_Files\extensions\named_pipes_api\" />
+    <Folder Include="X4_Files\extensions\named_pipes_api\md\" />
+    <Folder Include="X4_Files\extensions\named_pipes_api_test\" />
+    <Folder Include="X4_Files\extensions\named_pipes_api_test\md\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

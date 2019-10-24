@@ -21,9 +21,6 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\X4_Files\extensions\key_capture_api\Send_Keys.py">
-      <Link>Send_Keys.py</Link>
-    </Compile>
     <Compile Include="Old\Launcher.py" />
     <Compile Include="Classes\Log_Reader.py">
       <SubType>Code</SubType>
