@@ -32,7 +32,6 @@
     <Content Include="X4_Files\extensions\named_pipes_api_test\content.xml" />
     <Content Include="X4_Files\extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
     <Content Include="Readme.md" />
-    <Content Include="readme_intro.md" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="X4_Files\" />
