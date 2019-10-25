@@ -30,7 +30,6 @@
     <Content Include="simple_menu_api\Simple_Menu.lua" />
     <Content Include="simple_menu_api_test\content.xml" />
     <Content Include="simple_menu_api_test\md\Simple_Menu_API_Test.xml" />
-    <Content Include="readme_intro.md" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="simple_menu_api\" />

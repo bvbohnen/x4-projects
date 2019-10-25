@@ -366,9 +366,12 @@ activate callback cues provided by the api user.
     
     Param:
       Table with the following items:
-      - col       : Integer, column to place the widget in.
-      - text      : Text to display, without semicolons.
-      - mouseover : Optional, extra text to display on mouseover.
+      * col
+        - Integer, column to place the widget in.
+      * text
+        - Text to display, without semicolons.
+      * mouseover
+        - Optional, extra text to display on mouseover.
     -->
   <cue name="Make_Label" instantiate="true" namespace="this">
     <conditions>
@@ -388,15 +391,22 @@ activate callback cues provided by the api user.
     
     Param:
       Table with the following items:
-      - col       : Integer, column to place the widget in.
-      - cue       : Cue to callback on interact event.
-      - text      : Text to display, without semicolons.
-      - echo      : Optional, anything, returned on callback.
+      * col
+        - Integer, column to place the widget in.
+      * cue
+        - Cue to callback on interact event.
+      * text
+        - Text to display, without semicolons.
+      * echo
+        - Optional, anything, returned on callback.
       
     onClick event returns a table with:
-      - row       : Longfloat, row of the widget.
-      - col       : Longfloat, col of the widget.
-      - echo      : Present if param had echo.
+      * row
+        - Longfloat, row of the widget.
+      * col
+        - Longfloat, col of the widget.
+      * echo
+        - Present if param had echo.
     -->
   <cue name="Make_Button" instantiate="true" namespace="this">
     <conditions>
@@ -422,16 +432,24 @@ activate callback cues provided by the api user.
     
     Param:
       Table with the following items:
-      - col       : Integer, column to place the widget in.
-      - cue       : Cue to callback on interact event.
-      - text      : Optional, initial text to display, without semicolons.
-      - echo      : Optional, anything, returned on callback.
+      * col
+        - Integer, column to place the widget in.
+      * cue
+        - Cue to callback on interact event.
+      * text
+        - Optional, initial text to display, without semicolons.
+      * echo
+        - Optional, anything, returned on callback.
       
     onTextChanged event returns a table with:
-      - row       : Longfloat, row of the widget.
-      - col       : Longfloat, col of the widget.
-      - text      : String, new text in the box.
-      - echo      : Present if param had echo.
+      * row
+        - Longfloat, row of the widget.
+      * col
+        - Longfloat, col of the widget.
+      * text
+        - String, new text in the box.
+      * echo
+        - Present if param had echo.
     -->
   <cue name="Make_EditBox" instantiate="true" namespace="this">
     <conditions>
@@ -452,22 +470,36 @@ activate callback cues provided by the api user.
     
     Param:
       Table with the following items:
-      - col            : Integer, column to place the widget in.
-      - cue            : Cue to callback on interact event.
-      - min            : Int, min value.
-      - minSelect      : Int, optional, min selectable value if different than min.
-      - max            : Int, max value.
-      - maxSelect      : Int, optional, max selectable value if different than max.
-      - start          : Int, optional, initial value; defaults 0.
-      - step           : Int, optional, step size; defaults 1.
-      - suffix         : String, optional, suffix displayed on the value, eg. " %".
-      - echo      : Optional, anything, returned on callback.
+      * col
+        - Integer, column to place the widget in.
+      * cue
+        - Cue to callback on interact event.
+      * min
+        - Int, min value.
+      * minSelect
+        - Int, optional, min selectable value if different than min.
+      * max
+        - Int, max value.
+      * maxSelect
+        - Int, optional, max selectable value if different than max.
+      * start
+        - Int, optional, initial value; defaults 0.
+      * step
+        - Int, optional, step size; defaults 1.
+      * suffix
+        - String, optional, suffix displayed on the value, eg. " %".
+      * echo
+        - Optional, anything, returned on callback.
       
     onSliderCellChanged event returns a table with:
-      - row       : Longfloat, row of the widget.
-      - col       : Longfloat, col of the widget.
-      - value     : Longfloat, the new slider value.
-      - echo      : Present if param had echo.
+      * row
+        - Longfloat, row of the widget.
+      * col
+        - Longfloat, col of the widget.
+      * value
+        - Longfloat, the new slider value.
+      * echo
+        - Present if param had echo.
     -->
   <cue name="Make_Slider" instantiate="true" namespace="this">
     <conditions>
@@ -488,17 +520,26 @@ activate callback cues provided by the api user.
     
     Param:
       Table with the following items:
-      - col       : Integer, column to place the widget in.
-      - cue       : Cue to callback on interact event.
-      - options   : String, comma separated listing of selectable options.
-      - start     : Int, optional, index of the initially selected option.
-      - echo      : Optional, anything, returned on callback.
+      * col
+        - Integer, column to place the widget in.
+      * cue
+        - Cue to callback on interact event.
+      * options
+        - String, comma separated listing of selectable options.
+      * start
+        - Int, optional, index of the initially selected option.
+      * echo
+        - Optional, anything, returned on callback.
       
     onDropDownConfirmed event returns a table with:
-      - row       : Longfloat, row of the widget.
-      - col       : Longfloat, col of the widget.
-      - option    : Longfloat, the index of the selected option.
-      - echo      : Present if param had echo.
+      * row
+        - Longfloat, row of the widget.
+      * col
+        - Longfloat, col of the widget.
+      * option
+        - Longfloat, the index of the selected option.
+      * echo
+        - Present if param had echo.
     -->
   <cue name="Make_Dropdown" instantiate="true" namespace="this">
     <conditions>
@@ -520,8 +561,10 @@ activate callback cues provided by the api user.
     
     Param:
       Table with the following items:
-      - command   : String, command to send to lua.
-      - ...       : Any args requied for the command.
+      * command
+        - String, command to send to lua.
+      * ...
+        - Any args requied for the command.
   -->
   <cue name="Send_Command" instantiate="true" namespace="this">
     <conditions>
