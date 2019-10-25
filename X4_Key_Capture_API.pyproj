@@ -31,7 +31,6 @@
     <Content Include="key_capture_api_test\content.xml" />
     <Content Include="key_capture_api_test\md\Test_Key_Capture.xml" />
     <Content Include="Readme.md" />
-    <Content Include="readme_intro.md" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="key_capture_api\" />
