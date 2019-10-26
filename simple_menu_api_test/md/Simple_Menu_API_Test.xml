@@ -18,7 +18,7 @@
       <actions>
         <signal_cue_instantly
           cue="md.Key_Capture.Register_Key"
-          param="table[$key='ctrl shift c', $cue=Open_Menu]"/>
+          param="table[$key='shift b', $cue=Open_Menu]"/>
       </actions>
     </cue>
     
@@ -350,7 +350,7 @@
           with the echo'd args.
           TODO: how to clear a value when using sliders? Detect -1?
         -->
-        <set_value name="Globals.$vars.{event.param.{'$echo'}.{'$key'}}" exact="@event.param.{'$value'}"/>
+        <set_value name="Globals.$vars.{event.param.{'$echo'}}" exact="@event.param.{'$value'}"/>
       </actions>
     </cue>
 

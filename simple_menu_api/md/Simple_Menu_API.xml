@@ -10,6 +10,9 @@ The menu will support a 2d table of labels, buttons, and text fields.
 On player interaction, the lua will inform this api, which will in turn
 activate callback cues provided by the api user.
 
+Note: raise_lua_event only supports passing strings, numbers, or components.
+This api will pass complex tables of args using a blackboard var:
+  player.entity.{'$simple_menu_args'}
 -->
   
 <cues>
@@ -54,6 +57,16 @@ activate callback cues provided by the api user.
         the normal options menu.
       - Key is the registered submenu id.
       - Values are tables described in Register_Options_Menu.
+      
+    Additionally, complex data will be sent to lua using a blackboard var:
+    * player.entity.{'$simple_menu_args'}
+      - List of tables (or none), args sent with lua commands.
+      - The list is appended to here, copied and deleted in lua.
+      - The list is used to account for (common) cases where multiple commands
+        are sent in the same frame, since the lua will only process them late
+        in the frame, requiring arg buffering.
+      - Since lua cannot edit the list directly, and cannot replace it with
+        a modified list, it will just delete this var after reading it.
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -87,6 +100,8 @@ activate callback cues provided by the api user.
       <set_value name="Globals.$row" exact="0" />
       <set_value name="Globals.$options_submenu_specs" exact="table[]" />
       <set_value name="Globals.$menu_properties" exact="table[]" />
+      <!-- Reset the blackboard list, to clear old junk. TODO: delete. -->
+      <set_value name="player.entity.{'$simple_menu_args'}" exact="[]" />
     </actions>
   </library>
 
@@ -125,6 +140,7 @@ activate callback cues provided by the api user.
   
   
   <!-- 
+    Depricated; now pass args using player blackboard.
     Serializes an args table into a string, for passing to lua.
     The table should be flat, with no subtables or sublists.
     
@@ -166,6 +182,23 @@ activate callback cues provided by the api user.
       </do_all>
     </actions>
   </library>
+  
+  <!-- 
+    Adds a table of args to the player.entity '$simple_menu_args' list,
+    creating it if it doesn't exist, so that lua can access it.
+    
+    Input table should be in $args.    
+    -->
+  <library name="Blackboard_Args">
+    <actions>
+      <!-- Create the blackboard list if it doesn't exist. -->
+      <do_if value="not player.entity.{'$simple_menu_args'}?">
+        <set_value name="player.entity.{'$simple_menu_args'}" exact="[]" />
+      </do_if>
+      <append_to_list name="player.entity.{'$simple_menu_args'}" exact="$args"/>
+    </actions>
+  </library>
+  
   
   <!--@doc-cue
     Register an options menu, which will be accessible as a submenu of
@@ -216,21 +249,17 @@ activate callback cues provided by the api user.
       <event_cue_signalled/>
     </conditions>
     <actions>
-      <!-- Select an id for the menu, based on the next spec index. -->
-      <!-- <set_value name="event.param.{'$id'}" exact="Globals.$options_submenu_specs.count +1" /> -->
+      <!-- Make a safety copy of the args. -->
+      <set_value name="$args" exact="event.param.clone" />
       
       <!-- Record the args using the menu id, $ prefixed. -->
-      <set_value  name="Globals.$options_submenu_specs.{'$'+event.param.{'$id'}}" exact="event.param" />
-      
-      <!-- Convert the table to a string. -->
-      <set_value name="$args" exact="event.param" />
-      <include_actions ref="Serialize_Args"/>
+      <set_value  name="Globals.$options_submenu_specs.{'$'+event.param.{'$id'}}" exact="$args" />
             
-      <debug_text text="'Sending Register_Options_Menu with args: %s'.[$args_str]" 
+      <debug_text text="'Sending Register_Options_Menu with args: %s'.[$args]" 
                 chance="Globals.$DebugChance" filter="general"/>
-
-      <!-- Signal the lua function. -->
-      <raise_lua_event name="'Simple_Menu.Register_Options_Menu'" param="$args_str"/>
+                
+      <include_actions ref="Blackboard_Args"/>
+      <raise_lua_event name="'Simple_Menu.Register_Options_Menu'"/>
     </actions>
   </cue>
   
@@ -571,32 +600,28 @@ activate callback cues provided by the api user.
       <event_cue_signalled/>
     </conditions>
     <actions>
-      <set_value name="$args" exact="event.param" />
+      <!-- Use a shallow copy for this, to avoid errors if the user reuses tables. -->
+      <set_value name="$args" exact="event.param.clone" />
             
       <!-- If there is a callback cue, record it (should be a Make_ command). -->
       <!-- TODO: verify this is a Make_ command, and not something else that uses cue. -->
+      <!-- TODO: support specific callback cue names. -->
       <do_if value="$args.{'$cue'}?">
         <!-- The row already has a prepared subtable, so just fill the col. -->
-        <!-- Use a shallow copy for this, to avoid errors if the user reuses tables. -->
-        <set_value name="Globals.$widget_properties.{Globals.$row}.{$args.{'$col'}}" exact="$args.clone" />
+        <set_value name="Globals.$widget_properties.{Globals.$row}.{$args.{'$col'}}" exact="$args" />
         
         <debug_text text="'Recorded callback to %s for row,col: (%s,%s)'.[$args.{'$cue'}, Globals.$row, $args.{'$col'}]" 
               chance="Globals.$DebugChance" filter="general"/>
       </do_if>
       
-      <!-- 
-        Construct the unified string of args.
-        For future proofing, these will use named args, where name is comma
-        separated from the value, and semicolons between args.
-        Lua side will handle validation and defaults for optional args.
-      -->
-      <include_actions ref="Serialize_Args"/>
-            
-      <debug_text text="'Sending Process_Command with args: %s'.[$args_str]" 
-                chance="Globals.$DebugChance" filter="general"/>
+      <!-- Add to the player blackboard. -->
+      <include_actions ref="Blackboard_Args"/>
 
+      <debug_text text="'Sending Process_Command with args: %s'.[$args]" 
+                chance="Globals.$DebugChance" filter="general"/>
+                
       <!-- Signal the lua function. -->
-      <raise_lua_event name="'Simple_Menu.Process_Command'" param="$args_str"/>
+      <raise_lua_event name="'Simple_Menu.Process_Command'"/>
     </actions>
   </cue>
   
@@ -650,7 +675,7 @@ activate callback cues provided by the api user.
 
         <!-- Add the $echo to the response. -->
         <do_if value="$args_table.{'$echo'}?">
-          <set_value name="$response" exact="$args_table.{'$echo'}" />
+          <set_value name="$response.{'$echo'}" exact="$args_table.{'$echo'}" />
         </do_if>
         
         <signal_cue_instantly cue="$cue" param="$response"/>

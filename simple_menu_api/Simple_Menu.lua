@@ -13,6 +13,16 @@ Handy ego reference code:
 ]]
 
 -------------------------------------------------------------------------------
+-- Set up any used ffi functions.
+local ffi = require("ffi")
+local C = ffi.C
+ffi.cdef[[
+    typedef uint64_t UniverseID;
+    UniverseID GetPlayerID(void);
+]]
+
+
+-------------------------------------------------------------------------------
 -- Global config customization.
 -- A lot of ui config is in widget_fullscreen.lua, where its 'config'
 -- table is global, allowing editing of various values.
@@ -103,12 +113,16 @@ local menu_data = {
     -- menus.
     delay_commands = false,
     -- Queue for the above delays.
-    queued_events = {}
+    queued_events = {},
+    
+    -- Queue of arg tables sent from md, consumed as commands are processed.
+    queued_args = {},
 }
 
 
--- Generic config, mimicking ego code.
--- Copied from ego code; may not all be used.
+-------------------------------------------------------------------------------
+-- General config, copied from ego code; may not all be used.
+
 local config = {
     optionsLayer = 3,
     topLevelLayer = 4,
@@ -173,6 +187,18 @@ config.standardTextProperties = {
     y = 2,
 }
 
+-------------------------------------------------------------------------------
+-- Note on forward declarations: any functions (or other locals) refernced
+-- in code need to be declared local before that code point.
+-- This is a lexical scoping issue for locals, not a runtime timing issue.
+-- These functions need to not be specified as local when declared later,
+-- because lua.
+-- Since this is a headache to manage, a local table will be used to capture
+-- all misc functions, so that lookups are purely a runtime issue.
+local loc = {}
+
+-------------------------------------------------------------------------------
+-- Init/reset functions.
 
 -- Clean out stored references after menu closes, to release memory.
 function menu.cleanup()
@@ -197,17 +223,12 @@ function menu_data_reset()
     menu_data.mode = nil
 end
 
--- Forward function declarations.
-local Handle_Open_Menu
-local Handle_Add_Row
-local Handle_Make_Label
 
-
-local function init()
+function loc.init()
 
     -- MD triggered events.
-    RegisterEvent("Simple_Menu.Process_Command", Handle_Process_Command)
-    RegisterEvent("Simple_Menu.Register_Options_Menu", Handle_Register_Options_Menu)
+    RegisterEvent("Simple_Menu.Process_Command", loc.Handle_Process_Command)    
+    RegisterEvent("Simple_Menu.Register_Options_Menu", loc.Handle_Register_Options_Menu)
     
     -- Register menu; uses its name.
     Menus = Menus or {}
@@ -217,7 +238,10 @@ local function init()
     end
     
     -- Signal to md that a reload event occurred.
-    Raise_Signal("reloaded")
+    loc.Raise_Signal("reloaded")
+    
+    -- Cache the player component id.
+    loc.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
     
     -- Bugfix for editboxes, where were limited to 5 instead of 50.
     -- Removed; doesn't work, since the original value already was used
@@ -240,7 +264,7 @@ end
 -- Split a string on the first separator.
 -- Note: works on the MD passed arrays of characters.
 -- Returns two substrings, left and right of the sep.
-function Split_String(this_string, separator)
+function loc.Split_String(this_string, separator)
 
     -- Get the position of the separator.
     local position = string.find(this_string, separator)
@@ -258,7 +282,7 @@ end
 
 -- Split a string as many times as possible.
 -- Returns a list of substrings.
-function Split_String_Multi(this_string, separator)
+function loc.Split_String_Multi(this_string, separator)
     substrings = {}
     
     -- Early return for empty string.
@@ -275,7 +299,7 @@ function Split_String_Multi(this_string, separator)
     while success do
     
         -- pcall will error and set sucess=false if no separators remaining.
-        success, left, right = pcall(Split_String, remainder, separator)
+        success, left, right = pcall(loc.Split_String, remainder, separator)
         
         -- On success, the next substring is in left.
         -- On failure, the final substring is still in remainder.
@@ -295,19 +319,38 @@ end
 
 
 -- Take an arg string and convert to a table.
-function Tabulate_Args(arg_string)
+function loc.Tabulate_Args(arg_string)
     local args = {}    
     -- Start with a full split on semicolons.
-    local named_args = Split_String_Multi(arg_string, ";")
+    local named_args = loc.Split_String_Multi(arg_string, ";")
     -- Loop over each named arg.
     for i = 1, #named_args do
         -- Split the named arg on comma.
-        local key, value = Split_String(named_args[i], ",")
+        local key, value = loc.Split_String(named_args[i], ",")
         -- Keys have a prefixed $ due to md dumbness; remove it here.
         key = string.sub(key, 2, -1)
         args[key] = value
     end
     return args    
+end
+
+
+-- Function to remove $ prefixes from MD keys.
+-- Recursively calls itself for subtables.
+function loc.Clean_MD_Keys( in_table )
+    -- Loop over table entries.
+    for key, value in pairs(in_table) do
+        -- Slice the key, starting at 2nd character to end.
+        local new_key = string.sub(key, 2, -1)
+        -- Delete old, replace with new.
+        in_table[key] = nil
+        in_table[new_key] = value
+        
+        -- If the value is a table as well, give it the same treatment.
+        if type(value) == "table" then
+            loc.Clean_MD_Keys(value)
+        end
+    end
 end
 
 --[[ 
@@ -327,13 +370,15 @@ If the original arg is a string "nil" or "null", it will be converted
 TODO: maybe support dynamic code execution for complex args that want
  to use lua data (eg. Helper.viewWidth for window size adjustment sliders),
  using loadstring(). This is probably a bit niche, though.
+ 
+TODO: remove arg type conversion support; maybe just throw error on mismatch.
 ]]
-function Validate_Args(args, arg_specs)
+function loc.Validate_Args(args, arg_specs)
     -- Loop over the arg_specs list.
     for i = 1, #arg_specs do 
         local name    = arg_specs[i].n
         local default = arg_specs[i].d
-        local arttype = arg_specs[i].t
+        local argtype = arg_specs[i].t
         
         -- Convert "none" and "nil" to nil; eg. treat arg as not given.
         if args[name] == "nil" or args[name] == "none" then
@@ -356,31 +401,96 @@ function Validate_Args(args, arg_specs)
         else
             -- Number casting.
             -- TODO: maybe round ints, but for now floats are fine.
-            if arttype == "int" then
+            if argtype == "int" then
                 args[name] = tonumber(args[name])
             end
         end        
     end
 end
 
+-- Returns a filtered version of the input table, keeping only those keys
+-- that are in the 'filter' list of strings.
+function loc.Filter_Table(in_table, filter)
+    local out_table = {}
+    -- Can just do a direct transfer; nil's take care of missing keys.
+    for i = 1, #filter do
+        out_table[filter[i]] = in_table[i]
+    end
+    return out_table
+end
+
+-- Update the first table with entries from the second table, except where
+-- there is a conflict.
+function loc.Fill_Defaults(left, right)
+    for k, v in pairs(right) do
+        if left[k] == nil then
+            left[k] = v
+        end
+    end
+end
 
 -------------------------------------------------------------------------------
 -- MD/lua event handling.
+
+-- Read the next args table from md and return them.
+--[[
+Behavior:
+    MD may queue up many signals in a frame before lua has a chance to
+    process them. To handle this, the arg tables will be put into a list
+    attached to the player component, named "$simple_menu_args".
+
+    GetNPCBlackboard is capable of retrieving a copy of this list, as a lua
+    table. However, lua cannot write back an edited table with one set of
+    args removed, since SetNPCBlackboard will only write a table.
+    
+    So, this function will store the list of args locally, and overwrite
+    the blackboard with nil, deleting the var. MD will recreate a list when
+    needed to pass more args.
+]]
+function loc.Get_Next_Args()
+
+    -- If the list of queued args is empty, grab more from md.
+    if #menu_data.queued_args == 0 then
+    
+        -- Args are attached to the player component object.
+        local args_list = GetNPCBlackboard(loc.player_id, "$simple_menu_args")
+        
+        -- Loop over it and move entries to the queue.
+        for i, v in ipairs(args_list) do
+            table.insert(menu_data.queued_args, v)
+        end
+        
+        -- Clear the md var by writing nil.
+        SetNPCBlackboard(loc.player_id, "$simple_menu_args", nil)
+    end
+    
+    -- Pop the first table entry and return it.
+    return table.remove(menu_data.queued_args, 1)
+end
 
 
 -- Handle command events coming in.
 -- Menu creation and closing will be processed immediately, while
 -- other events are delayed until a menu is created by the backend.
-function Handle_Process_Command(_, param)
-    -- Unpack the param into a table of args.
-    local args = Tabulate_Args(param)
+-- Param unused currently.
+function loc.Handle_Process_Command(_, param)
+    local args = loc.Get_Next_Args()
+    
+    -- Debug printout of passed args; kinda messy.
+    --DebugError("type(args): "..type(args))
+    --for k,v in pairs(args) do
+    --    DebugError(""..k.." type = "..type(v))
+    --    if type(v) ~= "userdata" then
+    --        DebugError(""..k.." = "..v)
+    --    end
+    --end
     
     if args.command == "Create_Menu" then
-        Process_Command(args)
+        loc.Process_Command(args)
     elseif args.command == "Close_Menu" then
-        Process_Command(args)
+        loc.Process_Command(args)
     elseif menu_data.delay_commands == false then
-        Process_Command(args)
+        loc.Process_Command(args)
     else
         table.insert(menu_data.queued_events, args)
     end
@@ -388,12 +498,11 @@ end
 
 
 -- Handle registration of user options menus.
-function Handle_Register_Options_Menu(_, param)
-    -- Unpack the param into a table of args.
-    local args = Tabulate_Args(param)
+function loc.Handle_Register_Options_Menu(_, param)
+    local args = loc.Get_Next_Args()
     
     -- Validate all needed args are present.
-    Validate_Args(args, {
+    loc.Validate_Args(args, {
         {n="id"},
         {n="title"}, 
         {n="columns", t='int'},
@@ -418,7 +527,7 @@ end
 -- Takes the row,col of the activated widget, and an optional new value
 -- for that widget.
 -- TODO: think about this more.
-function Raise_Signal(name, value)
+function loc.Raise_Signal(name, value)
     AddUITriggeredEvent("Simple_Menu", name, value)
 end
 
@@ -426,19 +535,19 @@ end
 -- General event processing.
 
 -- Process all of the delayed events, in order.
-function Process_Delayed_Commands()
+function loc.Process_Delayed_Commands()
     -- Loop until the list is empty; each iteration removes one event.
     while #menu_data.queued_events ~= 0 do
         -- Process the next event.
         local args = table.remove(menu_data.queued_events, 1)
-        Process_Command(args)
+        loc.Process_Command(args)
     end
 end
 
 -- Generic handler for all signals.
 -- They could also be split into separate functions, but this feels
 -- a little cleaner.
-function Process_Command(args)
+function loc.Process_Command(args)
     
     if debugger.announce_commands then
         DebugError("Processing command: "..args.command)
@@ -449,7 +558,7 @@ function Process_Command(args)
     if args.command == "Create_Menu" then
         -- Close any currently open menu, which will also clear out old
         -- data (eg. don't want to append to old rows).
-        Close_Menu()
+        loc.Close_Menu()
         
         -- Clear old menu_data to be safe.
         menu_data_reset()
@@ -457,7 +566,7 @@ function Process_Command(args)
         menu_data.delay_commands = true
         
         -- Ensure needed args are present, and fill any defaults.
-        Validate_Args(args, {
+        loc.Validate_Args(args, {
             {n="title", d=""}, 
             {n="columns", t='int'},
             {n="width"   , t='int', d = menu.defaults.width},
@@ -482,7 +591,7 @@ function Process_Command(args)
     
     -- Close the menu if open.
     elseif args.command == "Close_Menu" then
-        Close_Menu()
+        loc.Close_Menu()
         
     -- Display a menu that has been finished.
     elseif args.command == "Display_Menu" then
@@ -501,7 +610,7 @@ function Process_Command(args)
     -- Note: this automatically adds a row, but it will not be tracked
     -- in user_rows for now.
     elseif args.command == "Add_Submenu_Link" then
-        Validate_Args(args, {
+        loc.Validate_Args(args, {
             {n="text"},
             {n="id"}
         })
@@ -526,10 +635,13 @@ function Process_Command(args)
     
     
     -- Various widget makers begin with 'Make'.
+    -- Note: most of these take a 'properties' table of args.
+    -- Except where such args are non-string or non-optional, this will
+    -- not do validation on them, but just passes along a filtered table.
     elseif string.sub(args.command, 1, #"Make") == "Make" then
     
         -- Handle common args to all options.
-        Validate_Args(args, {
+        loc.Validate_Args(args, {
             {n="col", t='int'},
             -- TODO: colspan, font
         })
@@ -552,10 +664,23 @@ function Process_Command(args)
         
     
         if args.command == "Make_Label" then
-            Validate_Args(args, {
-                {n="text"},
+            loc.Validate_Args(args, {
+                {n="text"     , d="nil"},
                 {n="mouseover", d=""}
             })
+            
+            -- TODO: think about generic property passing further.
+            local properties = loc.Filter_Table(args, {
+                'halign',
+                'color',
+                'titleColor',
+                'font',
+                'fontsize',
+                'wordwrap',
+                'x',
+                'y',
+                'minRowHeight',
+                })
             
             -- Set up a text box.
             -- TODO: maybe support colspan.
@@ -572,7 +697,7 @@ function Process_Command(args)
         
         -- Simple clickable buttons.
         elseif args.command == "Make_Button" then
-            Validate_Args(args, {
+            loc.Validate_Args(args, {
                 {n="text", d=""}
             })
             row[col]:createButton():setText(args.text, { halign = "center" })
@@ -590,7 +715,7 @@ function Process_Command(args)
                 -- the conversion to md will add such prefixes automatically.
                 -- Note: this row/col does not include title row or arrow
                 -- column; use args.col for the original user-view column.
-                Raise_Signal("Event", {
+                loc.Raise_Signal("Event", {
                     ["row"] = row_index,
                     ["col"] = args.col
                     })
@@ -599,7 +724,7 @@ function Process_Command(args)
         
         -- Editable text boxes.
         elseif args.command == "Make_EditBox" then
-            Validate_Args(args, {
+            loc.Validate_Args(args, {
                 {n="text", d=""}
             })
             row[col]:createEditBox():setText(args.text, config.standardTextProperties)
@@ -611,7 +736,7 @@ function Process_Command(args)
                     "Menu;Text on ("..row_index..","..args.col..") changed to: "..text)
                 end
                 
-                Raise_Signal("Event", {
+                loc.Raise_Signal("Event", {
                     ["row"] = row_index,
                     ["col"] = args.col,
                     ["text"] = text,
@@ -621,7 +746,7 @@ function Process_Command(args)
         
         -- Sliders for picking a value in a range.
         elseif args.command == "Make_Slider" then
-            Validate_Args(args, {
+            loc.Validate_Args(args, {
                 {n="min"       , t='int'},
                 {n="minSelect" , t='int' , d="nil"},
                 {n="max"       , t='int'},
@@ -653,7 +778,7 @@ function Process_Command(args)
                     "Menu;Slider on ("..row_index..","..args.col..") changed to: "..value)
                 end
                 
-                Raise_Signal("Event", {
+                loc.Raise_Signal("Event", {
                     ["row"] = row_index,
                     ["col"] = args.col,
                     ["value"] = value,
@@ -663,14 +788,14 @@ function Process_Command(args)
         
         -- Dropdown menu of options.
         elseif args.command == "Make_Dropdown" then
-            Validate_Args(args, {
+            loc.Validate_Args(args, {
                 {n="options"},
                 {n="start"  , d="nil", t='int'},
             })
             
             -- The options will be passed as a comma separated list; split
             -- them apart here.
-            local option_names = Split_String_Multi(args.options, ',')
+            local option_names = loc.Split_String_Multi(args.options, ',')
             -- It seems the widget treats each option as a subtable with
             -- the following fields; fill them all in.
             local options = {}
@@ -702,7 +827,7 @@ function Process_Command(args)
                     "Menu;Dropdown on ("..row_index..","..args.col..") changed to: "..option_id)
                 end
                 
-                Raise_Signal("Event", {
+                loc.Raise_Signal("Event", {
                     ["row"] = row_index,
                     ["col"] = args.col,
                     -- Convert this back into a number for easy usage in md.
@@ -724,7 +849,7 @@ function Process_Command(args)
     --end
 end
 
-function Close_Menu()
+function loc.Close_Menu()
     if menu.is_open == true then
         -- Reuses the ui close function.
         menu.onCloseElement("close", true)
@@ -735,6 +860,7 @@ end
 -- Menu methods.
 -- It is unclear on which of these may be implicitly called by the
 -- gui backend, so naming is generally left as-is.
+-- These are implicitly local since menu is local.
 
 -- This is called automatically when a menu opens.
 -- At this point, the menu table has a "param" subtable member.
@@ -787,7 +913,7 @@ function menu.createInfoFrame()
 
     -- Process all of the delayed commands, which depended on the above
     -- table being initialized.
-    Process_Delayed_Commands()
+    loc.Process_Delayed_Commands()
     
     -- Apply vertical sizing and offset.
     menu.Set_Vertical_Size(menu)
@@ -980,7 +1106,7 @@ function menu.onCloseElement(dueToClose, allowAutoMenu)
     Helper.closeMenu(menu, dueToClose, allowAutoMenu)
     menu.cleanup()
     -- Signal md.
-    Raise_Signal("onCloseElement", dueToClose)
+    loc.Raise_Signal("onCloseElement", dueToClose)
 end
 
 -- Unused function.
@@ -1126,7 +1252,7 @@ After having trouble getting submenus to be selected. Thoughts:
 ]]
 
 -- Hook into the gameoptions menu.
-function Init_Gameoptions_Link()
+function loc.Init_Gameoptions_Link()
     -- Stop if something went wrong.
     if Menus == nil then
         error("Menus global not yet initialized")
@@ -1218,10 +1344,10 @@ function Init_Gameoptions_Link()
             
             if optionParameter == "simple_menu_extension_options" then
                 -- Call the display function.
-                Display_Extension_Options()
+                loc.Display_Extension_Options()
             else
                 -- Handle integrating with user code to built the menu.
-                Display_Custom_Menu(custom_menu_specs[optionParameter])
+                loc.Display_Custom_Menu(custom_menu_specs[optionParameter])
             end
         else
             -- Use the original function.
@@ -1270,7 +1396,7 @@ function Init_Gameoptions_Link()
     -- TODO: clear some private data on menu closing.
     -- May require another monkey patch.
 end
-Init_Gameoptions_Link()
+loc.Init_Gameoptions_Link()
 
 
 -- Helper function to build a shell of a menu, with back button, title,
@@ -1278,7 +1404,7 @@ Init_Gameoptions_Link()
 -- 'properties' is a table with [id, title, columns].
 -- Column count will be padded by 1 for the left side under-arrow column.
 -- Returns the frame and ftable for custom data, with this extra padded column.
-function Make_Menu_Shell(menu_spec)
+function loc.Make_Menu_Shell(menu_spec)
     -- Convenience renaming.
     local menu = gameoptions_menu
     
@@ -1345,13 +1471,13 @@ end
 -- Builds the menu to display when showing the extension options submenu.
 -- This will in turn list each user registered mod options menu.
 -- Patterned off of code in gameoptions, specifically menu.displayExtensions().
-function Display_Extension_Options()
+function loc.Display_Extension_Options()
     
     -- Clean out old menu_data.
     menu_data_reset()
     
     -- Set up the shell menu, get the fillable table.
-    local frame, ftable = Make_Menu_Shell({
+    local frame, ftable = loc.Make_Menu_Shell({
         id = "simple_menu_extension_options", 
         -- TODO: readtext
         title = "Extension Options", 
@@ -1388,13 +1514,13 @@ end
 
 
 -- Set up a user's option menu.
-function Display_Custom_Menu(menu_spec)
+function loc.Display_Custom_Menu(menu_spec)
 
     -- Clean out old menu_data.
     menu_data_reset()
     
     -- Set up the shell menu, get the fillable table.
-    local frame, ftable = Make_Menu_Shell(menu_spec)
+    local frame, ftable = loc.Make_Menu_Shell(menu_spec)
     
     -- Update local menu data for user functions.
     menu_data.frame = frame
@@ -1405,7 +1531,7 @@ function Display_Custom_Menu(menu_spec)
     menu_data.delay_commands = false
     
     -- Signal md api so it can call the user cue which fills the menu.
-    Raise_Signal("Display_Custom_Menu", menu_spec.id)
+    loc.Raise_Signal("Display_Custom_Menu", menu_spec.id)
     
     -- TODO: any other special functionality needed.
     -- TODO: maybe remove this and rely on user calling Display_Menu.
@@ -1414,4 +1540,4 @@ end
 
 
 -- Run main init once everything is set up.
-init()
+loc.init()
