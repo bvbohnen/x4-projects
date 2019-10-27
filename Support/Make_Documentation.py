@@ -160,7 +160,7 @@ def Make_Key_Capture_Doc():
     return
 
 
-def Sections_To_Lines(doc_text_dict):
+def Sections_To_Lines(doc_text_sections):
     '''
     Converts a dict of {section label: text} to a list of text lines,
     with labelling and formatting applied.
@@ -171,7 +171,7 @@ def Sections_To_Lines(doc_text_dict):
     functions_started = False
     title = ''
     ret_text_lines = []
-    for key, text in doc_text_dict.items():
+    for key, text in doc_text_sections:
         
         # Extract the title and continue; this isn't printed directly.
         if key == 'title':
@@ -186,6 +186,11 @@ def Sections_To_Lines(doc_text_dict):
         # Lua functions are in one lump, like overview.
         elif key == 'functions':
             ret_text_lines += ['', '### {} Functions'.format(title), '']
+            indent = ''
+            
+        # Sections may be multiple.
+        elif key == 'section':
+            ret_text_lines += ['','']
             indent = ''
 
         # Otherwise these are md cues.
@@ -214,9 +219,8 @@ def Get_XML_Cue_Text(xml_path):
     Returns a list of lines holding the documentation extracted
     from a decorated MD xml file.
     '''
-    # OrderedDict, keyed by cue name, hold the extracted text lines.
-    # Special entries for title and overview.
-    doc_text_dict = OrderedDict()
+    # List of tuples of (label, text) hold the extracted text lines.
+    doc_text_sections = []
 
     # Read the xml and pick out the cues.
     tree = etree.parse(str(xml_path))
@@ -236,10 +240,12 @@ def Get_XML_Cue_Text(xml_path):
         if '@doc-title' in node.text:
             label = 'title'
             text = node.text.replace('@doc-title','')
-        # Text blocks are either overview or cue.
         elif '@doc-overview' in node.text:
             label = 'overview'
             text = node.text.replace('@doc-overview','')
+        elif '@doc-section' in node.text:
+            label = 'section'
+            text = node.text.replace('@doc-section','')            
         elif '@doc-cue' in node.text:
             label = node.getnext().get('name')
             text = node.text.replace('@doc-cue','')
@@ -248,10 +254,10 @@ def Get_XML_Cue_Text(xml_path):
             continue
 
         # Record it.
-        doc_text_dict[label] = text
+        doc_text_sections.append((label, text))
                
     # Process into lines and return.
-    return Sections_To_Lines(doc_text_dict)
+    return Sections_To_Lines(doc_text_sections)
 
 
 def Get_Lua_Text(lua_path):
@@ -301,9 +307,8 @@ def Get_Lua_Text(lua_path):
     # Starts blank, filled by decorator.
     title = ''
     
-    # OrderedDict, keyed by function name, hold the extracted text lines.
-    # Special entries for title and overview.
-    doc_text_dict = OrderedDict()
+    # List of tuples of (label, text) hold the extracted text lines.
+    doc_text_sections = []
 
     # Go through the comments looking for decorators.
     for comment in comment_blocks:
@@ -325,10 +330,10 @@ def Get_Lua_Text(lua_path):
             continue
         
         # Record it.
-        doc_text_dict[label] = text
+        doc_text_sections.append((label, text))
                
     # Process into lines and return.
-    return Sections_To_Lines(doc_text_dict)
+    return Sections_To_Lines(doc_text_sections)
 
 
 def Make_BB_Code(doc_dir, header_lines = []):
