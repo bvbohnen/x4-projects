@@ -81,17 +81,127 @@
   
   Add a row to the current menu. Following Make_ commands add to the most recently added row.
       
+
+
+
+### Widget arguments and properties overview
+    
+The following "Make_" cues create widgets. Many of them share some common arguments or arg data types, described here.
+    
+In the egosoft backend, there is a "Helper" module which defines many constants used in the standard menus such as colors, fonts, etc. Arguments may optionally be given as a string matching a Helper const, eg. "Helper.color.brightyellow".
+    
+API args (all widgets)
+* col
+  - Integer, column to place the widget in.
+  - Generally required for all widgets.
+* echo
+  - Optional, any data type.
+  - This is returned in the table sent to signalled callback cues, for user convenience.
+        
+Widget properties (all widgets)
+* scaling = true
+  - Bool, coordinates and dimensions will be scaled by the ui scaling factor.
+  - Generally unused.
+* width, height = 0
+  - Ints, widget dimension overrides.
+  - Generally unused.
+* x, y = 0
+  - Ints, placement offsets.
+  - Generally unused.
+* mouseOverText = ""
+  - String, text to display on mouseover.
+        
+Cell properties (all widgets)
+* cellBGColor = Helper.defaultSimpleBackgroundColor
+  - Color, cell background color.
+* uiTriggerID = none
+  - String, if present then this is the control field for ui triggered events on widget activations.
+  - Ignore for now; api handles callback cues more directly.
+        
+Misc properties (depends on widget):
+* font
+  - String, font to use.
+  - Typical options: 
+    - "Zekton"
+    - "Zekton bold"
+    - "Zekton fixed"
+    - "Zekton bold fixed"
+    - "Zekton outlined"
+    - "Zekton bold outlined"
+* fontsize
+  - Int, typically in the 9 to 12 range.
+* halign
+  - String, text alignment, one of ["left", "center", "right"].
+* minRowHeight
+  - Int, minimal row height, including y offset.
+        
+Complex properties:
+* Color
+  - Table of ["r", "g", "b", "a"] integer values in the 0-255 range.
+* TextProperty
+  - Table describing a text field.
+  - Note: in some widgets "text" is a string, others "text" is a text_properties table.
+  - Fields:
+    * text = ""
+    * halign = Helper.standardHalignment
+    * x = 0
+    * y = 0
+    * color = Helper.standardColor
+    * font = Helper.standardFont
+    * fontsize = Helper.standardFontSize
+    * scaling = true
+* IconProperty
+  - Table describing an icon.
+  - Fields:
+    * icon = ""
+      - Icon ID/name
+    * swapicon = ""
+    * width = 0
+    * height = 0
+    * x = 0
+    * y = 0
+    * color = Helper.standardColor
+    * scaling = true
+* HotkeyProperty
+  - Table describing an activation hotkey.
+  - Likely of limited or no usefulness.
+  - Fields:
+    * hotkey = ""
+      - String, the hotkey action, matching a valid INPUT_STATE.
+    * displayIcon = false
+      - Bool, if the widget displays the associated icon as a hotkey.
+    * x = 0
+    * y = 0
+      - Offsets of the icon if displayIcon is true.
+          
+  
+
+
+
+### Widget Creation Cues
+    
 * Make_Label
   
   Make a label cell for displaying text. Adds to the most recent row.
       
   Param: Table with the following items:
     * col
-      - Integer, column to place the widget in.
+    * echo
+    * mouseOverText
     * text
       - Text to display, without semicolons.
     * mouseover
-      - Optional, extra text to display on mouseover.
+      - Optional string, extra text to display on mouseover.
+    * halign
+    * color
+    * titleColor
+      - If given, puts the widget in title mode.
+    * font
+    * fontsize
+    * wordwrap
+    * x
+    * y
+    * minRowHeight
       
 * Make_Button
   
@@ -103,9 +213,20 @@
     * cue
       - Cue to callback on interact event.
     * text
-      - Text to display, without semicolons.
-    * echo
-      - Optional, anything, returned on callback.
+    * text2
+      - TextProperty.
+    * active = true
+      - Bool, if the button is active.
+    * bgColor = Helper.defaultButtonBackgroundColor
+      - Color of background.
+    * highlightColor = Helper.defaultButtonHighlightColor
+      - Color when highlighted.
+    * height = Helper.standardButtonHeight
+    * icon
+    * icon2
+      - IconProperty
+    * hotkey
+      - HotkeyProperty
         
   onClick event returns a table with:
     * row

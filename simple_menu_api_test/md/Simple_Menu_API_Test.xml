@@ -77,14 +77,16 @@
           param = "table[
             $col=1, 
             $text='Type', 
-            $mouseover='Type of widget being tested'
+            $color=table[ $r = 0, $g = 116, $b = 153, $a = 100 ],
+            $mouseOverText='Type of widget being tested',
             ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Label"
           param = "table[
             $col=2, 
             $text='Widget', 
-            $mouseover='Interractable widget'
+            $color=table[ $r = 225, $g = 149, $b = 0, $a = 100 ],
+            $mouseOverText='Interractable widget'
             ]"/>
 
         <!-- Button -->
@@ -94,13 +96,13 @@
           param = "table[
             $col=1, 
             $text='Button test', 
-            $mouseover='Mouseover test'
+            $mouseOverText='Mouseover test',
             ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Button"
           param = "table[
             $col=2, 
-            $text='Button',
+            $text=table[$text='Button', $color='Helper.color.brightyellow'],
             $cue=Handle_Menu_Action
             ]"/>
 
@@ -288,7 +290,7 @@
             param = "table[
               $col=1, 
               $text='...', 
-              $mouseover='Scrollbar testing'
+              $mouseOverText='Scrollbar testing'
               ]"/>
         </do_all>
             

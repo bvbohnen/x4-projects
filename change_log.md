@@ -14,3 +14,6 @@ Change Log
   - Enabled vertical scrollbars.
   - Added "echo" arg to widgets.
   - Added callback support on menu closing.
+* 0.5
+  - Added generic property support for labels and buttons.
+  - Added support for arguments referencing Helper constants.
