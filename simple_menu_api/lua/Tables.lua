@@ -135,17 +135,6 @@ config.standardTextProperties = {
     y = 2,
 }
 
--- Custom defaults.
--- These should be applied before the generic widget default filler
--- tables, found further below.
--- TODO: in the current setup, defaults set further below are likely to
--- get entered into this table; consider if this should be prevented.
-config.standardButtonProperties = {
-    text = {
-        halign = "center",
-    },
-}
-
 
 -- Widget property names.
 -- These are defined in helper.lua defaultWidgetProperties, but it is local,
@@ -234,7 +223,8 @@ tables.widget_properties = {
         _basetype = "cell"
     },
     dropdown = {
-        "options",
+        -- Prune out options; handle those separately; maybe okay to leave.
+        --"options",
         "startOption",
         "active",
         "bgColor",
@@ -336,16 +326,20 @@ local complexCellProperties = {
 -- Filled in below.
 tables.widget_defaults = {}
 
-local function Init()
+local function Widget_Init()
 
-    -- Fill out defaults.
+    -- Fill out generic defaults.
     for name, subtable in pairs(complexCellProperties) do
         -- Init an entry.
         tables.widget_defaults[name] = {}
         -- Work through the fields.
         for k, v in pairs(subtable) do
-            -- Set a reference to the default table.
-            tables.widget_defaults[name][k] = complexCell_defaults[v]
+            -- Shwllow copy the default table.
+            -- (Lua has no easy way to do this, so do it ugly.)
+            tables.widget_defaults[name][k] = {}
+            for k2, v2 in pairs(complexCell_defaults[v]) do
+                tables.widget_defaults[name][k][k2] = v2
+            end
         end
     end
 
@@ -373,7 +367,7 @@ local function Init()
         Fill_Inheritances(prop_list)
     end
 end
-Init()
+Widget_Init()
 
 -- Export tables.
 return tables

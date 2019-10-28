@@ -271,8 +271,10 @@ function loc.Process_Command(args)
     elseif string.sub(args.command, 1, #"Make") == "Make" then
     
         -- Handle common args to all options.
+        -- TODO: finish moving away from Validate_Args usage.
         Lib.Validate_Args(args, {
-            {n="col", t='int'},
+            -- Default to first column if not given.
+            {n="col", t='int', d=1},
             -- TODO: colspan, other cell-level stuff.
         })
         
@@ -299,7 +301,7 @@ function loc.Process_Command(args)
             -- printing harmless debugerror messages on mismatch.
             -- Filtering will reduce debug spam.
             local properties = Lib.Filter_Table(args, widget_properties.text)
-            -- Fill in extra defaults.
+            -- Custom defaults.
             Lib.Fill_Defaults(properties, config.standardTextProperties)
             -- Get general defaults for subtables.
             Lib.Fill_Defaults(properties, widget_defaults["text"])
@@ -310,146 +312,138 @@ function loc.Process_Command(args)
         -- Simple clickable buttons.
         elseif args.command == "Make_Button" then
 
-            local properties = Lib.Filter_Table(args, widget_properties.button)
-            -- Get custom defaults.
-            Lib.Fill_Defaults(properties, config.standardButtonProperties)
+            local properties = Lib.Filter_Table(args, widget_properties["button"])
+            -- Custom defaults; center text.
+            Lib.Fill_Defaults(properties, {text = {halign = "center"}})
+        
             -- Get general defaults for subtables.
             Lib.Fill_Defaults(properties, widget_defaults["button"])
             -- Make the widget.
             row[col]:createButton(properties)
-            
-            -- Handler function.
-            row[col].handlers.onClick = function()
-                -- Debug
-                if debugger.actions_to_chat then
-                    CallEventScripts("directChatMessageReceived", 
-                    "Menu;Button clicked on ("..row_index..","..args.col..")")
-                end
-                    
-                -- Return a table of results.
-                -- Note: this should not prefix with '$' like the md, but
-                -- the conversion to md will add such prefixes automatically.
-                -- Note: this row/col does not include title row or arrow
-                -- column; use args.col for the original user-view column.
-                Lib.Raise_Signal("Event", {
-                    ["row"] = row_index,
-                    ["col"] = args.col
-                    })
-            end
-            
+
+            -- Event handlers.
+            loc.Widget_Event_Script_Factory(row[col], "onClick", row_index, args.col, {})
+            loc.Widget_Event_Script_Factory(row[col], "onRightClick", row_index, args.col, {})
+                        
         
         -- Editable text boxes.
         elseif args.command == "Make_EditBox" then
-            Lib.Validate_Args(args, {
-                {n="text", d=""}
-            })
-            row[col]:createEditBox():setText(args.text, config.standardTextProperties)
+
+            local properties = Lib.Filter_Table(args, widget_properties["editbox"])
+            -- Standard formatting.
+            Lib.Fill_Defaults(properties, {text = config.standardTextProperties})
+            -- Get general defaults.
+            Lib.Fill_Defaults(properties, widget_defaults["editbox"])
+                    
+            row[col]:createEditBox(properties)
             
-            -- Capture changed text.
-            row[col].handlers.onTextChanged = function(_, text) 
-                if debugger.actions_to_chat then
-                    CallEventScripts("directChatMessageReceived", 
-                    "Menu;Text on ("..row_index..","..args.col..") changed to: "..text)
-                end
-                
-                Lib.Raise_Signal("Event", {
-                    ["row"] = row_index,
-                    ["col"] = args.col,
-                    ["text"] = text,
-                    })
-                end
-                
+            -- Event handlers.
+            loc.Widget_Event_Script_Factory(row[col], "onTextChanged", 
+                row_index, args.col, {"text"})
+
+            -- TODO: only way to deactivate without confirmation is to
+            -- hit escape, but that also clears all box text at the same time.
+            -- Maybe interpose a handler function that tracks and restores
+            -- the text from the last confirmation in this case.
+            loc.Widget_Event_Script_Factory(row[col], "onEditBoxDeactivated", 
+                row_index, args.col, {"text", "textchanged", "wasconfirmed"})
+                                
         
         -- Sliders for picking a value in a range.
         elseif args.command == "Make_Slider" then
-            Lib.Validate_Args(args, {
-                {n="min"       , t='int'},
-                {n="minSelect" , t='int' , d="nil"},
-                {n="max"       , t='int'},
-                {n="maxSelect" , t='int' , d="nil"},
-                {n="start"     , t='int' , d="nil"},
-                {n="step"      , t='int' , d="nil"},
-                {n="suffix"    , d=""}
-            })
+        
+            local properties = Lib.Filter_Table(args, widget_properties["slidercell"])
+
+            -- Standard formatting.
+            Lib.Fill_Defaults(properties, {
+                -- Changes color to match the options menu default.
+                valueColor = config.sliderCellValueColor,
+                -- Options menu hides maxes, from example looked at.
+                hideMaxValue = true,
+                })
+            -- Get general defaults.
+            Lib.Fill_Defaults(properties, widget_defaults["slidercell"])
             
-            row[col]:createSliderCell({ 
-                valueColor = config.sliderCellValueColor, 
-                min = args.min, 
-                minSelect = args.minSelect, 
-                max = args.max, 
-                maxSelect = args.maxSelect, 
-                start = args.start, 
-                step = args.step, 
-                suffix = args.suffix, 
-                -- Set some default flags for now.
-                exceedMaxValue = false, 
-                hideMaxValue = true, 
-                readOnly = false }
-                ):setText(args.text, { color = Helper.color.white})
-                
-            -- Capture changed value.
-            row[col].handlers.onSliderCellChanged = function(_, value)
-                if debugger.actions_to_chat then
-                    CallEventScripts("directChatMessageReceived", 
-                    "Menu;Slider on ("..row_index..","..args.col..") changed to: "..value)
-                end
-                
-                Lib.Raise_Signal("Event", {
-                    ["row"] = row_index,
-                    ["col"] = args.col,
-                    ["value"] = value,
-                    })
-                end
-                
+            row[col]:createSliderCell(properties)
+            
+            -- Event handlers.
+            -- Swapping ego's "newvalue" to "value".
+            loc.Widget_Event_Script_Factory(row[col], "onSliderCellChanged", 
+                row_index, args.col, {"value"})
+            loc.Widget_Event_Script_Factory(row[col], "onSliderCellActivated", 
+                row_index, args.col, {})
+            -- Removing onSliderCellDeactivated. In practice it is buggy:
+            --  no return values unless the player uses the editbox, and
+            --  even then returns the wrong valuechanged (true) if the player
+            --  escapes out of an edit (resets the value so valuechanged
+            --  should be false, as onSliderCellConfirm returns).
+            --loc.Widget_Event_Script_Factory(row[col], "onSliderCellDeactivated", 
+            --    row_index, args.col, {"value", "valuechanged"})
+            loc.Widget_Event_Script_Factory(row[col], "onRightClick", 
+                row_index, args.col, {"row", "col", "posx", "posy"})
+            loc.Widget_Event_Script_Factory(row[col], "onSliderCellConfirm", 
+                row_index, args.col, {"value", "valuechanged"})
+                                
         
         -- Dropdown menu of options.
         elseif args.command == "Make_Dropdown" then
-            Lib.Validate_Args(args, {
-                {n="options"},
-                {n="start"  , d="nil", t='int'},
-            })
             
-            -- The options will be passed as a comma separated list; split
-            -- them apart here.
-            local option_names = Lib.Split_String_Multi(args.options, ',')
-            -- It seems the widget treats each option as a subtable with
-            -- the following fields; fill them all in.
-            local options = {}
-            for i = 1, #option_names do
-                table.insert(options, {
-                    -- Set the id to match the index.
-                    id = i,
-                    text = option_names[i], 
-                    -- Don't use any icon (ego code set this "" instead of nil).
-                    icon = "", 
-                    -- Unclear what this would do.
-                    displayremoveoption = false 
-                    })
-            end
-            
-            row[col]:createDropDown(options, { 
-                active = true, 
-                -- This appears to take the id of the start option, an int,
-                -- so convert from the md string.
-                startOption = tonumber(args.start), 
-                -- Unclear what this is.
-                textOverride = "" 
-                })
-                
-            -- Capture changed option, using its id/index.
-            row[col].handlers.onDropDownConfirmed = function(_, option_id)
-                if debugger.actions_to_chat then
-                    CallEventScripts("directChatMessageReceived", 
-                    "Menu;Dropdown on ("..row_index..","..args.col..") changed to: "..option_id)
+            local properties = Lib.Filter_Table(args, widget_properties["dropdown"])
+            -- Standard formatting. Nothing for now.
+            --Lib.Fill_Defaults(properties, {})
+            -- Get general defaults.
+            Lib.Fill_Defaults(properties, widget_defaults["dropdown"])
+
+            -- TODO: an optional, simpler way to lay out options, like
+            -- in the original imagining with a comma separated string.
+
+            ---- The options will be passed as a comma separated list; split
+            ---- them apart here.
+            --local option_names = Lib.Split_String_Multi(args.options, ',')
+            ---- It seems the widget treats each option as a subtable with
+            ---- the following fields; fill them all in.
+            --local options = {}
+            --for i = 1, #option_names do
+            --    table.insert(options, {
+            --        -- Set the id to match the index.
+            --        id = i,
+            --        text = option_names[i], 
+            --        -- Don't use any icon (ego code set this "" instead of nil).
+            --        icon = "", 
+            --        -- Unclear what this would do.
+            --        displayremoveoption = false 
+            --        })
+            --end
+
+            -- Fill default ids in options.
+            for i, option in ipairs(args.options) do
+                if not option.id then
+                    option.id = i
                 end
+                -- Default icon needs to be "" not nil.
+                if not option.icon then
+                    option.icon = ""
+                end
+                -- Also set default text string for safety.
+                -- (nil might be okay, but not tested)
+                if not option.text then
+                    option.text = ""
+                end
+                -- Undocumented flag causes errors if missing, so include.
+                -- (Makes options removeable with an 'x' button.)
+                option.displayremoveoption = false
+            end
+                        
+            row[col]:createDropDown(args.options, properties)
                 
-                Lib.Raise_Signal("Event", {
-                    ["row"] = row_index,
-                    ["col"] = args.col,
-                    -- Convert this back into a number for easy usage in md.
-                    ["option"] = tonumber(option_id),
-                    })
-                end            
+            -- Event handlers.
+            -- Swapping ego's "value" to "id".
+            loc.Widget_Event_Script_Factory(row[col], "onDropDownActivated", 
+                row_index, args.col, {})
+            loc.Widget_Event_Script_Factory(row[col], "onDropDownConfirmed", 
+                row_index, args.col, {"id"})
+            loc.Widget_Event_Script_Factory(row[col], "onDropDownRemoved", 
+                row_index, args.col, {"id"})
         end
         
     else
@@ -463,6 +457,59 @@ function loc.Process_Command(args)
     --if menu_data.frame ~= nil then
     --    menu_data.frame:display()
     --end
+end
+
+
+-- Factory for creating handler functions for widget events.
+-- Automatically attaches to the widget's matching event.
+-- Args:
+--  Widget: widget to attach the handler to.
+--  Event: name of the event, eg. "onClick".
+--  Row/col: widget coordinates.
+--  Params: List of names of values returned by the event, excepting the
+--   widget.  Eg. {"text", "textchanged", "wasconfirmed"}.
+function loc.Widget_Event_Script_Factory(widget, event, row, col, params)
+
+    -- Handlers are set up in the "handlers" widget subtable.
+    -- Note: lua variable args are handled with "..." in the function args.
+    widget.handlers[event] = function(event_widget, ...)
+
+        -- Renamed the variable args, since ... cannot be indexed, and
+        -- is kinda dumb anyhow. Packing needs to put table brackets on it.
+        local vargs = {...}
+
+        -- Put together a table to return to MD.
+        local ret_table = {
+            type = widget.type,
+            event = event,
+            row = row,
+            col = col,
+        }
+        -- Add the params, in order; count should match.
+        for i, field in ipairs(params) do
+            -- In the unusual case of getting row/col, avoid overwrite
+            -- just in case there is a difference.
+            if not ret_table[field] then
+                ret_table[field] = vargs[i]
+            end
+        end
+        
+        -- Debug messaging.
+        if debugger.actions_to_chat then
+            local message = "" .. widget.type .." "..event.." on ("..row..","..col.."): ("
+            -- Add all params to it, if any; unnamed for now.
+            if vargs then
+                for i, result in ipairs(vargs) do
+                    message = message .. " " .. tostring(result)
+                end
+            end
+            message = message .. ")"
+            CallEventScripts("directChatMessageReceived", "Menu;"..message)
+        end
+
+        -- Signal the lua.
+        Lib.Raise_Signal("Event", ret_table)
+    end
 end
 
 

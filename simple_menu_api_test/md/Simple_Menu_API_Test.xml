@@ -5,7 +5,7 @@
 
   <!--
   The menu itself will be hardcoded to a specific key combo,
-  current ctrl-shift-c.
+  currently shift-b.
   -->
 
   <cues>
@@ -103,8 +103,12 @@
           param = "table[
             $col=2, 
             $text=table[$text='Button', $color='Helper.color.brightyellow'],
-            $cue=Handle_Menu_Action
+            $onClick=Handle_Menu_Action,
+            $hotkey=table[
+              $action = 'INPUT_STATE_MOUSECLICK',
+              $displayIcon = true],
             ]"/>
+          <!--Note: hotkey tests all failed.-->
 
         <!-- EditBox -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
@@ -118,8 +122,9 @@
           cue="md.Simple_Menu_API.Make_EditBox"
           param = "table[
             $col=2, 
-            $text='edit me',
-            $cue=Handle_Menu_Action
+            $text=table[$text='edit me', $color='Helper.color.orange'],
+            $defaultText='default',
+            $onTextChanged=Handle_Menu_Action,
             ]"/>
 
         <!-- Slider, as percentage, 0 to 100, limited to 5 to 95. -->
@@ -141,7 +146,7 @@
             $start      = 50, 
             $step       = 1, 
             $suffix     =' %', 
-            $cue=Handle_Menu_Action
+            $onSliderCellConfirm = Handle_Menu_Action
             ]"/>
 
         <!-- Dropdown -->
@@ -155,10 +160,15 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Dropdown"
           param = "table[
-            $col=2, 
-            $options='white,red,green,blue',
-            $start=1,
-            $cue=Handle_Menu_Action
+            $col = 2, 
+            $options = [
+              table[$text='white'], 
+              table[$text='red'], 
+              table[$text='green'], 
+              table[$text='blue'],
+              ],
+            $startOption = 1,
+            $onDropDownConfirmed = Handle_Menu_Action
             ]"/>
           
           
@@ -190,7 +200,7 @@
           <set_value name="Globals.$var_widgets.{$key}.{'$col'}"     exact="2" />
           <!-- TODO: pick start/text/etc. based on command type, or have a normalized way to signal it. -->
           <set_value name="Globals.$var_widgets.{$key}.{'$start'}"   exact="Globals.$vars.{$key}" />
-          <set_value name="Globals.$var_widgets.{$key}.{'$cue'}"     exact="Handle_Var_Change" />
+          <set_value name="Globals.$var_widgets.{$key}.{'$onSliderCellConfirm'}" exact="Handle_Var_Change" />
           <!-- Echo the key in the callback cue's param. -->
           <set_value name="Globals.$var_widgets.{$key}.{'$echo'}"    exact="$key" />
           

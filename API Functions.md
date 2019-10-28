@@ -93,21 +93,19 @@ In the egosoft backend, there is a "Helper" module which defines many constants 
 API args (all widgets)
 * col
   - Integer, column to place the widget in.
-  - Generally required for all widgets.
-* echo
-  - Optional, any data type.
+  - Uses 1-based indexing.
+  - Required for now.
+* echo = none
+  - May be any data type.
   - This is returned in the table sent to signalled callback cues, for user convenience.
-        
+    
 Widget properties (all widgets)
 * scaling = true
   - Bool, coordinates and dimensions will be scaled by the ui scaling factor.
-  - Generally unused.
 * width, height = 0
   - Ints, widget dimension overrides.
-  - Generally unused.
 * x, y = 0
   - Ints, placement offsets.
-  - Generally unused.
 * mouseOverText = ""
   - String, text to display on mouseover.
         
@@ -116,7 +114,22 @@ Cell properties (all widgets)
   - Color, cell background color.
 * uiTriggerID = none
   - String, if present then this is the control field for ui triggered events on widget activations.
-  - Ignore for now; api handles callback cues more directly.
+  - Ignore for now; api handles callback cues directly.
+        
+Events (depends on widget)
+* on<___> (onClick, onTextChanged, etc.)
+  - Optional callback cue.
+  - When the player interacts with most widgets, ui events will occur. On such events, a provided cue will be called with the event results.
+  - All event.param tables will include these fields:
+    * row, col
+      - Longfloat, coordinate of the activated widget.
+      - Primarily for use by this backend.
+    * event
+      - String, name of the event, matching the arg name.
+      - Eg. "onClick".
+    * echo
+      - Same as the "echo" arg provided to widget creation.
+  - Extra contents of the event.param are described per widget below.
         
 Misc properties (depends on widget):
 * font
@@ -140,7 +153,7 @@ Complex properties:
   - Table of ["r", "g", "b", "a"] integer values in the 0-255 range.
 * TextProperty
   - Table describing a text field.
-  - Note: in some widgets "text" is a string, others "text" is a text_properties table.
+  - Note: in some widgets "text" is a string, others "text" is a TextProperty table.
   - Fields:
     * text = ""
     * halign = Helper.standardHalignment
@@ -164,7 +177,8 @@ Complex properties:
     * scaling = true
 * HotkeyProperty
   - Table describing an activation hotkey.
-  - Likely of limited or no usefulness.
+  - See libraries/contexts.xml for potential options.
+  - Note: hotkeys have not yet worked in testing.
   - Fields:
     * hotkey = ""
       - String, the hotkey action, matching a valid INPUT_STATE.
@@ -184,57 +198,62 @@ Complex properties:
   
   Make a label cell for displaying text. Adds to the most recent row.
       
-  Param: Table with the following items:
-    * col
-    * echo
-    * mouseOverText
-    * text
-      - Text to display, without semicolons.
-    * mouseover
-      - Optional string, extra text to display on mouseover.
-    * halign
-    * color
-    * titleColor
-      - If given, puts the widget in title mode.
-    * font
-    * fontsize
-    * wordwrap
-    * x
-    * y
-    * minRowHeight
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties    
+  * text
+    - String, text to display.
+  * halign
+  * color
+  * titleColor
+    - If given, puts the widget in title mode.
+  * font
+  * fontsize
+  * wordwrap
+  * minRowHeight
       
 * Make_Button
   
   Make a pressable button cell. Adds to the most recent row.
       
-  Param: Table with the following items:
-    * col
-      - Integer, column to place the widget in.
-    * cue
-      - Cue to callback on interact event.
-    * text
-    * text2
-      - TextProperty.
-    * active = true
-      - Bool, if the button is active.
-    * bgColor = Helper.defaultButtonBackgroundColor
-      - Color of background.
-    * highlightColor = Helper.defaultButtonHighlightColor
-      - Color when highlighted.
-    * height = Helper.standardButtonHeight
-    * icon
-    * icon2
-      - IconProperty
-    * hotkey
-      - HotkeyProperty
+  Param: Table with the following items.
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties   
+  * onClick
+    - Cue to callback when the button is left clicked.
+  * onRightClick
+    - Cue to callback when the button is right clicked.
+  * text
+    - TextProperty.
+  * text2
+    - TextProperty.
+  * active = true
+    - Bool, if the button is active.
+  * bgColor = Helper.defaultButtonBackgroundColor
+    - Color of background.
+  * highlightColor = Helper.defaultButtonHighlightColor
+    - Color when highlighted.
+  * icon
+    - IconProperty
+  * icon2
+    - IconProperty
+  * hotkey
+    - HotkeyProperty
         
-  onClick event returns a table with:
-    * row
-      - Longfloat, row of the widget.
-    * col
-      - Longfloat, col of the widget.
-    * echo
-      - Present if param had echo.
+        
+  onClick event returns:
+  * row, col, echo, event
+        
+  onRightClick event returns:
+  * row, col, echo, event
       
 * Make_EditBox
   
@@ -242,95 +261,212 @@ Complex properties:
       
   Warning: due to a (likely) typo bug, x4 is limited to 5 text edit boxes. If many edit fields are needed, consider using sliders for numeric values (limit 50), where users can click the slider displayed value to use it like an editbox.
       
-  Param: Table with the following items:
-    * col
-      - Integer, column to place the widget in.
-    * cue
-      - Cue to callback on interact event.
-    * text
-      - Optional, initial text to display, without semicolons.
-    * echo
-      - Optional, anything, returned on callback.
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties
+  * onTextChanged
+    - Cue to call when the player changes the box text. 
+    - Occurs on every letter change.
+  * onEditBoxDeactivated
+    - Cue to call when the player deselects the box.
+    - Deselection may occur when selecting another element, pressing enter, or pressing escape.
+    - Does not trigger if the menu is closed.
+  * bgColor = Helper.defaultEditBoxBackgroundColor
+    - Color of background.
+  * closeMenuOnBack = false
+    - Bool, if the menu is closed when the 'back' button is pressed while the editbox is active.
+    - Description unclear.
+  * defaultText
+    - String, the default text to display when nothing present.
+  * textHidden = false
+    - Bool, if the text is invisible.
+  * encrypted = false
+    - Bool, if the input has an encrypted style of display.
+  * text
+    - TextProperty
+  * hotkey
+    - HotkeyProperty
         
-  onTextChanged event returns a table with:
-    * row
-      - Longfloat, row of the widget.
-    * col
-      - Longfloat, col of the widget.
-    * text
-      - String, new text in the box.
-    * echo
-      - Present if param had echo.
+        
+  onTextChanged event returns:
+  * row, col, echo, event
+  * text
+    - String, the new text in the box.
+          
+  onEditBoxDeactivated event returns:
+  * row, col, echo, event
+  * text
+    - String, the current text in the box.
+  * textchanged
+    - Bool, if the text was changed since being activated.
+  * wasconfirmed
+    - Bool, false if the player pressed "escape", else true.
       
 * Make_Slider
   
-  Make a horizontal slider cell. Adds to the most recent row. Every slider adjustment (many per sweep) triggers a callback.
+  Make a horizontal slider cell. Adds to the most recent row.
       
-  Param: Table with the following items:
-    * col
-      - Integer, column to place the widget in.
-    * cue
-      - Cue to callback on interact event.
-    * min
-      - Int, min value.
-    * minSelect
-      - Int, optional, min selectable value if different than min.
-    * max
-      - Int, max value.
-    * maxSelect
-      - Int, optional, max selectable value if different than max.
-    * start
-      - Int, optional, initial value; defaults 0.
-    * step
-      - Int, optional, step size; defaults 1.
-    * suffix
-      - String, optional, suffix displayed on the value, eg. " %".
-    * echo
-      - Optional, anything, returned on callback.
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties
+  * onSliderCellChanged
+    - Cue to call when the slider value is changed.
+    - When the player drags the slider around, this will be called repeatedly at intermediate points.
+    - When the player types into the editbox, this will trigger on every typed character.
+  * onSliderCellActivated
+    - Cue to call when the player activates the slider.
+  * onSliderCellConfirm
+    - Cue to call when the player deactivates the slider.
+    - Triggers less often than onSliderCellChanged.
+    - Recommend using this in general.
+  * bgColor = Helper.defaultSliderCellBackgroundColor
+    - Color of background.
+  * valueColor = Helper.defaultSliderCellValueColor
+    - Color of value.
+  * posValueColor = Helper.defaultSliderCellPositiveValueColor
+    - Color, positive value if fromCenter is true
+  * negValueColor = Helper.defaultSliderCellNegativeValueColor
+    - Color, negative value if fromCenter is true
+  * min, max = 0
+    - Min/max values the bar is sized for
+  * minSelect, maxSelect = none
+    - Min/max values the player may select.
+    - Defaults to min/max
+    - Do not use maxSelect if exceedMaxValue is true
+  * start = 0
+    - Initial value
+  * step = 1
+    - Step size between slider points
+  * suffix = ""
+    - String, suffix on the displayed current value.
+  * exceedMaxValue = false
+    - Bool, if the player can go over the max value.
+    - Requires min >= 0.
+  * hideMaxValue = false
+    - Bool, hides the max value.
+  * rightToLeft = false
+    - Bool, enables a right/left mirrored bar.
+  * fromCenter = false
+    - Bool, bar extends from a zero point in the center.
+  * readOnly = false
+    - Bool, disallows player changes.
+  * useInfiniteValue = false
+    - Bool, sets slider to show infinity when infiniteValue is reached.
+  * infiniteValue = 0
+    - Value at which to show infinity when useInfiniteValue is true.
+  * useTimeFormat = false
+    - Bool, sets the slider to use a time format.
+      
+      
+  onSliderCellChanged event returns:
+  * row, col, echo, event
+  * value
+    - Longfloat, current value of the slider.
         
-  onSliderCellChanged event returns a table with:
-    * row
-      - Longfloat, row of the widget.
-    * col
-      - Longfloat, col of the widget.
-    * value
-      - Longfloat, the new slider value.
-    * echo
-      - Present if param had echo.
+  onSliderCellActivated event returns:
+  * row, col, echo, event
+        
+  onRightClick event returns:
+  * row, col, echo, event
+  * posx, posy
+    - Coordinates of the widget (likely not useful).
+        
+  onSliderCellConfirm event returns:
+  * row, col, echo, event
+  * value
+    - Longfloat, current value of the slider.
+  * valuechanged
+    - Bool, true if the value changed since being activated.
+    - If the player escapes out of the editbox, this will be false and the value will be the pre-edit value.
+        
       
 * Make_Dropdown
   
   Make a dropdown selection cell. Adds to the most recent row. Note: indices start at 1.
       
-  Param: Table with the following items:
-    * col
-      - Integer, column to place the widget in.
-    * cue
-      - Cue to callback on interact event.
-    * options
-      - String, comma separated listing of selectable options.
-    * start
-      - Int, optional, index of the initially selected option.
-    * echo
-      - Optional, anything, returned on callback.
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties
+  * options
+    - List of tables describing each option.
+    - Each subtable has these fields:
+      * text = ""
+        - String, option text.
+      * icon = ""
+        - String, icon name.
+      * id
+        - Optional string or number, identifier of the option.
+        - Returned to callbacks to indicate option selected.
+        - Defaults to the option's list index (1-based).
+      * displayremoveoption = false
+        - Bool, if true the option will show an 'x' that the player can click to remove it from the dropdown list.
+  * onDropDownActivated
+    - Cue to call when the player activates the dropdown.
+  * onDropDownConfirmed
+    - Cue to call when the player selects an option.
+  * onDropDownRemoved
+    - Cue to call when the player removes an option.
+  * startOption = ""
+    - String or number, id of the initially selected option.
+  * active = true
+   - Bool, if the widget is active.
+  * bgColor = Helper.defaultButtonBackgroundColor
+   - Color of background.
+  * highlightColor = Helper.defaultButtonHighlightColor
+   - Color when highlighted.
+  * optionColor = Helper.color.black
+    - Color of the options.
+  * optionWidth, optionHeight = 0
+    - Dimensions of the options.
+  * allowMouseOverInteraction = false
+    - Bool, ?
+  * textOverride = ""
+    - String, ?
+  * text2Override = ""
+    - String, ?
+  * text
+   - TextProperty
+  * text2
+   - TextProperty
+  * icon
+   - IconProperty
+  * hotkey
+   - HotkeyProperty
         
-  onDropDownConfirmed event returns a table with:
-    * row
-      - Longfloat, row of the widget.
-    * col
-      - Longfloat, col of the widget.
-    * option
-      - Longfloat, the index of the selected option.
-    * echo
-      - Present if param had echo.
+        
+  onDropDownActivated event returns:
+  * row, col, echo, event
+          
+  onDropDownConfirmed event returns:
+  * row, col, echo, event
+  * id
+    - String or number, id of the selected option.
+        
+  onDropDownRemoved event returns:
+  * row, col, echo, event
+  * id
+    - String or number, id of the removed option.
+        
       
 * Send_Command
   
   General cue for packaging up a request and sending it to lua. This may be used instead of the Make_ command, by filling in a matching command name in the param table.
       
-  Param: Table with the following items:
-    * command
-      - String, command to send to lua.
-    * ...
-      - Any args requied for the command.
+  Param: Table with the following items
+  * command
+    - String, command to send to lua.
+  * ...
+    - Any args requied for the command.
     

@@ -17,3 +17,6 @@ Change Log
 * 0.5
   - Added generic property support for labels and buttons.
   - Added support for arguments referencing Helper constants.
+* 0.6
+  - Added generic property support for editboxes, sliders, dropdowns.
+  - Replaced generic cue callbacks with ones for specific events.
