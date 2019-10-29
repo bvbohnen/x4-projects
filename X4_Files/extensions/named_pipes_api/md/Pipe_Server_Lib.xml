@@ -151,6 +151,20 @@ Notes on server access looping cues:
         </actions>
       </library>
 
+      
+      <!-- Register a menu entry. -->
+      <cue name="Register_Menu_Entry" instantiate="true">
+        <conditions>
+          <check_any>
+            <event_cue_signalled cue="md.Named_Pipes.Reloaded" />
+          </check_any>
+        </conditions>
+        <actions>
+          <signal_cue_instantly cue="md.Named_Pipes.Register_Menu_Entry"
+                                param="this.parent" />
+        </actions>
+      </cue>
+
       <!--
         Handle game creation, reload, or ui reload, as well as server pipe
         disconnection.

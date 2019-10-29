@@ -32,6 +32,20 @@ Note on timeouts:
 
 ### MD Named Pipe API Cues
 
+* Register_Menu_Entry
+  
+      
+  User function to register a pipe handling cue to the overall menu. Menu will display pipe connection status and name.    
+      
+  Param: Top level cue.
+      
+  The provided cue should have these member variables:
+  * Pipe_Name
+    - String, name of the OS level pipe.
+    - TODO: support lowercase.
+  * server_connected
+    - Bool, true when the pipe is connected to a server.
+    
 * Write
   
       

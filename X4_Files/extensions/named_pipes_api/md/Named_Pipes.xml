@@ -82,6 +82,11 @@ TODO:
       - String, prefix to add to all pipe names to construct the OS path.
       - On windows, this is "\\.\pipe\"
       - Not used; prefix attached in lua to simplify some signalling.
+      
+    * $pipe_status_cues
+      - List of registered top level cues handling specific pipes.
+      - Used for menu display.
+      - Filled by calls to Register_Menu_Entry when Reloaded is signalled.
   -->  
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -97,6 +102,7 @@ TODO:
       <set_value name="Globals.$access_counter" exact="0"/>
       <!-- Prefix to add to all pipe names. -->
       <set_value name="Globals.$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
+      <set_value name="Globals.$pipe_status_cues" exact="[]"/>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
       <set_value name="Globals.$DebugChance" exact="100" />
     </actions>
@@ -129,8 +135,32 @@ TODO:
     <actions>
     </actions>
   </cue>
-  
-  
+
+
+  <!--@doc-cue
+    
+    User function to register a pipe handling cue to the overall menu.
+    Menu will display pipe connection status and name.    
+    
+    Param: Top level cue.
+    
+    The provided cue should have these member variables:
+    * Pipe_Name
+      - String, name of the OS level pipe.
+      - TODO: support lowercase.
+    * server_connected
+      - Bool, true when the pipe is connected to a server.
+  -->  
+  <cue name="Register_Menu_Entry" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <append_to_list name="Globals.$pipe_status_cues" exact="event.param"/>
+    </actions>
+  </cue>
+
+
   <!--
     Support lib function to update the access_counter, and use it
     to generate an ID string for the next access.
@@ -600,7 +630,88 @@ TODO:
       
     </cues>
   </cue> <!-- end Access_Handler -->
-  
-</cues>
 
+
+  <!--
+    Small menu plugin for reporting status.
+    Makes use of the simple menu api, if available.
+  -->
+  <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+    </conditions>
+    <actions>
+      <!-- Register the parent menu. -->
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Register_Options_Menu"
+        param = "table[
+            $id='named_pipes_menu',
+            $columns=2, 
+            $title='Named Pipes API',
+            $cue=Build_Options_Menu
+            ]"/>
+    </actions>
+  </cue>
+
+  <!--
+      Callback for building the options menu.
+    -->
+  <cue name="Build_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+
+      <!-- Column labels. -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Label"
+        param = "table[
+            $col=1, 
+            $text='Pipe', 
+            $mouseOverText='Name of the pipe.',
+            ]"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Label"
+        param = "table[
+            $col=2, 
+            $text='Status', 
+            $mouseOverText='If the pipe is connected.',
+            ]"/>
+      
+      <!-- Loop over registered pipe handler cues. -->
+      <do_all exact="Globals.$pipe_status_cues.count" counter="$i">
+        
+        <!-- Set the text string, connected/disconnected with color. -->
+        <do_if value="@Globals.$pipe_status_cues.{$i}.{'$server_connected'}">
+          <set_value name="$text" exact="'connected'"/>
+          <set_value name="$color" exact="'Helper.color.green'"/>
+        </do_if>
+        <do_else>
+          <set_value name="$text" exact="'disconnected'"/>
+          <set_value name="$color" exact="'Helper.color.red'"/>
+        </do_else>
+        
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col=1, 
+            $text= '' + @Globals.$pipe_status_cues.{$i}.{'$Pipe_Name'},
+            ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Label"
+          param = "table[
+            $col = 2, 
+            $text = $text,
+            $color = $color,
+            ]"/>
+      </do_all>
+
+      <!-- Ready to display. -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
+    </actions>
+  </cue>
+
+</cues>
 </mdscript>
