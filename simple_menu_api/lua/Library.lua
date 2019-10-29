@@ -171,6 +171,14 @@ function lib.Validate_Args(args, arg_specs)
             -- TODO: maybe round ints, but for now floats are fine.
             if argtype == "int" then
                 args[name] = tonumber(args[name])
+            elseif argtype == "boolean" then
+                -- MD transferred false as 0, true as 1. Both of these
+                -- lua counts as true, so handle manually.
+                if args[name] == 0 or not args[name] then
+                    args[name] = false
+                else
+                    args[name] = true
+                end
             end
         end        
     end
@@ -232,19 +240,31 @@ function lib.Filter_Table(in_table, filter)
     return out_table
 end
 
+
 -- Update the first table with entries from the second table, except where
 -- there is a conflict. Works recursively on subtables.
 -- Returns early if right side is nil.
+-- If the default is a boolean and the main table has a 0/1 in that spot,
+-- it will be converted to a corresponding bool false/true; this done to
+-- cleanup md failure to transfer bools properly.
 function lib.Fill_Defaults(left, right)
     if not right then return end
     for k, v in pairs(right) do
         if left[k] == nil then
             left[k] = v
+        elseif type(v) == "boolean" then
+            -- Swap 0/1 to false/true.
+            if left[k] == 0 then
+                left[k] = false
+            else
+                left[k] = true
+            end
         elseif type(left[k]) == "table" and type(v) == "table" then
             lib.Fill_Defaults(left[k], v)
         end
     end
 end
+
 
 -- Print a table's contents to the log.
 -- Optionally give the table a name.

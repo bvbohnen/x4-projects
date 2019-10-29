@@ -1,10 +1,21 @@
 
--- Interface into the ego options menu.
--- Goal is to add a new option, leading to a submenu with a list of all mods
--- that have registered their menu definition cues with this api, from which
--- the player can pick a specific mod and edit its settings.
--- This solves the question of how mod users will make their menus easily
--- accessible to the player (without relying on the key capture api or similar).
+--[[ 
+Interface into the ego options menu.
+
+Goal is to add a new option, leading to a submenu with a list of all mods
+that have registered their menu definition cues with this api, from which
+the player can pick a specific mod and edit its settings.
+
+This solves the question of how mod users will make their menus easily
+accessible to the player (without relying on the key capture api or similar).
+
+TODO: hooks to modify stock menu parameters of interest.
+    - menu.valueGameUIScale, menu.callbackGameUIScaleReset()
+      for higher scaling (above 1.5)
+    - menu.valueGfxAA to unlock higher ssaa (probably not useful)
+
+TODO: set up player facing option to remove some menu animation delays.
+]]
 
 --[[
 Development notes:
@@ -160,6 +171,7 @@ local function Init_Gameoptions_Link()
     if gameoptions_menu == nil then
         error("Failed to find egosoft's OptionsMenu")
     end
+
     
     -- Patch displayOptions.
     local original_displayOptions = gameoptions_menu.displayOptions
@@ -204,6 +216,28 @@ local function Init_Gameoptions_Link()
                 -- This needs to be nil or a function.
                 display = nil,
             })
+
+            -- The above was appended to the menu rows. For cleanliness,
+            -- reposition the entry to be by Extensions.
+            -- TODO: this changes the default menu option from Exit to
+            --  custom options; how to restore back to exit?
+            -- Do a search for the extensions row index, and target one after.
+            local last_index = #ftable.rows
+            local target_index = last_index
+            for i = 1, last_index do
+                if ftable.rows[i].rowdata and ftable.rows[i].rowdata.id == "extensions" then
+                    target_index = i + 1
+                    break
+                end
+            end
+            -- Pick out the new options row and move it.
+            local custom_row = table.remove(ftable.rows, last_index)
+            table.insert(ftable.rows, target_index, custom_row)
+            -- Rows are annotated with their index; fix those annotations here.
+            for i = target_index, last_index do
+                ftable.rows[i].index = i
+            end
+
             
             -- Display needs to be called again to get an updated frame drawn.
             frame:display()
@@ -264,7 +298,7 @@ local function Init_Gameoptions_Link()
             original_viewCreated(layer, ...)
         end
     end
-       
+           
     
     ---- Patch menu.onSelectElement(uitable, modified, row) purely for
     ---- debug help.

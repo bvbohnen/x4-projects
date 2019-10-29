@@ -215,6 +215,7 @@ function loc.Process_Command(args)
     
     if debugger.announce_commands then
         DebugError("Processing command: "..args.command)
+        Lib.Print_Table(args, "Args")
     end
     
     -- Create a new menu; does not display.
@@ -235,7 +236,8 @@ function loc.Process_Command(args)
     -- Add a new row.
     elseif args.command == "Add_Row" then
         -- Add one generic row.
-        -- First arg is selectability; must be true for rows with widgets.
+        -- First arg is rowdata; must not be nil/false for the row to
+        -- be selectable. TODO: hook up any callbacks, which echo rowdata.
         local new_row = menu_data.ftable:addRow(true, { bgColor = Helper.color.transparent })
         -- Store in user row table for each reference.
         table.insert(menu_data.user_rows, new_row)
@@ -271,11 +273,9 @@ function loc.Process_Command(args)
     elseif string.sub(args.command, 1, #"Make") == "Make" then
     
         -- Handle common args to all options.
-        -- TODO: finish moving away from Validate_Args usage.
         Lib.Validate_Args(args, {
             -- Default to first column if not given.
             {n="col", t='int', d=1},
-            -- TODO: colspan, other cell-level stuff.
         })
         
         -- Rename the column for convenience.
@@ -296,6 +296,7 @@ function loc.Process_Command(args)
         
         -- Plain text label.
         if args.command == "Make_Label" then
+        
             -- Filter for widget properties.
             -- Note: the widget creator does some property name validation,
             -- printing harmless debugerror messages on mismatch.
@@ -311,7 +312,7 @@ function loc.Process_Command(args)
         
         -- Simple clickable buttons.
         elseif args.command == "Make_Button" then
-
+        
             local properties = Lib.Filter_Table(args, widget_properties["button"])
             -- Custom defaults; center text.
             Lib.Fill_Defaults(properties, {text = {halign = "center"}})
@@ -322,13 +323,31 @@ function loc.Process_Command(args)
             row[col]:createButton(properties)
 
             -- Event handlers.
-            loc.Widget_Event_Script_Factory(row[col], "onClick", row_index, args.col, {})
-            loc.Widget_Event_Script_Factory(row[col], "onRightClick", row_index, args.col, {})
+            loc.Widget_Event_Script_Factory(row[col], "onClick", 
+                row_index, args.col, {})
+            loc.Widget_Event_Script_Factory(row[col], "onRightClick", 
+                row_index, args.col, {})
                         
+
+        elseif args.command == "Make_CheckBox" then
         
+            local properties = Lib.Filter_Table(args, widget_properties["checkbox"])        
+            -- Get general defaults for subtables.
+            Lib.Fill_Defaults(properties, widget_defaults["checkbox"])
+            Lib.Print_Table(properties, "checkbox properties")
+            -- Make the widget.
+            row[col]:createCheckBox(properties.checked, properties)
+
+            -- Event handlers.
+            -- Note: event gets true/false for "checked", but they return
+            -- to md as 0/1.
+            loc.Widget_Event_Script_Factory(row[col], "onClick", 
+                row_index, args.col, {"checked"})
+        
+
         -- Editable text boxes.
         elseif args.command == "Make_EditBox" then
-
+        
             local properties = Lib.Filter_Table(args, widget_properties["editbox"])
             -- Standard formatting.
             Lib.Fill_Defaults(properties, {text = config.standardTextProperties})

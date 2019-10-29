@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <mdscript name="Simple_Menu_API_Test" 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xsi:noNamespaceSchemaLocation="md.xsd">
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
   <!--
   The menu itself will be hardcoded to a specific key combo,
@@ -70,61 +69,77 @@
   -->
   <library name="Fill_Menu">
     <actions>
-        <!-- Header; col 2 will be labels, col 3 widgets. -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Label"
-          param = "table[
-            $col=1, 
-            $text='Type', 
-            $color=table[ $r = 0, $g = 116, $b = 153, $a = 100 ],
-            $mouseOverText='Type of widget being tested',
-            ]"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Label"
-          param = "table[
-            $col=2, 
-            $text='Widget', 
-            $color=table[ $r = 225, $g = 149, $b = 0, $a = 100 ],
-            $mouseOverText='Interractable widget'
-            ]"/>
+      <!-- Header; col 2 will be labels, col 3 widgets. -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Label"
+        param = "table[
+          $col=1, 
+          $text='Type', 
+          $color=table[ $r = 0, $g = 116, $b = 153, $a = 100 ],
+          $mouseOverText='Type of widget being tested',
+          ]"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Label"
+        param = "table[
+          $col=2, 
+          $text='Widget', 
+          $color=table[ $r = 225, $g = 149, $b = 0, $a = 100 ],
+          $mouseOverText='Interractable widget'
+          ]"/>
 
-        <!-- Button -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Label"
-          param = "table[
-            $col=1, 
-            $text='Button test', 
-            $mouseOverText='Mouseover test',
-            ]"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Button"
-          param = "table[
-            $col=2, 
-            $text=table[$text='Button', $color='Helper.color.brightyellow'],
-            $onClick=Handle_Menu_Action,
-            $hotkey=table[
-              $action = 'INPUT_STATE_MOUSECLICK',
-              $displayIcon = true],
-            ]"/>
-          <!--Note: hotkey tests all failed.-->
+      <!-- Button -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Label"
+        param = "table[
+          $col = 1, 
+          $text = 'Button test', 
+          $mouseOverText = 'Mouseover test',
+          ]"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Button"
+        param = "table[
+          $col = 2, 
+          $text = table[$text='Button', $color='Helper.color.brightyellow'],
+          $onClick = Handle_Menu_Action,
+          $hotkey = table[
+            $action = 'INPUT_STATE_MOUSECLICK',
+            $displayIcon = true],
+          ]"/>
+        <!--Note: hotkey tests all failed.-->
 
+      <!-- CheckBox -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Label"
+        param = "table[
+            $col = 1, 
+            $text = 'CheckBox test',
+            ]"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_CheckBox"
+        param = "table[
+            $col = 2, 
+            $checked = true,
+            $onClick = Handle_Menu_Action,
+            ]"/>
+      
         <!-- EditBox -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Label"
           param = "table[
-            $col=1, 
-            $text='Editbox test', 
+            $col = 1, 
+            $text = 'EditBox test', 
             ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_EditBox"
           param = "table[
-            $col=2, 
-            $text=table[$text='edit me', $color='Helper.color.orange'],
-            $defaultText='default',
-            $onTextChanged=Handle_Menu_Action,
+            $col = 2, 
+            $text = table[ $text = 'edit me', $color = 'Helper.color.orange' ],
+            $defaultText = 'default',
+            $onTextChanged = Handle_Menu_Action,
             ]"/>
 
         <!-- Slider, as percentage, 0 to 100, limited to 5 to 95. -->
@@ -154,8 +169,8 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Label"
           param = "table[
-            $col=1, 
-            $text='Dropdown test', 
+            $col = 1, 
+            $text = 'Dropdown test', 
             ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Dropdown"
@@ -178,8 +193,8 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Label"
           param = "table[
-            $col=1, 
-            $text='Test vars',
+            $col = 1, 
+            $text = 'Test vars',
             ]"/>
             
         <!-- Loop over the vars. -->
@@ -191,8 +206,8 @@
           <signal_cue_instantly
             cue="md.Simple_Menu_API.Make_Label"
             param = "table[
-              $col=1, 
-              $text=$key, 
+              $col = 1, 
+              $text = $key, 
               ]"/>
               
           <!-- Add args to the var_widgets table. -->

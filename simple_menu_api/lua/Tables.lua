@@ -136,118 +136,248 @@ config.standardTextProperties = {
 }
 
 
--- Widget property names.
--- These are defined in helper.lua defaultWidgetProperties, but it is local,
--- so names are redefined here.
+-- Tables that will hold just the property names of the widgets,
+-- used for filtering user args.
+-- Autofilled based on default's keys.
+tables.widget_properties = {}
+
+
+-- Default properties for each widget.
 -- Note: cell inherits from widget, various standalone widgets from cell.
-tables.widget_properties = {
-    widget = {
-        "scaling",
-        "width",
-        "height",
-        "x",
-        "y",
-        "mouseOverText",
+-- These are largely copied from helper.lua defaultWidgetProperties,
+--  which is local.
+-- While bothersome, this needs to specify which properties are bools,
+-- since md->lua is janky and makes md bools into lua 0/1, causing problems.
+-- Library code will do proper bool conversion based on these contents.
+tables.widget_defaults = {
+    ["widget"] = {		
+        scaling = true,											
+        width = 0,												
+        height = 0,												
+        x = 0,													
+        y = 0,													
+        mouseOverText = ""										
     },
-    cell = {
-        "cellBGColor",
-        "uiTriggerID",
-        _basetype = "widget",
+    ["frame"] = {
+        layer = 3,												
+        exclusiveInteractions = false,							
+        backgroundID = "",										
+        backgroundColor = Helper.color.white,					
+        overlayID = "",											
+        overlayColor = Helper.color.white,						
+        standardButtons = Helper.standardButtons_CloseBack,		
+        standardButtonX = 0,									
+        standardButtonY = 0,									
+        showBrackets = false,									
+        autoFrameHeight = false,								
+        closeOnUnhandledClick = false,							
+        playerControls = false,									
+        startAnimation = true,									
+        enableDefaultInteractions = true,						
+        useMiniWidgetSystem = false,							
+        _basetype = "widget"
     },
-    text = {
-        "text",
-        "halign",
-        "color",
-        "titleColor",
-        "font",
-        "fontsize",
-        "wordwrap",
-        "minRowHeight",
-        _basetype = "cell",
-    },    
-    button = {
-        "active",
-        "bgColor",
-        "highlightColor",
-        "height",
-        "text",
-        "text2",
-        "icon",
-        "icon2",
-        "hotkey",
+    ["rendertarget"] = {
+        alpha = 100,											
+        _basetype = "widget"
+    },
+    ["table"] = {
+        header = "",											
+        tabOrder = 0,											
+        skipTabChange = false,									
+        defaultInteractiveObject = false,						
+        borderEnabled = true,									
+        maxVisibleHeight = 0,									
+        reserveScrollBar = true,								
+        wraparound = false,										
+        highlightMode = "on",									
+        multiSelect = false,									
+        backgroundID = "",										
+        backgroundColor = Helper.color.white,					
+        prevTable = 0,											
+        nextTable = 0,											
+        _basetype = "widget"
+    },
+    ["row"] = {
+        scaling = true,											
+        fixed = false,											
+        borderBelow = true,										
+        bgColor = Helper.defaultSimpleBackgroundColor,			
+        multiSelected = false									
+    },
+    
+    ["cell"] = {
+        cellBGColor = Helper.defaultSimpleBackgroundColor,		
+        uiTriggerID = propertyDefaultValue,						
+        _basetype = "widget"
+    },
+    ["text"] = {
+        text = "",												
+        halign = Helper.standardHalignment,						
+        color = Helper.standardColor,							
+        titleColor = propertyDefaultValue,						
+        font = Helper.standardFont,								
+        fontsize = Helper.standardFontSize,						
+        wordwrap = false,										
+        x = Helper.standardTextOffsetx,							
+        y = Helper.standardTextOffsety,							
+        minRowHeight = Helper.standardTextHeight,				
         _basetype = "cell"
     },
-    editbox = {
-        "bgColor",
-        "closeMenuOnBack",
-        "defaultText",
-        "textHidden",
-        "encrypted",
-        "text",
-        "hotkey",
+    ["icon"] = {
+        icon = "",												
+        color = Helper.standardColor,							
         _basetype = "cell"
     },
-    icon = {
-        "icon",
-        "color",
-        "text",
-        "text2",
+    ["button"] = {
+        active = true,											
+        bgColor = Helper.defaultButtonBackgroundColor,			
+        highlightColor = Helper.defaultButtonHighlightColor,	
+        height = Helper.standardButtonHeight,					
         _basetype = "cell"
     },
-    shieldhullbar = {
-        "shield",
-        "hull",
+    ["editbox"] = {
+        bgColor = Helper.defaultEditBoxBackgroundColor,			
+        closeMenuOnBack = false,								
+        defaultText = "",
+        textHidden = false,										
+        encrypted = false,										
         _basetype = "cell"
     },
-    slidercell = {
-        "bgColor",
-        "valueColor",
-        "posValueColor",
-        "negValueColor",
-        "min",
-        "minSelect",
-        "max",
-        "maxSelect",
-        "start",
-        "step",
-        "infiniteValue",
-        "suffix",
-        "exceedMaxValue",
-        "hideMaxValue",
-        "rightToLeft",
-        "fromCenter",
-        "readOnly",
-        "useInfiniteValue",
-        "useTimeFormat",
-        "text",
+    ["shieldhullbar"] = {
+        shield = 0,
+        hull = 0,
         _basetype = "cell"
     },
-    dropdown = {
-        -- Prune out options; handle those separately; maybe okay to leave.
-        --"options",
-        "startOption",
-        "active",
-        "bgColor",
-        "highlightColor",
-        "optionColor",
-        "optionWidth",
-        "optionHeight",
-        "allowMouseOverInteraction",
-        "textOverride",
-        "text2Override",
-        "text",
-        "text2",
-        "icon",
-        "hotkey",
+    ["graph"] = {		
+        graphdesc = propertyDefaultValue,
         _basetype = "cell"
     },
-    checkbox = {
-        "checked",
-        "bgColor",
-        "active",
+    ["slidercell"] = {
+        bgColor = Helper.defaultSliderCellBackgroundColor,			
+        valueColor = Helper.defaultSliderCellValueColor,			
+        posValueColor = Helper.defaultSliderCellPositiveValueColor,	
+        negValueColor = Helper.defaultSliderCellNegativeValueColor,	
+        min = 0,													
+        minSelect = propertyDefaultValue,							
+        max = 0,													
+        maxSelect = propertyDefaultValue,							
+        start = 0,													
+        step = 1,													
+        infiniteValue = 0,											
+        suffix = "",												
+        exceedMaxValue = false,										
+        hideMaxValue = false,										
+        rightToLeft = false,										
+        fromCenter = false,											
+        readOnly = false,											
+        useInfiniteValue = false,									
+        useTimeFormat = false,										
         _basetype = "cell"
     },
-    -- TODO: others
+    ["dropdown"] = {
+        options = {},
+        startOption = "",
+        active = true,
+        bgColor = Helper.defaultButtonBackgroundColor,
+        highlightColor = Helper.defaultButtonHighlightColor,
+        optionColor = Helper.color.black,
+        optionWidth = 0,
+        optionHeight = 0,
+        allowMouseOverInteraction = false,
+        textOverride = "",
+        text2Override = "",
+        _basetype = "cell"
+    },
+    ["checkbox"] = {
+        checked = false,
+        bgColor = Helper.defaultCheckBoxBackgroundColor,
+        active = true,
+        _basetype = "cell"
+    },
+    ["statusbar"] = {
+        current = 0,
+        start = 0,
+        max = 0,
+        valueColor = Helper.defaultStatusBarValueColor,
+        posChangeColor = Helper.defaultStatusBarPosChangeColor,
+        negChangeColor = Helper.defaultStatusBarNegChangeColor,
+        markerColor = Helper.defaultStatusBarMarkerColor,
+        _basetype = "cell"
+    },
+    ["boxtext"] = {
+        text = "",												
+        halign = Helper.standardHalignment,						
+        color = Helper.standardColor,							
+        boxColor = Helper.defaultBoxTextBoxColor,				
+        font = Helper.standardFont,								
+        fontsize = Helper.standardFontSize,						
+        wordwrap = false,										
+        textX = Helper.standardTextOffsetx,						
+        textY = Helper.standardTextOffsety,						
+        minRowHeight = Helper.standardTextHeight,				
+        _basetype = "cell"
+    },
+    
+    ["flowchart"] = {
+        tabOrder = 0,											
+        skipTabChange = false,									
+        defaultInteractiveObject = false,						
+        borderHeight = 0,										
+        borderColor = Helper.color.transparent,					
+        maxVisibleHeight = 0,									
+        minRowHeight = 0,										
+        minColWidth = 0,										
+        edgeWidth = 1,											
+        firstVisibleRow = 1,									
+        firstVisibleCol = 1,									
+        selectedRow = 1,										
+        selectedCol = 1,										
+        _basetype = "widget"
+    },
+    ["flowchartcell"] = {
+        _basetype = "widget"
+    },
+    ["flowchartnode"] = {
+        height = Helper.standardFlowchartNodeHeight,			
+        shape = "rectangle",									
+        expandedFrameLayer = 0,									
+        expandedTableNumColumns = 0,							
+        value = 0,												
+        max = 0,												
+        slider1 = -1,											
+        slider2 = -1,											
+        step = 0,												
+        connectorSize = Helper.standardFlowchartConnectorSize,	
+        statusColor = propertyDefaultValue,						
+        statusBgIconID = "",									
+        statusBgIconRotating = false,							
+        bgColor = Helper.defaultFlowchartBackgroundColor,		
+        outlineColor = Helper.defaultFlowchartOutlineColor,		
+        valueColor = Helper.defaultFlowchartValueColor,			
+        slider1Color = Helper.defaultFlowchartSlider1Color,		
+        slider2Color = Helper.defaultFlowchartSlider2Color,		
+        diff1Color = Helper.defaultFlowchartDiff1Color,			
+        diff2Color = Helper.defaultFlowchartDiff2Color,			
+        slider1MouseOverText = "",								
+        slider2MouseOverText = "",								
+        _basetype = "flowchartcell"
+    },
+    ["flowchartjunction"] = {
+        
+        
+        junctionXOff = -1,										
+        junctionSize = Helper.standardFlowchartConnectorSize,	
+        _basetype = "flowchartcell"
+    },
+    ["flowchartedge"] = {
+        color = Helper.standardColor,							
+        sourceSlotColor = propertyDefaultValue,					
+        sourceSlotSecondary = false,							
+        destSlotColor = propertyDefaultValue,					
+        destSlotSecondary = false,								
+        _basetype = "widget"
+    },
 }
 
 -- For any widget field that is a subtable, need to know the defaults.
@@ -322,16 +452,11 @@ local complexCellProperties = {
     },
 }
 
--- Table, keyed by widget name, holding necessary default subtable values.
--- Filled in below.
-tables.widget_defaults = {}
 
 local function Widget_Init()
 
-    -- Fill out generic defaults.
+    -- Fill out complex defaults.
     for name, subtable in pairs(complexCellProperties) do
-        -- Init an entry.
-        tables.widget_defaults[name] = {}
         -- Work through the fields.
         for k, v in pairs(subtable) do
             -- Shwllow copy the default table.
@@ -347,7 +472,7 @@ local function Widget_Init()
     local function Fill_Inheritances(prop_list)
         -- Check for a parent.
         if prop_list._basetype then
-            local parent = tables.widget_properties[prop_list._basetype]
+            local parent = tables.widget_defaults[prop_list._basetype]
             -- If the parent still has a basetype, it needs to be visited first.
             if parent._basetype then
                 Fill_Inheritances(parent)
@@ -363,9 +488,18 @@ local function Widget_Init()
     -- Kick it off for all widgets.
     -- Note: tables don't retain order, which is why the recursive function
     -- is used to be robust against whatever visitation ordering is used.
-    for widget, prop_list in pairs(tables.widget_properties) do
+    for widget, prop_list in pairs(tables.widget_defaults) do
         Fill_Inheritances(prop_list)
     end
+
+    -- Fill in the property list.
+    for widget_name, subtable in pairs(tables.widget_defaults) do
+        tables.widget_properties[widget_name] = {}
+        for k,v in pairs(subtable) do
+            table.insert(tables.widget_properties[widget_name], k)
+        end
+    end
+    
 end
 Widget_Init()
 

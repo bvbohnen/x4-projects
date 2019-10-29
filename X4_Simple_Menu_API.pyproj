@@ -26,12 +26,14 @@
     <Content Include="change_log.md" />
     <Content Include="Readme.md" />
     <Content Include="simple_menu_api\content.xml" />
+    <Content Include="simple_menu_api\lua\Custom_Options.lua" />
     <Content Include="simple_menu_api\lua\Interface.lua" />
     <Content Include="simple_menu_api\lua\Library.lua" />
     <Content Include="simple_menu_api\lua\Options_Menu.lua" />
     <Content Include="simple_menu_api\lua\Standalone_Menu.lua" />
     <Content Include="simple_menu_api\md\Simple_Menu_API.xml" />
     <Content Include="simple_menu_api\lua\Tables.lua" />
+    <Content Include="simple_menu_api\md\Simple_Menu_Options.xml" />
     <Content Include="simple_menu_api_test\content.xml" />
     <Content Include="simple_menu_api_test\md\Simple_Menu_API_Test.xml" />
   </ItemGroup>

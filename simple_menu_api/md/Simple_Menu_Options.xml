@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Simple_Menu_Options" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  MD side of a stock options menu for customizing menus.
+  Initial effort will focus on egosoft menus, and not custom ones.
+  
+  This will handle the options submenu setup, and will store prior
+  state to remember player's settings.
+  -->
+
+  <cues>
+
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.simple_menu_api.lua.Custom_Options'"/>
+      </actions>
+    </cue>
+
+    <!--
+      Static cue for holding general state.
+    
+      * DebugChance
+        - Int, 0 or 100.
+      * storage
+        - Table, keyed by option id, holding its current value.
+        - Preserved across reloads.
+      * options
+        - List of subtables, each describing an option, in order that they
+          should be displayed.
+        - Subtable contents:
+          * id
+            - String identifier for the option, starting with $.
+          * name
+            - String, display name of the option.
+          * mouseover
+            - String, extended description of the option.
+          * default
+            - Anything, default value when the option is first stored.
+          * widget
+            - Table, arguments to pass to Send_Command to set up the
+              display/control widget.
+            - TODO: think about how to fill this dynamically based on
+              current value.
+    -->
+    <cue name="Globals">
+      <actions>
+        <!-- Create storage table on first load. -->
+        <set_value name="Globals.$storage"   exact="table[]"/>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <cue name="Reset_On_Lua_Reload" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+    <library name="Reset_Globals">
+      <actions>
+        <set_value name="Globals.$DebugChance" exact="100"/>
+        
+        <!-- Define the options; these can be tweaked between lua reloads. -->
+        <set_value name="Globals.$options" exact="[
+                   
+          table[
+            $id         = '$disable_animations',
+            $name       = 'Disable menu animations',
+            $mouseover  = 'Removes the animation of top menus opening, for a more responsive ui.',
+            $default    = 0,
+            $widget = table[
+              $command = 'Make_CheckBox',
+              $height = 'Helper.standardTextHeight',
+              $width = 'Helper.standardTextHeight',
+              $onClick = Handle_Var_Change,
+              ],
+            ],
+            
+          ]" />
+        
+        <!--Autofill defaults for missing storage entries.-->
+        <do_all exact="Globals.$options.count" counter="$i">          
+          <!--Check that it doesn't exist yet.-->
+          <do_if  value="not Globals.$storage.{Globals.$options.{$i}.{'$id'}}?">
+            <set_value name="Globals.$storage.{Globals.$options.{$i}.{'$id'}}"
+                       exact="Globals.$options.{$i}.{'$default'}"/>
+          </do_if>
+        </do_all>
+        
+        <!-- Transmit current values to the lua, to restore after reload. -->
+        <raise_lua_event
+          name="'Simple_Menu_Options.disable_animations'"
+          param="Globals.$storage.{'$disable_animations'}"/>
+        
+          
+      </actions>
+    </library>
+
+
+    <!-- Register an options menu. -->
+    <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+      </conditions>
+      <actions>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id = 'simple_menu_options',
+            $columns = 2, 
+            $title = 'Simple Menu Options',
+            $cue = Build_Options_Menu
+            ]"/>
+      </actions>
+    </cue>
+
+    <!-- Callback for building the options menu. -->
+    <cue name="Build_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        
+        <!-- Loop over the options list. -->
+        <do_all exact="Globals.$options.count" counter="$i">          
+          <!-- Rename -->
+          <set_value name="$option" exact="Globals.$options.{$i}"/>
+          
+          <!-- Prepare a row -->
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        
+          <!-- Generic label -->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Label"
+            param = "table[
+              $col = 1, 
+              $text = $option.{'$name'}, 
+              $mouseOverText = $option.{'$mouseover'}
+              ]"/>
+        
+          <!-- Fill in widget initial value, based on widget type. -->
+          <!-- TODO: maybe specify the init value in the original table. -->
+          <do_if value="$option.{'$widget'}.{'$command'} == 'Make_CheckBox'">
+            <set_value name="$option.{'$widget'}.{'$checked'}" 
+                       exact="Globals.$storage.{$option.{'$id'}}"/>
+          </do_if>
+          
+          <!-- Always put them on column 2. -->
+          <set_value name="$option.{'$widget'}.{'$col'}" exact="2"/>
+          <!-- Always echo the option id. -->
+          <set_value name="$option.{'$widget'}.{'$echo'}" exact="$option.{'$id'}"/>
+
+          <!-- Create the widget. -->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Send_Command"
+            param = "$option.{'$widget'}"/>
+        
+        </do_all>
+
+        <!-- Ready to display. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
+      </actions>
+    </cue>
+
+    
+    <!--
+    Handle changes to global vars from menu.
+    -->
+    <cue name="Handle_Var_Change" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <debug_text text="'Response: %s'.[event.param]" 
+                chance="100" filter="general"/>
+        
+        <!--
+          Exact behavior depends a on what var was changed, since they
+          each tend to have lua side functions to signal.
+          TODO; might be okay to put all update stuff in the lua, and just
+          use the md for menu setup and value storage.
+        -->
+        <do_if value="event.param.{'$echo'} == '$disable_animations'">
+          <debug_text text="'Handling: %s'.[event.param.{'$echo'}]"
+                  chance="100" filter="general"/>
+          
+          <!-- Toggle current option.
+          <do_if value="Globals.$storage.{'$disable_animations'} == 0">
+            <set_value name="Globals.$storage.{'$disable_animations'}" exact="1"/>
+          </do_if>
+          <do_else>
+            <set_value name="Globals.$storage.{'$disable_animations'}" exact="0"/>
+          </do_else> -->
+          
+          <!-- Copy over the checked state, 0 or 1. -->
+          <set_value name="Globals.$storage.{'$disable_animations'}" exact="event.param.{'$checked'}"/>
+          
+          <!-- Signal the lua, sending 0 or 1. -->
+          <raise_lua_event 
+            name="'Simple_Menu_Options.disable_animations'"
+            param="Globals.$storage.{'$disable_animations'}"/>
+          
+          <!-- TODO: change button text. -->
+        </do_if>
+        
+      </actions>
+    </cue>
+
+
+  </cues>
+
+</mdscript>

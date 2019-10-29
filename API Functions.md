@@ -216,6 +216,29 @@ Complex properties:
   * wordwrap
   * minRowHeight
       
+* Make_BoxText
+  
+  Make a box-text cell.  Similar to a label. Adds to the most recent row.
+      
+  Pending development.
+      
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties    
+  * text
+    - String, text to display.
+  * halign
+  * color
+  * boxColor
+  * font
+  * fontsize
+  * wordwrap
+  * minRowHeight
+      
 * Make_Button
   
   Make a pressable button cell. Adds to the most recent row.
@@ -459,6 +482,82 @@ Complex properties:
   * id
     - String or number, id of the removed option.
         
+      
+* Make_Icon
+  
+  Make an icon cell. Adds to the most recent row.
+      
+  Pending development.
+      
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties    
+  * icon = ""
+    - String, icon id
+  * color = Helper.standardColor
+    - Color
+  * text
+    - TextProperty
+  * text2
+    - TextProperty
+      
+* Make_CheckBox
+  
+  Make a check-box. Adds to the most recent row.
+      
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties
+  * onClick
+    - Cue to callback when the checkbox is clicked.
+  * checked = false
+    - Bool or int, if checked initially.
+  * bgColor = Helper.defaultCheckBoxBackgroundColor
+   - Color of background.
+  * active = true
+   - Bool, if the widget is active.
+       
+  onClick event returns:
+  * row, col, echo, event
+  * checked
+    - Int, 0 or 1, checkbox status after click.
+        
+      
+* Make_StatusBar
+  
+  Make a status bar. Adds to the most recent row.
+      
+  Pending development.
+      
+  Param: Table with the following items
+  * col, echo
+    - Standard api args
+  * scaling, width, height, x, y, mouseOverText
+    - Standard widget properties
+  * cellBGColor, uiTriggerID
+    - Standard cell properties
+  * current = 0
+    - Int
+  * start = 0
+    - Int
+  * max = 0
+    - Int
+  * valueColor = Helper.defaultStatusBarValueColor
+    - Color
+  * posChangeColor = Helper.defaultStatusBarPosChangeColor
+    - Color
+  * negChangeColor = Helper.defaultStatusBarNegChangeColor
+    - Color
+  * markerColor = Helper.defaultStatusBarMarkerColor
+    - Color
       
 * Send_Command
   

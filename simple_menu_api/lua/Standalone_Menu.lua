@@ -203,7 +203,7 @@ function menu.createTable(frame)
         -- Tabbing skips this table.
         skipTabChange = true 
         })
-    -- Unselectable (first arg false).
+    -- Unselectable (first arg nil/false).
     local row = title_table:addRow(false, { fixed = true, bgColor = Helper.color.transparent })
     row[1]:createText(menu.user_settings.title, config.headerTextProperties)
     menu_data.title_table = title_table

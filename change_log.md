@@ -20,3 +20,6 @@ Change Log
 * 0.6
   - Added generic property support for editboxes, sliders, dropdowns.
   - Replaced generic cue callbacks with ones for specific events.
+* 0.7
+  - Added checkbox support.
+  - Added option to remove stock menu open animations.

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <mdscript name="Simple_Menu_API" 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xsi:noNamespaceSchemaLocation="md.xsd">
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
 <!--@doc-title Simple Menu API -->
 <!--
@@ -13,6 +12,10 @@ activate callback cues provided by the api user.
 Note: raise_lua_event only supports passing strings, numbers, or components.
 This api will pass complex tables of args using a blackboard var:
   player.entity.{'$simple_menu_args'}
+  
+TODO: widget autoupdate support. See widgetPrototypes.frame:update() for
+the widget properties that support a lua function callback. Do something
+similar to enable update cues.
 -->
   
 <cues>
@@ -98,6 +101,19 @@ This api will pass complex tables of args using a blackboard var:
       <set_value name="Globals.$options_submenu_specs" exact="table[]" />
       <set_value name="Globals.$menu_properties" exact="table[]" />
       <!-- Reset the blackboard list, to clear old junk. TODO: delete. -->
+      <set_value name="player.entity.{'$simple_menu_args'}" exact="[]" />
+    </actions>
+  </library>
+
+  <!--
+    Library function which will reset before opening a new menu.
+    Clears out state from the prior menu.
+  -->
+  <library name="Reset_Menu">
+    <actions>
+      <set_value name="Globals.$widget_properties" exact="table[]" />
+      <set_value name="Globals.$row" exact="0" />
+      <set_value name="Globals.$menu_properties" exact="table[]" />
       <set_value name="player.entity.{'$simple_menu_args'}" exact="[]" />
     </actions>
   </library>
@@ -293,8 +309,7 @@ This api will pass complex tables of args using a blackboard var:
     </conditions>
     <actions>
       <!-- Reset old state. -->
-      <set_value name="Globals.$row" exact="0" />
-      <set_value name="Globals.$widget_properties" exact="table[]" />
+      <include_actions ref="Reset_Menu"/>
       
       <!-- Save a copy of the args. -->
       <set_value name="Globals.$menu_properties" exact="event.param.clone"/>      
@@ -553,6 +568,44 @@ This api will pass complex tables of args using a blackboard var:
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
+
+
+  <!--@doc-cue
+    Make a box-text cell.  Similar to a label.
+    Adds to the most recent row.
+    
+    Pending development.
+    
+    Param: Table with the following items
+    * col, echo
+      - Standard api args
+    * scaling, width, height, x, y, mouseOverText
+      - Standard widget properties
+    * cellBGColor, uiTriggerID
+      - Standard cell properties    
+    * text
+      - String, text to display.
+    * halign
+    * color
+    * boxColor
+    * font
+    * fontsize
+    * wordwrap
+    * minRowHeight
+    -->
+  <cue name="Make_BoxText" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_BoxText'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Process_Args"/>
+      <include_actions ref="Fill_Widget_Default_Args"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+  
   
   <!--@doc-cue
     Make a pressable button cell.
@@ -675,6 +728,7 @@ This api will pass complex tables of args using a blackboard var:
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
+  
   
   <!--@doc-cue
     Make a horizontal slider cell.
@@ -861,8 +915,127 @@ This api will pass complex tables of args using a blackboard var:
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
-  
-  
+
+
+  <!--@doc-cue
+    Make an icon cell.
+    Adds to the most recent row.
+    
+    Pending development.
+    
+    Param: Table with the following items
+    * col, echo
+      - Standard api args
+    * scaling, width, height, x, y, mouseOverText
+      - Standard widget properties
+    * cellBGColor, uiTriggerID
+      - Standard cell properties    
+    * icon = ""
+      - String, icon id
+    * color = Helper.standardColor
+      - Color
+    * text
+      - TextProperty
+    * text2
+      - TextProperty
+    -->
+  <cue name="Make_Icon" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_Icon'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Process_Args"/>
+      <include_actions ref="Fill_Widget_Default_Args"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+
+
+  <!--@doc-cue
+    Make a check-box.
+    Adds to the most recent row.
+    
+    Param: Table with the following items
+    * col, echo
+      - Standard api args
+    * scaling, width, height, x, y, mouseOverText
+      - Standard widget properties
+    * cellBGColor, uiTriggerID
+      - Standard cell properties
+    * onClick
+      - Cue to callback when the checkbox is clicked.
+    * checked = false
+      - Bool or int, if checked initially.
+    * bgColor = Helper.defaultCheckBoxBackgroundColor
+     - Color of background.
+    * active = true
+     - Bool, if the widget is active.
+     
+    onClick event returns:
+    * row, col, echo, event
+    * checked
+      - Int, 0 or 1, checkbox status after click.
+      
+    -->
+  <cue name="Make_CheckBox" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_CheckBox'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Process_Args"/>
+      <include_actions ref="Fill_Widget_Default_Args"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+
+  <!--@doc-cue
+    Make a status bar.
+    Adds to the most recent row.
+    
+    Pending development.
+    
+    Param: Table with the following items
+    * col, echo
+      - Standard api args
+    * scaling, width, height, x, y, mouseOverText
+      - Standard widget properties
+    * cellBGColor, uiTriggerID
+      - Standard cell properties
+    * current = 0
+      - Int
+    * start = 0
+      - Int
+    * max = 0
+      - Int
+    * valueColor = Helper.defaultStatusBarValueColor
+      - Color
+    * posChangeColor = Helper.defaultStatusBarPosChangeColor
+      - Color
+    * negChangeColor = Helper.defaultStatusBarNegChangeColor
+      - Color
+    * markerColor = Helper.defaultStatusBarMarkerColor
+      - Color
+    -->
+  <cue name="Make_StatusBar" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$command" exact="'Make_StatusBar'"/>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Process_Args"/>
+      <include_actions ref="Fill_Widget_Default_Args"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+
+
+
+
   <!--@doc-cue
     General cue for packaging up a request and sending it to lua.
     This may be used instead of the Make_ command, by filling in a matching
@@ -879,6 +1052,8 @@ This api will pass complex tables of args using a blackboard var:
       <event_cue_signalled/>
     </conditions>
     <actions>
+      <!-- If the param is null, something went wrong in the call. TODO -->
+      
       <!-- Use a shallow copy for this, to avoid errors if the user reuses tables. -->
       <set_value name="$args" exact="event.param.clone" />
             
@@ -888,6 +1063,8 @@ This api will pass complex tables of args using a blackboard var:
       <do_if value="$args.{'$col'}?">
         <!-- The row already has a prepared subtable, so just fill the col. -->
         <set_value name="Globals.$widget_properties.{Globals.$row}.{$args.{'$col'}}" exact="$args" />
+        <debug_text text="'Recorded args for row,col: (%s,%s)'.[Globals.$row, $args.{'$col'}]"
+                  chance="Globals.$DebugChance" filter="general"/>
       </do_if>
       
       <!-- Add to the player blackboard. -->
@@ -974,9 +1151,14 @@ This api will pass complex tables of args using a blackboard var:
       
       <!-- Handle the callback, if found and still existing. -->
       <do_if value="$cue.exists">
+        
+        <!-- Reset old state. -->
+        <include_actions ref="Reset_Menu"/>
+        
         <debug_text text="'Calling %s'.[$cue]" 
               chance="Globals.$DebugChance" filter="general"/>
         <signal_cue_instantly cue="$cue"/>
+        
       </do_if>
       <!-- Print warning if no callback valid. -->
       <do_else>
