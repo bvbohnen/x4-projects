@@ -8,6 +8,10 @@
   
   This will handle the options submenu setup, and will store prior
   state to remember player's settings.
+  
+  TODO: figure out how to set up widgets/buttons to be interactable by
+  clicking anywhere on their line, like ego menus. Currently they require
+  clicking the widget itself.
   -->
 
   <cues>
@@ -78,12 +82,7 @@
             $name       = 'Disable menu animations',
             $mouseover  = 'Removes the animation of top menus opening, for a more responsive ui.',
             $default    = 0,
-            $widget = table[
-              $command = 'Make_CheckBox',
-              $height = 'Helper.standardTextHeight',
-              $width = 'Helper.standardTextHeight',
-              $onClick = Handle_Var_Change,
-              ],
+            $type       = 'button',
             ],
             
           ]" />
@@ -91,18 +90,49 @@
         <!--Autofill defaults for missing storage entries.-->
         <do_all exact="Globals.$options.count" counter="$i">          
           <!--Check that it doesn't exist yet.-->
-          <do_if  value="not Globals.$storage.{Globals.$options.{$i}.{'$id'}}?">
-            <set_value name="Globals.$storage.{Globals.$options.{$i}.{'$id'}}"
-                       exact="Globals.$options.{$i}.{'$default'}"/>
+          <do_if  value="not Globals.$storage.{Globals.$options.{$i}.$id}?">
+            <set_value name="Globals.$storage.{Globals.$options.{$i}.$id}"
+                       exact="Globals.$options.{$i}.$default"/>
           </do_if>
         </do_all>
         
         <!-- Transmit current values to the lua, to restore after reload. -->
         <raise_lua_event
           name="'Simple_Menu_Options.disable_animations'"
-          param="Globals.$storage.{'$disable_animations'}"/>
+          param="Globals.$storage.$disable_animations"/>
         
           
+      </actions>
+    </library>
+
+    <!--
+      Library to call when setting or updating the value of widget.
+      Inputs:
+        $args   - table of args, with following already filled:
+          $id   - string, name of value stored in globals.
+          $type - type of widget, eg. "button"
+          ...   - Tables for complex properties already created, eg. text.
+      Outputs:
+        $args filled in, depending on widget.
+    -->
+    <library name="Fill_Widget_Value">
+      <actions>
+                
+        <do_if value="$args.$type == 'button'">
+          <!-- Buttons will be on/off labeled toggles. -->
+          <do_if value="Globals.$storage.{$args.$id}">
+            <!--on-->
+            <set_value name="$args.$text.$text" exact="{1001, 2648}"/>
+            <!-- Colors are turning out ugly; leave white. -->
+            <!--<set_value name="$args.$text.$color" exact="'Helper.color.green'"/>-->
+          </do_if>
+          <do_else>
+            <!--off-->
+            <set_value name="$args.$text.$text" exact="{1001, 2649}"/>
+            <!--<set_value name="$args.$text.$color" exact="'Helper.color.red'"/>-->
+          </do_else>
+        </do_if>
+        
       </actions>
     </library>
 
@@ -144,26 +174,28 @@
             cue="md.Simple_Menu_API.Make_Label"
             param = "table[
               $col = 1, 
-              $text = $option.{'$name'}, 
-              $mouseOverText = $option.{'$mouseover'}
+              $text = $option.$name, 
+              $mouseOverText = $option.$mouseover
               ]"/>
         
-          <!-- Fill in widget initial value, based on widget type. -->
-          <!-- TODO: maybe specify the init value in the original table. -->
-          <do_if value="$option.{'$widget'}.{'$command'} == 'Make_CheckBox'">
-            <set_value name="$option.{'$widget'}.{'$checked'}" 
-                       exact="Globals.$storage.{$option.{'$id'}}"/>
+          <!-- Set up widget args, based on type. -->
+          <do_if value="$option.$type == 'button'">
+            <set_value name="$args" exact="table[
+              $command = 'Make_Button',
+              $id      = $option.$id,
+              $type    = 'button',
+              $onClick = Handle_Var_Change,
+              $text    = table[$halign='left'],
+              $col     = 2,
+              $echo    = $option.$id,
+              ]"/>
           </do_if>
           
-          <!-- Always put them on column 2. -->
-          <set_value name="$option.{'$widget'}.{'$col'}" exact="2"/>
-          <!-- Always echo the option id. -->
-          <set_value name="$option.{'$widget'}.{'$echo'}" exact="$option.{'$id'}"/>
-
+          <!-- Set initial value. -->
+          <include_actions ref="Fill_Widget_Value"/>
+          
           <!-- Create the widget. -->
-          <signal_cue_instantly
-            cue="md.Simple_Menu_API.Send_Command"
-            param = "$option.{'$widget'}"/>
+          <signal_cue_instantly cue="md.Simple_Menu_API.Send_Command" param = "$args"/>
         
         </do_all>
 
@@ -190,27 +222,34 @@
           TODO; might be okay to put all update stuff in the lua, and just
           use the md for menu setup and value storage.
         -->
-        <do_if value="event.param.{'$echo'} == '$disable_animations'">
-          <debug_text text="'Handling: %s'.[event.param.{'$echo'}]"
+        <set_value name="$id" exact="event.param.{'$id'}"/>
+        
+        <do_if value="$id == '$disable_animations'">
+          <debug_text text="'Handling: %s'.[$id]"
                   chance="100" filter="general"/>
           
-          <!-- Toggle current option.
-          <do_if value="Globals.$storage.{'$disable_animations'} == 0">
-            <set_value name="Globals.$storage.{'$disable_animations'}" exact="1"/>
+          <!-- Toggle current option. -->
+          <do_if value="Globals.$storage.{$id} == 0">
+            <set_value name="Globals.$storage.{$id}" exact="1"/>
           </do_if>
           <do_else>
-            <set_value name="Globals.$storage.{'$disable_animations'}" exact="0"/>
-          </do_else> -->
-          
-          <!-- Copy over the checked state, 0 or 1. -->
-          <set_value name="Globals.$storage.{'$disable_animations'}" exact="event.param.{'$checked'}"/>
-          
+            <set_value name="Globals.$storage.{$id}" exact="0"/>
+          </do_else>
+
           <!-- Signal the lua, sending 0 or 1. -->
-          <raise_lua_event 
+          <raise_lua_event
             name="'Simple_Menu_Options.disable_animations'"
-            param="Globals.$storage.{'$disable_animations'}"/>
-          
-          <!-- TODO: change button text. -->
+            param="Globals.$storage.{$id}"/>
+
+          <!-- Update the button. -->
+          <set_value name="$args" exact="table[
+              $id      = $id,
+              $type    = 'button',
+              $text    = table[],
+              ]"/>
+          <include_actions ref="Fill_Widget_Value"/>
+          <signal_cue_instantly cue="md.Simple_Menu_API.Update_Widget" param = "$args"/>
+
         </do_if>
         
       </actions>

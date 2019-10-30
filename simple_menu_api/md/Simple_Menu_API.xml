@@ -46,10 +46,13 @@ similar to enable update cues.
     * menu_properties
       - Table holding the menu creation args of the most recent menu.
     * widget_properties
-      - Table of tables of properties provided by the user for widgets, to
-        be returned during callbacks.
+      - Table of tables of properties provided by the user for widgets, 
+        annotated with additional information (eg. row number).
+      - Holds shallow copies of the user args tables.
       - Outer table keyed by widget row, inner table by widget column.
-      - Uses a shallow copy of the user args table.
+      - Outer table may also be keyed by widget id, when the user provides
+        an id string; in such cases the widget properties table will be
+        recorded twice (by id and row/col).
       - Locally used for the callback cue storage, with echoing behavior
         intended to aid the user in handling callbacks.
     * options_submenu_specs
@@ -119,12 +122,29 @@ similar to enable update cues.
   </library>
 
   
-  <!--
-    Dummy cue used for signalling.
+  <!--@doc-cue
+    Dummy cue used for signalling that the game or ui was reloaded.
     Users that are registering options menus should listen to this
     cue being signalled.
   -->  
   <cue name="Reloaded" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+    </actions>
+  </cue>
+
+
+  <!--@doc-cue
+    Dummy cue used for signalling when the menu system is requesting
+    an update, approximately every 0.1 seconds.  This will continue to
+    trigger during game pauses, unlike MD delays.
+    Users may listen to this to trigger widget property updates.
+    
+    Pending development.
+  -->
+  <cue name="Clock" instantiate="true">
     <conditions>
       <event_cue_signalled />
     </conditions>
@@ -275,8 +295,9 @@ similar to enable update cues.
       <raise_lua_event name="'Simple_Menu.Register_Options_Menu'"/>
     </actions>
   </cue>
-  
-  
+
+
+  <!--TODO: change onClose_cue to onClose-->
   <!--@doc-cue
     Create a fresh standalone menu.
     Note: these menus are not attached to the normal options menu.
@@ -401,23 +422,43 @@ similar to enable update cues.
     </actions>
   </cue>
 
-
+  
+  <!-- Lib helper for fill in default widget args.
+       The args table should be in $args.
+  -->
+  <library name="Fill_Widget_Default_Args">
+    <actions>
+      <!-- Currently just set col to 1 by default. -->
+      <do_if value="not $args.{'$col'}?">
+        <set_value name="$args.{'$col'}" exact="1" />
+      </do_if>
+    </actions>
+  </library>
+  
+  <!--TODO: document Helper constants.-->
   <!--@doc-section
     ### Widget arguments and properties overview
     
     The following "Make_" cues create widgets. Many of them share some common
     arguments or arg data types, described here.
     
+    After creation, widgets may be partially updated at any time. This is
+    detailed in the Update_Widget cue.
+    
     In the egosoft backend, there is a "Helper" module which defines many
     constants used in the standard menus such as colors, fonts, etc.
     Arguments may optionally be given as a string matching a Helper const,
     eg. "Helper.color.brightyellow".
+    
     
     API args (all widgets)
     * col
       - Integer, column to place the widget in.
       - Uses 1-based indexing.
       - Required for now.
+    * id = none
+      - String, unique identifier for the widget.
+      - Optional, but needed for Update_Widget calls.
     * echo = none
       - May be any data type.
       - This is returned in the table sent to signalled callback cues,
@@ -450,6 +491,8 @@ similar to enable update cues.
         * row, col
           - Longfloat, coordinate of the activated widget.
           - Primarily for use by this backend.
+        * id
+          - String id given to the widget at creation, or null.
         * event
           - String, name of the event, matching the arg name.
           - Eg. "onClick".
@@ -521,19 +564,6 @@ similar to enable update cues.
     ### Widget Creation Cues
     -->
   
-  <!-- Lib helper for fill in default widget args.
-       The args table should be in $args.
-  -->
-  <library name="Fill_Widget_Default_Args">
-    <actions>
-      <!-- Currently just set col to 1 by default. -->
-      <do_if value="not $args.{'$col'}?">
-        <set_value name="$args.{'$col'}" exact="1" />
-      </do_if>
-    </actions>
-  </library>
-  
-  
   <!--@doc-cue
     Make a label cell for displaying text.
     Adds to the most recent row.
@@ -547,8 +577,10 @@ similar to enable update cues.
       - Standard cell properties    
     * text
       - String, text to display.
+      - Updateable
     * halign
     * color
+      - Updateable
     * titleColor
       - If given, puts the widget in title mode.
     * font
@@ -585,9 +617,12 @@ similar to enable update cues.
       - Standard cell properties    
     * text
       - String, text to display.
+      - Updateable
     * halign
     * color
+      - Updateable
     * boxColor
+      - Updateable
     * font
     * fontsize
     * wordwrap
@@ -624,14 +659,19 @@ similar to enable update cues.
       - Cue to callback when the button is right clicked.
     * text
       - TextProperty.
+      - Updateable text and color
     * text2
       - TextProperty.
+      - Updateable text and color
     * active = true
       - Bool, if the button is active.
+      - Updateable
     * bgColor = Helper.defaultButtonBackgroundColor
       - Color of background.
+      - Updateable
     * highlightColor = Helper.defaultButtonHighlightColor
       - Color when highlighted.
+      - Updateable
     * icon
       - IconProperty
     * icon2
@@ -641,10 +681,10 @@ similar to enable update cues.
       
       
     onClick event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
       
     onRightClick event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     -->
   <cue name="Make_Button" instantiate="true" namespace="this">
     <conditions>
@@ -692,6 +732,7 @@ similar to enable update cues.
       - Description unclear.
     * defaultText
       - String, the default text to display when nothing present.
+      - Updateable
     * textHidden = false
       - Bool, if the text is invisible.
     * encrypted = false
@@ -703,12 +744,12 @@ similar to enable update cues.
       
       
     onTextChanged event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * text
       - String, the new text in the box.
         
     onEditBoxDeactivated event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * text
       - String, the current text in the box.
     * textchanged
@@ -761,12 +802,19 @@ similar to enable update cues.
       - Color, positive value if fromCenter is true
     * negValueColor = Helper.defaultSliderCellNegativeValueColor
       - Color, negative value if fromCenter is true
-    * min, max = 0
-      - Min/max values the bar is sized for
-    * minSelect, maxSelect = none
-      - Min/max values the player may select.
-      - Defaults to min/max
+    * min = 0
+      - Min value the bar is sized for
+    * max = 0
+      - Max value the bar is sized for
+      - Updateable
+    * minSelect = none
+      - Min value the player may select.
+      - Defaults to min
       - Do not use maxSelect if exceedMaxValue is true
+    * maxSelect
+      - Max value the player may select.
+      - Defaults to max
+      - Updateable
     * start = 0
       - Initial value
     * step = 1
@@ -793,20 +841,20 @@ similar to enable update cues.
     
     
     onSliderCellChanged event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * value
       - Longfloat, current value of the slider.
       
     onSliderCellActivated event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
       
     onRightClick event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * posx, posy
       - Coordinates of the widget (likely not useful).
       
     onSliderCellConfirm event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * value
       - Longfloat, current value of the slider.
     * valuechanged
@@ -863,6 +911,7 @@ similar to enable update cues.
       - Cue to call when the player removes an option.
     * startOption = ""
       - String or number, id of the initially selected option.
+      - Updateable
     * active = true
      - Bool, if the widget is active.
     * bgColor = Helper.defaultButtonBackgroundColor
@@ -890,15 +939,15 @@ similar to enable update cues.
       
       
     onDropDownActivated event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
         
     onDropDownConfirmed event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * id
       - String or number, id of the selected option.
       
     onDropDownRemoved event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * id
       - String or number, id of the removed option.
       
@@ -932,12 +981,16 @@ similar to enable update cues.
       - Standard cell properties    
     * icon = ""
       - String, icon id
+      - Updateable
     * color = Helper.standardColor
       - Color
+      - Updateable
     * text
       - TextProperty
+      - Updateable text
     * text2
       - TextProperty
+      - Updateable text
     -->
   <cue name="Make_Icon" instantiate="true" namespace="this">
     <conditions>
@@ -968,13 +1021,14 @@ similar to enable update cues.
       - Cue to callback when the checkbox is clicked.
     * checked = false
       - Bool or int, if checked initially.
+      - Updateable
     * bgColor = Helper.defaultCheckBoxBackgroundColor
      - Color of background.
     * active = true
      - Bool, if the widget is active.
      
     onClick event returns:
-    * row, col, echo, event
+    * row, col, echo, event, id
     * checked
       - Int, 0 or 1, checkbox status after click.
       
@@ -1007,10 +1061,13 @@ similar to enable update cues.
       - Standard cell properties
     * current = 0
       - Int
+      - Updateable
     * start = 0
       - Int
+      - Updateable
     * max = 0
       - Int
+      - Updateable
     * valueColor = Helper.defaultStatusBarValueColor
       - Color
     * posChangeColor = Helper.defaultStatusBarPosChangeColor
@@ -1061,10 +1118,20 @@ similar to enable update cues.
             TODO: a good way to detect Make_ commands.
             For now, just test for the col arg, which nothing else uses. -->
       <do_if value="$args.{'$col'}?">
+        
+        <!-- Store the row in the args, for possible later lookup. -->
+        <set_value name="$args.{'$row'}" exact="Globals.$row" />
+        
         <!-- The row already has a prepared subtable, so just fill the col. -->
         <set_value name="Globals.$widget_properties.{Globals.$row}.{$args.{'$col'}}" exact="$args" />
         <debug_text text="'Recorded args for row,col: (%s,%s)'.[Globals.$row, $args.{'$col'}]"
                   chance="Globals.$DebugChance" filter="general"/>
+        
+        <!-- Also record by user id, if available. -->
+        <do_if value="$args.{'$id'}?">
+          <set_value name="Globals.$widget_properties.{'$'+ $args.{'$id'}}" exact="$args" />
+        </do_if>
+        
       </do_if>
       
       <!-- Add to the player blackboard. -->
@@ -1075,6 +1142,51 @@ similar to enable update cues.
                 
       <!-- Signal the lua function. -->
       <raise_lua_event name="'Simple_Menu.Process_Command'"/>
+    </actions>
+  </cue>
+
+
+  <!--@doc-cue
+    Update a widget's state after creation.
+    
+    Param: Table with the following items
+    * id
+      - String, original id assigned to the widget at creation.
+    * ...
+      - Any args to be updated, matching the original widget creation args
+        layout.
+      - Which widget properties can be updated depends on the specific widget.
+  -->
+  <cue name="Update_Widget" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$args" exact="event.param" />
+      
+      <!-- Look up the id in recorded widget properties. -->
+      <!-- Skip if there is an id problem. -->
+      <do_if value="$args.{'$id'}? and Globals.$widget_properties.{'$'+ $args.{'$id'}}?">
+        <set_value name="$args_table" exact="Globals.$widget_properties.{'$'+ $args.{'$id'}}"/>
+        
+        <!-- Fill in the row/col for the lua to find this widget. -->
+        <set_value name="$args.{'$row'}" exact="$args_table.{'$row'}" />
+        <set_value name="$args.{'$col'}" exact="$args_table.{'$col'}" />
+        
+        <!-- Set command string. -->
+        <set_value name="$args.{'$command'}" exact="'Update_Widget'" />
+        
+        <!-- Send it off. -->
+        <include_actions ref="Blackboard_Args"/>
+        <debug_text text="'Sending Process_Command with args: %s'.[$args]"
+                  chance="Globals.$DebugChance" filter="general"/>
+        <raise_lua_event name="'Simple_Menu.Process_Command'"/>
+      </do_if>
+      <do_else>
+        <debug_text text="'Found no widget with id: %s'.[$args.{'$id'}]"
+                  chance="Globals.$DebugChance" filter="general"/>
+      </do_else>
+
     </actions>
   </cue>
   
@@ -1115,10 +1227,11 @@ similar to enable update cues.
         <debug_text text="'Calling %s'.[$cue]" 
               chance="Globals.$DebugChance" filter="general"/>
               
-        <!-- Add the $echo to the response. -->
-        <do_if value="$args_table.{'$echo'}?">
-          <set_value name="$response.{'$echo'}" exact="$args_table.{'$echo'}" />
-        </do_if>
+        <!-- Add the $echo to the response, or null. -->
+        <set_value name="$response.{'$echo'}" exact="@$args_table.{'$echo'}" />
+
+        <!-- Add the $id to the response, or null. -->
+        <set_value name="$response.{'$id'}" exact="@$args_table.{'$id'}" />
         
         <signal_cue_instantly cue="$cue" param="$response"/>
       </do_if>
@@ -1198,6 +1311,51 @@ similar to enable update cues.
       </do_else>
       
     </actions>
+  </cue>
+
+
+  <!--
+    Listen for the lua signal requesting any widget updates.
+    This will signal the Update cue, and then will run a subcue that
+    resends the widget properties to lua.
+    
+    Note: this means that user updates will be delayed one cycle.
+    TODO: set up a lua 1-frame delayed trigger for updating widgets.
+     (Note: md delay won't work while the game is paused.)
+  -->
+  <cue name="Capture_Lua_Update_Trigger" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Simple_Menu'" control="'Update'" />
+    </conditions>
+
+    <actions>
+      <!-- Signal the Update cue, and indirectly listening users. -->
+      <signal_cue_instantly cue="Update"/>      
+    </actions>
+
+    <cues>
+      <cue name="Send_Updated_Commands">
+        <delay exact="1ms"/>
+        <actions>
+          
+          <!-- Loop over all of the stored widget command args. -->
+          <do_all exact="Globals.$widget_properties.list.count" counter="$row_index">
+            <set_value name="$row" exact="Globals.$widget_properties.list.{$row_index}"/>
+            <do_all exact="$row.list.count" counter="$col_index">
+              <set_value name="$widget" exact="$row.list.{$col_index}"/>
+
+              <!-- Skip if this widget is not flagged for updates. -->
+              <do_if value="$widget.{'$enable_updates'}">
+                <!--Resend the creation command; backend will know to update 
+                based on widget already existing.-->
+                <signal_cue_instantly cue="Send_Command" param="$widget"/>
+              </do_if>
+            </do_all>
+          </do_all>
+          
+        </actions>
+      </cue>
+    </cues>
   </cue>
   
 </cues>

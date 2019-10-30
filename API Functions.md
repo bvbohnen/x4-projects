@@ -1,6 +1,16 @@
 
 ### Simple Menu API Cues
 
+* Reloaded
+  
+  Dummy cue used for signalling that the game or ui was reloaded. Users that are registering options menus should listen to this cue being signalled.
+    
+* Clock
+  
+  Dummy cue used for signalling when the menu system is requesting an update, approximately every 0.1 seconds.  This will continue to trigger during game pauses, unlike MD delays. Users may listen to this to trigger widget property updates.
+      
+  Pending development.
+    
 * Register_Options_Menu
   
   Register an options menu, which will be accessible as a submenu of the normal game options.
@@ -88,13 +98,19 @@
     
 The following "Make_" cues create widgets. Many of them share some common arguments or arg data types, described here.
     
+After creation, widgets may be partially updated at any time. This is detailed in the Update_Widget cue.
+    
 In the egosoft backend, there is a "Helper" module which defines many constants used in the standard menus such as colors, fonts, etc. Arguments may optionally be given as a string matching a Helper const, eg. "Helper.color.brightyellow".
+    
     
 API args (all widgets)
 * col
   - Integer, column to place the widget in.
   - Uses 1-based indexing.
   - Required for now.
+* id = none
+  - String, unique identifier for the widget.
+  - Optional, but needed for Update_Widget calls.
 * echo = none
   - May be any data type.
   - This is returned in the table sent to signalled callback cues, for user convenience.
@@ -124,6 +140,8 @@ Events (depends on widget)
     * row, col
       - Longfloat, coordinate of the activated widget.
       - Primarily for use by this backend.
+    * id
+      - String id given to the widget at creation, or null.
     * event
       - String, name of the event, matching the arg name.
       - Eg. "onClick".
@@ -207,8 +225,10 @@ Complex properties:
     - Standard cell properties    
   * text
     - String, text to display.
+    - Updateable
   * halign
   * color
+    - Updateable
   * titleColor
     - If given, puts the widget in title mode.
   * font
@@ -231,9 +251,12 @@ Complex properties:
     - Standard cell properties    
   * text
     - String, text to display.
+    - Updateable
   * halign
   * color
+    - Updateable
   * boxColor
+    - Updateable
   * font
   * fontsize
   * wordwrap
@@ -256,14 +279,19 @@ Complex properties:
     - Cue to callback when the button is right clicked.
   * text
     - TextProperty.
+    - Updateable text and color
   * text2
     - TextProperty.
+    - Updateable text and color
   * active = true
     - Bool, if the button is active.
+    - Updateable
   * bgColor = Helper.defaultButtonBackgroundColor
     - Color of background.
+    - Updateable
   * highlightColor = Helper.defaultButtonHighlightColor
     - Color when highlighted.
+    - Updateable
   * icon
     - IconProperty
   * icon2
@@ -273,10 +301,10 @@ Complex properties:
         
         
   onClick event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
         
   onRightClick event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
       
 * Make_EditBox
   
@@ -305,6 +333,7 @@ Complex properties:
     - Description unclear.
   * defaultText
     - String, the default text to display when nothing present.
+    - Updateable
   * textHidden = false
     - Bool, if the text is invisible.
   * encrypted = false
@@ -316,12 +345,12 @@ Complex properties:
         
         
   onTextChanged event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * text
     - String, the new text in the box.
           
   onEditBoxDeactivated event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * text
     - String, the current text in the box.
   * textchanged
@@ -358,12 +387,19 @@ Complex properties:
     - Color, positive value if fromCenter is true
   * negValueColor = Helper.defaultSliderCellNegativeValueColor
     - Color, negative value if fromCenter is true
-  * min, max = 0
-    - Min/max values the bar is sized for
-  * minSelect, maxSelect = none
-    - Min/max values the player may select.
-    - Defaults to min/max
+  * min = 0
+    - Min value the bar is sized for
+  * max = 0
+    - Max value the bar is sized for
+    - Updateable
+  * minSelect = none
+    - Min value the player may select.
+    - Defaults to min
     - Do not use maxSelect if exceedMaxValue is true
+  * maxSelect
+    - Max value the player may select.
+    - Defaults to max
+    - Updateable
   * start = 0
     - Initial value
   * step = 1
@@ -390,20 +426,20 @@ Complex properties:
       
       
   onSliderCellChanged event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * value
     - Longfloat, current value of the slider.
         
   onSliderCellActivated event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
         
   onRightClick event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * posx, posy
     - Coordinates of the widget (likely not useful).
         
   onSliderCellConfirm event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * value
     - Longfloat, current value of the slider.
   * valuechanged
@@ -443,6 +479,7 @@ Complex properties:
     - Cue to call when the player removes an option.
   * startOption = ""
     - String or number, id of the initially selected option.
+    - Updateable
   * active = true
    - Bool, if the widget is active.
   * bgColor = Helper.defaultButtonBackgroundColor
@@ -470,15 +507,15 @@ Complex properties:
         
         
   onDropDownActivated event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
           
   onDropDownConfirmed event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * id
     - String or number, id of the selected option.
         
   onDropDownRemoved event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * id
     - String or number, id of the removed option.
         
@@ -498,12 +535,16 @@ Complex properties:
     - Standard cell properties    
   * icon = ""
     - String, icon id
+    - Updateable
   * color = Helper.standardColor
     - Color
+    - Updateable
   * text
     - TextProperty
+    - Updateable text
   * text2
     - TextProperty
+    - Updateable text
       
 * Make_CheckBox
   
@@ -520,13 +561,14 @@ Complex properties:
     - Cue to callback when the checkbox is clicked.
   * checked = false
     - Bool or int, if checked initially.
+    - Updateable
   * bgColor = Helper.defaultCheckBoxBackgroundColor
    - Color of background.
   * active = true
    - Bool, if the widget is active.
        
   onClick event returns:
-  * row, col, echo, event
+  * row, col, echo, event, id
   * checked
     - Int, 0 or 1, checkbox status after click.
         
@@ -546,10 +588,13 @@ Complex properties:
     - Standard cell properties
   * current = 0
     - Int
+    - Updateable
   * start = 0
     - Int
+    - Updateable
   * max = 0
     - Int
+    - Updateable
   * valueColor = Helper.defaultStatusBarValueColor
     - Color
   * posChangeColor = Helper.defaultStatusBarPosChangeColor
@@ -568,4 +613,15 @@ Complex properties:
     - String, command to send to lua.
   * ...
     - Any args requied for the command.
+    
+* Update_Widget
+  
+  Update a widget's state after creation.
+      
+  Param: Table with the following items
+  * id
+    - String, original id assigned to the widget at creation.
+  * ...
+    - Any args to be updated, matching the original widget creation args layout.
+    - Which widget properties can be updated depends on the specific widget.
     

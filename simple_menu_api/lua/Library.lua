@@ -244,23 +244,36 @@ end
 -- Update the first table with entries from the second table, except where
 -- there is a conflict. Works recursively on subtables.
 -- Returns early if right side is nil.
--- If the default is a boolean and the main table has a 0/1 in that spot,
--- it will be converted to a corresponding bool false/true; this done to
--- cleanup md failure to transfer bools properly.
+-- Does an automatic call of Cast_Bool_Args.
 function lib.Fill_Defaults(left, right)
     if not right then return end
     for k, v in pairs(right) do
         if left[k] == nil then
             left[k] = v
-        elseif type(v) == "boolean" then
-            -- Swap 0/1 to false/true.
-            if left[k] == 0 then
-                left[k] = false
-            else
-                left[k] = true
-            end
         elseif type(left[k]) == "table" and type(v) == "table" then
             lib.Fill_Defaults(left[k], v)
+        end
+    end
+end
+
+
+-- Cast any non-bool args to bool.
+-- If the default is a boolean and the main table has a 0/1 in that spot,
+-- it will be converted to a corresponding bool false/true; this done to
+-- cleanup md failure to transfer bools properly.
+function lib.Fix_Bool_Args(args, defaults)
+    if not defaults then return end
+    for k, v in pairs(defaults) do
+        if type(v) == "boolean" then
+            -- Swap 0/1 to false/true. Does nothing if already bool.
+            if args[k] == 0 then
+                args[k] = false
+            elseif args[k] == 1 then
+                args[k] = true
+            end
+        -- Recursively handle subtables.
+        elseif type(args[k]) == "table" and type(v) == "table" then
+            lib.Fix_Bool_Args(args[k], v)
         end
     end
 end
@@ -279,6 +292,43 @@ function lib.Print_Table(itable, name)
         str = str .. "["..k.."] = "..tostring(v).." ("..type(v)..")\n"
     end
     DebugError(str)
+end
+
+
+-- Chained table lookup, using a series of key names.
+-- If any key fails, returns nil.
+-- 'itable' is the top level table.
+-- 'keys' is a list of string or int keys, processed from index 0 up.
+-- If keys is empty, the itable is returned.
+function lib.Multilevel_Table_Lookup(itable, keys)
+    if #keys == 0 then
+        return itable
+    end
+    local temp = itable
+    for i = 1, #keys do
+        -- Dig in one level.
+        temp = temp[keys[i]]
+        -- If nil, quick return.
+        if temp == nil then
+            return nil
+        end
+    end
+    return temp
+end
+
+
+-- Function to take a slice of a list (table ordered from 1 and up).
+function lib.Slice_List(itable, start, stop)
+    local otable = {}
+    for i = start, stop do
+        -- Stop early if ran out of table content.
+        if itable[i] == nil then
+            return otable
+        end
+        -- Else copy over one entry.
+        table.insert(otable, itable[i])
+    end
+    return otable
 end
 
 

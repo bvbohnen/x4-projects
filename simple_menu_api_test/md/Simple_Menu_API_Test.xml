@@ -48,6 +48,7 @@
         $height  = null,
         $offsetX = null,
         $offsetY = null,
+        $button_presses = 0,
       ]" />
       <!-- Specs for widgets to edit these vars. -->
       <!-- Note: a typo in the lua limits x4 to 5 edit boxes, so rely on using sliders. -->
@@ -88,7 +89,7 @@
           $mouseOverText='Interractable widget'
           ]"/>
 
-      <!-- Button -->
+      <!-- Button, with text counter. -->
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
       <signal_cue_instantly
         cue="md.Simple_Menu_API.Make_Label"
@@ -101,13 +102,15 @@
         cue="md.Simple_Menu_API.Make_Button"
         param = "table[
           $col = 2, 
-          $text = table[$text='Button', $color='Helper.color.brightyellow'],
+          $id = 'count_button',
+          $text = table[$text=''+Globals.$vars.{'$button_presses'}, $color='Helper.color.brightyellow'],
           $onClick = Handle_Menu_Action,
+          $onRightClick = Handle_Menu_Action,
           $hotkey = table[
             $action = 'INPUT_STATE_MOUSECLICK',
             $displayIcon = true],
           ]"/>
-        <!--Note: hotkey tests all failed.-->
+        <!--Note: hotkey tests all failed so far.-->
 
       <!-- CheckBox -->
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
@@ -351,6 +354,26 @@
       <actions>
         <debug_text text="'Response: %s'.[event.param]" 
                 chance="100" filter="general"/>
+        
+        <!-- Test dynamic update, using button press counter. -->
+        <do_if value="event.param.$id == 'count_button'">
+
+          <!-- Update the global counter; up on left, down on right. -->
+          <do_if value="event.param.$event == 'onClick'">
+            <set_value name="Globals.$vars.{'$button_presses'}" operation="add"/>
+          </do_if>
+          <do_if value="event.param.$event == 'onRightClick'">
+            <set_value name="Globals.$vars.{'$button_presses'}" operation="subtract"/>
+          </do_if>
+
+          <!-- Update the button. -->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Update_Widget"
+            param = "table[
+              $id = 'count_button',
+              $text = table[$text=''+Globals.$vars.{'$button_presses'}],
+              ]"/>
+        </do_if>               
       </actions>
     </cue>
 

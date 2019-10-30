@@ -23,3 +23,5 @@ Change Log
 * 0.7
   - Added checkbox support.
   - Added option to remove stock menu open animations.
+* 0.8
+  - Added support for dynamically updating widgets in live menus.

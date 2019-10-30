@@ -401,6 +401,14 @@ function menu.Make_Menu_Shell(menu_spec)
         })
     -- Size the first column under the back arrow.
     ftable:setColWidth(1, menu.table.arrowColumnWidth, false)
+
+    -- Set widget defaults that match gameoptions.
+    ftable:setDefaultCellProperties("button",                    { height = config.standardTextHeight })
+    ftable:setDefaultComplexCellProperties("button", "text",     { x = config.standardTextOffsetX, fontsize = config.standardFontSize })
+    ftable:setDefaultCellProperties("dropdown",                  { height = config.standardTextHeight })
+    ftable:setDefaultComplexCellProperties("dropdown", "text",   { x = config.standardTextOffsetX, fontsize = config.standardFontSize })
+    ftable:setDefaultCellProperties("slidercell",                { height = config.standardTextHeight })
+    ftable:setDefaultComplexCellProperties("slidercell", "text", { x = config.standardTextOffsetX, fontsize = config.standardFontSize })
                 
     return frame, ftable
 end
@@ -465,6 +473,7 @@ function menu.Display_Custom_Menu(menu_spec)
     menu_data.ftable = ftable
     menu_data.columns = menu_spec.columns    
     menu_data.mode = "options"
+    menu_data.col_adjust = 1
     -- No delay on commands; the menu is ready right away.
     menu_data.delay_commands = false
     

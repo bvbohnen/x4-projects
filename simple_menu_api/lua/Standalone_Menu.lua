@@ -123,6 +123,10 @@ end
 
 -- Set up a gui frame.
 function menu.createInfoFrame()
+    -- Most menus have this at opening. When it was skipped, various
+    -- warnings showed up in log: "GetCellContent(): invalid table ID".
+    Helper.clearDataForRefresh(menu, config.infoLayer)
+
     -- TODO: revisit if needed.
     -- Presumably this allows for assigning menu subframes to layer numbers,
     -- and this command can clear a specific layer that holds dynamic data
@@ -160,8 +164,9 @@ function menu.createInfoFrame()
     -- by commands.
     menu_data.ftable = ftable
     menu_data.columns = menu.user_settings.columns
-    menu_data.frame = frame
+    menu_data.frame = menu.infoFrame
     menu_data.mode = "standalone"
+    menu_data.col_adjust = 0
 
     -- Process all of the delayed commands, which depended on the above
     -- table being initialized.
@@ -179,7 +184,9 @@ function menu.createInfoFrame()
     -- are made to the menu.
     -- TODO: maybe scrap this and rely on user calling Disply_Menu.
     menu.infoFrame:display()
-    
+        
+    -- Stop delaying commands now that menu is ready.
+    menu_data.delay_commands = false
 end
 
 

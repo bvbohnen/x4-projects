@@ -40,6 +40,11 @@ tables.menu_data = {
     -- Mode will be a string, either "options" or "standalone", based on
     -- the active menu type.
     mode = nil,
+
+    -- Adjustment to apply to user supplied column numbers, to get
+    -- the real col.
+    -- Expected to be 1 for options, 0 for standalone.
+    col_adjust = nil,
     
     -- Flag, if incoming commands (other than creating/closing tables)
     -- need to be delayed. True for standalone menus, false for options
