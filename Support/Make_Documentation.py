@@ -35,6 +35,10 @@ extension_dirs = {
         'src': project_dir / 'X4_Simple_Menu_API/simple_menu_api',
         'doc': project_dir / 'X4_Simple_Menu_API',
         },
+    'time_api': {
+        'src': project_dir / 'X4_Time_API/time_api',
+        'doc': project_dir / 'X4_Time_API',
+        },
     }
 
 # Name to use for the generated doc file.
@@ -46,6 +50,7 @@ def Run():
     Make_Key_Capture_Doc()
     Make_Named_Pipes_Doc()
     Make_Simple_Menu_Doc()
+    Make_Time_Doc()
     return
 
 
@@ -65,6 +70,27 @@ def Make_Lua_Loader_Doc():
     Make_BB_Code(doc_dir, header_lines = [
         # TODO: put header in the source doc.
         r'Download: [url]https://github.com/bvbohnen/x4-lua-loader-api/releases[/url]',
+        '',
+        ])
+    return
+
+
+def Make_Time_Doc():
+    '''
+    Document time_api.
+    '''
+    ext_dir = extension_dirs['time_api']['src']
+    doc_dir = extension_dirs['time_api']['doc']
+    
+    # Run the update function on the content.xml.
+    Version.Update_Content_Version(doc_dir, ext_dir)
+
+    # The readme is all hand written for now.
+
+    # Set up the bbcode version.
+    Make_BB_Code(doc_dir, header_lines = [
+        # TODO: put header in the source doc.
+        r'Download: [url]https://github.com/bvbohnen/x4-time-api/releases[/url]',
         '',
         ])
     return

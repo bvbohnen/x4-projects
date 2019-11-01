@@ -10,3 +10,6 @@
 [submodule "X4_Named_Pipes_API"]
 	path = X4_Named_Pipes_API
 	url = https://github.com/bvbohnen/x4-named-pipes-api.git
+[submodule "X4_Time_API"]
+	path = X4_Time_API
+	url = https://github.com/bvbohnen/x4-time-api.git

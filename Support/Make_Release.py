@@ -78,8 +78,23 @@ release_files_specs = {
         'files':[
             'Readme.md',
             'simple_menu_api/content.xml',
-            'simple_menu_api/Simple_Menu.lua',
             'simple_menu_api/md/Simple_Menu_API.xml',
+            'simple_menu_api/md/Simple_Menu_Options.xml',
+            'simple_menu_api/lua/Custom_Options.lua',
+            'simple_menu_api/lua/Interface.lua',
+            'simple_menu_api/lua/Library.lua',
+            'simple_menu_api/lua/Options_Menu.lua',
+            'simple_menu_api/lua/Standalone_Menu.lua',
+            'simple_menu_api/lua/Tables.lua',
+        ]},
+    'Time_API':{ 
+        'root_path':project_dir / 'X4_Time_API', 
+        'doc_path' : '',
+        'files':[
+            'Readme.md',
+            'time_api/content.xml',
+            'time_api/md/Time_API.xml',
+            'time_api/Time_API.lua',
         ]},
     }
 
