@@ -25,3 +25,9 @@ Change Log
   - Added option to remove stock menu open animations.
 * 0.8
   - Added support for dynamically updating widgets in live menus.
+* 0.9
+  - Added box-text, status-bar, icon widgets.
+  - Added param support to Add_Row.
+  - Changed args for Send_Command.
+  - Added option to adjust mouseover font size globally.
+  - Varous bugfixes and refinements.

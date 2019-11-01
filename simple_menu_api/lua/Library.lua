@@ -3,10 +3,6 @@
     Mostly string or table processing.
 ]]
 
-local Tables = require("extensions.simple_menu_api.lua.Tables")
-local debugger = Tables.debugger
-
-
 -- Table to hold lib functions.
 local lib = {}
 
@@ -144,7 +140,6 @@ TODO: maybe support dynamic code execution for complex args that want
  to use lua data (eg. Helper.viewWidth for window size adjustment sliders),
  using loadstring(). This is probably a bit niche, though.
  
-TODO: remove arg type conversion support; maybe just throw error on mismatch.
 ]]
 function lib.Validate_Args(args, arg_specs)
     -- Loop over the arg_specs list.
@@ -174,9 +169,11 @@ function lib.Validate_Args(args, arg_specs)
             elseif argtype == "boolean" then
                 -- MD transferred false as 0, true as 1. Both of these
                 -- lua counts as true, so handle manually.
-                if args[name] == 0 or not args[name] then
+                -- Only check 0/1, so this is safe against a prior call
+                -- already having converted to bool.
+                if args[name] == 0 then
                     args[name] = false
-                else
+                elseif args[name] == 1 then
                     args[name] = true
                 end
             end
@@ -213,11 +210,6 @@ function lib.Replace_Helper_Args(args)
                 DebugError("Simple Menu: Failed lookup of helper const: "..v)
             end
 
-            -- Debug log.
-            if debugger.verbose then
-                DebugError("Replaced '"..v.."' with a Helper const")
-            end
-
             -- Put it back.
             args[k] = temp
 
@@ -231,8 +223,10 @@ end
 
 -- Returns a filtered version of the input table, keeping only those keys
 -- that are in the 'filter' list of strings.
+-- Returns early if filter is nil.
 function lib.Filter_Table(in_table, filter)
     local out_table = {}
+    if not filter then return in_table end
     -- Can just do a direct transfer; nil's take care of missing keys.
     for i, field in ipairs(filter) do
         out_table[field] = in_table[field]
@@ -244,7 +238,6 @@ end
 -- Update the first table with entries from the second table, except where
 -- there is a conflict. Works recursively on subtables.
 -- Returns early if right side is nil.
--- Does an automatic call of Cast_Bool_Args.
 function lib.Fill_Defaults(left, right)
     if not right then return end
     for k, v in pairs(right) do
@@ -252,6 +245,28 @@ function lib.Fill_Defaults(left, right)
             left[k] = v
         elseif type(left[k]) == "table" and type(v) == "table" then
             lib.Fill_Defaults(left[k], v)
+        end
+    end
+end
+
+-- Update the left table with contents of the right one, overwriting
+-- when needed. Any subtables are similarly updated (not directly
+-- overwritten). Tables in right should always match to tables or nil in left.
+-- Returns early if right side is nil.
+function lib.Table_Update(left, right)
+    -- Similar to above, but with blind overwrites.
+    if not right then return end
+    for k, v in pairs(right) do
+        -- Check for left having a table (right should as well).
+        if type(left[k]) == "table" then
+            -- Error if right is not a table or nil.
+            if type(v) ~= "table" then
+                DebugError("Table_Update table type mismatch at "..tostring(k))
+            end
+            lib.Table_Update(left[k], v)
+        else
+            -- Direct write (maybe overwrite).
+            left[k] = v
         end
     end
 end

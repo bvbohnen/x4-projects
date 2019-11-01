@@ -46,6 +46,19 @@ local menu = {
     Process_Delayed_Commands = nil,
 }
 
+-- Custom defaults, generally patterened off code in gameoptions.
+menu.custom_widget_defaults = {
+    -- Don't use text overrides like the options menu; user may want
+    -- the smaller default fonts.
+
+    -- Center button labels.
+    ["button"] = {text = {halign = "center"}},
+
+    -- Blank row backgrounds.
+    ["row"] = { bgColor = Helper.color.transparent },
+}
+
+
 local function Init()
     -- Register menu; uses its name.
     Menus = Menus or {}
@@ -103,6 +116,8 @@ end
 function menu.cleanup()
     menu.is_open = false
     menu.infoFrame = nil
+    menu.user_settings = nil
+
     -- Reset menu_data as well. This is somewhat redundant with reset
     -- on opening a new menu, but should let garbage collection run
     -- sooner when the current menu closed properly.
@@ -125,17 +140,12 @@ end
 function menu.createInfoFrame()
     -- Most menus have this at opening. When it was skipped, various
     -- warnings showed up in log: "GetCellContent(): invalid table ID".
-    Helper.clearDataForRefresh(menu, config.infoLayer)
+    -- Note: still get those warnings after putting this back.
+    Helper.clearDataForRefresh(menu, config.optionsLayer)
+    
+    -- TODO: is this useful?
+    --Helper.clearFrame(menu, config.optionsLayer)
 
-    -- TODO: revisit if needed.
-    -- Presumably this allows for assigning menu subframes to layer numbers,
-    -- and this command can clear a specific layer that holds dynamic data
-    -- while leaving static layers (bordering and such) untouched so they
-    -- are only built once.
-    -- In this case, however, nearly the entire menu is dynamic and rebuilt
-    -- every time.
-    --Helper.clearDataForRefresh(menu, menu.infoLayer)
-        
     -- Set frame properties using a table to be passed as an arg.
     -- Note: width and X offset are known here; height and Y offset are
     -- computed later based on contents.
@@ -166,6 +176,7 @@ function menu.createInfoFrame()
     menu_data.columns = menu.user_settings.columns
     menu_data.frame = menu.infoFrame
     menu_data.mode = "standalone"
+    menu_data.custom_widget_defaults = menu.custom_widget_defaults
     menu_data.col_adjust = 0
 
     -- Process all of the delayed commands, which depended on the above
@@ -234,33 +245,8 @@ function menu.createTable(frame)
         y = title_table.properties.y + title_table:getVisibleHeight() + Helper.borderSize,
         
         -- Makes the table the interactive widget of the frame.
-        defaultInteractiveObject = true 
+        defaultInteractiveObject = false, 
     })
-        
-    -- Removed; no longer put a back button with title on first ftable row.
-    ---- Narrow the first column, else the button is super wide.
-    ---- TODO: it is still kinda oddly sized.
-    ---- TODO: make button optional; not really meaningful for standalone
-    ---- menus besides being an obvious way to close it.
-    --ftable:setColWidth(1, config.table.arrowColumnWidth, false)
-    --
-    ---- TODO: change title bar handling:
-    ----  a) remove back button; standard window buttons are cleaner.
-    ----  b) split title bar into a separate table or widget, so that the main table can scroll.
-    ----  c) make title bar optional.
-    --
-    ---- First row holds title.
-    ---- Note: first arg needs to be '{}' instead of 'true' to avoid a ui
-    ---- crash when adding a button to the first row (with log error about that
-    ---- not being allowed).
-    ---- TODO: make unfixed?
-    --local row = ftable:addRow({}, { fixed = true, bgColor = Helper.color.transparent })
-    ---- Left side will be a back button.
-    ---- Sizing/fonts largely copied from ego code.
-    --row[1]:createButton({ height = config.headerTextHeight }):setIcon(config.backarrow, { x = config.backarrowOffsetX })
-    --row[1].handlers.onClick = function () return menu.onCloseElement("back", true) end
-    ---- Make the title itself, in a header font.
-    --row[2]:setColSpan(menu.user_settings.columns):createText(menu.user_settings.title, config.headerTextProperties)
         
     return ftable
 end

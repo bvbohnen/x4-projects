@@ -1,15 +1,171 @@
 
+### Simple Menu API Overview
+
+
+MD api for interfacing with a simple lua menu. The menu will support a 2d table of labels, buttons, and text fields. On player interaction, the lua will inform this api, which will in turn activate callback cues provided by the api user.
+
+After creation, widgets may be partially updated at any time. This is detailed in the Update_Widget cue.    
+
+Note: raise_lua_event only supports passing strings, numbers, or components. This api will pass complex tables of args using a blackboard var: player.entity.$simple_menu_args
+  
+
+
+
+### Widget arguments and properties overview
+    
+Many of the following cues share some common arguments or arg data types, described here. Note: many of these can be replaced with a constant looked up in the egosoft api backend Helper module. Possible options are included at the end of this documentation.
+    
+API args (all widgets)
+  * col
+    - Integer, column of the row to place the widget in.
+    - Uses 1-based indexing.
+    - Note: row columns may not always align with table columns:
+      - This actually sets the widget as the Nth cell of the row,
+      - Row column alignment with the table columns depends on the sizes of all prior row cells (as possibly adjusted by colSpan).
+      - Eg. if the widget in col=1 had a colSpan=2, then a new col=2 widget will align with table column 3.
+    - Required for now.
+  * colSpan = 1
+    - Int, how many columns the widget will span.
+  * id = none
+    - String, unique identifier for the widget.
+    - Optional, but needed for Update_Widget calls.
+  * echo = none
+    - May be any data type.
+    - This is returned in the table sent to signalled callback cues, for user convenience.
+    
+Widget properties (all widgets)
+  * scaling = true
+    - Bool, coordinates and dimensions will be scaled by the ui scaling factor.
+  * width, height = 0
+    - Ints, widget dimension overrides.
+  * x, y = 0
+    - Ints, placement offsets.
+  * mouseOverText = ""
+    - String, text to display on mouseover.
+        
+Cell properties (all widgets)
+  * cellBGColor = Helper.defaultSimpleBackgroundColor
+    - Color, cell background color.
+  * uiTriggerID = none
+    - String, if present then this is the control field for ui triggered events on widget activations.
+    - Ignore for now; api handles callback cues directly.
+        
+Events (depends on widget)
+  * on<___> (onClick, onTextChanged, etc.)
+    - Optional callback cue.
+    - When the player interacts with most widgets, ui events will occur. On such events, a provided cue will be called with the event results.
+    - All event.param tables will include these fields:
+      * row, col
+        - Longfloat, coordinate of the activated widget.
+        - Primarily for use by this backend.
+      * id
+        - String id given to the widget at creation, or null.
+      * event
+        - String, name of the event, matching the arg name.
+        - Eg. "onClick".
+      * echo
+        - Same as the "echo" arg provided to widget creation.
+    - Extra contents of the event.param are described per widget below.
+        
+Misc properties (depends on widget):
+  * font
+    - String, font to use.
+    - Typical options: 
+      - "Zekton"
+      - "Zekton bold"
+      - "Zekton fixed"
+      - "Zekton bold fixed"
+      - "Zekton outlined"
+      - "Zekton bold outlined"
+  * fontsize
+    - Int, typically in the 9 to 12 range.
+  * halign
+    - String, text alignment, one of ["left", "center", "right"].
+  * minRowHeight
+    - Int, minimal row height, including y offset.
+        
+Complex properties:
+  * Color
+    - Table of ["r", "g", "b", "a"] integer values in the 0-255 range.
+  * TextProperty
+    - Table describing a text field.
+    - Note: in some widgets "text" is a string, others "text" is a TextProperty table.
+    - Fields:
+      * text = ""
+      * halign = Helper.standardHalignment
+      * x = 0
+      * y = 0
+      * color = Helper.standardColor
+      * font = Helper.standardFont
+      * fontsize = Helper.standardFontSize
+      * scaling = true
+  * IconProperty
+    - Table describing an icon.
+    - Fields:
+      * icon = ""
+        - Icon name
+        - See libraries/icons.xml for options.
+      * swapicon = ""
+      * width = 0
+      * height = 0
+      * x = 0
+      * y = 0
+      * color = Helper.standardColor
+      * scaling = true
+  * HotkeyProperty
+    - Table describing an activation hotkey.
+    - See libraries/contexts.xml for potential options.
+    - Note: hotkeys have not yet worked in testing.
+    - Fields:
+      * hotkey = ""
+        - String, the hotkey action, matching a valid INPUT_STATE.
+      * displayIcon = false
+        - Bool, if the widget displays the associated icon as a hotkey.
+      * x = 0
+      * y = 0
+        - Offsets of the icon if displayIcon is true.
+  * StandardButtonProperty
+    - Table specifying which menu level buttons to include.
+    - Fields:
+      * close = true
+      * back = true
+      * minimize = false
+
 ### Simple Menu API Cues
 
 * Reloaded
   
   Dummy cue used for signalling that the game or ui was reloaded. Users that are registering options menus should listen to this cue being signalled.
     
-* Clock
+
+
+
+#### Generic Command Cue
+    
+* Send_Command
   
-  Dummy cue used for signalling when the menu system is requesting an update, approximately every 0.1 seconds.  This will continue to trigger during game pauses, unlike MD delays. Users may listen to this to trigger widget property updates.
+  Generic cue for sending commands to lua. Other api cues redirect here to interface with the lua backend. Users may utilize this cue if they find it more convenient. See other cues for arg descriptions.
       
-  Pending development.
+  Param: Table with the following items:
+  * command
+    - String, the command to send.
+    - Supported commands:
+      - Register_Options_Menu
+      - Create_Menu
+      - Close_Menu
+      - Display_Menu
+      - Add_Submenu_Link
+      - Add_Row
+      - Make_Widget
+      - Update_Widget
+  * ...
+    - Any args requied for the command.
+    - Note: Make_Widget commands require a $type string to specify the widget type (found quoted in per-widget descriptions).
+      
+
+
+
+#### Menu Creation Cues
     
 * Register_Options_Menu
   
@@ -55,9 +211,14 @@
   
   Create a fresh standalone menu. Note: these menus are not attached to the normal options menu. To be followed by Add_Row and similar cue calls to fill in the menu.
       
+  Each menu created will internally be given a frame to hold a table in which widgets will be placed.  The frame and table properties are also set with this cue.
+      
+  Note: table and frame properties are pending development.
+      
   Param: Table with the following items:
     * columns
       - Integer, total number of columns in the menu table.
+      - Max is 13.
     * title
       - Text to display in the table header.
     * width
@@ -69,9 +230,71 @@
       - Ints, optional, amount of space between menu and screen edge.
       - Positive values taken from top/left of screen, negative values from bottom/right of screen.
       - Defaults will center the menu.
-    * onClose_cue
+    * onClose
       - Cue, optional, signalled when the menu is closed.
       - The event.param will be "back" or "close" depending on if the menu back button was pressed.
+    * frame
+      - Subtable, properties for the frame, as follows:
+      * exclusiveInteractions = false
+        - Bool, if interactions (player input) are exclusive to this view.
+        - TODO: is those only as compared to other frames?  maybe drop.
+      * backgroundID = ""
+        - String, name of an icon to use as the background texture.
+        - If blank, no background applied.
+      * backgroundColor = Helper.color.white
+        - Color of the background texture.
+      * overlayID = ""
+        - String, name of an icon to use as an overlay effect.
+      * overlayColor = Helper.color.white
+        - Color of the overlay texture.
+      * standardButtons = Helper.standardButtons_CloseBack
+        - StandardButtonProperty
+        - Which standard buttons will be given, eg. back/minimize/close.
+        - These are generally placed in the top right.
+      * standardButtonX = 0
+        - Int, x offset for the buttons.
+      * standardButtonY = 0
+        - Int, y offset for the buttons.
+      * showBrackets = false
+        - Bool, if frame brackets will be shown.
+      * autoFrameHeight = false
+        - Bool, if the frame height will be autocalculated based on contents.
+        - TODO: how does this interact with menu height.
+      * closeOnUnhandledClick = false
+        - Bool, if the menu triggers an onHide even if the player clicks outside of its area.
+        - Pending development.
+      * playerControls = false
+        - Bool, if player controls are enabled while the menu is open.
+      * startAnimation = true
+        - Bool, if a menu start animation is played.
+      * enableDefaultInteractions = true
+        - Bool, if default inputs are enabled (escape, delete, etc.).
+    * table
+      - Subtable, properties for the table of widgets, as follows:
+      * tabOrder = 1
+        - Int, 0 sets table as non-interactive, 1 as interactive.
+        - Generally leave as 1 unless it is purely an info display.
+      * skipTabChange = false
+        - Bool, if tabbing will skip selecting this table's contents.
+        - Pending testing.
+      * defaultInteractiveObject = false
+        - Bool, sets this table as the interactive object of the frame by default.
+        - TODO: maybe support.
+      * borderEnabled = true
+        - Bool, if the table cells have a background color.
+      * reserveScrollBar = true
+        - Bool, if the table width reserves space for a scrollbar.
+      * wraparound = false
+        - Bool, if arrow key traversal of table cells will wrap around edges.
+      * highlightMode = "on"
+        - String, controls highlighting behavior of table selections.
+        - One of ["on","column","off","grey"]
+      * multiSelect = false
+        - Bool, whether the table allows selection of multiple cells.
+      * backgroundID = ""
+        - String, name of an icon to use as the background texture.
+      * backgroundColor = Helper.color.white
+        - Color of the background texture.
       
 * Display_Menu
   
@@ -87,134 +310,36 @@
     * menu_id
       - String, unique id of the submenu to be opened, as set at registration.
       
+
+
+
+#### Widget Creation Cues
+    
 * Add_Row
   
-  Add a row to the current menu. Following Make_ commands add to the most recently added row.
+    Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 130 rows.
       
-
-
-
-### Widget arguments and properties overview
-    
-The following "Make_" cues create widgets. Many of them share some common arguments or arg data types, described here.
-    
-After creation, widgets may be partially updated at any time. This is detailed in the Update_Widget cue.
-    
-In the egosoft backend, there is a "Helper" module which defines many constants used in the standard menus such as colors, fonts, etc. Arguments may optionally be given as a string matching a Helper const, eg. "Helper.color.brightyellow".
-    
-    
-API args (all widgets)
-* col
-  - Integer, column to place the widget in.
-  - Uses 1-based indexing.
-  - Required for now.
-* id = none
-  - String, unique identifier for the widget.
-  - Optional, but needed for Update_Widget calls.
-* echo = none
-  - May be any data type.
-  - This is returned in the table sent to signalled callback cues, for user convenience.
-    
-Widget properties (all widgets)
-* scaling = true
-  - Bool, coordinates and dimensions will be scaled by the ui scaling factor.
-* width, height = 0
-  - Ints, widget dimension overrides.
-* x, y = 0
-  - Ints, placement offsets.
-* mouseOverText = ""
-  - String, text to display on mouseover.
-        
-Cell properties (all widgets)
-* cellBGColor = Helper.defaultSimpleBackgroundColor
-  - Color, cell background color.
-* uiTriggerID = none
-  - String, if present then this is the control field for ui triggered events on widget activations.
-  - Ignore for now; api handles callback cues directly.
-        
-Events (depends on widget)
-* on<___> (onClick, onTextChanged, etc.)
-  - Optional callback cue.
-  - When the player interacts with most widgets, ui events will occur. On such events, a provided cue will be called with the event results.
-  - All event.param tables will include these fields:
-    * row, col
-      - Longfloat, coordinate of the activated widget.
-      - Primarily for use by this backend.
-    * id
-      - String id given to the widget at creation, or null.
-    * event
-      - String, name of the event, matching the arg name.
-      - Eg. "onClick".
-    * echo
-      - Same as the "echo" arg provided to widget creation.
-  - Extra contents of the event.param are described per widget below.
-        
-Misc properties (depends on widget):
-* font
-  - String, font to use.
-  - Typical options: 
-    - "Zekton"
-    - "Zekton bold"
-    - "Zekton fixed"
-    - "Zekton bold fixed"
-    - "Zekton outlined"
-    - "Zekton bold outlined"
-* fontsize
-  - Int, typically in the 9 to 12 range.
-* halign
-  - String, text alignment, one of ["left", "center", "right"].
-* minRowHeight
-  - Int, minimal row height, including y offset.
-        
-Complex properties:
-* Color
-  - Table of ["r", "g", "b", "a"] integer values in the 0-255 range.
-* TextProperty
-  - Table describing a text field.
-  - Note: in some widgets "text" is a string, others "text" is a TextProperty table.
-  - Fields:
-    * text = ""
-    * halign = Helper.standardHalignment
-    * x = 0
-    * y = 0
-    * color = Helper.standardColor
-    * font = Helper.standardFont
-    * fontsize = Helper.standardFontSize
+    Param: Table with the following items.
+    * selectable = true
+      - Bool, if the row is selectable by the player.
+      - Should always be true for rows with interactable widgets.
     * scaling = true
-* IconProperty
-  - Table describing an icon.
-  - Fields:
-    * icon = ""
-      - Icon ID/name
-    * swapicon = ""
-    * width = 0
-    * height = 0
-    * x = 0
-    * y = 0
-    * color = Helper.standardColor
-    * scaling = true
-* HotkeyProperty
-  - Table describing an activation hotkey.
-  - See libraries/contexts.xml for potential options.
-  - Note: hotkeys have not yet worked in testing.
-  - Fields:
-    * hotkey = ""
-      - String, the hotkey action, matching a valid INPUT_STATE.
-    * displayIcon = false
-      - Bool, if the widget displays the associated icon as a hotkey.
-    * x = 0
-    * y = 0
-      - Offsets of the icon if displayIcon is true.
-          
+      - Bool, default ui scaling of cells (width/height/coordinates).
+      - For now, this is expected to be overridden by per-widget settings.
+    * fixed = false
+      - Bool, fixes the row in place so it cannot be scrolled.
+      - Requires prior rows also be fixed.
+    * borderBelow = true
+      - Shows a border gap before the next row, if present.
+    * bgColor = Helper.defaultSimpleBackgroundColor
+      - Color, background of the row.
+      - Sets default color of cells.
+    * multiSelected = false
+      - Bool, row is preselected for multiselect menu tables. },
+      
+* Make_Text
   
-
-
-
-### Widget Creation Cues
-    
-* Make_Label
-  
-  Make a label cell for displaying text. Adds to the most recent row.
+  Make a "text" cell for displaying non-interactive text. Adds to the most recent row.
       
   Param: Table with the following items
   * col, echo
@@ -236,12 +361,26 @@ Complex properties:
   * wordwrap
   * minRowHeight
       
+      
+  Hint: egosoft menus make horizontal gaps using wide, empty text cells. Example, assuming 2 table columns:
+  ```xml      
+    <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                          param ="table[$selectable = false]"/>
+    <signal_cue_instantly
+      cue="md.Simple_Menu_API.Make_Text"
+      param = "table[
+        $col = 1, 
+        $colSpan = 2,
+        $height = 'Helper.borderSize',
+        $fontsize = 1,
+        $cellBGColor = 'Helper.color.transparent60',
+        ]"/>
+  ```
+      
 * Make_BoxText
   
-  Make a box-text cell.  Similar to a label. Adds to the most recent row.
-      
-  Pending development.
-      
+  Make a "boxtext" cell.  Similar to text, but with an outlining box. Note: the outline box highlighting can behave oddly as the player interacts with other widgets. Adds to the most recent row.
+          
   Param: Table with the following items
   * col, echo
     - Standard api args
@@ -256,6 +395,7 @@ Complex properties:
   * color
     - Updateable
   * boxColor
+    - Color of the surrounding box.
     - Updateable
   * font
   * fontsize
@@ -264,7 +404,7 @@ Complex properties:
       
 * Make_Button
   
-  Make a pressable button cell. Adds to the most recent row.
+  Make a "button" cell. Adds to the most recent row.
       
   Param: Table with the following items.
   * col, echo
@@ -308,9 +448,9 @@ Complex properties:
       
 * Make_EditBox
   
-  Make a edit box cell, for text entry. Adds to the most recent row. Every letter change will trigger a callback.
+  Make an "editbox" cell, for text entry. Adds to the most recent row.
       
-  Warning: due to a (likely) typo bug, x4 is limited to 5 text edit boxes. If many edit fields are needed, consider using sliders for numeric values (limit 50), where users can click the slider displayed value to use it like an editbox.
+  Warning: due to a (likely) typo bug, x4 is limited to 5 text edit boxes in a single menu. If many edit fields are needed, consider using sliders for numeric values (limit 50), where users can click the slider displayed value to use it like an editbox.
       
   Param: Table with the following items
   * col, echo
@@ -360,7 +500,7 @@ Complex properties:
       
 * Make_Slider
   
-  Make a horizontal slider cell. Adds to the most recent row.
+  Make a horizontal "slidercell" cell. Adds to the most recent row.
       
   Param: Table with the following items
   * col, echo
@@ -378,7 +518,7 @@ Complex properties:
   * onSliderCellConfirm
     - Cue to call when the player deactivates the slider.
     - Triggers less often than onSliderCellChanged.
-    - Recommend using this in general.
+    - Recommended to use this over other events.
   * bgColor = Helper.defaultSliderCellBackgroundColor
     - Color of background.
   * valueColor = Helper.defaultSliderCellValueColor
@@ -423,6 +563,8 @@ Complex properties:
     - Value at which to show infinity when useInfiniteValue is true.
   * useTimeFormat = false
     - Bool, sets the slider to use a time format.
+  * text
+    - TextProperty
       
       
   onSliderCellChanged event returns:
@@ -449,7 +591,7 @@ Complex properties:
       
 * Make_Dropdown
   
-  Make a dropdown selection cell. Adds to the most recent row. Note: indices start at 1.
+  Make a "dropdown" selection cell. Adds to the most recent row. Note: indices start at 1.
       
   Param: Table with the following items
   * col, echo
@@ -522,10 +664,8 @@ Complex properties:
       
 * Make_Icon
   
-  Make an icon cell. Adds to the most recent row.
-      
-  Pending development.
-      
+  Make an "icon" cell. Note: many icons are large, and may need explicit width/height to adjust the sizing. Adds to the most recent row.
+          
   Param: Table with the following items
   * col, echo
     - Standard api args
@@ -548,7 +688,7 @@ Complex properties:
       
 * Make_CheckBox
   
-  Make a check-box. Adds to the most recent row.
+  Make a "checkbox" cell. Adds to the most recent row.
       
   Param: Table with the following items
   * col, echo
@@ -575,7 +715,7 @@ Complex properties:
       
 * Make_StatusBar
   
-  Make a status bar. Adds to the most recent row.
+  Make a "statusbar" cell. This is a bar that have a baseline value, is filled based on current value, and coloring is based on if the current is greater or less than the baseline. Adds to the most recent row.
       
   Pending development.
       
@@ -587,13 +727,14 @@ Complex properties:
   * cellBGColor, uiTriggerID
     - Standard cell properties
   * current = 0
-    - Int
+    - Int, determines fill of the bar.
     - Updateable
   * start = 0
-    - Int
+    - Int, baseline value of the bar. Coloring of bar depends on current compared to start.
     - Updateable
   * max = 0
-    - Int
+    - Int, max value of the bar, used for graphic scaling.
+    - Min value of the bar is always pinned at 0.
     - Updateable
   * valueColor = Helper.defaultStatusBarValueColor
     - Color
@@ -604,16 +745,6 @@ Complex properties:
   * markerColor = Helper.defaultStatusBarMarkerColor
     - Color
       
-* Send_Command
-  
-  General cue for packaging up a request and sending it to lua. This may be used instead of the Make_ command, by filling in a matching command name in the param table.
-      
-  Param: Table with the following items
-  * command
-    - String, command to send to lua.
-  * ...
-    - Any args requied for the command.
-    
 * Update_Widget
   
   Update a widget's state after creation.
@@ -625,3 +756,120 @@ Complex properties:
     - Any args to be updated, matching the original widget creation args layout.
     - Which widget properties can be updated depends on the specific widget.
     
+
+
+
+#### Helper Consts
+
+In the egosoft backend, there is a "Helper" module which defines many constants used in the standard menus such as colors, fonts, etc. Arguments may optionally be given as a string matching a Helper const, eg. "Helper.color.brightyellow". A selected list of possibly useful helper consts follows.  
+  
+* Font related
+  - Helper.standardFontBold = "Zekton bold"
+  - Helper.standardFontMono = "Zekton fixed"
+  - Helper.standardFontBoldMono = "Zekton bold fixed"
+  - Helper.standardFontOutlined = "Zekton outlined"
+  - Helper.standardFontBoldOutlined = "Zekton bold outlined"
+  - Helper.standardFont = "Zekton"
+  - Helper.standardFontSize = 9
+  - Helper.standardTextOffsetx = 5
+  - Helper.standardTextOffsety = 0
+  - Helper.standardTextHeight = 16
+  - Helper.standardTextWidth = 0
+  - Helper.titleFont = "Zekton bold"
+  - Helper.titleFontSize = 12
+  - Helper.titleOffsetX = 3
+  - Helper.titleOffsetY = 2
+  - Helper.titleHeight = 20
+  - Helper.headerRow1Font = "Zekton bold"
+  - Helper.headerRow1FontSize = 10
+  - Helper.headerRow1Offsetx = 3
+  - Helper.headerRow1Offsety = 2
+  - Helper.headerRow1Height = 20
+  - Helper.headerRow1Width = 0
+  
+* Sizing
+  - Helper.standardButtonWidth = 30
+  - Helper.standardButtonHeight = 20
+  - Helper.standardFlowchartNodeHeight = 30
+  - Helper.standardFlowchartConnectorSize = 10
+  - Helper.standardHotkeyIconSizex = 19
+  - Helper.standardHotkeyIconSizey = 19
+  - Helper.subHeaderHeight = 18
+  - Helper.largeIconFontSize = 16
+  - Helper.largeIconTextHeight = 32
+  - Helper.configButtonBorderSize = 2
+  - Helper.scrollbarWidth = 19
+  - Helper.buttonMinHeight = 23
+  - Helper.standardIndentStep = 15
+  - Helper.borderSize = 3
+  - Helper.slidercellMinHeight = 16
+  - Helper.editboxMinHeight = 23
+  - Helper.sidebarWidth = 40
+  - Helper.frameBorder = 25
+    
+* StandardButtonProperty
+  - Helper.standardButtons_CloseBack
+  - Helper.standardButtons_Close
+  
+* Colors
+  - Helper.color.black
+  - Helper.color.slidervalue
+  - Helper.color.green
+  - Helper.color.playergreen
+  - Helper.color.grey
+  - Helper.color.lightgreen
+  - Helper.color.lightgrey
+  - Helper.color.orange
+  - Helper.color.darkorange
+  - Helper.color.red
+  - Helper.color.semitransparent
+  - Helper.color.transparent60
+  - Helper.color.transparent
+  - Helper.color.white
+  - Helper.color.yellow
+  - Helper.color.brightyellow
+  - Helper.color.warning
+  - Helper.color.done
+  - Helper.color.available
+  - Helper.color.darkgrey
+  - Helper.color.mission
+  - Helper.color.warningorange
+  - Helper.color.blue
+  - Helper.color.standardColor
+  - Helper.color.statusRed
+  - Helper.color.statusOrange
+  - Helper.color.statusYellow
+  - Helper.color.statusGreen
+  - Helper.color.defaultHeaderBackgroundColor
+  - Helper.color.defaultSimpleBackgroundColor
+  - Helper.color.defaultTitleBackgroundColor
+  - Helper.color.defaultArrowRowBackgroundColor
+  - Helper.color.defaultUnselectableBackgroundColor
+  - Helper.color.defaultUnselectableFontColor
+  - Helper.color.defaultButtonBackgroundColor
+  - Helper.color.defaultUnselectableButtonBackgroundColor
+  - Helper.color.defaultButtonHighlightColor
+  - Helper.color.defaultUnselectableButtonHighlightColor
+  - Helper.color.defaultCheckBoxBackgroundColor
+  - Helper.color.defaultEditBoxBackgroundColor
+  - Helper.color.defaultSliderCellBackgroundColor
+  - Helper.color.defaultSliderCellValueColor
+  - Helper.color.defaultSliderCellPositiveValueColor
+  - Helper.color.defaultSliderCellNegativeValueColor
+  - Helper.color.defaultStatusBarValueColor
+  - Helper.color.defaultStatusBarPosChangeColor
+  - Helper.color.defaultStatusBarNegChangeColor
+  - Helper.color.defaultStatusBarMarkerColor
+  - Helper.color.defaultBoxTextBoxColor
+  - Helper.color.defaultFlowchartOutlineColor
+  - Helper.color.defaultFlowchartBackgroundColor
+  - Helper.color.defaultFlowchartValueColor
+  - Helper.color.defaultFlowchartSlider1Color
+  - Helper.color.defaultFlowchartDiff1Color
+  - Helper.color.defaultFlowchartSlider2Color
+  - Helper.color.defaultFlowchartDiff2Color
+  - Helper.color.defaultFlowchartConnector1Color
+  - Helper.color.defaultFlowchartConnector2Color
+  - Helper.color.defaultFlowchartConnector3Color
+      
+  

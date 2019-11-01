@@ -47,11 +47,11 @@
             - String, extended description of the option.
           * default
             - Anything, default value when the option is first stored.
-          * widget
-            - Table, arguments to pass to Send_Command to set up the
+          * type
+            - String, type of widget to make.
+          * args
+            - Table, extra arguments to pass to Send_Command to set up the
               display/control widget.
-            - TODO: think about how to fill this dynamically based on
-              current value.
     -->
     <cue name="Globals">
       <actions>
@@ -80,9 +80,23 @@
           table[
             $id         = '$disable_animations',
             $name       = 'Disable menu animations',
-            $mouseover  = 'Removes the animation of top menus opening, for a more responsive ui.',
+            $mouseover  = 'Removes the animation and associated delay for top menus opening',
             $default    = 0,
             $type       = 'button',
+            ],
+             
+          table[
+            $id         = '$tooltip_fontsize',
+            $name       = 'Adjust tooltip font size',
+            $mouseover  = 'Globally increases the font size of tooltips (originally 9 pt)',
+            $default    = 9,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 9,
+              $max      = 12,
+              $suffix   = 'pt',
+              $hideMaxValue = true,
+              ],
             ],
             
           ]" />
@@ -99,8 +113,7 @@
         <!-- Transmit current values to the lua, to restore after reload. -->
         <raise_lua_event
           name="'Simple_Menu_Options.disable_animations'"
-          param="Globals.$storage.$disable_animations"/>
-        
+          param="Globals.$storage.$disable_animations"/>        
           
       </actions>
     </library>
@@ -132,6 +145,10 @@
             <!--<set_value name="$args.$text.$color" exact="'Helper.color.red'"/>-->
           </do_else>
         </do_if>
+
+        <do_elseif value="$args.$type == 'slidercell'">          
+          <set_value name="$args.$start" exact="Globals.$storage.{$args.$id}"/>
+        </do_elseif>
         
       </actions>
     </library>
@@ -171,24 +188,44 @@
         
           <!-- Generic label -->
           <signal_cue_instantly
-            cue="md.Simple_Menu_API.Make_Label"
+            cue="md.Simple_Menu_API.Make_Text"
             param = "table[
               $col = 1, 
               $text = $option.$name, 
-              $mouseOverText = $option.$mouseover
+              $mouseOverText = $option.$mouseover,
+              $cellBGColor = 'Helper.color.transparent60',
               ]"/>
         
           <!-- Set up widget args, based on type. -->
           <do_if value="$option.$type == 'button'">
             <set_value name="$args" exact="table[
-              $command = 'Make_Button',
-              $id      = $option.$id,
+              $command = 'Make_Widget',
               $type    = 'button',
-              $onClick = Handle_Var_Change,
+              $id      = $option.$id,
               $text    = table[$halign='left'],
               $col     = 2,
               $echo    = $option.$id,
+              $onClick = Handle_Var_Change,
               ]"/>
+          </do_if>
+          <do_elseif value="$option.$type == 'slidercell'">
+            <set_value name="$args" exact="table[
+              $command = 'Make_Widget',
+              $type    = 'slidercell',
+              $id      = $option.$id,
+              $col     = 2,
+              $echo    = $option.$id,
+              $onSliderCellConfirm = Handle_Var_Change,
+              ]"/>
+          </do_elseif>
+          
+          <!-- Merge in any extra specified args. -->
+          <do_if value="$option.$args?">
+            <do_all exact="$option.$args.keys.list.count" counter="$i">
+              <set_value name="$key" exact="$option.$args.keys.list.{$i}"/>
+              <set_value name="$val" exact="$option.$args.{$key}"/>
+              <set_value name="$args.{$key}" exact="$val"/>
+            </do_all>
           </do_if>
           
           <!-- Set initial value. -->
@@ -222,11 +259,12 @@
           TODO; might be okay to put all update stuff in the lua, and just
           use the md for menu setup and value storage.
         -->
-        <set_value name="$id" exact="event.param.{'$id'}"/>
+        <set_value name="$id" exact="event.param.$id"/>
+        <debug_text text="'Handling: %s'.[$id]"
+                chance="100" filter="general"/>
         
+        <!--TODO: make generic on/off button handler.-->
         <do_if value="$id == '$disable_animations'">
-          <debug_text text="'Handling: %s'.[$id]"
-                  chance="100" filter="general"/>
           
           <!-- Toggle current option. -->
           <do_if value="Globals.$storage.{$id} == 0">
@@ -251,6 +289,19 @@
           <signal_cue_instantly cue="md.Simple_Menu_API.Update_Widget" param = "$args"/>
 
         </do_if>
+
+        <!--TODO: make generic slider handler.-->
+        <do_elseif value="$id == '$tooltip_fontsize'">
+          <do_if value="event.param.$valuechanged">
+            <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+            
+            <!-- Signal the lua, sending new font size. -->
+            <raise_lua_event
+              name="'Simple_Menu_Options.tooltip_fontsize'"
+              param="Globals.$storage.{$id}"/>
+
+          </do_if>
+        </do_elseif>
         
       </actions>
     </cue>

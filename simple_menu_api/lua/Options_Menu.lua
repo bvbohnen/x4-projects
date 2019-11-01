@@ -147,6 +147,53 @@ local Lib = require("extensions.simple_menu_api.lua.Library")
 -- Container for local functions that will be exported.
 local menu = {}
 
+-- Custom defaults, generally patterened off code in gameoptions.
+menu.custom_widget_defaults = {
+    ["text"] = config.standardTextProperties,
+
+    -- Center button labels.  Note: a lot of options put this back to left
+    -- aligned, so maybe this isn't the best default.
+    --["button"] = {text = {halign = "center"}},
+
+    ["exitbox"] = {text = config.standardTextProperties},
+    
+    -- Blank row backgrounds. Extra handy for the backarrow column.
+    ["row"] = { bgColor = Helper.color.transparent },
+    
+    -- Defaults that match what ego does with setDefaultCellProperties.
+    -- Ego's approach updates metatables, but doesn't work when the user
+    -- wants to provide one fields of a complex subtable (by experience).
+    ["button"] = {
+        height = config.standardTextHeight,
+        text = { 
+            x = config.standardTextOffsetX, 
+            fontsize = config.standardFontSize },
+        },
+
+    ["dropdown"] = {
+        height = config.standardTextHeight,
+        text = { 
+            x = config.standardTextOffsetX, 
+            fontsize = config.standardFontSize },
+        },
+
+    ["slidercell"] = {
+        height = config.standardTextHeight,
+        text = { 
+            x = config.standardTextOffsetX, 
+            fontsize = config.standardFontSize },
+
+        -- Changes color to match the options menu default.
+        valueColor = config.sliderCellValueColor,
+        -- Options menu hides maxes, from example looked at.
+        hideMaxValue = true,
+        },
+
+    -- Tables should be interactive by default.
+    -- This will be handled in table creation args.
+    --["table"] = {tabOrder = 1},
+}
+
 
 -- Proxy for the gameoptions menu, linked further below.
 -- This should be used when in options mode.
@@ -266,6 +313,10 @@ local function Init_Gameoptions_Link()
             gameoptions_menu.userQuestion = nil
             AddUITriggeredEvent(gameoptions_menu.name, "menu_" .. optionParameter)
             
+            -- This field is normally updated in the next function called
+            -- by submenuHandler, but doing it here for convenience.
+            gameoptions_menu.currentOption = optionParameter
+
             if optionParameter == "simple_menu_extension_options" then
                 -- Call the display function.
                 menu.Display_Extension_Options()
@@ -351,7 +402,7 @@ function menu.Make_Menu_Shell(menu_spec)
     menu.selectedOption = nil
 
     menu.currentOption = menu_spec.id
-
+    
     local frame = menu.createOptionsFrame()
         
     -- Create a separate table, with one row for the title.
@@ -401,15 +452,11 @@ function menu.Make_Menu_Shell(menu_spec)
         })
     -- Size the first column under the back arrow.
     ftable:setColWidth(1, menu.table.arrowColumnWidth, false)
+    -- Note: don't set cell defaults the way ego does it, since it gets
+    -- confusing with their defaults being metatables, but not being
+    -- robust with regard to complex properties (where a user cannot
+    -- just given one field of the subtable, and needs all filled in).
 
-    -- Set widget defaults that match gameoptions.
-    ftable:setDefaultCellProperties("button",                    { height = config.standardTextHeight })
-    ftable:setDefaultComplexCellProperties("button", "text",     { x = config.standardTextOffsetX, fontsize = config.standardFontSize })
-    ftable:setDefaultCellProperties("dropdown",                  { height = config.standardTextHeight })
-    ftable:setDefaultComplexCellProperties("dropdown", "text",   { x = config.standardTextOffsetX, fontsize = config.standardFontSize })
-    ftable:setDefaultCellProperties("slidercell",                { height = config.standardTextHeight })
-    ftable:setDefaultComplexCellProperties("slidercell", "text", { x = config.standardTextOffsetX, fontsize = config.standardFontSize })
-                
     return frame, ftable
 end
 
@@ -438,7 +485,7 @@ function menu.Display_Extension_Options()
     for menu_id, spec in pairs(custom_menu_specs) do
         --DebugError("spec '"..spec.id.."' private: "..spec.private)
         -- Only display non-private menus.
-        if spec.private == 0 then
+        if not spec.private then
             menu_found = true
             -- Add a generic selectable row to be handled like normal menus.
             gameoptions_menu.displayOption(ftable, {
@@ -473,6 +520,7 @@ function menu.Display_Custom_Menu(menu_spec)
     menu_data.ftable = ftable
     menu_data.columns = menu_spec.columns    
     menu_data.mode = "options"
+    menu_data.custom_widget_defaults = menu.custom_widget_defaults
     menu_data.col_adjust = 1
     -- No delay on commands; the menu is ready right away.
     menu_data.delay_commands = false
@@ -480,9 +528,25 @@ function menu.Display_Custom_Menu(menu_spec)
     -- Signal md api so it can call the user cue which fills the menu.
     Lib.Raise_Signal("Display_Custom_Menu", menu_spec.id)
     
-    -- TODO: any other special functionality needed.
-    -- TODO: maybe remove this and rely on user calling Display_Menu.
-    frame:display()
+    -- Note: do not do a frame:display here.  One will be needed after the
+    -- user adds widgets to get them to show up, and in practice doing a
+    -- display now and later leads to errors in the log when going "back"
+    -- a menu, apparently due to the back button's scripts not being
+    -- registered properly somehow.
+    --frame:display()
+end
+
+-- This function is called when the interface receives the user's
+-- Display_Menu call, after they set up all widgets.
+function menu.Handle_Display_Command()
+    -- A couple options menu cleanup steps, related to support
+    -- for going back a level and reselecting the prior row.
+    menu_data.ftable:setTopRow(gameoptions_menu.preselectTopRow)
+    gameoptions_menu.preselectTopRow = nil
+    gameoptions_menu.preselectOption = nil
+    
+    -- Do the final display call.
+    menu_data.frame:display()
 end
 
 
