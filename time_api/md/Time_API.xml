@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Time_API" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+<cues>
+
+  <!-- Register the main lua file. -->
+  <cue name="Load_Lua_Files" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                       param="'extensions.time_api.Time_API'"/>
+    </actions>
+  </cue>
+
+</cues>
+  
+</mdscript>
