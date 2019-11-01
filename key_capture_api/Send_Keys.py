@@ -109,12 +109,11 @@ def main():
     # Wait for client.
     pipe.Connect()
 
-    # Start the keyboard listener after client connect, in case it
-    # never connects.
-    Start_Keyboard_Listener()
-
     # Announce this as global, since it gets reassigned at one point.
     global key_buffer
+    # Clear any old data before continuing, since it may have stuff from
+    # the last time x4 was connected.
+    key_buffer.clear()
     
     # Max keys in flight to x4, not yet acknowledged.
     max_keys_piped = 10
@@ -136,9 +135,6 @@ def main():
     # keys that might be used in the future.
     keys_down = set()
 
-    # Flag to indicate if x4 has focus.
-    global x4_has_focus
-        
     
     # Note: x4 will sometimes send non-ack messages to the pipe, and there
     # is no way to know when they will arrive other than testing it.
@@ -157,120 +153,129 @@ def main():
         key_buffer.append((1,1,'$d'))
         key_buffer.append((1,1,'$f'))
 
-    while 1:
+    try:
+        while 1:
         
-        # Determine if x4 is the focused window.
-        # Get the window title of whatever window has focus.
-        focused_window_title = GetWindowText(GetForegroundWindow())
-        # Ignore if not the wanted window.
-        # Only check the end of the title, to avoid paths in the cmd window
-        # when testing in python.
-        if focused_window_title.endswith(window_title):
-            x4_has_focus = True
-        else:
-            x4_has_focus = False
-            # When x4 loses focus, assume all pressed keys are released
-            # upon returning to x4. This addresses the common case of
-            # alt-tabbing out (which leaves alt as pressed when clicking
-            # back into x4 otherwise).
-            # An alternate solution would be to capture all keys even
-            # when x4 lacks focus, but while that was tried and worked,
-            # it was distasteful.
-            keys_down.clear()
+            # Determine if x4 is the focused window.
+            # Get the window title of whatever window has focus.
+            focused_window_title = GetWindowText(GetForegroundWindow())
+            # Ignore if not the wanted window.
+            # Only check the end of the title, to avoid paths in the cmd window
+            # when testing in python.
+            if focused_window_title.endswith(window_title):
+                x4_has_focus = True
+                # Start the keyboard listener if not yet running.
+                Start_Keyboard_Listener()
+
+            else:
+                x4_has_focus = False
+                # When x4 loses focus, assume all pressed keys are released
+                # upon returning to x4. This addresses the common case of
+                # alt-tabbing out (which leaves alt as pressed when clicking
+                # back into x4 otherwise).
+                # An alternate solution would be to capture all keys even
+                # when x4 lacks focus, but while that was tried and worked,
+                # it was distasteful.
+                keys_down.clear()
+                # Stop the keyboard listener when tabbed out if it is running.
+                Stop_Keyboard_Listener()
             
-        # TODO: shut down the keyboard listener thread when x4 loses
-        # focus, and restart it on focus gain, so it isn't running
-        # when x4 tabbed out.
+            # TODO: shut down the keyboard listener thread when x4 loses
+            # focus, and restart it on focus gain, so it isn't running
+            # when x4 tabbed out.
         
-        # Try to read any data.
-        message = pipe.Read()
-        if message != None:
-            print('Received: ' + message)
+            # Try to read any data.
+            message = pipe.Read()
+            if message != None:
+                print('Received: ' + message)
 
-            # Ignore pings; they were just testing the pipe.
-            if message == 'ping':
-                pass
+                # Ignore pings; they were just testing the pipe.
+                if message == 'ping':
+                    pass
 
-            # Acks will update the piped keys counter.
-            # TODO: think about how to make more robust; really want a
-            # way to sample the client pipe fill.
-            # Note: if something messed up x4 side somehow, its md cue may
-            # cancel a read request (sends no ack) but the lua side would
-            # still process the read (gets the combo), in which case a combo
-            # is transferred but not acked.
-            # So, instead of tracking acks, try to think of another approach.
-            # TODO; keys_piped check commented out further below.
-            elif message == 'ack':
-                keys_piped -= 1
+                # Acks will update the piped keys counter.
+                # TODO: think about how to make more robust; really want a
+                # way to sample the client pipe fill.
+                # Note: if something messed up x4 side somehow, its md cue may
+                # cancel a read request (sends no ack) but the lua side would
+                # still process the read (gets the combo), in which case a combo
+                # is transferred but not acked.
+                # So, instead of tracking acks, try to think of another approach.
+                # TODO; keys_piped check commented out further below.
+                elif message == 'ack':
+                    keys_piped -= 1
 
-            # Update the key list.
-            elif message.startswith('setkeys:'):
-                # Each new message has a full key set, so ignore prior keys.
-                #keys_to_record.clear()
+                # Update the key list.
+                elif message.startswith('setkeys:'):
+                    # Each new message has a full key set, so ignore prior keys.
+                    #keys_to_record.clear()
 
-                # Starts with "setkeys:"; toss that.
-                message = message.replace('setkeys:', '')
+                    # Starts with "setkeys:"; toss that.
+                    message = message.replace('setkeys:', '')
 
-                # Get the new compiled combos.
-                categorized_combo_specs = Update_Combos(message)
-                print('Updated combos to: {}'.format(message))
+                    # Get the new compiled combos.
+                    categorized_combo_specs = Update_Combos(message)
+                    print('Updated combos to: {}'.format(message))
 
-                # TODO: if all keys are unregistered, kill off this thread
-                # so it returns to waiting for pipe connection, and the
-                # key capture subthread is no longer running.
-                # Would just need to check for empty combo specs, and
-                # throw a pipe error exception (as expected by
-                # Server_Thread to reboot this module).
+                    # TODO: if all keys are unregistered, kill off this thread
+                    # so it returns to waiting for pipe connection, and the
+                    # key capture subthread is no longer running.
+                    # Would just need to check for empty combo specs, and
+                    # throw a pipe error exception (as expected by
+                    # Server_Thread to reboot this module).
                 
 
-        # If anything is in the key_buffer, process into key combos.
-        if key_buffer:
+            # If anything is in the key_buffer, process into key combos.
+            if key_buffer:
 
-            # Grab everything out of the key_buffer in one step, to play
-            # more nicely with threading (assume interruption at any time).
-            # Just do this with rebinding.
-            raw_keys = key_buffer
-            key_buffer = []
+                # Grab everything out of the key_buffer in one step, to play
+                # more nicely with threading (assume interruption at any time).
+                # Just do this with rebinding.
+                raw_keys = key_buffer
+                key_buffer = []
 
-            print('Processing: {}'.format(raw_keys))
+                print('Processing: {}'.format(raw_keys))
 
-            # Process the keys, updating what is pressed and getting any
-            # matched combos.
-            matched_combos = Process_Key_Events(
-                key_buffer = raw_keys, 
-                keys_down = keys_down, 
-                categorized_combo_specs = categorized_combo_specs)
+                # Process the keys, updating what is pressed and getting any
+                # matched combos.
+                matched_combos = Process_Key_Events(
+                    key_buffer = raw_keys, 
+                    keys_down = keys_down, 
+                    categorized_combo_specs = categorized_combo_specs)
             
-            # Start transmitting.
-            for combo in matched_combos:
-                #-Removed; janky and needs better solution.
-                ## Only go up to the max that can be piped at once.
-                #if keys_piped >= max_keys_piped:
-                #    print('Suppressing combo; max pipe reached.')
-                #    break
+                # Start transmitting.
+                for combo in matched_combos:
+                    #-Removed; janky and needs better solution.
+                    ## Only go up to the max that can be piped at once.
+                    #if keys_piped >= max_keys_piped:
+                    #    print('Suppressing combo; max pipe reached.')
+                    #    break
 
-                # Transmit to x4.
-                # Note: this doesn't put the '$' back for now, since that
-                # is easier to add in x4 than remove afterwards.
-                print('Sending: ' + combo)
-                pipe.Write(combo)
-                keys_piped += 1
+                    # Transmit to x4.
+                    # Note: this doesn't put the '$' back for now, since that
+                    # is easier to add in x4 than remove afterwards.
+                    print('Sending: ' + combo)
+                    pipe.Write(combo)
+                    keys_piped += 1
 
 
-        # General pause between checks.
-        # Assuming x4 is at 60 fps, that is 16 ms between frames.
-        # Responsiveness here probably doesn't need to be much better than
-        # a couple frames, though. 
-        # Although, x4 processing will add a frame or two at least.
-        # TODO: maybe revisit this timer stepping.
-        # TODO: maybe reduce this if any traffic was handled above.
-        if x4_has_focus:
-            time.sleep(0.040)
-        else:
-            # Slow down when outside x4, though still quick enough
-            # to response when tabbing back in quickly.
-            time.sleep(0.200)
-                
+            # General pause between checks.
+            # Assuming x4 is at 60 fps, that is 16 ms between frames.
+            # Responsiveness here probably doesn't need to be much better than
+            # a couple frames, though. 
+            # Although, x4 processing will add a frame or two at least.
+            # TODO: maybe revisit this timer stepping.
+            # TODO: maybe reduce this if any traffic was handled above.
+            if x4_has_focus:
+                time.sleep(0.040)
+            else:
+                # Slow down when outside x4, though still quick enough
+                # to response when tabbing back in quickly.
+                time.sleep(0.200)
+
+    finally:
+        # Stop the listener when an error occurs, eg. x4 closing.
+        Stop_Keyboard_Listener()
     return
 
 
@@ -289,13 +294,6 @@ max_keys_buffered = 50
 # The listener thread itself.
 listener_thread = None
 
-# Global flag for it x4 has focus.
-# Updated periodically in primary server loop.
-# Probably doesn't matter much if True or False, but default True
-# so keys start capturing sooner if x4 reloaded and server is
-# rebooting.
-x4_has_focus = True
-
 # Capture key presses into a queue.
 def Buffer_Presses(key):
     '''
@@ -303,7 +301,7 @@ def Buffer_Presses(key):
     Kept super simple, due to pynput warning about long callbacks.
     '''
     # Stick in a 1 for pressed.
-    if x4_has_focus and len(key_buffer) < max_keys_buffered:
+    if len(key_buffer) < max_keys_buffered:
         key_buffer.append((1, key))
     return
     
@@ -313,34 +311,45 @@ def Buffer_Releases(key):
     Kept super simple, due to pynput warning about long callbacks.
     '''
     # Stick in a 0 for released.
-    if x4_has_focus and len(key_buffer) < max_keys_buffered:
+    if len(key_buffer) < max_keys_buffered:
         key_buffer.append((0, key))
     return
+
 
 def Start_Keyboard_Listener():
     '''
     Start up the keyboard listener thread if it isn't running already.
-    If main() exits and restarts, the same listener thread should still
-    be running and will be reused.
-    This extra step was added when multiple server restarts led to
+    Warning: multiple server restarts making fresh listeners led to
     pynput getting in some buggy state where it only returned codes
     instead of letters (eg. b'\x01' instead of 'a').
     '''
     global listener_thread
 
-    # If the thread is running, just clear the buffer.
-    if listener_thread != None:
-        print('Reusing running keyboard listener')
-        key_buffer.clear()
+    # Return early if a thread is already set up.
+    if listener_thread:
+        return
 
-    else:
-        print('Starting keyboard listener')
-        # Start the listener thread.
-        listener_thread = keyboard.Listener(
-            on_press   = Buffer_Presses,
-            on_release = Buffer_Releases)
+    print('Starting keyboard listener')
+    # Start the listener thread.
+    listener_thread = keyboard.Listener(
+        on_press   = Buffer_Presses,
+        on_release = Buffer_Releases)
 
-        listener_thread.start()
+    listener_thread.start()
+    return
+
+
+def Stop_Keyboard_Listener():
+    '''
+    Stop any currently running keyboard listener.
+    '''
+    global listener_thread
+    if listener_thread:
+        print('Stopping keyboard listener')
+        listener_thread.stop()
+        # Can't reuse these, so just release and start a fresh
+        # one when needed.
+        listener_thread = None
     return
 
 

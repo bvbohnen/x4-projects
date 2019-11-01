@@ -11,4 +11,6 @@ Change Log
   - Added requirement that keys be re-registered when it reloads.
 * 0.91
   - Removed ack-based flow control.
+* 0.10
+  - Key listener thread will completely stop when X4 loses focus.
 
