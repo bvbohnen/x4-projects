@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <mdscript name="Pipe_Server_Lib" 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xsi:noNamespaceSchemaLocation="md.xsd">
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
 <!--
 Library of functions to aid in writing MD interfaces to external servers.
@@ -297,16 +296,13 @@ Notes on server access looping cues:
               <do_if value="event.param == 'ERROR'">
                 <!--
                   Restart pinging routine, after some delay.
-                  First ping gets shorter delay; further failures get longer
-                  delay.
+                  First pings gets shorter delay; further failures get longer
+                  delay.  Cap ping counting at 10 for now.
                 -->
-                <do_if value="$ping_count == 0">
-                  <set_value name="$ping_count" exact="$ping_count + 1"/>
-                  <signal_cue_instantly cue="Ping_Server_After_Delay_1"/>
+                <do_if value="$ping_count le 10">
+                  <set_value name="$ping_count" operation="add"/>
                 </do_if>
-                <do_else>
-                  <signal_cue_instantly cue="Ping_Server_After_Delay_2"/>
-                </do_else>
+                <signal_cue_instantly cue="Ping_Server_After_Delay"/>
                 <!--TODO: maybe a way to check if loop should stop, 
                     with a flag or user actions.-->
               </do_if>
@@ -319,7 +315,9 @@ Notes on server access looping cues:
               <do_else>
                 <!-- Connected; continue with startup. -->
                 <set_value name="$server_connected" exact="1"/>
-                
+                <!-- Reset the ping counter. TODO: maybe unnecessary. -->
+                <set_value name="$ping_count" exact="0"/>                
+
                 <!-- Run any user supplied actions. -->
                 <do_if value="$Actions_On_Connect.exists">
                   <include_actions ref="$Actions_On_Connect"/>
@@ -335,33 +333,40 @@ Notes on server access looping cues:
           <!--
             Trigger ping after various delays.
             Should be used by the ping loop to reduce ping overhead.
-            Use shorter delay version for the first couple pings, backing 
-            off to a longer version if they are failing, since first ping
-            can commonly fail on game loading before pipe server is
-            set up.
-            TODO: Perhaps use checktime for this instead of delay.
+            This will wait ($ping_count - 0.75) seconds. Adjustment allows
+            pipes to do a quick reconnect check after the host connects.
+            Uses the Time api to time this using realtime, so it works
+            while the game is paused.
+            
+            This will not instantiate. For safety, it only allows one pending
+            ping at a time, and resets self.
           -->
-          <cue name="Ping_Server_After_Delay_1">
+          <cue name="Ping_Server_After_Delay">
             <conditions>
               <event_cue_signalled/>
             </conditions>
-            <delay exact="0.5s"/>
             <actions>
-              <signal_cue_instantly cue="Ping_Server"/>
-              <reset_cue cue="this"/>
+              <!--TODO: maybe make sure no colons are in the pipe name.-->
+              <set_value name="$ping_name" exact="'%1:%2'.[$Pipe_Name, $ping_count - 0.75]"/>
+              <!--Set an alarm-->
+              <raise_lua_event name="'Time.setAlarm'"  param="$ping_name"/>
             </actions>
+            <cues>
+              <cue name="Wait_For_Alarm">
+                <conditions>
+                  <!-- Wait for the alarm to go off. -->
+                  <event_ui_triggered screen="'Time'" control="$Pipe_Name" />
+                </conditions>
+                <actions>
+                  <!--Trigger another ping.-->
+                  <signal_cue_instantly cue="Ping_Server"/>
+                  <!--Reset parent.-->
+                  <reset_cue cue="parent"/>
+                </actions>
+              </cue>              
+            </cues>
           </cue>
           
-          <cue name="Ping_Server_After_Delay_2">
-            <conditions>
-              <event_cue_signalled/>
-            </conditions>
-            <delay exact="10s"/>
-            <actions>
-              <signal_cue_instantly cue="Ping_Server"/>
-              <reset_cue cue="this"/>
-            </actions>
-          </cue>
               
             
           <!--Send a read request, wait for timeout or error or message.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="named_pipes_api" name="Named Pipes API" description="Adds API support for Windows named pipes, for inter-process communication." author="SirNukes" version="010" date="2019-07-23" save="false" sync="false">
+<content id="named_pipes_api" name="Named Pipes API" description="Adds API support for Windows named pipes, for inter-process communication." author="SirNukes" version="011" date="2019-07-23" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>
@@ -14,4 +14,5 @@
   <langugage description="" language="88"/>
   <!-- Need this for the lua to load.-->
   <dependency id="lua_loader_api" version="011" optional="false"/>
+  <dependency id="time_api" version="002" optional="false"/>
 </content>

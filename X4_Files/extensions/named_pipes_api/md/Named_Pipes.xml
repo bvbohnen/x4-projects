@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <mdscript name="Named_Pipes" 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xsi:noNamespaceSchemaLocation="md.xsd">
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
 <!-- @doc-title MD Named Pipe API -->
   
@@ -609,6 +608,7 @@ TODO:
         $scheduled_timeout should be available prior to setting up this cue.
         
         Uses checktime to handle the timeout condition.
+        TODO: switch to a lua realtime timer.
       -->
       <cue name="Access_Timeout" checkinterval="1s" checktime="$scheduled_timeout">
         <conditions>
@@ -665,18 +665,20 @@ TODO:
       <!-- Column labels. -->
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
       <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Label"
+        cue="md.Simple_Menu_API.Make_Text"
         param = "table[
             $col=1, 
             $text='Pipe', 
             $mouseOverText='Name of the pipe.',
+            $cellBGColor = 'Helper.color.transparent60',
             ]"/>
       <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Label"
+        cue="md.Simple_Menu_API.Make_Text"
         param = "table[
             $col=2, 
             $text='Status', 
             $mouseOverText='If the pipe is connected.',
+            $cellBGColor = 'Helper.color.transparent60',
             ]"/>
       
       <!-- Loop over registered pipe handler cues. -->
@@ -694,17 +696,19 @@ TODO:
         
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
         <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Label"
+          cue="md.Simple_Menu_API.Make_Text"
           param = "table[
             $col=1, 
             $text= '' + @Globals.$pipe_status_cues.{$i}.{'$Pipe_Name'},
+            $cellBGColor = 'Helper.color.transparent60',
             ]"/>
         <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Label"
+          cue="md.Simple_Menu_API.Make_Text"
           param = "table[
             $col = 2, 
             $text = $text,
             $color = $color,
+            $cellBGColor = 'Helper.color.transparent60',
             ]"/>
       </do_all>
 

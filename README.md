@@ -13,6 +13,7 @@ There are three components to this API:
 ### Requirements
 
 * Lua Loader API extension
+* Time API extension
 * Python 3.6+ with the pywin32 package.
   - Optional, only needed if using the python pipe server.
   - This package is part of the Anaconda distribution of python by default.

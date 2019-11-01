@@ -37,3 +37,5 @@ Change Log
   - Minor tweaks.
 * 0.10
   - Added status report menu using simple menu api.
+* 0.11
+  - Switch to the Time API setting time between reconnect pings while the game is paused.
