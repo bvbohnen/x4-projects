@@ -2,8 +2,12 @@
 <mdscript name="Time_API" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
+<!--
+  MD side of the time api.
+  This will mostly act as a wrapper on the lua functions, which have
+  access to the real time (as opposed to game time).
+-->
 <cues>
-
   <!-- Register the main lua file. -->
   <cue name="Load_Lua_Files" instantiate="true">
     <conditions>

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Time_API_Test" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+<!--
+Tests for the time api.
+-->
+
+<cues>
+
+  <!-- Register default test key with the key capture api. -->
+  <cue name="Register_Keys" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Key_Capture.Register_Key"
+        param="table[$key='ctrl b', $cue=Run_Test]"/>
+    </actions>
+  </cue>
+
+  <cue name="Globals">
+    <actions>
+      <include_actions ref="Reset_Globals"/>
+    </actions>
+    <cues>
+      <cue name="Reset_On_Lua_Reload" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+        </conditions>
+        <actions>
+          <include_actions ref="Reset_Globals"/>
+        </actions>
+      </cue>
+    </cues>
+  </cue>
+  <library name="Reset_Globals">
+    <actions>
+      <set_value name="$time_elapsed" exact="0"/>
+    </actions>
+  </library>
+
+  <cue name="Run_Test" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!--Test getRealTime-->
+      <raise_lua_event name="'Time.getRealTime'"  param="'getRealTime'"/>
+      <!--Test setAlarm.-->
+      <signal_cue_instantly cue="Clock"/>
+      <!--Test timer.-->
+      <signal_cue_instantly cue="Timer_Test"/>
+      <!--Test tic-toc.-->
+      <signal_cue_instantly cue="TicToc_Test"/>
+    </actions>
+  </cue>
+
+  <cue name="Capture_getRealTime" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Time'" control="'getRealTime'" />
+    </conditions>
+    <actions>
+      <set_value name="$realtime" exact="event.param3"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Time;Real time: '+$realtime "/>
+    </actions>
+  </cue>
+
+  <!--1s clock, printing to chat.-->
+  <cue name="Clock" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!--Set for 1 second.-->
+      <raise_lua_event name="'Time.setAlarm'"  param="'setAlarm:1'"/>
+    </actions>
+  </cue>
+  
+  <cue name="Capture_setAlarm" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Time'" control="'setAlarm'" />
+    </conditions>
+    <actions>
+      <!--Add 1 second.-->
+      <set_value name="$time_elapsed" operation="add"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Time;Seconds: '+$time_elapsed"/>
+      
+      <!--Stop at 5.-->
+      <do_if value="$time_elapsed ge 5">
+        <set_value name="$time_elapsed" exact="0"/>
+      </do_if>
+      <do_else>
+        <!--Resignal-->
+        <signal_cue_instantly cue="Clock"/>        
+      </do_else>
+    </actions>
+  </cue>
+
+  
+  <cue name="Timer_Test" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!--Start a couple timers.-->
+      <raise_lua_event name="'Time.startTimer'"  param="'timer0'"/>
+      <raise_lua_event name="'Time.startTimer'"  param="'timer1'"/>
+      <!--Set a couple delays.-->
+      <raise_lua_event name="'Time.setAlarm'"  param="'timer0_stop:6'"/>
+      <raise_lua_event name="'Time.setAlarm'"  param="'timer1_stop:7'"/>
+    </actions>
+  </cue>
+  <!--Capture the alarms.-->
+  <cue name="Capture_setAlarm_timer" instantiate="true">
+    <conditions>
+      <check_any>
+        <event_ui_triggered screen="'Time'" control="'timer0_stop'" />
+        <event_ui_triggered screen="'Time'" control="'timer1_stop'" />
+      </check_any>
+    </conditions>
+    <actions>
+      <do_if value="event.param2 == 'timer0_stop'">
+        <!--Get the current timers, and print.-->
+        <!--May be interesting to time how long stop and another get take.-->
+        <raise_lua_event name="'Time.getTimer'"    param="'timer0'"/>
+        <raise_lua_event name="'Time.stopTimer'"   param="'timer0'"/>
+        <raise_lua_event name="'Time.getTimer'"    param="'timer0'"/>
+        <raise_lua_event name="'Time.printTimer'"  param="'timer0'"/>
+      </do_if>
+      <do_else>
+        <raise_lua_event name="'Time.stopTimer'"   param="'timer1'"/>
+        <raise_lua_event name="'Time.getTimer'"    param="'timer1'"/>
+        <raise_lua_event name="'Time.printTimer'"  param="'timer1'"/>
+      </do_else>
+    </actions>
+  </cue>
+  <cue name="Capture_getTimer" instantiate="true">
+    <conditions>
+      <check_any>
+        <event_ui_triggered screen="'Time'" control="'timer0'" />
+        <event_ui_triggered screen="'Time'" control="'timer1'" />
+      </check_any>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Time;%1: %2'.[event.param2, event.param3]"/>
+      <!--Reset the timer and print again.-->
+      <raise_lua_event name="'Time.resetTimer'"  param="event.param2"/>
+      <raise_lua_event name="'Time.printTimer'"  param="event.param2"/>
+    </actions>
+  </cue>
+
+  
+  <cue name="TicToc_Test" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Time.tic'"  param="'tictoc'"/>
+      <!--Wait a moment before doing toc.-->
+      <raise_lua_event name="'Time.setAlarm'"  param="'tictoc_wait:9'"/>
+    </actions>
+  </cue>
+  <cue name="Capture_setAlarm_tictoc" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Time'" control="'tictoc_wait'" />
+    </conditions>
+    <actions>
+      <!--Get the time elapsed.-->
+      <raise_lua_event name="'Time.toc'"  param="'tictoc'"/>
+    </actions>
+  </cue>
+  <cue name="Capture_toc" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Time'" control="'tictoc'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Time;toc: %1'.[event.param3]"/>
+    </actions>
+  </cue>
+
+</cues>
+
+</mdscript>
