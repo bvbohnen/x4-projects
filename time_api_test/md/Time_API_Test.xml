@@ -46,8 +46,10 @@ Tests for the time api.
       <event_cue_signalled/>
     </conditions>
     <actions>
-      <!--Test getRealTime-->
-      <raise_lua_event name="'Time.getRealTime'"  param="'getRealTime'"/>
+      <!--Test getEngineTime-->
+      <raise_lua_event name="'Time.getEngineTime'"  param="'getEngineTime'"/>
+      <!--Test getSystemTime-->
+      <raise_lua_event name="'Time.getSystemTime'"  param="'getSystemTime'"/>
       <!--Test setAlarm.-->
       <signal_cue_instantly cue="Clock"/>
       <!--Test timer.-->
@@ -57,13 +59,23 @@ Tests for the time api.
     </actions>
   </cue>
 
-  <cue name="Capture_getRealTime" instantiate="true">
+  <cue name="Capture_getEngineTime" instantiate="true">
     <conditions>
-      <event_ui_triggered screen="'Time'" control="'getRealTime'" />
+      <event_ui_triggered screen="'Time'" control="'getEngineTime'" />
     </conditions>
     <actions>
-      <set_value name="$realtime" exact="event.param3"/>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Time;Real time: '+$realtime "/>
+      <set_value name="$enginetime" exact="event.param3"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Time;Engine time: '+$enginetime "/>
+    </actions>
+  </cue>
+
+  <cue name="Capture_getSystemTime" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Time'" control="'getSystemTime'" />
+    </conditions>
+    <actions>
+      <set_value name="$time" exact="event.param3"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Time;System time: '+$time "/>
     </actions>
   </cue>
 

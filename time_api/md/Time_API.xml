@@ -18,7 +18,19 @@
                        param="'extensions.time_api.Time_API'"/>
     </actions>
   </cue>
-
+  
+  <!-- Register the python server. -->
+  <cue name="Register_Pipe_Server" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Pipe_Server_Host.Register_Module"
+        param="'extensions/time_api/Time_API.py'"/>
+    </actions>
+  </cue>
+  
 </cues>
   
 </mdscript>
