@@ -217,36 +217,8 @@ ffi.cdef[[
 -- Windows functions for working with pipes.
 local winpipe = require("winpipe")
 
-
--- Forward declarations of functions.
--- (Does redeclaring them local further below break things? TODO)
-local Init
-local Raise_Signal
-local Declare_Pipe
-local Connect_Pipe
-local Disconnect_Pipe
-local Close_Pipe
-
-local Split_String
-local Handle_pipeRead
-local Schedule_Read
-local Handle_pipeWrite
-local Schedule_Write
-local Handle_pipeCheck
-local Handle_pipeClose
-local Handle_pipeSuppressPausedReads
-local Handle_pipeUnsuppressPausedReads
-
-local Poll_For_Reads
-local Poll_For_Writes
-
-local _Read_Pipe_Raw
-local Read_Pipe
-local _Write_Pipe_Raw
-local Write_Pipe
-
-local Test
-
+-- Table of local functions.
+local L = {}
 
 -- Match the style of egosoft lua, with a private table containing
 -- static variables.
@@ -267,8 +239,9 @@ local private = {
     * suppress_reads_when_paused
       - Bool, if true then messages read during a game pause are thrown away.
     * read_fifo
-      - FIFO of callback IDs for read completions.
+      - FIFO of callback IDs or function handles for read completions.
       - Callback ID is a string.
+      - Function handle is for any lua function, taking 1 argument.
       - Entries removed as reads complete.
       - When empty, stop trying to read this pipe.
     * write_fifo
@@ -329,7 +302,7 @@ end
 
 
 -- Handle initial setup.
-function Init()
+function L.Init()
     -- Force lua to garbage collect.
     -- There may have been a File opened to a prior pipe which hasn't been
     -- GC'd yet, so the server won't yet know to reboot. New requests will
@@ -339,17 +312,17 @@ function Init()
     collectgarbage()
 
     -- Connect the events to the matching functions.
-    RegisterEvent("pipeRead", Handle_pipeRead)
-    RegisterEvent("pipeWrite", Handle_pipeWrite)
-    RegisterEvent("pipeWriteSpecial", Handle_pipeWrite)    
-    RegisterEvent("pipeCheck", Handle_pipeCheck)
-    RegisterEvent("pipeClose", Handle_pipeClose)
-    RegisterEvent("pipeSuppressPausedReads", Handle_pipeSuppressPausedReads)
-    RegisterEvent("pipeUnsuppressPausedReads", Handle_pipeUnsuppressPausedReads)
+    RegisterEvent("pipeRead",                  L.Handle_pipeRead)
+    RegisterEvent("pipeWrite",                 L.Handle_pipeWrite)
+    RegisterEvent("pipeWriteSpecial",          L.Handle_pipeWrite)    
+    RegisterEvent("pipeCheck",                 L.Handle_pipeCheck)
+    RegisterEvent("pipeClose",                 L.Handle_pipeClose)
+    RegisterEvent("pipeSuppressPausedReads",   L.Handle_pipeSuppressPausedReads)
+    RegisterEvent("pipeUnsuppressPausedReads", L.Handle_pipeUnsuppressPausedReads)
         
         
     -- Signal to MD that the lua has reloaded.
-    Raise_Signal('reloaded')
+    L.Raise_Signal('reloaded')
     
     -- Testing for path detection.
     -- if package.path ~= nil then
@@ -360,7 +333,7 @@ end
 
 -- Shared function to raise a named galaxy signal with an optional
 -- return value.
-function Raise_Signal(name, return_value)
+function L.Raise_Signal(name, return_value)
     -- Clumsy way to lookup the galaxy.
     -- local player = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
     -- local galaxy = GetComponentData(player, "galaxyid" )
@@ -398,7 +371,7 @@ end
     that can be potentially fixed by forcing collectgarbage on
     a ui reload.
 ]]
-local function Pipe_Garbage_Collection_Handler(pipe_table)
+function L.Pipe_Garbage_Collection_Handler(pipe_table)
     -- Try to close out the file.
     if pipe_table.file ~= nil then
         -- Verification message.
@@ -419,7 +392,7 @@ end
 
 -- Call this function when the file is created to set up GC on it.
 -- TODO: tighten up this code.
-local function Attach_Pipe_Table_GC(pipe_table)
+function L.Attach_Pipe_Table_GC(pipe_table)
   
     -- Don't want to overwrite existing meta stuff, but need to use
     -- setmetatable else the gc function won't be registered, so aim
@@ -431,7 +404,7 @@ local function Attach_Pipe_Table_GC(pipe_table)
     --end
         
     -- Overwrite with the custom function.    
-    new_metatable.__gc = Pipe_Garbage_Collection_Handler
+    new_metatable.__gc = L.Pipe_Garbage_Collection_Handler
     
     -- From stackoverflow, adjusted names.
     -- Not 100% clear on what this is doing.
@@ -446,7 +419,7 @@ end
 
 -- Declare a pipe, setting up its initial data structure.
 -- This does not attempt to open the pipe or validate it.
-function Declare_Pipe(pipe_name)
+function L.Declare_Pipe(pipe_name)
     if private.pipes[pipe_name] == nil then
         -- Set up the pipe entry, with subfields.
         private.pipes[pipe_name] = {
@@ -463,7 +436,7 @@ function Declare_Pipe(pipe_name)
         --  this was first moved inside, x4 started crashing on reloadui,
         --  but that problem didn't persist.
         --  This may need a revisit in the future if crashes return.
-        Attach_Pipe_Table_GC(private.pipes[pipe_name])
+        L.Attach_Pipe_Table_GC(private.pipes[pipe_name])
     end
            
 end
@@ -477,10 +450,10 @@ end
 -- As such, if the pipe is already open, a retry_allowed flag will be
 -- set, so that the first access that fails can close the pipe and
 -- try to reopen it.
-function Connect_Pipe(pipe_name)
+function L.Connect_Pipe(pipe_name)
 
     -- If the pipe not yet declared, declare it.
-    Declare_Pipe(pipe_name)
+    L.Declare_Pipe(pipe_name)
 
     -- Check if a file is not open.
     if private.pipes[pipe_name].file == nil then
@@ -523,7 +496,7 @@ end
 -- Close a pipe file.
 -- If the file isn't open, this does nothing.
 -- If the pipe was open, this will signal that the disconnect occurred.
-function Disconnect_Pipe(pipe_name)
+function L.Disconnect_Pipe(pipe_name)
     if private.pipes[pipe_name].file ~= nil then
         -- Do a safe file close() attempt, ignoring errors.
         -- TODO: does this need an anon function around it?
@@ -538,7 +511,7 @@ function Disconnect_Pipe(pipe_name)
         private.pipes[pipe_name].file = nil
         
         -- Signal the disconnect.
-        Raise_Signal(pipe_name.."_disconnected")
+        L.Raise_Signal(pipe_name.."_disconnected")
         CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
     end
 end
@@ -546,9 +519,9 @@ end
 
 -- Close a pipe.
 -- This sends error messages to MD for any pending pipe writes or reads.
-function Close_Pipe(pipe_name)
+function L.Close_Pipe(pipe_name)
     -- Close out the file itself.
-    Disconnect_Pipe(pipe_name)
+    L.Disconnect_Pipe(pipe_name)
     
     -- Convenience renamings.
     local write_fifo = private.pipes[pipe_name].write_fifo
@@ -556,18 +529,28 @@ function Close_Pipe(pipe_name)
     
     -- Send error signals to the MD for all pending writes and reads.
     while not FIFO.Is_Empty(write_fifo) do    
-        -- Grab the access_id out of the fifo; throw away message.
+        -- Grab the callback out of the fifo; throw away message.
         -- (Have to pull out list fields for this; base-1 indexing.)
-        local access_id = FIFO.Read(write_fifo)[1]
-        -- Signal the MD with an error.
-        Raise_Signal('pipeWrite_complete_'..access_id, "ERROR")
+        local callback = FIFO.Read(write_fifo)[1]
+
+        -- Send back to md or lua with an error.
+        if type(callback) == "string" then
+            L.Raise_Signal('pipeWrite_complete_'..callback, "ERROR")
+        elseif type(callback) == "function" then
+            callback("ERROR")
+        end
     end
     
     while not FIFO.Is_Empty(read_fifo) do    
-        -- Grab the access_id out of the fifo.
-        local access_id = FIFO.Read(read_fifo)        
-        -- Signal the MD with an error.
-        Raise_Signal('pipeRead_complete_'..access_id, "ERROR")
+        -- Grab the callback out of the fifo.
+        local callback = FIFO.Read(read_fifo)
+        
+        -- Send back to md or lua with an error.
+        if type(callback) == "string" then
+            L.Raise_Signal('pipeRead_complete_'..callback, "ERROR")
+        elseif type(callback) == "function" then
+            callback("ERROR")
+        end
     end
             
     -- Clear the pipe state entirely to force it to reset on new accesses.
@@ -582,7 +565,7 @@ end
 -- Split a string on the first semicolon.
 -- Note: works on the MD passed arrays of characters.
 -- Returns two substrings.
-function Split_String(this_string)
+function L.Split_String(this_string)
 
     -- Get the position of the separator.
     local position = string.find(this_string, ";")
@@ -603,7 +586,7 @@ end
 
 -- MD interface: read a message from a pipe.
 -- Input is one term, semicolon separated string with pipe name, callback id.
-function Handle_pipeRead(_, pipe_name_id)
+function L.Handle_pipeRead(_, pipe_name_id)
 
     -- Isolate the pipe_name and access id.
     -- Here, 'match' is set to capture all chars but semicolon ([^;]),
@@ -611,42 +594,13 @@ function Handle_pipeRead(_, pipe_name_id)
     --  in the result, splitting it out to two terms.
     -- Note: match doesn't work; complains about input being an 
     -- array and not string.
-    --local pipe_name, access_id = string:match(pipe_name_id, "([^;]+);([^;]+)")
+    --local pipe_name, callback = string:match(pipe_name_id, "([^;]+);([^;]+)")
     
     -- Use find/sub for splitting instead.
-    local pipe_name, access_id = Split_String(pipe_name_id)
+    local pipe_name, callback = L.Split_String(pipe_name_id)
        
-    -- Declare the pipe, if needed.
-    Declare_Pipe(pipe_name)
-    
     -- Pass to the scheduler.
-    Schedule_Read(pipe_name, access_id)
-end
-
-
--- Schedule a pipe to be read.
-function Schedule_Read(pipe_name, access_id)
-    -- Add the id to the fifo.
-    FIFO.Write(private.pipes[pipe_name].read_fifo, access_id)
-
-    -- If the read polling function isn't currently active, activate it.
-    if private.read_polling_active == false then
-        -- Do this by hooking into the onUpdate signal, which appears to
-        -- run every frame.
-        -- TODO: move this to Poll_For_Reads, and call it once.
-        SetScript("onUpdate", Poll_For_Reads)
-        
-        -- Debug printout.
-        if private.print_to_chat then
-            CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Reads")
-        end
-            
-        private.read_polling_active = true
-        
-        -- Kick off a first polling call, so it doesn't wait until
-        -- the next frame.
-        Poll_For_Reads()
-    end
+    L.Schedule_Read(pipe_name, callback)
 end
 
 
@@ -656,13 +610,13 @@ end
 -- and message.
 -- If signal_name was "pipeWriteSpecial", this message is treated as
 -- a special command that is used to determine what to write.
-function Handle_pipeWrite(signal_name, pipe_name_id_message)
+function L.Handle_pipeWrite(signal_name, pipe_name_id_message)
 
     -- Isolate the pipe_name, id, value.
-    -- local pipe_name, access_id, message = string:match(pipe_name_id_message, "([^;]+);([^;]+)")
+    -- local pipe_name, callback, message = string:match(pipe_name_id_message, "([^;]+);([^;]+)")
     
-    local pipe_name, temp = Split_String(pipe_name_id_message)
-    local access_id, message = Split_String(temp)
+    local pipe_name, temp = L.Split_String(pipe_name_id_message)
+    local callback, message = L.Split_String(temp)
     
     -- Handle special commands.
     -- Note: if the command not recognized, it just gets sent as-is.
@@ -674,24 +628,102 @@ function Handle_pipeWrite(signal_name, pipe_name_id_message)
         end
     end
         
-    -- Declare the pipe, if needed.
-    Declare_Pipe(pipe_name)
-    
     -- Pass to the scheduler.
-    Schedule_Write(pipe_name, access_id, message)    
+    L.Schedule_Write(pipe_name, callback, message)    
+end
+
+
+-- MD interface: check if a pipe is connected.
+-- While id isn't important for this, it is included for interface
+-- consistency and code reuse in the MD.
+function L.Handle_pipeCheck(_, pipe_name_id)
+    -- Use find/sub for splitting instead.
+    local pipe_name, callback = L.Split_String(pipe_name_id)
+    
+    local success = pcall(L.Connect_Pipe, pipe_name)
+    -- Translate to strings that match read/write returns.
+    local message
+    if success then
+        message = "SUCCESS"
+    else
+        message = "ERROR"
+    end
+    -- Send back to md or lua.
+    if type(callback) == "string" then
+        L.Raise_Signal('pipeCheck_complete_'..callback, message)
+    elseif type(callback) == "function" then
+        callback(message)
+    end
+end
+
+
+-- MD interface: close a pipe.
+-- This will not signal back, for now.
+function L.Handle_pipeClose(_, pipe_name)
+    L.Close_Pipe(pipe_name)
+end
+
+-- MD interface: flag a pipe to suppress paused reads.
+function L.Handle_pipeSuppressPausedReads(_, pipe_name)
+    -- Make sure the pipe is declared already.
+    L.Declare_Pipe(pipe_name)
+    private.pipes[pipe_name].suppress_reads_when_paused = true
+end
+
+function L.Handle_pipeUnsuppressPausedReads(_, pipe_name)
+    -- Make sure the pipe is declared already.
+    L.Declare_Pipe(pipe_name)
+    private.pipes[pipe_name].suppress_reads_when_paused = false
+end
+
+
+-------------------------------------------------------------------------------
+-- Scheduling reads/writes.
+-- Other lua modules may interface to here.
+
+
+-- Schedule a pipe to be read.
+function L.Schedule_Read(pipe_name, callback)
+    -- Declare the pipe, if needed.
+    L.Declare_Pipe(pipe_name)
+    
+    -- Add the id to the fifo.
+    FIFO.Write(private.pipes[pipe_name].read_fifo, callback)
+
+    -- If the read polling function isn't currently active, activate it.
+    if private.read_polling_active == false then
+        -- Do this by hooking into the onUpdate signal, which appears to
+        -- run every frame.
+        -- TODO: move this to Poll_For_Reads, and call it once.
+        SetScript("onUpdate", L.Poll_For_Reads)
+        
+        -- Debug printout.
+        if private.print_to_chat then
+            CallEventScripts("directChatMessageReceived", "LUA;Registering Poll_For_Reads")
+        end
+            
+        private.read_polling_active = true
+        
+        -- Kick off a first polling call, so it doesn't wait until
+        -- the next frame.
+        L.Poll_For_Reads()
+    end
 end
 
 
 -- Schedule a pipe to be written.
-function Schedule_Write(pipe_name, access_id, message)
+function L.Schedule_Write(pipe_name, callback, message)
+    -- Declare the pipe, if needed.
+    L.Declare_Pipe(pipe_name)
+    
     -- Add the id and message to the fifo.
-    FIFO.Write(private.pipes[pipe_name].write_fifo, {access_id, message})
+    FIFO.Write(private.pipes[pipe_name].write_fifo, {callback, message})
 
     -- If the write polling function isn't currently active, activate it.
     if private.write_polling_active == false then
         -- Do this by hooking into the onUpdate signal, which appears to
         -- run every frame.
-        SetScript("onUpdate", Poll_For_Writes)
+        SetScript("onUpdate", L.Poll_For_Writes)
         
         -- Debug printout.
         if private.print_to_chat then
@@ -702,49 +734,9 @@ function Schedule_Write(pipe_name, access_id, message)
         
         -- Kick off a first polling call, so it doesn't wait until
         -- the next frame.
-        Poll_For_Writes()
+        L.Poll_For_Writes()
     end
 end
-
-
--- MD interface: check if a pipe is connected.
--- While id isn't important for this, it is included for interface
--- consistency and code reuse in the MD.
-function Handle_pipeCheck(_, pipe_name_id)
-    -- Use find/sub for splitting instead.
-    local pipe_name, access_id = Split_String(pipe_name_id)
-    
-    local success = pcall(Connect_Pipe, pipe_name)
-    -- Translate to strings that match read/write returns.
-    local message
-    if success then
-        message = "SUCCESS"
-    else
-        message = "ERROR"
-    end
-    Raise_Signal('pipeCheck_complete_'..access_id, message)
-end
-
-
--- MD interface: close a pipe.
--- This will not signal back, for now.
-function Handle_pipeClose(_, pipe_name)
-    Close_Pipe(pipe_name)
-end
-
--- MD interface: flag a pipe to suppress paused reads.
-function Handle_pipeSuppressPausedReads(_, pipe_name)
-    -- Make sure the pipe is declared already.
-    Declare_Pipe(pipe_name)
-    private.pipes[pipe_name].suppress_reads_when_paused = true
-end
-
-function Handle_pipeUnsuppressPausedReads(_, pipe_name)
-    -- Make sure the pipe is declared already.
-    Declare_Pipe(pipe_name)
-    private.pipes[pipe_name].suppress_reads_when_paused = false
-end
-
 
 -------------------------------------------------------------------------------
 -- Polling loops.
@@ -756,7 +748,7 @@ end
 -- If all reads satisfied, this will unschedule itself for running.
 -- TODO: move the code to register this on updates internally, and just
 --  require the Schedule_Read function to call this once to kick things off.
-function Poll_For_Reads()
+function L.Poll_For_Reads()
     
     -- Flag to indicate if any reads are still pending at the end
     -- of this loop.
@@ -773,14 +765,14 @@ function Poll_For_Reads()
             -- Try to read.
             -- On hard failure, success if false and message is the error.
             -- On success, message is nil (pipe empty) or the message string.
-            local call_success, message_or_nil = Read_Pipe(pipe_name)
+            local call_success, message_or_nil = L.Read_Pipe(pipe_name)
             
             if call_success then 
                 if message_or_nil ~= nil then
                     -- Obtained a message.
                 
                     -- Grab the read_id out of the fifo.
-                    local access_id = FIFO.Read(state.read_fifo)
+                    local callback = FIFO.Read(state.read_fifo)
                     
                     -- Debug print.
                     if private.print_to_chat then
@@ -793,9 +785,14 @@ function Poll_For_Reads()
                         -- TODO: an option to Ack the read to the pipe automatically,
                         --  since md cannot do it in this case.
                     else
-                        -- Signal the MD with message return the data, suffixing
-                        -- the signal name with the id.
-                        Raise_Signal('pipeRead_complete_'..access_id, message_or_nil)
+                        if type(callback) == "string" then
+                            -- Signal the MD with message return the data,
+                            -- suffixing the signal name with the id.
+                            L.Raise_Signal('pipeRead_complete_'..callback, message_or_nil)
+                        -- Callback a lua function if listening.
+                        elseif type(callback) == "function" then
+                            callback(message_or_nil)
+                        end
                     end                    
                     
                 else
@@ -815,7 +812,7 @@ function Poll_For_Reads()
                 -- Something went wrong, other than an empty fifo.
                 -- Close out the pipe; this call will send error messages
                 -- for each pending write or read.
-                Close_Pipe(pipe_name)
+                L.Close_Pipe(pipe_name)
                 
                 -- Stop trying to access this pipe.
                 break
@@ -825,7 +822,7 @@ function Poll_For_Reads()
     
     -- If no reads are pending, unschedule this function.
     if activity_still_pending == false then
-        RemoveScript("onUpdate", Poll_For_Reads)
+        RemoveScript("onUpdate", L.Poll_For_Reads)
         -- Debug printout.
         if private.print_to_chat then
             CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Reads")
@@ -839,7 +836,7 @@ end
 --  writes pending.
 -- This should be scheduled to run every game frame while writes are pending.
 -- If all writes satisfied, this will unschedule itself for running.
-function Poll_For_Writes()
+function L.Poll_For_Writes()
     
     -- Flag to indicate if any activity is still pending at the end
     -- of this loop.
@@ -853,7 +850,7 @@ function Poll_For_Writes()
         
             -- Peek at the next message to be sent; don't remove yet.
             -- (Have to pull out list fields for this; base-1 indexing.)
-            local access_id = FIFO.Next(state.write_fifo)[1]
+            local callback = FIFO.Next(state.write_fifo)[1]
             local message   = FIFO.Next(state.write_fifo)[2]
         
             -- Try to write.
@@ -861,7 +858,7 @@ function Poll_For_Writes()
             -- Otherwise retval is True on succesful write, false on full pipe.
             -- (Not calling it write_success to avoid confusing it with an
             --  error string.)
-            local call_success, retval = Write_Pipe(pipe_name, message)
+            local call_success, retval = L.Write_Pipe(pipe_name, message)
             
             if call_success then
                 -- Handle succesful writes.
@@ -875,7 +872,12 @@ function Poll_For_Writes()
                     FIFO.Read(state.write_fifo)
                     
                     -- Signal the MD, if listening.
-                    Raise_Signal('pipeWrite_complete_'..access_id, 'SUCCESS')
+                    if type(callback) == "string" then
+                        L.Raise_Signal('pipeWrite_complete_'..callback, 'SUCCESS')
+                    -- Callback a lua function if listening.
+                    elseif type(callback) == "function" then
+                        callback('SUCCESS')
+                    end
                     
                 -- Otherwise a full pipe.
                 else
@@ -895,7 +897,7 @@ function Poll_For_Writes()
                 -- Something went wrong, other than a full fifo.
                 -- Close out the pipe; this call will send error messages
                 -- for each pending write or read.
-                Close_Pipe(pipe_name)
+                L.Close_Pipe(pipe_name)
                 
                 -- Stop trying to access this pipe.
                 break
@@ -905,7 +907,7 @@ function Poll_For_Writes()
     
     -- If no accesses are pending, unschedule this function.
     if activity_still_pending == false then
-        RemoveScript("onUpdate", Poll_For_Writes)
+        RemoveScript("onUpdate", L.Poll_For_Writes)
         -- Debug printout.
         if private.print_to_chat then
             CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Writes")
@@ -924,9 +926,9 @@ end
 -- Returns a string if the read succesful.
 -- Returns nil if the pipe is empty but otherwise looks good.
 -- Raises an error on other problems.
-function _Read_Pipe_Raw(pipe_name)
+function L._Read_Pipe_Raw(pipe_name)
     -- Open the pipe if needed. Let errors carry upward.
-    Connect_Pipe(pipe_name)
+    L.Connect_Pipe(pipe_name)
     
     -- Read in whatever is in the pipe.
     -- Apparently this either returns text, or [nil, error_message].
@@ -967,12 +969,12 @@ end
 -- Read a pipe, with possibly one retry.
 -- Returns success and message, the outputs of a pcall with the same meaning.
 -- On success, message is a string (pipe read succesfully) or nil (pipe empty).
-function Read_Pipe(pipe_name)
-    local success, message = pcall(_Read_Pipe_Raw, pipe_name)
+function L.Read_Pipe(pipe_name)
+    local success, message = pcall(L._Read_Pipe_Raw, pipe_name)
     
     if not success then
         -- Disconnect the pipe (close file) on any hard error.
-        Disconnect_Pipe(pipe_name)
+        L.Disconnect_Pipe(pipe_name)
             
         -- Try once more if allowed.
         if private.pipes[pipe_name].retry_allowed then
@@ -983,13 +985,13 @@ function Read_Pipe(pipe_name)
             end
                 
             -- Overwrite the success flag.
-            success, message = pcall(_Read_Pipe_Raw, pipe_name)
+            success, message = pcall(L._Read_Pipe_Raw, pipe_name)
             -- Clear the retry flag.
             private.pipes[pipe_name].retry_allowed = false
             
             if not success then
                 -- Disconnect the pipe (close file) on any hard error.
-                Disconnect_Pipe(pipe_name)
+                L.Disconnect_Pipe(pipe_name)
             end
         end
     end
@@ -1004,9 +1006,9 @@ end
 -- Attempt to write a pipe, possibly throwing an error.
 -- Returns true on succesful write, false on pipe full but otherwise good.
 -- Raises an error on other problems.
-function _Write_Pipe_Raw(pipe_name, message)
+function L._Write_Pipe_Raw(pipe_name, message)
     -- Open the pipe if needed. Let errors carry upward.
-    Connect_Pipe(pipe_name)
+    L.Connect_Pipe(pipe_name)
     
     -- Send the write request on the output pipe.
     -- Presumably this returns the number of bytes actually written, or
@@ -1053,12 +1055,12 @@ end
 -- Returns success and retval, the outputs of a pcall with the same meaning.
 -- On success, retval is a bool: true if write completed, false if pipe full.
 -- On non-success, retval is the lua error.
-function Write_Pipe(pipe_name, message)
-    local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
+function L.Write_Pipe(pipe_name, message)
+    local call_success, retval = pcall(L._Write_Pipe_Raw, pipe_name, message)
     
     if not call_success then
         -- Disconnect the pipe (close file) on any hard error.
-        Disconnect_Pipe(pipe_name)
+        L.Disconnect_Pipe(pipe_name)
                 
         -- Try once more if allowed.
         if private.pipes[pipe_name].retry_allowed then
@@ -1067,13 +1069,13 @@ function Write_Pipe(pipe_name, message)
                 CallEventScripts("directChatMessageReceived", pipe_name..";Retrying write...")
             end
             -- Overwrite the success flag.
-            local call_success, retval = pcall(_Write_Pipe_Raw, pipe_name, message)
+            local call_success, retval = pcall(L._Write_Pipe_Raw, pipe_name, message)
             -- Clear the retry flag.
             private.pipes[pipe_name].retry_allowed = false            
             
             if not success then
                 -- Disconnect the pipe (close file) on any hard error.
-                Disconnect_Pipe(pipe_name)
+                L.Disconnect_Pipe(pipe_name)
             end
         end
     end
@@ -1082,73 +1084,13 @@ function Write_Pipe(pipe_name, message)
 end
 
 
--------------------------------------------------------------------------------
--- Misc
-
--- Small test function.
--- Only run this if the external named pipes are set up and ready.
--- Note: when logging to the chat window, it was noticed that sometimes
---  the window doesn't display the latest activity, and needs to be
---  closed/reopened to see all messages.
--- Note: this doesn't have a way to capture read results through the polling
---  routine, so just do raw access (that might fail on empty fifo) for now.
--- TODO: tweak test somehow to capture read results properly.
-function Test()
-    local pipe_name = "\\\\.\\pipe\\x4_pipe"
-    if private.print_to_chat then
-        CallEventScripts("directChatMessageReceived", "pipes;Starting pipe test on "..pipe_name)
-    end
-    
-    Declare_Pipe(pipe_name)
-    Connect_Pipe(pipe_name)
-
-    -- Individual writes
-    -- (Note: cannot do "if 0" because 0 is true, water is foot,
-    --  spaceships are puppy, and lua is dumb.)
-    if 1 then
-        Schedule_Write(pipe_name, "0", "write:[test1]5")
-    end
-    if 1 then
-        Schedule_Write(pipe_name, "0", "write:[test2]6")
-        Schedule_Write(pipe_name, "0", "write:[test3]7")
-        Schedule_Write(pipe_name, "0", "write:[test4]8")
-    end
-
-    -- Transaction write/read
-    if 1 then
-        Schedule_Write(pipe_name, "0", "read:[test1]")
-        Schedule_Read (pipe_name, "0")
-    end
-
-    -- Pipelined transactions.
-    if 1 then
-        Schedule_Write(pipe_name, "0", "read:[test2]")
-        Schedule_Write(pipe_name, "0", "read:[test3]")
-        Schedule_Write(pipe_name, "0", "read:[test4]")
-        Schedule_Read (pipe_name, "0")
-        Schedule_Read (pipe_name, "0")
-        Schedule_Read (pipe_name, "0")
-    end
-
-    if nil then
-        -- Tell the server to close (for this particular server test).
-        Schedule_Write(pipe_name, "0", "close")
-    end
-
-    -- Close out the pipe.
-    -- Remove this now that reads are nonblocking; it kills the pipe
-    -- before reads finish.
-    -- Close_Pipe(pipe_name)
-end
-
-
 -- Finalize with initial setup.
-Init()
+L.Init()
 
--- Uncomment to run a test. Used during development.
---Test()
-
--- TODO: consider exporting functions for other lua modules.
+-- Return the table of local functions to any other script that
+-- requires this one.
+-- TODO: maybe export as a global.
+return L
 
 
 -- Random thoughts when overhauling the design:

@@ -22,13 +22,17 @@ class Server_Thread:
         from scratch.
     * thread
       - Thread running the server.
+    * test
+      - Bool, if True then in test mode, and server will not reboot on
+        a disconnect.
     '''
-    def __init__(self, entry_function):
+    def __init__(self, entry_function, test = False):
         # Set up the thread.
         # For potential future development, the thread will call a
         #  class method on this class object, inheriting any object
         #  attributes.
         self.entry_function = entry_function
+        self.test = test
         self.thread = threading.Thread(target = self.Run_Server, 
                                        args = [])
         self.thread.start()
@@ -56,10 +60,13 @@ class Server_Thread:
                 #  funcname : Name of function that errored, eg. 'ReadFile'
                 #  strerror : String description of error
 
+                if self.test:
+                    print('Pipe client disconnected; stopping test.')
+
                 # If X4 was reloaded, this results in a ERROR_BROKEN_PIPE error
                 # (assuming x4 lua was wrestled into closing its pipe properly
                 #  on garbage collection).
-                if ex.winerror == winerror.ERROR_BROKEN_PIPE:
+                elif ex.winerror == winerror.ERROR_BROKEN_PIPE:
                     # Keep running the server.
                     boot_server = True
                     print('Pipe client disconnected, restarting.')

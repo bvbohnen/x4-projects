@@ -175,7 +175,7 @@ def Main():
 
                         # Start a new thread for it.
                         if main != None:
-                            thread = Server_Thread(module.main)
+                            thread = Server_Thread(module.main, test = test_python_client)
                             threads.append(thread)
                         else:
                             print('Module lacks "main()": {}'.format(module_path))
@@ -187,12 +187,17 @@ def Main():
             #  funcname : Name of function that errored, eg. 'ReadFile'
             #  strerror : String description of error
 
+            # If just in testing mode, assume the tests completed and
+            #  shut down.
+            if test_python_client:
+                print('Pipe client disconnected; stopping test.')
+                shutdown = True
+
             # If X4 was reloaded, this results in a ERROR_BROKEN_PIPE error
             # (assuming x4 lua was wrestled into closing its pipe properly
             #  on garbage collection).
-            if ex.winerror == winerror.ERROR_BROKEN_PIPE:
+            elif ex.winerror == winerror.ERROR_BROKEN_PIPE:
                 # Keep running the server.
-                boot_server = True
                 print('Pipe client disconnected, restarting.')
 
         except Exception as ex:
@@ -282,8 +287,10 @@ def Pipe_Client_Test():
     pipe.Write("package.path:" + package_path)
 
     # Announce module relative paths.
+    # TODO: make it easy to specify an extension being tested.
     modules = [
-        "extensions/key_capture_api/Send_Keys.py",
+        #"extensions/key_capture_api/Send_Keys.py",
+        "extensions/time_api/Time_API.py",
         ]
     # Separated with ';', end with a ';'.
     message = ';'.join(modules) + ';'

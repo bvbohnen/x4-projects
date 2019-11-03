@@ -645,10 +645,10 @@ TODO:
       <signal_cue_instantly
         cue="md.Simple_Menu_API.Register_Options_Menu"
         param = "table[
-            $id='named_pipes_menu',
-            $columns=2, 
-            $title='Named Pipes API',
-            $cue=Build_Options_Menu
+            $id      = 'named_pipes_menu',
+            $columns = 2, 
+            $title   = 'Named Pipes API',
+            $onOpen  = Build_Options_Menu
             ]"/>
     </actions>
   </cue>
