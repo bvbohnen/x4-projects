@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="time_api" name="Time API" description="Adds timer api functions." author="SirNukes" version="002" date="2019-10-31" save="false" sync="false">
+<content id="time_api" name="Time API" description="Adds timer api functions." author="SirNukes" version="003" date="2019-10-31" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>
