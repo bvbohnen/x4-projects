@@ -31,7 +31,7 @@ local Lib = require("extensions.simple_menu_api.lua.Library")
 
 
 -- Table of locals.
-local loc = {}
+local L = {}
 
 
 -- Global config customization.
@@ -44,10 +44,10 @@ if global_config == nil then
 end
 
 
-function loc.Init()
+function L.Init()
     -- Event registration.
-    RegisterEvent("Simple_Menu_Options.disable_animations", loc.Handle_Disable_Animations)
-    RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , loc.Handle_Tooltip_Font)
+    RegisterEvent("Simple_Menu_Options.disable_animations", L.Handle_Disable_Animations)
+    RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , L.Handle_Tooltip_Font)
 end
 
 
@@ -65,13 +65,13 @@ end
     For now, this will be done across all menus.
 ]]
 -- State for this option.
-loc.animations = {
+L.animations = {
     -- If animation suppression is currently enabled.
     disable = true,
     }
 
 
-function loc.Init_Animations()
+function L.Init_Animations()
 
     -- Stop if something went wrong.
     if Menus == nil then
@@ -100,7 +100,7 @@ function loc.Init_Animations()
         -- part.
         ego_menu.showMenuCallback = function (...)
             -- Suppress based on the current setting.
-            if loc.animations.disable then
+            if L.animations.disable then
                 C.SkipNextStartAnimation()
             end
             original_callback(...)
@@ -112,12 +112,12 @@ function loc.Init_Animations()
     end
     
 end
-loc.Init_Animations()
+L.Init_Animations()
 
 
 -- Runtime md signal handler to change the option state.
 -- Param is an int, 0 (don't disable) or 1 (do disable).
-function loc.Handle_Disable_Animations(_, param)
+function L.Handle_Disable_Animations(_, param)
     if debugger.verbose then
         DebugError("Handle_Disable_Animations called with " .. tostring(param))
     end
@@ -126,7 +126,7 @@ function loc.Handle_Disable_Animations(_, param)
     if param == 1 then param = true else param = false end
 
     -- Store it.
-    loc.animations.disable = param
+    L.animations.disable = param
 end
 
 ------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ end
 
 -- Table of valid font sizes; uses dummy values, just want key checking.
 local valid_font_sizes = {[8]=0, [9]=0, [10]=0, [11]=0, [12]=0, [13]=0}
-function loc.Handle_Tooltip_Font(_, new_size)
+function L.Handle_Tooltip_Font(_, new_size)
     -- Validate within reasonable size limits.
     if valid_font_sizes[new_size] == nil then
         error("Handle_Tooltip_Font received invalid font size: "..tostring(new_size))
@@ -158,4 +158,4 @@ end
 
 
 -- Final init.
-loc.Init()
+L.Init()

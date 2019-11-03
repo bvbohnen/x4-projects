@@ -5,11 +5,11 @@ Container for data tables, shared by other active modules.
 -- Import library functions, to help with table setup.
 local Lib = require("extensions.simple_menu_api.lua.Library")
 
-local tables = {}
+local T = {}
 
-tables.debugger = {
+T.debugger = {
     -- Send chat messages on player actions to widgets.
-    actions_to_chat = false,
+    actions_to_chat = true,
     -- Print all commands run.
     announce_commands = false,
     -- Generic filter on messages.
@@ -19,12 +19,12 @@ tables.debugger = {
 -- User registered menus to show in options.
 -- Keys are the menu_ids of the submenus. Entries are subtables with the
 -- submenu properties (id, menu_id, name, private, etc.).
-tables.custom_menu_specs = {
+T.custom_menu_specs = {
 }
 
 -- Custom data of the current menu (standalone or gameoptions).
 -- These get linked appropriately depending on which menu type is active.
-tables.menu_data = {
+T.menu_data = {
     -- Number of columns in the table, not including back arrow.
     columns = nil,
     
@@ -70,7 +70,7 @@ tables.menu_data = {
 -- For safety, call this when opening a new menu, protecting against cases
 -- where a prior attempted menu errored out with leftover queued commands
 -- or similar.
-function tables.menu_data:reset()
+function T.menu_data:reset()
     self.frame = nil
     self.ftable = nil
     self.title_table = nil
@@ -81,7 +81,7 @@ end
 
 
 -- General config, copied from ego code; may not all be used.
-tables.config = {
+T.config = {
     optionsLayer = 3,
     topLevelLayer = 4,
 
@@ -112,7 +112,7 @@ tables.config = {
 }
 
 -- Convenience renaming.
-local config = tables.config
+local config = T.config
 
 config.table = {
     x = 45,
@@ -152,7 +152,7 @@ config.standardTextProperties = {
 -- Tables that will hold just the property names of the widgets,
 -- used for filtering user args.
 -- Autofilled based on default's keys.
-tables.widget_properties = {}
+T.widget_properties = {}
 
 
 -- TODO: split between stock defaults and applied defaults, since applying
@@ -167,7 +167,7 @@ tables.widget_properties = {}
 -- since md->lua is janky and makes md bools into lua 0/1, causing problems.
 -- Library code will do proper bool conversion based on these contents.
 -- Note: to remove api support for a property, comment it out.
-tables.widget_defaults = {
+T.widget_defaults = {
     ["widget"] = {
         scaling = true,
         width = 0,
@@ -177,20 +177,29 @@ tables.widget_defaults = {
         mouseOverText = ""
     },
     ["frame"] = {
+        -- Layer is fixed.
         --layer = 3,
-        exclusiveInteractions = false,
+        -- No notable effect with only one table to use.
+        --exclusiveInteractions = false,
         backgroundID = "",
         backgroundColor = Helper.color.white,
         overlayID = "",
+        -- Bugged; overlay icon uses backgroundColor instead.
+        -- Can leave for now; may get fixed.
         overlayColor = Helper.color.white,
         standardButtons = Helper.standardButtons_CloseBack,
         standardButtonX = 0,
         standardButtonY = 0,
         showBrackets = false,
-        autoFrameHeight = false,
+        -- TODO: toy around with this.
+        -- For now, height computed manually, but this might do the same thing.
+        --autoFrameHeight = false,
         closeOnUnhandledClick = false,
         playerControls = false,
-        startAnimation = true,
+        -- Does this do anything?  No animations noticed. Not really
+        -- used in stock menus.
+        -- Disable for now.
+        --startAnimation = true,
         enableDefaultInteractions = true,
         -- Disallow miniwidgets; they appear to be limited to 2 rows
         -- in widget_fullscreen.
@@ -203,15 +212,31 @@ tables.widget_defaults = {
         _basetype = "widget"
     },
     ["table"] = {
-        -- Headers are bugged in ego code (undefined variable error).
+        -- There is a header property, but its code is bugged in
+        -- widget_fullscreen, using an undefined 'tableoffsety' in
+        -- widgetSystem.setUpTable, spamming the log with errors.
         -- header = "",
-        tabOrder = 0,
-        skipTabChange = false,
-        defaultInteractiveObject = false,
+
+        -- This is actually flipped to 1 in the custom menu defaults.
+        -- Remove; user probably never needs to set to 0.
+        --tabOrder = 0,
+
+        -- Remove; only one table, so there is no tab support for moving
+        -- between tables anyway.
+        --skipTabChange = false,
+
+        -- Removed; no apparent affect, the single table is always
+        -- selected.
+        --defaultInteractiveObject = false,
+
+        -- Allow this to change; if false cells move closer together,
+        -- though player cannot click to select other rows.
         borderEnabled = true,
         -- No height limit; stretch to menu/frame size.
         --maxVisibleHeight = 0,
+        -- This had no clear affect on menu layout.
         reserveScrollBar = true,
+        -- Set true in custom defaults.
         wraparound = false,
         highlightMode = "on",
         multiSelect = false,
@@ -406,7 +431,7 @@ tables.widget_defaults = {
 -- For any widget field that is a subtable, need to know the defaults.
 --[[
     Note: the Helper backend doesn't understand how to apply defaults for
-    complex widget properties, eg. nested tables.
+    complex widget properties, eg. nested T.
     For example, if a user wants to change button text through text.text,
     the backend will see the rest of the textproperties as empty and give
     an error on nil fontsize.
@@ -484,9 +509,9 @@ local function Widget_Init()
         for field, propname in pairs(subtable) do
             -- Shwllow copy the default table.
             -- (Lua has no easy way to do this, so do it ugly.)
-            tables.widget_defaults[widget][field] = {}
+            T.widget_defaults[widget][field] = {}
             for subfield, default in pairs(complexCell_defaults[propname]) do
-                tables.widget_defaults[widget][field][subfield] = default
+                T.widget_defaults[widget][field][subfield] = default
             end
         end
     end
@@ -495,7 +520,7 @@ local function Widget_Init()
     local function Fill_Inheritances(itable)
         -- Check for a parent.
         if itable._basetype then
-            local parent = tables.widget_defaults[itable._basetype]
+            local parent = T.widget_defaults[itable._basetype]
             -- If the parent still has a basetype, it needs to be visited first.
             if parent._basetype then
                 Fill_Inheritances(parent)
@@ -511,19 +536,19 @@ local function Widget_Init()
     -- Kick it off for all widgets.
     -- Note: tables don't retain order, which is why the recursive function
     -- is used to be robust against whatever visitation ordering is used.
-    for widget, subtable in pairs(tables.widget_defaults) do
+    for widget, subtable in pairs(T.widget_defaults) do
         Fill_Inheritances(subtable)
     end
 
     -- Apply custom defaults.
     -- TODO: rethink this; favor dynamic defaults.
-    --Lib.Table_Update(tables.widget_defaults, widget_default_overrides)
+    --Lib.Table_Update(T.widget_defaults, widget_default_overrides)
 
     -- Fill in the property list.
-    for widget_name, subtable in pairs(tables.widget_defaults) do
-        tables.widget_properties[widget_name] = {}
+    for widget_name, subtable in pairs(T.widget_defaults) do
+        T.widget_properties[widget_name] = {}
         for k,v in pairs(subtable) do
-            table.insert(tables.widget_properties[widget_name], k)
+            table.insert(T.widget_properties[widget_name], k)
         end
     end
     
@@ -531,4 +556,4 @@ end
 Widget_Init()
 
 -- Export tables.
-return tables
+return T

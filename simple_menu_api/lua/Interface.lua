@@ -17,10 +17,9 @@ Handy ego reference code:
 local Tables = require("extensions.simple_menu_api.lua.Tables")
 local widget_properties = Tables.widget_properties
 local widget_defaults   = Tables.widget_defaults
-local config            = Tables.config
+--local config            = Tables.config
 local menu_data         = Tables.menu_data
 local debugger          = Tables.debugger
-local custom_menu_specs = Tables.custom_menu_specs
 
 -- Import library functions for strings and tables.
 local Lib = require("extensions.simple_menu_api.lua.Library")
@@ -84,19 +83,19 @@ ffi.cdef[[
 -- because lua.
 -- Since this is a headache to manage, a local table will be used to capture
 -- all misc functions, so that lookups are purely a runtime issue.
-local loc = {}
+local L = {}
 
 
 local function Init()
 
     -- MD triggered events.
-    RegisterEvent("Simple_Menu.Process_Command", loc.Handle_Process_Command)
+    RegisterEvent("Simple_Menu.Process_Command", L.Handle_Process_Command)
     
     -- Signal to md that a reload event occurred.
     Lib.Raise_Signal("reloaded")
     
     -- Cache the player component id.
-    loc.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
+    L.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
     
 end
 
@@ -122,13 +121,13 @@ Behavior:
     Note: "none" entries in md convert to lua nil, and hence will not
     show up in the args table.
 ]]
-function loc.Get_Next_Args()
+function L.Get_Next_Args()
 
     -- If the list of queued args is empty, grab more from md.
     if #menu_data.queued_args == 0 then
     
         -- Args are attached to the player component object.
-        local args_list = GetNPCBlackboard(loc.player_id, "$simple_menu_args")
+        local args_list = GetNPCBlackboard(L.player_id, "$simple_menu_args")
         
         -- Loop over it and move entries to the queue.
         for i, v in ipairs(args_list) do
@@ -136,7 +135,7 @@ function loc.Get_Next_Args()
         end
         
         -- Clear the md var by writing nil.
-        SetNPCBlackboard(loc.player_id, "$simple_menu_args", nil)
+        SetNPCBlackboard(L.player_id, "$simple_menu_args", nil)
     end
     
     -- Pop the first table entry.
@@ -160,47 +159,18 @@ end
 
 
 -- Handle command events coming in.
--- Menu creation and closing will be processed immediately, while
--- other events are delayed until a menu is created by the backend.
 -- Param unused currently.
-function loc.Handle_Process_Command(_, param)
-    local args = loc.Get_Next_Args()
+function L.Handle_Process_Command(_, param)
+    local args = L.Get_Next_Args()
     
-    if args.command == "Create_Menu" then
-        loc.Process_Command(args)
-    elseif args.command == "Close_Menu" then
-        loc.Process_Command(args)
-    elseif args.command == "Register_Options_Menu" then
-        loc.Register_Options_Menu(args)
-    elseif menu_data.delay_commands == false then
-        loc.Process_Command(args)
+    if menu_data.delay_commands == false
+    -- These commands are never delayed.
+    or args.command == "Create_Menu"
+    or args.command == "Close_Menu"
+    or args.command == "Register_Options_Menu" then
+        L.Process_Command(args)
     else
         table.insert(menu_data.queued_events, args)
-    end
-end
-
-
--- Handle registration of user options menus.
-function loc.Register_Options_Menu(args)
-    
-    -- Validate all needed args are present.
-    Lib.Validate_Args(args, {
-        {n="id"},
-        {n="title"}, 
-        {n="columns", t='int'},
-        {n="private", t='boolean', d=false},
-    })
-    
-    -- Verify the id appears unique, at least among registered submenus.
-    if custom_menu_specs[args.id] then
-        error("Submenu id conflicts with prior registrated id: "..args.id)
-    end
-    
-    -- Record to the global table.
-    custom_menu_specs[args.id] = args
-    
-    if debugger.verbose then
-        DebugError("Registered submenu: "..args.id)
     end
 end
 
@@ -209,22 +179,22 @@ end
 -- General event processing.
 
 -- Process all of the delayed events, in order.
-function loc.Process_Delayed_Commands()
+function L.Process_Delayed_Commands()
     -- Loop until the list is empty; each iteration removes one event.
     while #menu_data.queued_events ~= 0 do
         -- Process the next event.
         local args = table.remove(menu_data.queued_events, 1)
-        loc.Process_Command(args)
+        L.Process_Command(args)
     end
 end
 -- This will attach to the standalone menu, which calls it when it
 -- sets up the delayed frame.
-Standalone_Menu.Process_Delayed_Commands = loc.Process_Delayed_Commands
+Standalone_Menu.Process_Delayed_Commands = L.Process_Delayed_Commands
 
 
 -- Wrapper on the actual process command function, for error catching.
-function loc.Process_Command(args)
-    local success, message = pcall(loc._Process_Command, args)
+function L.Process_Command(args)
+    local success, message = pcall(L._Process_Command, args)
     if not success then
         DebugError(string.format(
             'Simple Menu API: command "%s" produced error: %s', 
@@ -236,7 +206,7 @@ end
 -- Generic handler for all signals.
 -- They could also be split into separate functions, but this feels
 -- a little cleaner.
-function loc._Process_Command(args)
+function L._Process_Command(args)
     
     if debugger.announce_commands then
         DebugError("Processing command: "..args.command)
@@ -249,10 +219,24 @@ function loc._Process_Command(args)
         -- Hand off to the standalone menu.
         Standalone_Menu.Open(args)
     
+
     -- Close the menu if open.
     elseif args.command == "Close_Menu" then
         -- Hand off to the standalone menu.
         Standalone_Menu.Close()
+        
+
+    elseif args.command == "Register_Options_Menu" then
+        -- Validate all needed args are present.
+        Lib.Validate_Args(args, {
+            {n="id"},
+            {n="title"}, 
+            {n="columns", t='int'},
+            {n="private", t='boolean', d=false},
+        })
+        -- Hand off.
+        Options_Menu.Register_Options_Menu(args)
+
         
     -- Display a menu that has been finished.
     elseif args.command == "Display_Menu" then
@@ -263,6 +247,7 @@ function loc._Process_Command(args)
         -- Hand off to options menu, which deals with these commands.
         Options_Menu.Handle_Display_Command()
         
+
     -- Add a new row.
     elseif args.command == "Add_Row" then
         -- Filter for row properties, defaults, fix bools.
@@ -311,12 +296,12 @@ function loc._Process_Command(args)
     
     elseif args.command == "Make_Widget" then
         -- Hand off to the widget maker local function.
-        loc.Make_Widget(args)
+        L.Make_Widget(args)
     
     -- Handle widget update requests.
     elseif args.command == "Update_Widget" then
         -- Hand off to another function, since code is potentially long.
-        loc.Update_Widget(args)
+        L.Update_Widget(args)
 
     else
         -- If here, the command wasn't recognized.
@@ -325,8 +310,13 @@ function loc._Process_Command(args)
     
 end
 
+
+-------------------------------------------------------------------------------
+-- Widget creation/update functions.
+
+
 -- Make a widget in some cell.
-function loc.Make_Widget(args)
+function L.Make_Widget(args)
     -- Handle common args to all options.
     -- TODO: remove this; shouldn't be needed since md sets default col.
     Lib.Validate_Args(args, {
@@ -390,9 +380,9 @@ function loc.Make_Widget(args)
         row[col]:createButton(properties)
 
         -- Event handlers.
-        loc.Widget_Event_Script_Factory(row[col], "onClick", 
+        L.Widget_Event_Script_Factory(row[col], "onClick", 
             row_index, args.col, {})
-        loc.Widget_Event_Script_Factory(row[col], "onRightClick", 
+        L.Widget_Event_Script_Factory(row[col], "onRightClick", 
             row_index, args.col, {})
                         
 
@@ -402,7 +392,7 @@ function loc.Make_Widget(args)
         -- Event handlers.
         -- Note: event gets true/false for "checked", but they return
         -- to md as 0/1.
-        loc.Widget_Event_Script_Factory(row[col], "onClick", 
+        L.Widget_Event_Script_Factory(row[col], "onClick", 
             row_index, args.col, {"checked"})
         
 
@@ -411,14 +401,14 @@ function loc.Make_Widget(args)
         row[col]:createEditBox(properties)
             
         -- Event handlers.
-        loc.Widget_Event_Script_Factory(row[col], "onTextChanged", 
+        L.Widget_Event_Script_Factory(row[col], "onTextChanged", 
             row_index, args.col, {"text"})
 
         -- TODO: only way to deactivate without confirmation is to
         -- hit escape, but that also clears all box text at the same time.
         -- Maybe interpose a handler function that tracks and restores
         -- the text from the last confirmation in this case.
-        loc.Widget_Event_Script_Factory(row[col], "onEditBoxDeactivated", 
+        L.Widget_Event_Script_Factory(row[col], "onEditBoxDeactivated", 
             row_index, args.col, {"text", "textchanged", "wasconfirmed"})
                                 
         
@@ -428,20 +418,20 @@ function loc.Make_Widget(args)
             
         -- Event handlers.
         -- Swapping ego's "newvalue" to "value".
-        loc.Widget_Event_Script_Factory(row[col], "onSliderCellChanged", 
+        L.Widget_Event_Script_Factory(row[col], "onSliderCellChanged", 
             row_index, args.col, {"value"})
-        loc.Widget_Event_Script_Factory(row[col], "onSliderCellActivated", 
+        L.Widget_Event_Script_Factory(row[col], "onSliderCellActivated", 
             row_index, args.col, {})
         -- Removing onSliderCellDeactivated. In practice it is buggy:
         --  no return values unless the player uses the editbox, and
         --  even then returns the wrong valuechanged (true) if the player
         --  escapes out of an edit (resets the value so valuechanged
         --  should be false, as onSliderCellConfirm returns).
-        --loc.Widget_Event_Script_Factory(row[col], "onSliderCellDeactivated", 
+        --L.Widget_Event_Script_Factory(row[col], "onSliderCellDeactivated", 
         --    row_index, args.col, {"value", "valuechanged"})
-        loc.Widget_Event_Script_Factory(row[col], "onRightClick", 
+        L.Widget_Event_Script_Factory(row[col], "onRightClick", 
             row_index, args.col, {"row", "col", "posx", "posy"})
-        loc.Widget_Event_Script_Factory(row[col], "onSliderCellConfirm", 
+        L.Widget_Event_Script_Factory(row[col], "onSliderCellConfirm", 
             row_index, args.col, {"value", "valuechanged"})
                                 
         
@@ -492,11 +482,11 @@ function loc.Make_Widget(args)
                 
         -- Event handlers.
         -- Swapping ego's "value" to "id".
-        loc.Widget_Event_Script_Factory(row[col], "onDropDownActivated", 
+        L.Widget_Event_Script_Factory(row[col], "onDropDownActivated", 
             row_index, args.col, {})
-        loc.Widget_Event_Script_Factory(row[col], "onDropDownConfirmed", 
+        L.Widget_Event_Script_Factory(row[col], "onDropDownConfirmed", 
             row_index, args.col, {"id"})
-        loc.Widget_Event_Script_Factory(row[col], "onDropDownRemoved", 
+        L.Widget_Event_Script_Factory(row[col], "onDropDownRemoved", 
             row_index, args.col, {"id"})
 
     else
@@ -516,7 +506,7 @@ end
 --   widget.  Eg. {"text", "textchanged", "wasconfirmed"}.
 -- TODO: make use of Helper.set<name>Script functions, which can
 --  wrap the callback function with a ui event and sound.
-function loc.Widget_Event_Script_Factory(widget, event, row, col, params)
+function L.Widget_Event_Script_Factory(widget, event, row, col, params)
 
     -- Handlers are set up in the "handlers" widget subtable.
     -- Note: lua variable args are handled with "..." in the function args.
@@ -562,7 +552,7 @@ end
 
 -- Function which will update an existing widget.
 -- Split off for code organization.
-function loc.Update_Widget(args)
+function L.Update_Widget(args)
     -- Adjust the column number as needed.
     args.col = args.col + menu_data.col_adjust
 
@@ -713,6 +703,121 @@ function loc.Update_Widget(args)
     end
 
 end
+
+-------------------------------------------------------------------------------
+-- Generic shared menu event support.
+-- These will not cover onClose or similar events that are unique to
+--  a menu type, just the generic table/widget related events.
+-- Note: for the options menu, these will catch all events, not just those
+--  on customized submenus.
+
+-- TODO: make some generic function for fill out the following deub
+-- messages and lua events, for code reuse. Currently just three of
+-- them, so okay to be redundant.
+
+-- Called when player selects a row (click or arrow key).
+-- row: int
+-- rowdata: echo of what was fed to addSelectRow() calls.
+-- uitable: int, ui id of the table; this constantly increments across
+--  all menu elements for all menus (eg. it will often be a big number).
+-- modified, input, source: ???
+-- Generic options menu uses this to stop playing cutscenes or simliar,
+--  presumably for when played changes encyclopedia entry?
+function L.onRowChanged(row, rowdata, uitable, modified, input, source)
+    -- Debug messaging.
+    if debugger.actions_to_chat then
+        CallEventScripts("directChatMessageReceived", 
+            string.format("Menu;table onRowChanged to row: (%s)", 
+            tostring(row)))
+    end
+    -- Safety against bad row args.
+    if not row then return end
+    
+    -- Signal md. Use similar format to widget events.
+    Lib.Raise_Signal("Event", {
+        type = "menu",
+        event = "onRowChanged",
+        row = row,
+        modified = modified,
+        input = input,
+        source = source,
+        })
+end
+
+-- Called when player selects a column (click or arrow key, as well
+--  as by changing row to a row with a widget).
+-- row: the most recently selected row recorded by onRowChanged.
+-- col: int
+-- uitable: table with the row/col
+function L.onColChanged(row, col, uitable)
+    -- Debug messaging.
+    if debugger.actions_to_chat then
+        CallEventScripts("directChatMessageReceived",
+            string.format("Menu;table onColChanged to row,col: (%s, %s)", 
+            tostring(row), tostring(col)))
+    end
+    
+    -- On first opening, the menu appears to throw out nil/nil garbage;
+    -- ignore it.
+    if (not row) or (not col) then return end
+
+    -- Signal md. Use similar format to widget events.
+    Lib.Raise_Signal("Event", {
+        type = "menu",
+        event = "onColChanged",
+        row = row,
+        -- Adjust the col index going back to remove backarrow col.
+        col = col - menu_data.col_adjust,
+        })
+end
+
+-- Called when player selects an element?
+-- Maybe only informs of the row, like onRowChanged?
+-- Generic options menu uses this for opening submenus.
+function L.onSelectElement(uitable, modified, row, isdblclick, input)    
+    -- Debug messaging.
+    if debugger.actions_to_chat then
+        CallEventScripts("directChatMessageReceived", 
+            string.format("Menu;table onSelectElement to row: (%s)", 
+            tostring(row)))
+    end
+    -- Safety against bad row args.
+    if not row then return end
+
+    -- Signal md. Use similar format to widget events.
+    Lib.Raise_Signal("Event", {
+        type = "menu",
+        event = "onSelectElement",
+        row = row,
+        modified = modified,
+        isdblclick = isdblclick,
+        input = input,
+        })
+end
+
+-- This appears (based on looking at menu_map.lua) that this activates
+-- when a different table is selected. 
+-- element: int?  (referred to as an id)
+-- Not useful for the custom menus since 1 table.
+--function L.onInteractiveElementChanged(element)
+--    -- Debug messaging.
+--    if debugger.actions_to_chat then
+--        CallEventScripts("directChatMessageReceived", 
+--            string.format("Menu;table onInteractiveElementChanged to element type: %s", 
+--            element.type))
+--    end
+--end
+
+-- Attach these to the standalone/options menu tables.
+Options_Menu.onRowChanged = L.onRowChanged
+Options_Menu.onColChanged = L.onColChanged
+Options_Menu.onSelectElement = L.onSelectElement
+
+Standalone_Menu.onRowChanged = L.onRowChanged
+Standalone_Menu.onColChanged = L.onColChanged
+Standalone_Menu.onSelectElement = L.onSelectElement
+
+
 
 -- Init once everything is ready.
 Init()

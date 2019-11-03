@@ -135,6 +135,7 @@ After having trouble getting submenus to be selected. Thoughts:
 -- Import config and widget_properties tables.
 local Tables = require("extensions.simple_menu_api.lua.Tables")
 local widget_properties = Tables.widget_properties
+local widget_defaults   = Tables.widget_defaults
 local config            = Tables.config
 local menu_data         = Tables.menu_data
 local debugger          = Tables.debugger
@@ -149,7 +150,15 @@ local menu = {}
 
 -- Custom defaults, generally patterened off code in gameoptions.
 menu.custom_widget_defaults = {
+    ["table"] = {        
+        -- 1 sets the table as interactive.
+        tabOrder = 1,
+        -- Turn on wraparound.
+        wraparound = true,
+        },
+
     ["text"] = config.standardTextProperties,
+    ["boxtext"] = config.standardTextProperties,
 
     -- Center button labels.  Note: a lot of options put this back to left
     -- aligned, so maybe this isn't the best default.
@@ -189,9 +198,6 @@ menu.custom_widget_defaults = {
         hideMaxValue = true,
         },
 
-    -- Tables should be interactive by default.
-    -- This will be handled in table creation args.
-    --["table"] = {tabOrder = 1},
 }
 
 
@@ -349,6 +355,34 @@ local function Init_Gameoptions_Link()
             original_viewCreated(layer, ...)
         end
     end
+
+    -- Patch some event handlers to call the local handlers as well.
+    for i, name in ipairs({
+            "onRowChanged", 
+            "onColChanged", 
+            "onSelectElement", 
+            }) do
+        -- The interface module will hook up its own functions to the local
+        -- menu table.  Set the gameoptions_menu to conditionally call those
+        -- in the local table if they exist.
+        local orig_func = gameoptions_menu[name]
+        gameoptions_menu[name] = function(...)
+            -- This fires on all events for any options menu.
+            -- Check if this is handling a custom menu.
+            -- Can ignore if it is the main index; it has no special
+            -- callback handling.
+            if custom_menu_specs[gameoptions_menu.currentOption] ~= nil then
+                if menu[name] then
+                    menu[name](...)
+                end
+            end
+            -- Always call the original, since it still has functionality
+            -- when in player menus (eg. selecting submenus).
+            if orig_func then
+                orig_func(...)
+            end
+        end
+    end
            
     
     ---- Patch menu.onSelectElement(uitable, modified, row) purely for
@@ -375,6 +409,20 @@ end
 -- Run the above immediately.
 Init_Gameoptions_Link()
 
+-- Register a custom options submenu provided by user.
+function menu.Register_Options_Menu(args)
+    -- Verify the id appears unique, at least among registered submenus.
+    if custom_menu_specs[args.id] then
+        error("Submenu id conflicts with prior registrated id: "..args.id)
+    end
+    
+    -- Record to the global table.
+    custom_menu_specs[args.id] = args
+    
+    if debugger.verbose then
+        DebugError("Registered submenu: "..args.id)
+    end
+end
 
 -- Add a generic selectable row to be handled like normal menus.
 function menu.Add_Submenu_Link(args)
@@ -394,7 +442,9 @@ end
 -- Column count will be padded by 1 for the left side under-arrow column.
 -- Returns the frame and ftable for custom data, with this extra padded column.
 function menu.Make_Menu_Shell(menu_spec)
-    -- Convenience renaming.
+    -- Convenience renaming. TODO: maybe switch back; originally this was
+    -- to reuse/tweak ego code.
+    local custom_menu = menu
     local menu = gameoptions_menu
     
     -- Remove data from the prior menu.
@@ -403,6 +453,8 @@ function menu.Make_Menu_Shell(menu_spec)
 
     menu.currentOption = menu_spec.id
     
+    -- Note: this does not support generic user args for frame setup;
+    -- it will match the options menu default behavior.
     local frame = menu.createOptionsFrame()
         
     -- Create a separate table, with one row for the title.
@@ -434,24 +486,35 @@ function menu.Make_Menu_Shell(menu_spec)
         
         
     -- Set up the main table.
-    -- Add one column to those requested, for the arrow padding.
-    local ftable = frame:addTable(menu_spec.columns + 1, { 
-        -- 1 sets the table as interactive.
-        tabOrder = 1, 
+    -- Extract any supported table properties from the user args.
+    local properties
+    if menu_spec.table then
+        properties = Lib.Filter_Table(menu_spec.table, widget_properties["table"])
+    else
+        properties = {}
+    end
+    -- Fix any bools that md gave as ints.
+    Lib.Fix_Bool_Args(properties, widget_defaults["table"])
+
+    -- Fill local defaults.
+    Lib.Fill_Defaults(properties, custom_menu.custom_widget_defaults["table"])
         
+    -- Apply local overrides.
+    Lib.Table_Update(properties, {
         x = menu.table.x, 
         -- Adjust the y position down, to make room for the title.
         y = title_table.properties.y + title_table:getVisibleHeight() + Helper.borderSize,
         
         width = menu.table.width, 
-        maxVisibleHeight = menu.table.height,
-        
-        -- Makes the table the interactive widget of the frame.
-        -- TODO: maybe not needed; not used in gameoptions example.
-        defaultInteractiveObject = true 
+        maxVisibleHeight = menu.table.height,     
         })
+
+    -- Add one column to those requested, for the arrow padding.
+    local ftable = frame:addTable(menu_spec.columns + 1, properties)
+
     -- Size the first column under the back arrow.
     ftable:setColWidth(1, menu.table.arrowColumnWidth, false)
+
     -- Note: don't set cell defaults the way ego does it, since it gets
     -- confusing with their defaults being metatables, but not being
     -- robust with regard to complex properties (where a user cannot
@@ -524,6 +587,10 @@ function menu.Display_Custom_Menu(menu_spec)
     menu_data.col_adjust = 1
     -- No delay on commands; the menu is ready right away.
     menu_data.delay_commands = false
+    
+    -- Signal md api with a general event for a menu opening; this is to
+    -- match standalone menu behavior.
+    Lib.Raise_Signal("Event", {type='menu', event='onOpen'})
     
     -- Signal md api so it can call the user cue which fills the menu.
     Lib.Raise_Signal("Display_Custom_Menu", menu_spec.id)

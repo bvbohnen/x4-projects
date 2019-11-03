@@ -15,7 +15,7 @@ Note: raise_lua_event only supports passing strings, numbers, or components. Thi
     
 Many of the following cues share some common arguments or arg data types, described here. Note: many of these can be replaced with a constant looked up in the egosoft api backend Helper module. Possible options are included at the end of this documentation.
     
-API args (all widgets)
+API args (all widgets, partially for rows and menus)
   * col
     - Integer, column of the row to place the widget in.
     - Uses 1-based indexing.
@@ -54,7 +54,7 @@ Events (depends on widget)
   * on<___> (onClick, onTextChanged, etc.)
     - Optional callback cue.
     - When the player interacts with most widgets, ui events will occur. On such events, a provided cue will be called with the event results.
-    - All event.param tables will include these fields:
+    - Most event.param tables will include these fields:
       * row, col
         - Longfloat, coordinate of the activated widget.
         - Primarily for use by this backend.
@@ -167,26 +167,173 @@ Complex properties:
 
 #### Menu Creation Cues
     
-* Register_Options_Menu
+* Create_Menu
   
-  Register an options menu, which will be accessible as a submenu of the normal game options.
+  Create a fresh standalone menu. Note: these menus are not attached to the normal options menu. To be followed by Add_Row and similar cue calls to fill in the menu.
+      
+  Each menu created will internally be given a frame to hold a table in which widgets will be placed.  The frame and table properties are also set with this cue.
+      
+  Note: table and frame properties are pending development.
       
   Param: Table with the following items:
-    * $id
-      - String, unique identifier for this menu.
-      - Needs to differ from egosoft menu names, as well as any other mod registered menus.
-    * $title
-      - Text to display in the table header.
-    * $columns
-      - Integer, total number of columns in the menu table.
-    * $cue
-      - Cue to be called when the submenu needs to be built.
-      - This cue should use addRow and makeX functions to build the menu.
-      - Do not call Create_Menu from this cue.
-    * $private
-      - Int 0 or 1, optional, controls if the menu will be listed automatically in the general list of Extension Options menus.
-      - Defaults to 0, non-private.
-      - Set to private for submenus you will manually link to using Add_Submenu_Link.
+  * id, echo
+    - Standard api args
+  * columns
+    - Integer, total number of columns in the menu table.
+    - Max is 13.
+  * title
+    - Text to display in the table header.
+  * width
+    - Int, optional, menu width. Defaults to a predefined width.
+  * height
+    - Int, optional, menu height. Default expands to fit contents.
+  * offsetX
+  * offsetY
+    - Ints, optional, amount of space between menu and screen edge.
+    - Positive values taken from top/left of screen, negative values from bottom/right of screen.
+    - Defaults will center the menu.
+  * onCloseElement
+    - Cue, optional, signalled when the menu is closed.
+  * onRowChanged
+    - Cue, optional, signalled when the player highlights a different row, either by clicking or using arrow keys.
+    - This is the row that is highlighted.
+    - Fires when the menu is first opened and a default row selected.
+  * onColChanged
+    - Cue, optional, signalled when the player highlights a different column, either by clicking or using arrow keys.
+    - This will fire if the row changes and there is an interactive widget on the new row.
+    - Does not fire when selecting a row with no interactive widgets.
+  * onSelectElement
+    - Cue, optional, signalled when the player selects a different element.
+    - In practice, this appears to only work well for row selection.
+    - An element is selected when:
+      - It is clicked after already being highlighted.
+      - 'Enter' is pressed with it highlighted.
+    - Example use: the default options menu uses this to know when the player wants to open a submenu, eg. by 'selecting' Load Game.
+  * frame
+    - Subtable, properties for the frame, as follows:
+    * backgroundID = "solid"
+      - String, name of an icon to use as the background texture.
+      - Set to a blank string to disable the background.
+      - Solid by default, though encyclopedia system pictures can make for pretty backgrounds.
+    * backgroundColor = Helper.color.semitransparent
+      - Color of the background texture.
+      - Use Helper.color.white when displaying pictures to retain their original coloring.
+    * overlayID = ""
+      - String, name of an icon to use as an overlay effect.
+      - As of x4 2.6, this is bugged to use backgroundColor.
+    * overlayColor = Helper.color.white
+      - Intended color of the overlay texture.
+      - No effect currently.
+    * standardButtons = Helper.standardButtons_CloseBack
+      - StandardButtonProperty
+      - Which standard buttons will be included, eg. back/minimize/close.
+      - These are generally placed in the top right.
+    * standardButtonX = 0
+      - Int, x offset for the buttons.
+    * standardButtonY = 0
+      - Int, y offset for the buttons.
+    * showBrackets = false
+      - Bool, if frame brackets will be shown.
+    * closeOnUnhandledClick = false
+      - Bool, if the menu triggers an onHide event if the player clicks outside of its area.
+      - Pending development.
+    * playerControls = false
+      - Bool, if player controls are enabled while the menu is open.
+      - Can use this to create an info menu in the corner while the player continues flying.
+    * enableDefaultInteractions = true
+      - Bool, if default inputs are enabled (escape, delete, etc.).
+      - When false, these inputs have their normal non-menu effect, eg. escape will open the main options menu (which closes this menu automatically).
+  * table
+    - Subtable, properties for the table of widgets, as follows:
+    * borderEnabled = true
+      - Bool, if the table cells have a background color.
+      - When set false, the mouse can no longer change row selection, only arrow keys can.
+    * reserveScrollBar = true
+      - Bool, if the table width reserves space for a scrollbar by adjusting column sizes.
+    * wraparound = true
+      - Bool, if arrow key traversal of table cells will wrap around edges.
+    * highlightMode = "on"
+      - String, controls highlighting behavior of table selections.
+      - One of ["on","column","off","grey"]
+        - "on"     : highlight row with blue box
+        - "column" : highlight cell with blue box
+        - "grey"   : highlight row with grey box
+        - "off"    : no highlights of selected cell
+    * multiSelect = false
+      - Bool, whether the table allows selection of multiple cells.
+    * backgroundID = ""
+      - String, name of an icon to use as the background texture.
+      - Works similar to that for frame, except doesn't cover the title bar.
+    * backgroundColor = Helper.color.white
+      - Color of the background texture.
+            
+  onCloseElement event event returns:
+  * echo, event, id
+  * reason 
+    - String, reason for the closure.
+    - "back" if the player pressed the back button, or pressed 'escape' with enableDefaultInteractions == true.
+    - "close" if the player pressed the close button, pressed 'delete' with enableDefaultInteractions == true, or opened a different menu.
+    - "minimize" if the player pressed the minimize button.
+      
+  onRowChanged event returns:
+  * echo, event, id
+  * row
+    - Int, index of the newly highlighted row.
+  * row_id
+    - ID of the selected row, if available.
+  * row_echo
+    - Echo field of the row, if available.
+      
+  onColChanged event returns:
+  * echo, event, id
+  * row, col
+    - Ints, row/col highlighted, generally corresponding to a widget.
+  * widget_id
+    - ID of the any selected widget at the give row/col, if available.
+  * widget_echo
+    - Echo field of the widget, if available.
+      
+  onSelectElement event returns:
+  * echo, event, id
+  * row
+    - Int, index of the selected row.
+  * row_id
+    - ID of the selected row, if available.
+  * row_echo
+    - Echo field of the row, if available.
+        
+      
+* Register_Options_Menu
+  
+  Register an options menu, which will be accessible as a submenu of the normal game options. These menus will be set to use the same visual style as the standard options menus, and so support a reduced set of args compared to standalone menus.
+      
+  Param: Table with the following items:
+  * id
+    - String, required unique identifier for this menu.
+    - Needs to differ from egosoft menu names, as well as any other mod registered menus.
+  * echo
+    - Standard api args
+  * title
+    - Text to display in the table header.
+  * columns
+    - Integer, total number of columns in the menu table.
+  * private
+    - Int 0 or 1, optional, controls if the menu will be listed automatically in the general list of Extension Options menus.
+    - Defaults to 0, non-private.
+    - Set to private for submenus you will manually link to using Add_Submenu_Link.
+  * onOpen
+    - Cue to be called when the submenu is being opened by the player.
+    - This cue should use addRow and Make_ functions to build the menu.
+    - Do not call Create_Menu from this cue.
+    - End this cue with Display_Menu.
+  * onRowChanged
+    - Same as for Create_Menu.
+  * onColChanged
+    - Same as for Create_Menu.
+  * onSelectElement
+    - Same as for Create_Menu.
+  * table
+    - Same as for Create_Menu.
                   
   Call this each time the Reloaded cue is signalled. Example:
   ```xml
@@ -207,98 +354,9 @@ Complex properties:
     </cue>
   ```
       
-* Create_Menu
-  
-  Create a fresh standalone menu. Note: these menus are not attached to the normal options menu. To be followed by Add_Row and similar cue calls to fill in the menu.
-      
-  Each menu created will internally be given a frame to hold a table in which widgets will be placed.  The frame and table properties are also set with this cue.
-      
-  Note: table and frame properties are pending development.
-      
-  Param: Table with the following items:
-    * columns
-      - Integer, total number of columns in the menu table.
-      - Max is 13.
-    * title
-      - Text to display in the table header.
-    * width
-      - Int, optional, menu width. Defaults to a predefined width.
-    * height
-      - Int, optional, menu height. Default expands to fit contents.
-    * offsetX
-    * offsetY
-      - Ints, optional, amount of space between menu and screen edge.
-      - Positive values taken from top/left of screen, negative values from bottom/right of screen.
-      - Defaults will center the menu.
-    * onClose
-      - Cue, optional, signalled when the menu is closed.
-      - The event.param will be "back" or "close" depending on if the menu back button was pressed.
-    * frame
-      - Subtable, properties for the frame, as follows:
-      * exclusiveInteractions = false
-        - Bool, if interactions (player input) are exclusive to this view.
-        - TODO: is those only as compared to other frames?  maybe drop.
-      * backgroundID = ""
-        - String, name of an icon to use as the background texture.
-        - If blank, no background applied.
-      * backgroundColor = Helper.color.white
-        - Color of the background texture.
-      * overlayID = ""
-        - String, name of an icon to use as an overlay effect.
-      * overlayColor = Helper.color.white
-        - Color of the overlay texture.
-      * standardButtons = Helper.standardButtons_CloseBack
-        - StandardButtonProperty
-        - Which standard buttons will be given, eg. back/minimize/close.
-        - These are generally placed in the top right.
-      * standardButtonX = 0
-        - Int, x offset for the buttons.
-      * standardButtonY = 0
-        - Int, y offset for the buttons.
-      * showBrackets = false
-        - Bool, if frame brackets will be shown.
-      * autoFrameHeight = false
-        - Bool, if the frame height will be autocalculated based on contents.
-        - TODO: how does this interact with menu height.
-      * closeOnUnhandledClick = false
-        - Bool, if the menu triggers an onHide even if the player clicks outside of its area.
-        - Pending development.
-      * playerControls = false
-        - Bool, if player controls are enabled while the menu is open.
-      * startAnimation = true
-        - Bool, if a menu start animation is played.
-      * enableDefaultInteractions = true
-        - Bool, if default inputs are enabled (escape, delete, etc.).
-    * table
-      - Subtable, properties for the table of widgets, as follows:
-      * tabOrder = 1
-        - Int, 0 sets table as non-interactive, 1 as interactive.
-        - Generally leave as 1 unless it is purely an info display.
-      * skipTabChange = false
-        - Bool, if tabbing will skip selecting this table's contents.
-        - Pending testing.
-      * defaultInteractiveObject = false
-        - Bool, sets this table as the interactive object of the frame by default.
-        - TODO: maybe support.
-      * borderEnabled = true
-        - Bool, if the table cells have a background color.
-      * reserveScrollBar = true
-        - Bool, if the table width reserves space for a scrollbar.
-      * wraparound = false
-        - Bool, if arrow key traversal of table cells will wrap around edges.
-      * highlightMode = "on"
-        - String, controls highlighting behavior of table selections.
-        - One of ["on","column","off","grey"]
-      * multiSelect = false
-        - Bool, whether the table allows selection of multiple cells.
-      * backgroundID = ""
-        - String, name of an icon to use as the background texture.
-      * backgroundColor = Helper.color.white
-        - Color of the background texture.
-      
 * Display_Menu
   
-  Display the menu. Mainly for use with options menus, which requires this to know when all build commands are complete.
+  Display an options menu. Call this after all other widget creation cues. This is not for use with Standalone menus.
       
 * Add_Submenu_Link
   
@@ -320,6 +378,8 @@ Complex properties:
     Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 130 rows.
       
     Param: Table with the following items.
+    * id, echo
+      - Standard api args
     * selectable = true
       - Bool, if the row is selectable by the player.
       - Should always be true for rows with interactable widgets.
@@ -331,9 +391,8 @@ Complex properties:
       - Requires prior rows also be fixed.
     * borderBelow = true
       - Shows a border gap before the next row, if present.
-    * bgColor = Helper.defaultSimpleBackgroundColor
-      - Color, background of the row.
-      - Sets default color of cells.
+    * bgColor = Helper.color.transparent
+      - Color, default background of the row's cells.
     * multiSelected = false
       - Bool, row is preselected for multiselect menu tables. },
       
@@ -342,7 +401,7 @@ Complex properties:
   Make a "text" cell for displaying non-interactive text. Adds to the most recent row.
       
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -382,7 +441,7 @@ Complex properties:
   Make a "boxtext" cell.  Similar to text, but with an outlining box. Note: the outline box highlighting can behave oddly as the player interacts with other widgets. Adds to the most recent row.
           
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -407,7 +466,7 @@ Complex properties:
   Make a "button" cell. Adds to the most recent row.
       
   Param: Table with the following items.
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -453,7 +512,7 @@ Complex properties:
   Warning: due to a (likely) typo bug, x4 is limited to 5 text edit boxes in a single menu. If many edit fields are needed, consider using sliders for numeric values (limit 50), where users can click the slider displayed value to use it like an editbox.
       
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -503,7 +562,7 @@ Complex properties:
   Make a horizontal "slidercell" cell. Adds to the most recent row.
       
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -594,7 +653,7 @@ Complex properties:
   Make a "dropdown" selection cell. Adds to the most recent row. Note: indices start at 1.
       
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -667,7 +726,7 @@ Complex properties:
   Make an "icon" cell. Note: many icons are large, and may need explicit width/height to adjust the sizing. Adds to the most recent row.
           
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -691,7 +750,7 @@ Complex properties:
   Make a "checkbox" cell. Adds to the most recent row.
       
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties
@@ -720,7 +779,7 @@ Complex properties:
   Pending development.
       
   Param: Table with the following items
-  * col, echo
+  * col, colspan, id, echo
     - Standard api args
   * scaling, width, height, x, y, mouseOverText
     - Standard widget properties

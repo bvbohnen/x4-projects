@@ -133,17 +133,7 @@
                 
         <do_if value="$args.$type == 'button'">
           <!-- Buttons will be on/off labeled toggles. -->
-          <do_if value="Globals.$storage.{$args.$id}">
-            <!--on-->
-            <set_value name="$args.$text.$text" exact="{1001, 2648}"/>
-            <!-- Colors are turning out ugly; leave white. -->
-            <!--<set_value name="$args.$text.$color" exact="'Helper.color.green'"/>-->
-          </do_if>
-          <do_else>
-            <!--off-->
-            <set_value name="$args.$text.$text" exact="{1001, 2649}"/>
-            <!--<set_value name="$args.$text.$color" exact="'Helper.color.red'"/>-->
-          </do_else>
+          <set_value name="$args.$text.$text" exact="if (Globals.$storage.{$args.$id}) then {1001, 2648} else {1001, 2649}"/>          
         </do_if>
 
         <do_elseif value="$args.$type == 'slidercell'">          
@@ -163,10 +153,10 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
-            $id = 'simple_menu_options',
+            $id      = 'simple_menu_options',
             $columns = 2, 
-            $title = 'Simple Menu Options',
-            $cue = Build_Options_Menu
+            $title   = 'Simple Menu Options',
+            $onOpen  = Build_Options_Menu
             ]"/>
       </actions>
     </cue>
@@ -267,12 +257,7 @@
         <do_if value="$id == '$disable_animations'">
           
           <!-- Toggle current option. -->
-          <do_if value="Globals.$storage.{$id} == 0">
-            <set_value name="Globals.$storage.{$id}" exact="1"/>
-          </do_if>
-          <do_else>
-            <set_value name="Globals.$storage.{$id}" exact="0"/>
-          </do_else>
+          <set_value name="Globals.$storage.{$id}" exact="if (Globals.$storage.{$id} == 0) then 1 else 0"/>
 
           <!-- Signal the lua, sending 0 or 1. -->
           <raise_lua_event

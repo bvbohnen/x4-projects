@@ -5,6 +5,7 @@
 -- Import config and widget_properties tables.
 local Tables = require("extensions.simple_menu_api.lua.Tables")
 local widget_properties = Tables.widget_properties
+local widget_defaults   = Tables.widget_defaults
 local config            = Tables.config
 local menu_data         = Tables.menu_data
 local debugger          = Tables.debugger
@@ -50,6 +51,13 @@ local menu = {
 menu.custom_widget_defaults = {
     -- Don't use text overrides like the options menu; user may want
     -- the smaller default fonts.
+    
+    ["table"] = {        
+        -- 1 sets the table as interactive.
+        tabOrder = 1, 
+        -- Turn on wraparound.
+        wraparound = true,
+        },
 
     -- Center button labels.
     ["button"] = {text = {halign = "center"}},
@@ -76,8 +84,6 @@ function menu.Open(args)
             
     -- Delay following commands since the menu isn't set up immediately.
     menu_data.delay_commands = true
-
-    -- TODO: validate args for column count; for now use a default.
 
     -- Fill in default args.
     Lib.Fill_Defaults(args, menu.defaults)
@@ -113,6 +119,7 @@ end
 
 -- Clean out stored references after menu closes, to release memory.
 -- Unclear on if this is called automatically ever.
+-- TODO: integrate into onCloseElement.
 function menu.cleanup()
     menu.is_open = false
     menu.infoFrame = nil
@@ -132,39 +139,23 @@ end
 -- This is called automatically when a menu opens.
 -- At this point, the menu table has a "param" subtable member.
 function menu.onShowMenu()
+    -- Signal md api with a general event for a menu opening.
+    Lib.Raise_Signal("Event", {type='menu', event='onOpen'})
+
     -- Bounce over to the frame maker.
-    menu.createInfoFrame()
+    menu.create()
 end
 
--- Set up a gui frame.
-function menu.createInfoFrame()
-    -- Most menus have this at opening. When it was skipped, various
-    -- warnings showed up in log: "GetCellContent(): invalid table ID".
-    -- Note: still get those warnings after putting this back.
+-- Set up the menu.
+function menu.create()
+    -- Safety data clear, to get rid of any prior frame data.
     Helper.clearDataForRefresh(menu, config.optionsLayer)
     
     -- TODO: is this useful?
     --Helper.clearFrame(menu, config.optionsLayer)
 
-    -- Set frame properties using a table to be passed as an arg.
-    -- Note: width and X offset are known here; height and Y offset are
-    -- computed later based on contents.
-    local frameProperties = {
-        -- TODO: don't override this; will get close/back buttons by default,
-        -- and so don't need a back arrow.
-        --standardButtons = {},
-        
-        -- Calculate horizontal sizing/position.
-        -- Scale width and pad enough for borders.
-        width = Helper.scaleX(menu.user_settings.width) + 2 * Helper.borderSize,
-        layer = config.optionsLayer,
-        backgroundID = "solid",
-        backgroundColor = Helper.color.semitransparent,
-        startAnimation = false,
-    }
-    
-    -- Create the frame object; returns its handle to be saved.
-    menu.infoFrame = Helper.createFrameHandle(menu, frameProperties)
+    -- Handle frame creation.
+    menu.createFrame()
 
     -- Create the table as part of the frame.
     -- This function is further below, and handles populating sub-widgets.
@@ -172,6 +163,7 @@ function menu.createInfoFrame()
     
     -- Copy some links and settings to the generic menu data, for use
     -- by commands.
+    -- TODO: do this smarter; eg. use these directly at initial assignments.
     menu_data.ftable = ftable
     menu_data.columns = menu.user_settings.columns
     menu_data.frame = menu.infoFrame
@@ -201,11 +193,48 @@ function menu.createInfoFrame()
 end
 
 
+-- Create a main frame.
+-- Sticks it in menu.infoFrame.
+function menu.createFrame()
+    -- Extract any supported frame properties from the user args.
+    local properties
+    if menu.user_settings.frame then
+        properties = Lib.Filter_Table(menu.user_settings.frame, widget_properties["frame"])
+    else
+        properties = {}
+    end
+
+    -- Fix any bools that md gave as ints.
+    Lib.Fix_Bool_Args(properties, widget_defaults["frame"])
+
+    -- Apply local defaults.
+    Lib.Fill_Defaults(properties, {
+        layer = config.optionsLayer,
+        backgroundID = "solid",
+        backgroundColor = Helper.color.semitransparent,
+        startAnimation = false,
+        })
+        
+    Lib.Table_Update(properties, {
+        -- Manually handle width scaling.
+        -- Note: width and X offset are known here; height and Y offset are
+        -- computed later based on contents.
+        -- Calculate horizontal sizing/position.
+        -- Scale width and pad enough for borders.
+        width = Helper.scaleX(menu.user_settings.width) + 2 * Helper.borderSize,
+    })
+        
+    -- Create the frame object; returns its handle to be saved.
+    menu.infoFrame = Helper.createFrameHandle(menu, properties)
+end
+
+
 -- Set up the main table for standalone menus.
 -- TODO: consider merging this with the options menu code, though there are
 -- a lot of little differences that might make it not worth the effort.
 function menu.createTable(frame)
 
+    -- TODO: make title optional.
     -- Do not include frame borders in this width.
     local table_width = Helper.scaleX(menu.user_settings.width)
 
@@ -227,26 +256,32 @@ function menu.createTable(frame)
     menu_data.title_table = title_table
     
     
-    -- Set up the main table.
-    local ftable = frame:addTable(menu.user_settings.columns, {
-        -- There is a header property, but its code is bugged in
-        -- widget_fullscreen, using an undefined 'tableoffsety' in
-        -- widgetSystem.setUpTable, spamming the log with errors.
-        -- header = menu.user_settings.title,
-        
-        -- 1 sets the table as interactive.
-        tabOrder = 1, 
-        -- Sets cells to have a colored background.
-        borderEnabled = true, 
+    -- Set up the main table.    
+    -- Extract any supported table properties from the user args.
+    local properties
+    if menu.user_settings.table then
+        properties = Lib.Filter_Table(menu.user_settings.table, widget_properties["table"])
+    else
+        properties = {}
+    end
+
+    -- Fix any bools that md gave as ints.
+    Lib.Fix_Bool_Args(properties, widget_defaults["table"])
+
+    -- Apply local defaults.
+    Lib.Fill_Defaults(properties, menu.custom_widget_defaults["table"])
+
+    -- Apply local overrides.
+    Lib.Table_Update(properties, {
         width = table_width,
         
         -- Offset x by the frame border, y by title height plus border.
         x = Helper.borderSize,
-        y = title_table.properties.y + title_table:getVisibleHeight() + Helper.borderSize,
-        
-        -- Makes the table the interactive widget of the frame.
-        defaultInteractiveObject = false, 
-    })
+        y = title_table.properties.y + title_table:getVisibleHeight() + Helper.borderSize,        
+        })
+
+    -- Make the actual table.
+    local ftable = frame:addTable(menu.user_settings.columns, properties)
         
     return ftable
 end
@@ -347,31 +382,42 @@ function menu.Set_Frame_Offset(menu)
 end
 
 
--- Function called when the 'close' button pressed.
+------------------------------------------------------------------------------
+-- Menu event handlers, signalled by backend.
+-- Note: table row/col/element events are handled in Interface, which
+-- plugs its own functions into the local menu.
+
+-- Function called when the menu is closed for any reason.
+-- dueToClose is one of ["close", "back", "minimize"].
 function menu.onCloseElement(dueToClose, allowAutoMenu)
+    -- Note: allowAutoMenu appears to lead to code that opens a new menu
+    -- automatically if the player is in a ship, either dockedmenu or
+    -- toplevelmenu.  Can ignore.
     Helper.closeMenu(menu, dueToClose, allowAutoMenu)
     menu.cleanup()
-    -- Signal md.
-    Lib.Raise_Signal("onCloseElement", dueToClose)
+
+    -- Signal md. Use similar format to widget events.
+    -- Custom field will be "reason" for the closure.
+    Lib.Raise_Signal("Event", {
+        type = 'menu',
+        event = 'onCloseElement',
+        reason = dueToClose,
+        })
 end
 
--- Unused function.
-function menu.viewCreated(layer, ...)
-end
+-- This appears to be called when the first frame is added to the menu.
+-- No use currently.
+--function menu.viewCreated(layer, ...)
+--end
 
--- Guessing this just refreshes the frame in some way.
--- Unclear on how it knows what to do to update.
+-- This is a general update function called with some regularity.
+-- Currently not expected to have much effect, though may be useful if
+-- every supplying functions as some widget args, which will be used
+-- to trigger updates.
 function menu.onUpdate()
     menu.infoFrame:update()
 end
 
--- Unused function.
-function menu.onRowChanged(row, rowdata, uitable)
-end
-
--- Unused function.
-function menu.onSelectElement(uitable, modified, row)
-end
 
 
 Init()

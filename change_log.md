@@ -31,3 +31,10 @@ Change Log
   - Changed args for Send_Command.
   - Added option to adjust mouseover font size globally.
   - Varous bugfixes and refinements.
+* 0.10
+  - Changed options menu $cue to $onOpen.
+  - Added generic property support to frames and tables.
+  - Added id and echo to rows and menus.
+  - Added several menu level events.
+  - Bug fix for confusion when a menu is created while the prior menu had pending events.
+  - Various other tweaks.

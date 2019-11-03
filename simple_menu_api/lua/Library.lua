@@ -4,14 +4,14 @@
 ]]
 
 -- Table to hold lib functions.
-local lib = {}
+local L = {}
 
 
 -- Signalling results from lua to md.
 -- Takes the row,col of the activated widget, and an optional new value
 -- for that widget.
 -- TODO: think about this more.
-function lib.Raise_Signal(name, value)
+function L.Raise_Signal(name, value)
     AddUITriggeredEvent("Simple_Menu", name, value)
 end
 
@@ -26,7 +26,7 @@ local lua_pattern_special_chars = {
 -- Split a string on the first separator.
 -- Note: works on the MD passed arrays of characters.
 -- Returns two substrings, left and right of the sep.
-function lib.Split_String(this_string, separator)
+function L.Split_String(this_string, separator)
 
     -- Get the position of the separator.
     -- Warning: lua is kinda dumb and has its own patterning rules, which
@@ -51,7 +51,7 @@ end
 
 -- Split a string as many times as possible.
 -- Returns a list of substrings.
-function lib.Split_String_Multi(this_string, separator)
+function L.Split_String_Multi(this_string, separator)
     substrings = {}
     
     -- Early return for empty string.
@@ -68,7 +68,7 @@ function lib.Split_String_Multi(this_string, separator)
     while success do
     
         -- pcall will error and set sucess=false if no separators remaining.
-        success, left, right = pcall(lib.Split_String, remainder, separator)
+        success, left, right = pcall(L.Split_String, remainder, separator)
         
         -- On success, the next substring is in left.
         -- On failure, the final substring is still in remainder.
@@ -88,14 +88,14 @@ end
 
 
 -- Take an arg string and convert to a table.
-function lib.Tabulate_Args(arg_string)
+function L.Tabulate_Args(arg_string)
     local args = {}    
     -- Start with a full split on semicolons.
-    local named_args = lib.Split_String_Multi(arg_string, ";")
+    local named_args = L.Split_String_Multi(arg_string, ";")
     -- Loop over each named arg.
     for i = 1, #named_args do
         -- Split the named arg on comma.
-        local key, value = lib.Split_String(named_args[i], ",")
+        local key, value = L.Split_String(named_args[i], ",")
         -- Keys have a prefixed $ due to md dumbness; remove it here.
         key = string.sub(key, 2, -1)
         args[key] = value
@@ -106,7 +106,7 @@ end
 
 -- Function to remove $ prefixes from MD keys.
 -- Recursively calls itself for subtables.
-function lib.Clean_MD_Keys( in_table )
+function L.Clean_MD_Keys( in_table )
     -- Loop over table entries.
     for key, value in pairs(in_table) do
         -- Slice the key, starting at 2nd character to end.
@@ -117,7 +117,7 @@ function lib.Clean_MD_Keys( in_table )
         
         -- If the value is a table as well, give it the same treatment.
         if type(value) == "table" then
-            lib.Clean_MD_Keys(value)
+            L.Clean_MD_Keys(value)
         end
     end
 end
@@ -141,7 +141,7 @@ TODO: maybe support dynamic code execution for complex args that want
  using loadstring(). This is probably a bit niche, though.
  
 ]]
-function lib.Validate_Args(args, arg_specs)
+function L.Validate_Args(args, arg_specs)
     -- Loop over the arg_specs list.
     for i = 1, #arg_specs do 
         local name    = arg_specs[i].n
@@ -184,7 +184,7 @@ end
 
 -- Replace any arg value that references a Helper const with the actual
 -- value, recursively through subtables.
-function lib.Replace_Helper_Args(args)
+function L.Replace_Helper_Args(args)
     local prefix = "Helper."
     for k, v in pairs(args) do
 
@@ -192,7 +192,7 @@ function lib.Replace_Helper_Args(args)
         if type(v) == "string" and string.sub(v, 1, #prefix) == prefix then
 
             -- Split on the dots.
-            local fields = lib.Split_String_Multi(v, ".")
+            local fields = L.Split_String_Multi(v, ".")
 
             -- Approach will get to start with Helper, and progress through
             -- its fields downward.
@@ -215,7 +215,7 @@ function lib.Replace_Helper_Args(args)
 
         -- Recurse into subtables.
         elseif type(v) == "table" then
-            lib.Replace_Helper_Args(v)
+            L.Replace_Helper_Args(v)
         end
     end
 end
@@ -224,7 +224,7 @@ end
 -- Returns a filtered version of the input table, keeping only those keys
 -- that are in the 'filter' list of strings.
 -- Returns early if filter is nil.
-function lib.Filter_Table(in_table, filter)
+function L.Filter_Table(in_table, filter)
     local out_table = {}
     if not filter then return in_table end
     -- Can just do a direct transfer; nil's take care of missing keys.
@@ -238,13 +238,13 @@ end
 -- Update the first table with entries from the second table, except where
 -- there is a conflict. Works recursively on subtables.
 -- Returns early if right side is nil.
-function lib.Fill_Defaults(left, right)
+function L.Fill_Defaults(left, right)
     if not right then return end
     for k, v in pairs(right) do
         if left[k] == nil then
             left[k] = v
         elseif type(left[k]) == "table" and type(v) == "table" then
-            lib.Fill_Defaults(left[k], v)
+            L.Fill_Defaults(left[k], v)
         end
     end
 end
@@ -253,7 +253,7 @@ end
 -- when needed. Any subtables are similarly updated (not directly
 -- overwritten). Tables in right should always match to tables or nil in left.
 -- Returns early if right side is nil.
-function lib.Table_Update(left, right)
+function L.Table_Update(left, right)
     -- Similar to above, but with blind overwrites.
     if not right then return end
     for k, v in pairs(right) do
@@ -263,7 +263,7 @@ function lib.Table_Update(left, right)
             if type(v) ~= "table" then
                 DebugError("Table_Update table type mismatch at "..tostring(k))
             end
-            lib.Table_Update(left[k], v)
+            L.Table_Update(left[k], v)
         else
             -- Direct write (maybe overwrite).
             left[k] = v
@@ -276,7 +276,7 @@ end
 -- If the default is a boolean and the main table has a 0/1 in that spot,
 -- it will be converted to a corresponding bool false/true; this done to
 -- cleanup md failure to transfer bools properly.
-function lib.Fix_Bool_Args(args, defaults)
+function L.Fix_Bool_Args(args, defaults)
     if not defaults then return end
     for k, v in pairs(defaults) do
         if type(v) == "boolean" then
@@ -288,7 +288,7 @@ function lib.Fix_Bool_Args(args, defaults)
             end
         -- Recursively handle subtables.
         elseif type(args[k]) == "table" and type(v) == "table" then
-            lib.Fix_Bool_Args(args[k], v)
+            L.Fix_Bool_Args(args[k], v)
         end
     end
 end
@@ -297,7 +297,7 @@ end
 -- Print a table's contents to the log.
 -- Optionally give the table a name.
 -- TODO: maybe recursive.
-function lib.Print_Table(itable, name)
+function L.Print_Table(itable, name)
     if not name then name = "" end
     -- Construct a string with newlines between table entries.
     -- Start with header.
@@ -315,7 +315,7 @@ end
 -- 'itable' is the top level table.
 -- 'keys' is a list of string or int keys, processed from index 0 up.
 -- If keys is empty, the itable is returned.
-function lib.Multilevel_Table_Lookup(itable, keys)
+function L.Multilevel_Table_Lookup(itable, keys)
     if #keys == 0 then
         return itable
     end
@@ -333,7 +333,7 @@ end
 
 
 -- Function to take a slice of a list (table ordered from 1 and up).
-function lib.Slice_List(itable, start, stop)
+function L.Slice_List(itable, start, stop)
     local otable = {}
     for i = start, stop do
         -- Stop early if ran out of table content.
@@ -347,4 +347,4 @@ function lib.Slice_List(itable, start, stop)
 end
 
 
-return lib
+return L

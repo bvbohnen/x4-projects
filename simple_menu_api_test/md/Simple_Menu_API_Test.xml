@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<mdscript name="Simple_Menu_API_Test" 
+<mdscript name="Simple_Menu_API_Test"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
   <!--
@@ -20,63 +20,64 @@
           param="table[$key='shift b', $cue=Open_Menu]"/>
       </actions>
     </cue>
-    
-  <!--
+
+    <!--
     Static variables for controlling some aspects of testing.
     Get reset when reloading the ui, to make it easier to expand with
     more variables.
   -->
-  <cue name="Globals">
-    <actions>
-      <include_actions ref="Reset_Globals"/>
-    </actions>
-    <cues>
-      <cue name="Reset_On_Lua_Reload" instantiate="true">
-        <conditions>
-          <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
-        </conditions>
-        <actions>
-          <include_actions ref="Reset_Globals"/>
-        </actions>
-      </cue>
-    </cues>
-  </cue>
-  <library name="Reset_Globals">
-    <actions>
-      <set_value name="Globals.$vars"   exact="table[
+    <cue name="Globals">
+      <actions>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <cue name="Reset_On_Lua_Reload" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+    <library name="Reset_Globals">
+      <actions>
+        <set_value name="Globals.$vars"   exact="table[
         $width   = 500,
         $height  = null,
         $offsetX = null,
         $offsetY = null,
         $button_presses = 0,
+        $openings = 0,
       ]" />
-      <!-- Specs for widgets to edit these vars. -->
-      <!-- Note: a typo in the lua limits x4 to 5 edit boxes, so rely on using sliders. -->
-      <!-- TODO: think of a nicer way to set limits, and an option for none. -->
-      <!-- TODO: maybe some checkbox booleans. -->
-      <set_value name="Globals.$var_widgets"   exact="table[
+        <!-- Specs for widgets to edit these vars. -->
+        <!-- Note: a typo in the lua limits x4 to 5 edit boxes, so rely on using sliders. -->
+        <!-- TODO: think of a nicer way to set limits, and an option for none. -->
+        <!-- TODO: maybe some checkbox booleans. -->
+        <set_value name="Globals.$var_widgets"   exact="table[
         $width   = table[$command = 'Make_Widget', $type = 'slidercell', $min = 0, $max = 1000],
         $height  = table[$command = 'Make_Widget', $type = 'slidercell', $min = 0, $max = 1000],
         $offsetX = table[$command = 'Make_Widget', $type = 'slidercell', $min = -500, $max = 500],
         $offsetY = table[$command = 'Make_Widget', $type = 'slidercell', $min = -500, $max = 500],
       ]" />
-    </actions>
-  </library>
-  
-    
-  <!--
+      </actions>
+    </library>
+
+
+    <!--
     Menu content filler lib function.
     Shared between standalone and option menu tests.
   -->
-  <library name="Fill_Menu">
-    <actions>
-      <!-- Header; col 2 will be labels, col 3 widgets. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
-                            param ="table[$selectable = false]"/>
-      <!-- Test boxtext. -->
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_BoxText"
-        param = "table[
+    <library name="Fill_Menu">
+      <actions>
+        <!-- Header; col 2 will be labels, col 3 widgets. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false, $id='first_row', $echo='row_echo']"/>
+        <!-- Test boxtext. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_BoxText"
+          param = "table[
           $col=1, 
           $text='Type', 
           $halign='center',
@@ -85,9 +86,9 @@
           $mouseOverText='Type of widget being tested',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_BoxText"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_BoxText"
+          param = "table[
           $col=2, 
           $text='Widget', 
           $halign='center',
@@ -96,13 +97,13 @@
           $mouseOverText='Interractable widget',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      
-      <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
-                            param ="table[$selectable = false]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+
+        <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $colSpan = 2,
           $height = 'Helper.borderSize',
@@ -110,19 +111,19 @@
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
 
-      <!-- Button, with text counter. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+        <!-- Button, with text counter. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $text = 'Button test', 
           $mouseOverText = 'Mouseover test',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Button"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Button"
+          param = "table[
           $col = 2, 
           $id = 'count_button',
           $text = table[
@@ -138,76 +139,77 @@
           ]"/>
         <!--Note: hotkey tests all failed so far.-->
 
-      <!-- Statusbar -->
-      <!-- Will update based on button clicks; 10 units. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+        <!-- Statusbar -->
+        <!-- Will update based on button clicks; 10 units. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $text = 'Statusbar test',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_StatusBar"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_StatusBar"
+          param = "table[
           $col = 2, 
           $id = 'count_statusbar',
           $start   = 5,
           $current = 0,
           $max     = 10,
           ]"/>
-      
-      <!-- CheckBox -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+
+        <!-- CheckBox -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$bgColor='Helper.color.red']"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $text = 'CheckBox test',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_CheckBox"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_CheckBox"
+          param = "table[
           $col = 2, 
           $checked = true,
           $onClick = Handle_Menu_Action,
           $height = 20,
           $width  = 20,
           ]"/>
-      
-      <!-- EditBox -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+
+        <!-- EditBox -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $text = 'EditBox test', 
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_EditBox"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_EditBox"
+          param = "table[
           $col = 2, 
           $text = table[ $text = 'edit me', $color = 'Helper.color.orange' ],
           $defaultText = 'default',
           $onTextChanged = Handle_Menu_Action,
           ]"/>
 
-      <!-- Slider, as percentage, 0 to 100, limited to 5 to 95. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+        <!-- Slider, as percentage, 0 to 100, limited to 5 to 95. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col=1, 
           $text='Slider test', 
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <!--Set dummy text to increase height of the cell.-->
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Slider"
-        param = "table[
+        <!--Set dummy text to increase height of the cell.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Slider"
+          param = "table[
           $col = 2, 
           $min        = 0, 
           $minSelect  = 5, 
@@ -220,18 +222,18 @@
           $text       = table[$text='slider']
           ]"/>
 
-      <!-- Dropdown -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+        <!-- Dropdown -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $text = 'Dropdown test', 
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Dropdown"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Dropdown"
+          param = "table[
           $col = 2, 
           $options = [
             table[$text='white'], 
@@ -243,69 +245,69 @@
           $onDropDownConfirmed = Handle_Menu_Action
           ]"/>
 
-      <!-- Icon; needs careful sizing. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+        <!-- Icon; needs careful sizing. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $text = 'Icon test',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Icon"
-        param = "table[
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Icon"
+          param = "table[
           $col = 2, 
           $icon = 'warning',
           $height = 20,
           $width  = 20,
           ]"/>
 
-      <!-- Start section for changing global test vars. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
-                            param ="table[$selectable = false]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[
+        <!-- Start section for changing global test vars. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
           $col = 1, 
           $colSpan = 2,
           $halign = 'center',
           $text = 'Test vars',
           $cellBGColor = 'Helper.color.transparent60',
           ]"/>
-            
-      <!-- Loop over the vars. -->
-      <do_all exact="Globals.$var_widgets.keys.list.count" counter="$i">
-        <set_value name="$key" exact="Globals.$var_widgets.keys.list.{$i}" />
-          
-        <!-- One row per args, with edit box. -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Text"
-          param = "table[
+
+        <!-- Loop over the vars. -->
+        <do_all exact="Globals.$var_widgets.keys.list.count" counter="$i">
+          <set_value name="$key" exact="Globals.$var_widgets.keys.list.{$i}" />
+
+          <!-- One row per args, with edit box. -->
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
             $col = 1, 
             $text = $key, 
             $cellBGColor = 'Helper.color.transparent60',
             ]"/>
-              
-        <!-- Add args to the var_widgets table. -->
-        <!-- TODO: shared lib function for table merging. -->
-        <set_value name="Globals.$var_widgets.{$key}.{'$col'}"     exact="2" />
-        <!-- TODO: pick start/text/etc. based on command type, or have a normalized way to signal it. -->
-        <set_value name="Globals.$var_widgets.{$key}.{'$start'}"   exact="Globals.$vars.{$key}" />
-        <set_value name="Globals.$var_widgets.{$key}.{'$onSliderCellConfirm'}" exact="Handle_Var_Change" />
-        <!-- Echo the key in the callback cue's param. -->
-        <set_value name="Globals.$var_widgets.{$key}.{'$echo'}"    exact="$key" />
-          
-        <!-- Annotate this with the var's name, for easier callback handling. -->
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Send_Command"
-          param = "Globals.$var_widgets.{$key}"/>
-      </do_all>
-            
-    </actions>
-  </library>
-    
+
+          <!-- Add args to the var_widgets table. -->
+          <!-- TODO: shared lib function for table merging. -->
+          <set_value name="Globals.$var_widgets.{$key}.{'$col'}"     exact="2" />
+          <!-- TODO: pick start/text/etc. based on command type, or have a normalized way to signal it. -->
+          <set_value name="Globals.$var_widgets.{$key}.{'$start'}"   exact="Globals.$vars.{$key}" />
+          <set_value name="Globals.$var_widgets.{$key}.{'$onSliderCellConfirm'}" exact="Handle_Var_Change" />
+          <!-- Echo the key in the callback cue's param. -->
+          <set_value name="Globals.$var_widgets.{$key}.{'$echo'}"    exact="$key" />
+
+          <!-- Annotate this with the var's name, for easier callback handling. -->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Send_Command"
+            param = "Globals.$var_widgets.{$key}"/>
+        </do_all>
+
+      </actions>
+    </library>
+
 
     <!--
       Open a menu from keypress.
@@ -320,20 +322,44 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Create_Menu"
           param = "table[
-            $columns = 2, 
-            $title   = 'Simple Menu Test',
-            $height  = Globals.$vars.{'$height'},
-            $width   = Globals.$vars.{'$width'},
-            $offsetX   = Globals.$vars.{'$offsetX'},
-            $offsetY   = Globals.$vars.{'$offsetY'},
-            $onClose = Handle_Menu_Closing,
+            $columns  = 2, 
+            $id       = 'test_menu_' + Globals.$vars.$openings,
+            $echo     = 'echo test',
+            $title    = 'Simple Menu Test',
+            $height   = Globals.$vars.{'$height'},
+            $width    = Globals.$vars.{'$width'},
+            $offsetX  = Globals.$vars.{'$offsetX'},
+            $offsetY  = Globals.$vars.{'$offsetY'},
+            $onCloseElement   = Handle_Menu_Event,
+            $onRowChanged     = Handle_Menu_Event,
+            $onColChanged     = Handle_Menu_Event,
+            $onSelectElement  = Handle_Menu_Event,
+            $frame    = table[
+              $backgroundID               = 'enc_cluster01',
+              $backgroundColor            = 'Helper.color.semitransparent',
+              $overlayID                  = '',
+              $standardButtons            = table[$close=true, $back=true, $minimize=true],
+              $showBrackets               = true,
+              $closeOnUnhandledClick      = true,
+              $playerControls             = true,
+              $startAnimation             = true,
+              $enableDefaultInteractions  = true,
+              ],
+            $table    = table[
+              $borderEnabled            = true,
+              $wraparound               = true,
+              $highlightMode            = 'on',
+              $multiSelect              = false,
+              ],
             ]"/>
+        <!-- Count how many times it opened. -->
+        <set_value name="Globals.$vars.$openings" operation="add"/>
 
         <include_actions ref="Fill_Menu"/>
       </actions>
     </cue>
-    
-    
+
+
     <!--
       Register an options menu.
     -->
@@ -346,21 +372,37 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
-            $id='simple_menu_options_test_0',
-            $columns=2, 
-            $title='Simple Menu Options Test',
-            $cue=Build_Options_Menu
+            $id               = 'simple_menu_options_test_0',
+            $columns          = 2, 
+            $echo             = 'echo test 2',
+            $title            = 'Simple Menu Options Test',
+            $onOpen           = Build_Options_Menu,
+            $onRowChanged     = Handle_Menu_Event,
+            $onColChanged     = Handle_Menu_Event,
+            $onSelectElement  = Handle_Menu_Event,
             ]"/>
-            
+
         <!-- Register a private child menu. -->
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
-            $id='simple_menu_options_test_1',
-            $columns=2, 
-            $title='Simple Menu Options Child Test',
-            $cue=Build_Options_Menu_Child,
-            $private=1,
+            $id               = 'simple_menu_options_test_1',
+            $columns          = 2, 
+            $echo             = 'echo test 3',
+            $title            = 'Simple Menu Options Child Test',
+            $onOpen           = Build_Options_Menu_Child,
+            $private          = 1,
+            $onRowChanged     = Handle_Menu_Event,
+            $onColChanged     = Handle_Menu_Event,
+            $onSelectElement  = Handle_Menu_Event,
+            $table    = table[
+              $backgroundID             = 'enc_cluster01',
+              $backgroundColor          = 'Helper.color.white',
+              $borderEnabled            = true,
+              $wraparound               = true,
+              $highlightMode            = 'column',
+              $multiSelect              = false,
+              ],
             ]"/>
 
       </actions>
@@ -374,14 +416,14 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-      
+
         <!-- Link to the child submenu. -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
             param="table[
               $id='simple_menu_options_test_1',
               $text='Open child test menu',
               ]"/>
-      
+
         <!-- Fill in some default widgets. -->
         <include_actions ref="Fill_Menu"/>
 
@@ -396,12 +438,12 @@
               $mouseOverText='Scrollbar testing'
               ]"/>
         </do_all>
-            
+
         <!-- Ready to display. (This is not used for standalone menus.) -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
       </actions>
     </cue>
-        
+
     <!--
       Callback for building the child options menu.
     -->
@@ -412,12 +454,12 @@
       <actions>
         <!-- To be lazy, use the default fill again. -->
         <include_actions ref="Fill_Menu"/>
-            
+
         <!-- Ready to display. (This is not used for standalone menus.) -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
       </actions>
     </cue>
-        
+
     <!--
     Handle user interaction with the menu.
     TODO: develop.
@@ -427,9 +469,9 @@
         <event_cue_signalled />
       </conditions>
       <actions>
-        <debug_text text="'Response: %s'.[event.param]" 
+        <debug_text text="'Response: %s'.[event.param]"
                 chance="100" filter="general"/>
-        
+
         <!-- Test dynamic update, using button press counter. -->
         <do_if value="event.param.$id == 'count_button'">
 
@@ -448,7 +490,7 @@
               $id = 'count_button',
               $text = table[$text=''+Globals.$vars.{'$button_presses'}],
               ]"/>
-          
+
           <!-- Update the statusbar, with rollover after 10, taking abs(). -->
           <set_value name="$status_val" exact="Globals.$vars.{'$button_presses'} % 11"/>
           <set_value name="$status_val" exact="if ($status_val ge 0) then ($status_val) else (-$status_val)"/>
@@ -458,7 +500,7 @@
               $id = 'count_statusbar',
               $current = $status_val,
               ]"/>
-          
+
         </do_if>
       </actions>
     </cue>
@@ -471,7 +513,7 @@
         <event_cue_signalled />
       </conditions>
       <actions>
-        <debug_text text="'Response: %s'.[event.param]" 
+        <debug_text text="'Response: %s'.[event.param]"
                 chance="100" filter="general"/>
         <!--
           Response has '$key' and '$text' fields.
@@ -491,14 +533,14 @@
     </cue>
 
     <!--
-    Handle the menu being closed.
+    Handle the menu events.
     -->
-    <cue name="Handle_Menu_Closing" instantiate="true">
+    <cue name="Handle_Menu_Event" instantiate="true">
       <conditions>
         <event_cue_signalled />
       </conditions>
       <actions>
-        <debug_text text="'Menu closed with param: %s'.[event.param]" 
+        <debug_text text="'Menu event caught: %s'.[event.param]"
                 chance="100" filter="general"/>
       </actions>
     </cue>
