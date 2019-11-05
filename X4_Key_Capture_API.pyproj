@@ -25,8 +25,12 @@
     <Content Include="API Functions.md" />
     <Content Include="change_log.md" />
     <Content Include="key_capture_api\content.xml" />
+    <Content Include="key_capture_api\Key_Capture.lua">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="key_capture_api\Key_Map.lua" />
+    <Content Include="key_capture_api\Library.lua" />
     <Content Include="key_capture_api\md\KC_Extra_Commands.xml" />
-    <Content Include="key_capture_api\md\KC_Menu.xml" />
     <Content Include="key_capture_api\md\Key_Capture.xml" />
     <Content Include="key_capture_api_test\content.xml" />
     <Content Include="key_capture_api_test\md\Test_Key_Capture.xml" />

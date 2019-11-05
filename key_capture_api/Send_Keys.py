@@ -180,10 +180,7 @@ def main():
                 # Stop the keyboard listener when tabbed out if it is running.
                 Stop_Keyboard_Listener()
             
-            # TODO: shut down the keyboard listener thread when x4 loses
-            # focus, and restart it on focus gain, so it isn't running
-            # when x4 tabbed out.
-        
+
             # Try to read any data.
             message = pipe.Read()
             if message != None:

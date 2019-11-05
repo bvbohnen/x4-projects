@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="Key_Capture" 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Key_Capture"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-<!--@doc-title Key Capture API -->
-<!--
+  <!--@doc-title Key Capture API -->
+  <!--
 MD API support for capturing key presses.
 This makes use of the Named Pipe API and an external python server.
 Python will handle keypress detection, and will transmit to this MD script
@@ -15,7 +14,7 @@ Goals:
  - When key pressed, call the user cue.
   
 -->
-<!--
+  <!--
 TODO:
   Test unregistering.
   
@@ -26,25 +25,156 @@ TODO:
   event.  
 -->
 <cues>
-  
+
+  <!-- ################################################################## -->
+  <!--                              Init                                  -->
+  <!-- ################################################################## -->
+
+    
+  <!-- Register the main lua file. -->
+  <cue name="Load_Lua_Files" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                        param="'extensions.key_capture_api.Key_Capture'"/>
+    </actions>
+  </cue>
+
+
   <!--
-    Register the pipe server with the python host.
-  -->  
+  Register the pipe server with the python host.
+  -->
   <cue name="Register_Pipe_Server" instantiate="true">
     <conditions>
       <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
     </conditions>
     <actions>
-      <signal_cue_instantly 
-        cue="md.Pipe_Server_Host.Register_Module" 
+      <signal_cue_instantly
+        cue="md.Pipe_Server_Host.Register_Module"
         param="'extensions/key_capture_api/Send_Keys.py'"/>
     </actions>
   </cue>
+
+
+  <!--
+  Static cue that holds some shared state information or constants.
+  When this script is installed, a new instance of this cue is created,
+  and will afterwards be live until the script is removed.
+  Globals reset each time the game is loaded, to enable easy changing
+  of constants.
+    
+  * DebugChance
+    - 0 or 100
+  * shortcut_registry
+    - Table of tables, with each subtable describing a shortcut.
+    - Keys are the shortcut ids.
+    - See Register_Shortcut for description of fields.
       
-      
-  <!-- Use the generic server reader library.
-      Needs a cue wrapping it, else get property errors on the library refs.
-      -->
+  * key_shortcut_registry
+    - Table, indexed by key descriptor (string), holding a list of
+      shortcut ids.
+    - May have a mix of player-assigned and mod-assigned links.
+    - Key descriptors have an extra '$' prefixed, due to x4 quirkiness.
+    - Normally expect only one cue to be registered per key, but it
+      might be higher.
+    - Keys with no registered cues should be removed.
+    - If table is empty, no keys are being listened to.
+    - Note: this may be filled during init prior to shortcuts being
+      registered, which is okay.
+        
+  * $player_shortcut_keys
+    - Table of player assigned key descriptors, keyed by shortcut id.
+    - Saved across reloads.
+    - Lua will have a mirrored copy of this, and is primarily responsible
+      for changing it or initializing entries.
+    - Note: a single shortcut may have multiple keys (2 through ui).
+    - Each entry is a subtable with:
+      * id
+        - String, shortcut id.
+      * inputs
+        - List with two entries, subtables describing the key.
+        - Indices match up to the menu columns (left/right), supporting two
+          player keys per shortcut.
+        - Fields per subtable:
+          * combo
+            - String, pipe server understood key combo.
+            - Generated from the ego code.
+          * code
+            - Int, ego style key code.
+            - See https://github.com/wgois/OIS/blob/master/includes/OISKeyboard.h
+              for the code mapping.
+          * source
+            - Int, ego style input source type.  1 for keyboard.
+          * signum
+            - Int, ego style signum (signed prefix), generally 0.
+  -->
+  <cue name="Globals">
+    <!-- When first created, set up globals. -->
+    <actions>
+      <include_actions ref="Reset_Globals"/>
+    </actions>
+    <cues>
+      <!--
+      Reset when the lua reloads.
+      This is mostly aimed at helping with development/debug.
+    -->
+      <cue name="Reset_On_Lua_Reload" instantiate="true">
+        <conditions>
+          <event_ui_triggered screen="'Key_Capture'" control="'reloaded'" />
+        </conditions>
+        <actions>
+          <include_actions ref="Reset_Globals"/>
+          <!-- Send a signal that all users listen to. -->
+          <signal_cue_instantly cue="Reloaded"/>
+        </actions>
+      </cue>
+    </cues>
+  </cue>
+
+  <!-- TODO: can this lib be put into the cues list above? -->
+  <library name="Reset_Globals">
+    <actions>
+      <set_value name="$shortcut_registry" exact="table[]"/>
+      <set_value name="$key_shortcut_registry" exact="table[]"/>
+      <!-- TODO: somehow bounce this over to Server_Reader reliably.-->
+      <set_value name="$DebugChance" exact="100" />
+
+      <!-- Init the $player_shortcut_keys if it doesn't exist. -->
+      <set_value name="$player_shortcut_keys" exact="table[]"/>
+      <do_if value="not $player_shortcut_keys?">
+        <set_value name="$player_shortcut_keys" exact="table[]"/>
+      </do_if>
+        
+      <!-- Otherwise re-register saved keys. -->
+      <do_else>
+        <do_all exact="$player_shortcut_keys.keys.list.count" counter="$i">
+          <set_value name="$key" exact="$player_shortcut_keys.keys.list.{$i}"/>
+          <signal_cue_instantly cue="Register_Key" param="table[
+                                $key = $player_shortcut_keys.{$key}.$combo, 
+                                $id  = $player_shortcut_keys.{$key}.$id,
+                                ]"/>
+        </do_all>
+      </do_else>
+        
+      <!-- Init the lua with the stored list of player keys. -->
+      <set_value name="player.entity.$key_capture_player_keys_from_md" exact="$player_shortcut_keys" />
+      <raise_lua_event name="'Key_Capture.Update_Player_Keys'"/>        
+        
+    </actions>
+  </library>
+    
+
+
+  <!-- ################################################################## -->
+  <!--                          Pipe Handling                             -->
+  <!-- ################################################################## -->
+
+  <!-- 
+  Use the generic server reader library to handle the pipe.
+  Needs a cue wrapping it, else get property errors on the library refs.
+    -->
   <cue name="Server_Reader_Wrapper">
     <cues>
       <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
@@ -55,92 +185,88 @@ TODO:
       </cue>
     </cues>
   </cue>
-  
 
   <library name="Actions_On_Init">
-    <actions>    
-      <!--
-      - Table, indexed by key descriptor (string), holding lists of cues.
-      - Key descriptors have an extra '$' prefixed, due to x4 quirkiness.
-      - Normally expect only one cue to be registered per key, but it
-        might be higher.
-      - Keys with no registered cues should be removed.
-      - If table is empty, no keys are being listened to.
-      -->
-      <set_value name="$key_cue_registry" exact="table[]"/>
-      
-      <!-- Name of the pipe. -->
+    <actions>
+      <!--TODO: how to get debugchance from Globals safely on first mod load.-->
       <set_value name="$Pipe_Name" exact="'x4_keys'" />
-
-      <set_value name="$DebugChance" exact="100" />
+      <set_value name="$DebugChance" exact="0" />
     </actions>
   </library>
-  
-  
+
+
   <library name="Actions_On_Reload">
     <actions>
       <include_actions ref="$Actions_On_Init"/>
-      
+
       <!-- Send a signal that all users listen to. -->
-      <signal_cue_instantly cue="md.Key_Capture.Reloaded"/>
+      <!-- Removed; this signalling handled by Globals. -->
+      <!--<signal_cue_instantly cue="md.Key_Capture.Reloaded"/>-->
     </actions>
   </library>
 
-  
+
   <library name="Actions_On_Connect">
     <actions>
       <!-- Announce the wanted keys to the server. -->
-      <include_actions ref="md.Key_Capture.Register_Keys_With_Server"/>
+      <signal_cue_instantly cue="md.Key_Capture.Register_Keys_With_Server_2"/>
     </actions>
   </library>
-  
-  
+
+  <!--TODO: break out the key handling from the pipe cue.-->
   <library name="Actions_On_Read">
     <actions>
-      <!-- Read succeeded with at least one key. -->
-      <!-- Handle callback cues. -->
-      <!-- TODO: support multiple keys returned, with some separator. -->
-              
-      <!-- Start by prefixing the key combo with a '$' for table lookups. -->
-      <set_value name="$key" exact="'$' + event.param"/>
-      <debug_text text="'Received key %s.'.[$key]" 
-                  chance="$DebugChance" filter="general"/>
-    
-      <!-- Is the key returned actually registered? -->
-      <do_if value="$key_cue_registry.{$key}?">
-      
-        <!-- Convenience renaming. -->
-        <set_value name="$cue_list" exact="$key_cue_registry.{$key}"/>
-        
-        <!-- Loop over the callback cues. -->
-        <do_all exact="$cue_list.count" counter="$i">
-          <!-- Verify the cue still exists before calling it. -->
-          <do_if value="$cue_list.{$i}.exists">
-            <!-- Call the cue, with this key combo (without $). -->
-            <signal_cue_instantly cue="$cue_list.{$i}" param="event.param"/>
-          </do_if>
-          <!-- TODO: remove non-existent cues. -->
-        </do_all>
-                  
-      </do_if>
-      
-      <do_else>
-        <!-- Key not registered. TODO: error message. -->
-      </do_else>
-      
+      <!-- Hand off to key_capture module cue. -->
+      <signal_cue_instantly cue="md.Key_Capture.Handle_Key" param="event.param"/>
+
       <!--Acknowledge this key was read.
-          Note: this will not bother to check for errors. If the pipe dies,
-          a read will fail and catch it. -->
-      <signal_cue_instantly 
-        cue="md.Named_Pipes.Write" 
+        Note: this will not bother to check for errors. If the pipe dies,
+        a read will fail and catch it. -->
+      <signal_cue_instantly
+        cue="md.Named_Pipes.Write"
         param="table[$pipe=$Pipe_Name, $msg='ack']"/>
     </actions>
   </library>
-  
-  
-  <!--
-    Dummy cue used for signalling.
-  -->  
+
+
+  <!-- Function to update the server list of registered keys. -->
+  <!-- Note: _2 in name is from switching this from lib to cue TODO: prune _2. -->
+  <cue name="Register_Keys_With_Server_2" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    
+    <actions>
+      <!-- Suppress if not connected to server, to reduce log confusion. -->
+      <do_if value="Server_Reader.$server_connected == 1">
+
+        <!--Start by merging the keys together, semicolon separated. -->
+        <set_value name="$joined_keys" exact="''" />
+        <do_all exact="Globals.$key_shortcut_registry.keys.list.count" counter="$i">
+          <set_value name="$joined_keys"
+            exact="$joined_keys + Globals.$key_shortcut_registry.keys.list.{$i} + ';'"/>
+        </do_all>
+
+        <!-- Send this to the server. -->
+        <signal_cue_instantly
+          cue="md.Named_Pipes.Write"
+          param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'setkeys:'+$joined_keys ]"/>
+
+      </do_if>
+    </actions>
+  </cue>
+    
+
+  <!-- ################################################################## -->
+  <!--                           User API                                 -->
+  <!-- ################################################################## -->
+
+
+  <!--@doc-cue
+  Dummy cue used for signalling that the api reloaded.
+  Users that are registering shortcuts should listen to this
+  cue being signalled.
+  -->
   <cue name="Reloaded" instantiate="true">
     <conditions>
       <event_cue_signalled />
@@ -150,153 +276,381 @@ TODO:
   </cue>
 
 
-      
   <!--@doc-cue
-    User function to register a key with a cue.
-    If this is the first cue registered, it will start the key listening loop.
-    This should be re-sent each time Reloaded is signalled.
+  User function to register a shortcut. These shortcuts will be displayed
+  in the api options menu for use assignment of a hotkey.
+  This should be re-sent each time Reloaded is signalled.
     
-    Param  : Table with the following items:
-     - key  : String specifying the key/combo to capture.
-     - cue  : Callback, the cue to call when the key is pressed.
+  Param : Table with the following items:
+  * id
+    - String, unique identifier of this shortcut.
+    - Saved keys will map to ids; other fields may be changed.
+  * cue
+    - The callback cue for when the shortcut is triggered.
+  * name = id
+    - String, name to use for the key in the menu.
+    - If not given, defaults to the id.
+  * description = ""
+    - String, mouseover text use for the key in the menu.
       
-    Returns:
-      Callback cue will be given the key pressed in event.param.
+  Keypress events will return the shortcut id in event.param.
     
-    Usage example:
-      <code>
-        <cue name="Register_Keys" instantiate="true">
-          <conditions>
-            <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-          </conditions>
-          <actions>
-            <signal_cue_instantly 
-              cue="md.Key_Capture.Register_Key" 
-              param="table[$key='shift w', $cue=OnKeyPress]"/>
-          </actions>
-        </cue>
-      </code>
+  Usage example:
+    <code>
+      <cue name="Register_Shortcut" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+        </conditions>
+        <actions>
+          <signal_cue_instantly 
+            cue="md.Key_Capture.Register_Key" 
+            param="table[
+              $id   = 'my_key',
+              $cue  = OnKeyPress,
+              $name = 'Test Key',
+              $description = 'This key is just testing',
+              ]"/>
+        </actions>
+      </cue>
+    </code>
+  -->
+  <cue name="Register_Shortcut" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+
+    <actions>
+      <set_value name="$args" exact="event.param"/>
+      
+      <!-- Default args. -->
+      <do_if value="not $args.$description?">
+        <set_value name="$args.$description" exact="''"/>
+      </do_if>
+      <do_if value="not $args.$name?">
+        <set_value name="$args.$name" exact="$args.$id"/>
+      </do_if>
+      <set_value name="Globals.$shortcut_registry.{'$'+$args.$id}" exact="$args"/>
+        
+      <!-- Keep the lua updated. -->
+      <!-- Passes it on a player blackboard var, which lua clears. -->
+      <set_value name="player.entity.$key_capture_shortcuts" exact="Globals.$shortcut_registry" />
+      <raise_lua_event name="'Key_Capture.Update_Shortcuts'"/>
+    </actions>
+  </cue>
+
+
+  <!--@doc-cue
+  Function to register a key with a shortcut.
+  If this is the first key registered, it will start the key listening loop.
+  This is used by the menu system to set up player custom keys, but may
+  also be called by a user to directly assign a key to a shortcut.
+  This should be re-sent each time Reloaded is signalled.
+    
+  Param  : Table with the following items:
+    - key  : String specifying the key/combo to capture.
+    - id   : String, id of the matching shortcut sent to Register_Shortcut.
+      
+  Usage example:
+    <code>
+      <cue name="Register_Keys" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+        </conditions>
+        <actions>
+          <signal_cue_instantly 
+            cue="md.Key_Capture.Register_Key" 
+            param="table[$key='shift w', $id='my_registered_key']"/>
+        </actions>
+      </cue>
+    </code>
   -->
   <cue name="Register_Key" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
-    
+
     <actions>
+      <!--<debug_text text="'params: %s.'.[event.param]" chance="Globals.$DebugChance" filter="general"/>-->
+      
       <!-- Adjust the key to prefix with a $ for x4 tables. -->
-      <set_value name="$key" exact="'$' + event.param.{'$key'}"/>
-      <set_value name="$cue" exact="event.param.{'$cue'}"/>
-      
+      <set_value name="$key" exact="'$' + event.param.$key"/>
+      <set_value name="$id" exact="event.param.$id"/>
+
       <!-- Make sure there is a table entry for the key. -->
-      <do_if value="not Server_Reader.$key_cue_registry.{$key}?">
-        <set_value name="Server_Reader.$key_cue_registry.{$key}" exact="[]"/>
+      <do_if value="not Globals.$key_shortcut_registry.{$key}?">
+        <set_value name="Globals.$key_shortcut_registry.{$key}" exact="[]"/>
       </do_if>
-      
-      <!-- Check if the cue is already recorded for this key. -->
-      <do_if value="Server_Reader.$key_cue_registry.{$key}.indexof.{$cue} != 0">
+
+      <!-- Check if the id is already recorded for this key. -->
+      <do_if value="Globals.$key_shortcut_registry.{$key}.indexof.{$id} != 0">
         <!-- Print some warning. -->
-        <debug_text text="'Warning, cue %s already registered to key %s.'.[$cue.name, $key]" 
-                    chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, shortcut %s already registered to key %s.'.[$id, $key]"
+                    chance="Globals.$DebugChance" filter="general"/>
       </do_if>
       <do_else>
         <!-- It isn't recorded, so add it in. -->
-        <append_to_list name="Server_Reader.$key_cue_registry.{$key}" exact="$cue" />
-        <debug_text text="'Cue %s registered to key %s.'.[$cue.name, $key]" 
-                    chance="Server_Reader.$DebugChance" filter="general"/>
+        <append_to_list name="Globals.$key_shortcut_registry.{$key}" exact="$id" />
+        <debug_text text="'Shortcut %s registered to key %s.'.[$id, $key]"
+                    chance="Globals.$DebugChance" filter="general"/>
       </do_else>
-      
+
       <!-- Update the server. If it isn't connected, ignore any error. -->
-      <include_actions ref="Register_Keys_With_Server"/>
-      
+      <signal_cue_instantly cue="Register_Keys_With_Server_2"/>
+
       <!-- Make sure the read loop is started, if it wasn't already. -->
       <signal_cue cue="Server_Reader.$Start_Reading" />
-      
-    </actions>    
+
+    </actions>
   </cue>
-  
-    
+
+
   <!--@doc-cue
-    User function to unregister a key/cue. 
-    Params are the same as for Register_Key.
-    If this was the only cue registered (across all keys), the key listerner
-    loop will stop itself.
+  Function to unregister a key from a shortcut. 
+  Params are the same as for Register_Key.
+  If this was the only cue registered (across all keys), the key listerner
+  loop will stop itself.
     
-    Note: in development, untested.
+  Note: in development, untested.
     
-    Usage example:
-      <code>
-        <signal_cue_instantly 
-          cue="md.Key_Capture.Unregister_Key" 
-          param="table[$key='w', $cue=OnKeyPress]">
-      </code>
+  Usage example:
+    <code>
+      <signal_cue_instantly 
+        cue="md.Key_Capture.Unregister_Key" 
+        param="table[$key='w', $id='my_registered_key']">
+    </code>
   -->
   <cue name="Unregister_Key" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
-    
+
     <actions>
       <set_value name="$key" exact="event.param.{'$key'}"/>
-      <set_value name="$cue" exact="event.param.{'$cue'}"/>
-      
+      <set_value name="$id" exact="event.param.{'$id'}"/>
+
       <!-- Make sure there is a table entry for the key. -->
-      <do_if value="not Server_Reader.$key_cue_registry.{$key}?">
+      <do_if value="not Globals.$key_shortcut_registry.{$key}?">
         <!-- Print some warning. -->
-        <debug_text text="'Warning, key %s has no registered cues.'.[$key]" 
-                    chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, key %s has no registered shortcuts.'.[$key]"
+                    chance="Globals.$DebugChance" filter="general"/>
       </do_if>
-      
-      <!-- Check if the cue is recorded for this key. -->
-      <set_value name="$cue_index" exact="Server_Reader.$key_cue_registry.{$key}.indexof.{$cue}"/>
-      <do_if value="$cue_index == 0">
+
+      <!-- Check if the id is recorded for this key. -->
+      <set_value name="$id_index" exact="Globals.$key_shortcut_registry.{$key}.indexof.{$id}"/>
+      <do_if value="$id_index == 0">
         <!-- It isn't recorded, so print a warning. -->
-        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]" 
-                    chance="Server_Reader.$DebugChance" filter="general"/>
+        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]"
+                    chance="Globals.$DebugChance" filter="general"/>
       </do_if>
-      
+
       <do_else>
         <!-- Proceed with removal. -->
-        <remove_value name="Server_Reader.$key_cue_registry.{$key}.{$cue_index}" />
-        <debug_text text="'Removed cue %s from key %s.'.[$cue.name, $key]" 
-                    chance="Server_Reader.$DebugChance" filter="general"/>
-        
-        <!-- If the key's cue list is empty, also remove the key itself. -->
-        <do_if value="Server_Reader.$key_cue_registry.{$key}.count == 0">
-          <remove_value name="Server_Reader.$key_cue_registry.{$key}" />
-          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]" 
-                      chance="Server_Reader.$DebugChance" filter="general"/>
-          
-          <!-- Update the server. If it isn't connected, ignore any error. -->
-          <include_actions ref="Register_Keys_With_Server"/>
-        </do_if>
-      </do_else>      
-      
-    </actions>    
-  </cue>      
-      
-    
-  <!-- Lib function to update the server list of registered keys. -->
-  <library name="Register_Keys_With_Server">
-    <actions>
-      <!-- Suppress if not connected to server, to reduce log confusion. -->
-      <do_if value="Server_Reader.$server_connected == 1">
-      
-        <!--Start by merging the keys together, semicolon separated. -->
-        <set_value name="$joined_keys" exact="''" />
-        <do_all exact="Server_Reader.$key_cue_registry.keys.count" counter="$i">
-          <set_value name="$joined_keys" 
-            exact="$joined_keys + Server_Reader.$key_cue_registry.keys.list.{$i} + ';'"/>
-        </do_all>
-        
-        <!-- Send this to the server. -->
-        <signal_cue_instantly 
-          cue="md.Named_Pipes.Write" 
-          param="table[$pipe = Server_Reader.$Pipe_Name, $msg = 'setkeys:'+$joined_keys ]"/>
-        
-      </do_if>
-    </actions>
-  </library>
-    
-</cues>
+        <remove_value name="Globals.$key_shortcut_registry.{$key}.{$id_index}" />
+        <debug_text text="'Removed shortcut %s from key %s.'.[$id, $key]"
+                    chance="Globals.$DebugChance" filter="general"/>
 
+        <!-- If the key's cue list is empty, also remove the key itself. -->
+        <do_if value="Globals.$key_shortcut_registry.{$key}.count == 0">
+          <remove_value name="Globals.$key_shortcut_registry.{$key}" />
+          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]"
+                      chance="Globals.$DebugChance" filter="general"/>
+
+          <!-- Update the server. If it isn't connected, ignore any error. -->
+          <signal_cue_instantly cue="Register_Keys_With_Server_2"/>
+        </do_if>
+      </do_else>
+
+    </actions>
+  </cue>
+
+
+
+  <!-- ################################################################## -->
+  <!--                          Lua events                                -->
+  <!-- ################################################################## -->
+
+  <!--
+    Capture lua signals when the player assigns a new key.
+      
+    Lua's passed param will be a table with:
+    * new_key
+      - New key combo, or blank string.
+    * old_key
+      - Prior key combo, or blank string.
+    * id
+      - Shortcut id
+  -->
+  <cue name="Capture_Lua_Key_Update" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Key_Capture'" control="'Update_Key'" />
+    </conditions>
+
+    <actions>
+      <!-- Rename the args. -->
+      <set_value name="$args" exact="event.param3" />
+      <debug_text text="'Args: %s'.[$args]" chance="Globals.$DebugChance" filter="general"/>
+
+      <!-- If there was a prior key, unregister it. -->
+      <do_if value="$args.$old_key != ''">
+        <signal_cue_instantly cue="Unregister_Key" 
+                              param="table[$key=$args.$old_key, $id=$args.$id]"/>
+      </do_if>
+
+      <!-- If there is a new key, register it. -->
+      <do_if value="$args.$new_key != ''">
+        <signal_cue_instantly cue="Register_Key" 
+                              param="table[$key = $args.$new_key, $id = $args.$id]"/>
+      </do_if>
+
+    </actions>
+  </cue>
+
+
+  <!--
+    Capture lua signals to store the list of player keys.
+    Generally called at the same time as Update_Key, but kept separate
+    for now.
+    The keys are passed on the player blackboard.
+  -->
+  <cue name="Capture_Lua_Store_Player_Keys" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Key_Capture'" control="'Store_Player_Keys'" />
+    </conditions>
+    <actions>
+      <set_value name="Globals.$player_shortcut_keys" 
+                 exact="player.entity.$key_capture_player_keys_from_lua"/>
+      <remove_value name="player.entity.$key_capture_player_keys_from_lua"/>
+    </actions>
+  </cue>
+
+    
+
+  <!-- ################################################################## -->
+  <!--                         Key Press Handling                         -->
+  <!-- ################################################################## -->
+
+  <!--
+    Handle a key press event.
+    The key code should be in event.param.
+  -->
+  <cue name="Handle_Key" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>      
+      <!-- Read succeeded with at least one key. -->
+      <!-- Handle callback cues. -->
+      <!-- TODO: support multiple keys returned, with some separator. -->
+
+      <!-- Start by prefixing the key combo with a '$' for table lookups. -->
+      <set_value name="$key" exact="'$' + event.param"/>
+      <debug_text text="'Received key %s.'.[$key]"
+                  chance="Globals.$DebugChance" filter="general"/>
+
+      <!-- Is the key returned actually registered? -->
+      <do_if value="Globals.$key_shortcut_registry.{$key}?">
+
+        <!-- Convenience renaming. -->
+        <set_value name="$id_list" exact="Globals.$key_shortcut_registry.{$key}"/>
+
+        <!-- Loop over the shortcut ids. -->
+        <do_all exact="$id_list.count" counter="$i">
+          <!-- Verify the shortcut and cue still exist before calling it. -->
+          <set_value name="$cue" exact="@Globals.$shortcut_registry.{'$'+$id_list.{$i}}.$cue"/>
+          <do_if value="$cue.exists">
+            <!-- Call the cue, with this key combo (without $). -->
+            <signal_cue_instantly cue="$cue" param="event.param"/>
+          </do_if>
+          <!-- TODO: delink keys from non-existent shortcuts/cues. -->
+        </do_all>
+
+      </do_if>
+
+      <do_else>
+        <!-- Key not registered. TODO: error message. -->
+      </do_else>
+    </actions>
+  </cue>
+
+
+
+  <!-- ################################################################### -->
+  <!--                              Menu                                   -->
+  <!-- ################################################################### -->
+
+
+  <!--
+      Register an options menu.
+    -->
+  <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+    </conditions>
+    <actions>
+      <!-- Register the parent menu. -->
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Register_Options_Menu"
+        param = "table[
+            $id               = 'key_capture_menu',
+            $columns          = 2, 
+            $echo             = 'echo test 2',
+            $title            = 'Simple Menu Options Test',
+            $onOpen           = Build_Options_Menu,
+            ]"/>
+    </actions>
+  </cue>
+
+  <!--
+      Callback for building the options menu.
+      TODO: flesh out.
+    -->
+  <cue name="Build_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!-- Header. Shortcut names on left, values on right. -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Text"
+        param = "table[ $col  = 1, $text = 'Shortcut', $halign='center', ]"/>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_API.Make_Text"
+        param = "table[ $col  = 2, $text = 'Key', $halign='center', ]"/>
+
+      <!-- Loop over all shortcuts, giving each a line. -->
+      <do_all exact="Globals.$shortcut_registry.keys.list.count" counter="$i">
+        <set_value name="$key" exact="Globals.$shortcut_registry.keys.list.{$i}"/>
+        <set_value name="$shortcut" exact="Globals.$shortcut_registry.{$key}"/>
+
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col  = 1, 
+              $text = $shortcut.$name, 
+              $mouseOverText = $shortcut.$description,
+              ]"/>
+
+        <!-- Show the current shortcut, if any. -->
+        <!-- TODO: how to accept user input to change this? -->
+        <set_value name="$key" exact="@Globals.$key_shortcut_registry.{$shortcut.$id}"/>
+        <set_value name="$key" exact="if $key then $key else 'none'"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col  = 2, 
+              $text = $key,
+              ]"/>
+      </do_all>
+
+      <!-- Ready to display. (This is not used for standalone menus.) -->
+      <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
+    </actions>
+  </cue>
+
+  <!-- TODO: sync with lua hookup to ego's input mapping menu. -->
+
+    
+  </cues>
 </mdscript>

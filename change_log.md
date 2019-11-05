@@ -13,4 +13,8 @@ Change Log
   - Removed ack-based flow control.
 * 0.10
   - Key listener thread will completely stop when X4 loses focus.
+* 0.11
+  - Integrated into the ego input selection menu.
+  - Switched from direct key/cue pairings to setting up shortcut definitions that can set keys through md or player menu input.
+
 
