@@ -79,7 +79,7 @@ Usage:
       <!-- Name of the pipe. -->
       <set_value name="$Pipe_Name" exact="'x4_python_host'" />
 
-      <set_value name="$DebugChance" exact="100" />
+      <set_value name="$DebugChance" exact="0" />
     </actions>
   </library>
   

@@ -103,7 +103,7 @@ TODO:
       <set_value name="Globals.$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
       <set_value name="Globals.$pipe_status_cues" exact="[]"/>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
-      <set_value name="Globals.$DebugChance" exact="100" />
+      <set_value name="Globals.$DebugChance" exact="0" />
     </actions>
   </library>
       
