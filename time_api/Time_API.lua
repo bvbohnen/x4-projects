@@ -262,7 +262,7 @@ end
 -- Alarm related functions.
 
 function L.Set_Alarm(_, id_time)
-    if debug then
+    if L.debug then
         DebugError("Time.Set_Alarm got: "..tostring(id_time))
     end
 
@@ -279,7 +279,7 @@ function L.Set_Alarm(_, id_time)
     if not L.checking_alarms then
         SetScript("onUpdate", L.Poll_For_Alarm)
         L.checking_alarms = true
-        if debug then
+        if L.debug then
             DebugError("Time.Set_Alarm started polling")
         end
     end    
@@ -322,7 +322,7 @@ function L.Poll_For_Alarm()
     if not alarms_still_pending then
         RemoveScript("onUpdate", L.Poll_For_Alarm)
         L.checking_alarms = false
-        if debug then
+        if L.debug then
             DebugError("Time.Set_Alarm stopped polling")
         end
     end
