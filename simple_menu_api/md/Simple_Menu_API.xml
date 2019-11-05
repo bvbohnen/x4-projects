@@ -251,7 +251,7 @@ Complex properties:
   <library name="Reset_Globals">
     <actions>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
-      <set_value name="Globals.$DebugChance" exact="100" />
+      <set_value name="Globals.$DebugChance" exact="0" />
       <set_value name="Globals.$current" exact="1" />
       <set_value name="Globals.$next"    exact="1" />
       <set_value name="Globals.$options_submenu_specs" exact="table[]" />
@@ -746,17 +746,15 @@ Complex properties:
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
-  
 
   <!-- ################################################################### -->
-  <!--                             Widgets                                 -->
+  <!--                           Table stuff                               -->
   <!-- ################################################################### -->
-  
+
   <!--@doc-section
-    #### Widget Creation Cues
+    #### Table Cues
     -->
-  
-  
+
   <!--TODO: make rows selectable or not, set up echo and callbacks for
       RowSelected and similar events.-->
   <!--@doc-cue
@@ -795,6 +793,78 @@ Complex properties:
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
+
+  <!-- TODO: maybe nice wrapper cues around this for each method. -->
+  <!--@doc-cue
+    Adjust some aspect of the table calling a backend table method.
+    Generally for adjusting column widths.
+    
+    Param: Table with the following items.
+    * method
+      - String, name of the method being called.
+      - Further args depend on the method, as follows:
+    * ...
+      - Further args depending on the method called.
+      - Args described below.
+      
+    The possible methods are:
+    - "setColWidth"
+      * col
+      - Int, column index to adjust. Indexing starts at 1.
+      * width
+        - Int, pixel width of column
+      * scaling = true
+        - Bool, if the width is ui scaled.          
+    - "setColWidthMin"
+      * col
+      * width
+        - Int, minimum pixel width of column
+      * weight = 1
+        - Int, how heavily this column is favored vs others when widths
+          are calculated.
+      * scaling = true
+        - Bool, if the width is ui scaled.            
+    - "setColWidthPercent"
+      * col
+      * width
+        - Int, percent width of column of total table.          
+    - "setColWidthMinPercent"
+      * col
+      * width
+        - Int, percent width of column of total table.
+      * weight = 1
+        - Int, how heavily this column is favored vs others.          
+    - "setDefaultColSpan"
+      * col
+      * colspan
+        - Int, how many extra columns widgets created in this column
+          will be stretched across.          
+    - "setDefaultBackgroundColSpan"
+      * col
+      * bgcolspan
+        - Int, how many extra columns the backgrounds of widgets created in
+          this column will be stretched across.      
+    -->
+  <cue name="Call_Table_Method" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Init_Args_Table"/>
+      <set_value name="$args.$command" exact="'Call_Table_Method'" />
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+
+  <!-- ################################################################### -->
+  <!--                             Widgets                                 -->
+  <!-- ################################################################### -->
+  
+  <!--@doc-section
+    #### Widget Creation Cues
+    -->
+  
   
   <!--TODO: rendertarget (placeholder sizing widget)-->
   

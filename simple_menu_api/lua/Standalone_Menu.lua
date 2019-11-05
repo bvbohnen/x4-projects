@@ -187,6 +187,30 @@ function menu.create()
     -- are made to the menu.
     -- TODO: maybe scrap this and rely on user calling Disply_Menu.
     menu.infoFrame:display()
+    --[[
+        Notes on creating a standalone frame (non-menu):
+        
+        The helper frame:display() function does some table assembly, and
+        ends up calling CreateFrame (global function). It then registers
+        that frame with viewhelper's global View object. It also closes
+        other menus.
+
+        The standalone chatwindow does not use helper.lua, and instead
+        uses CreateFrame directly and registers with View.
+
+        Note: commands in chatwindow and widget_fullscreen suggest the
+        layers are limited to 1-6, with menus having to share layers.
+        The chat window is on 6, with notes about moving it to 2 to
+        join something debug related.
+        If creating standalone frames, layer selection may be tricky,
+        but can try to match 6 (presumably that will put it on top).
+
+        For a standalone frame, instead of using frame:display(), copy
+        that function's contents but modify it to no longer close 
+        any open menus, and maybe do that same with the callbacks used
+        by CreateFrame for when a frame is shown or removed (also
+        may be a lot of copy/paste).
+    ]]
         
     -- Stop delaying commands now that menu is ready.
     menu_data.delay_commands = false

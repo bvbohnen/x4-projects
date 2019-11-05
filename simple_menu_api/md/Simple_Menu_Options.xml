@@ -9,9 +9,10 @@
   This will handle the options submenu setup, and will store prior
   state to remember player's settings.
   
-  TODO: figure out how to set up widgets/buttons to be interactable by
-  clicking anywhere on their line, like ego menus. Currently they require
-  clicking the widget itself.
+  TODO:
+  Set up on/off widgets/buttons to be interactable by clicking anywhere on
+  their  line, like ego menus. Currently they require clicking the widget itself.
+  
   -->
 
   <cues>
@@ -72,7 +73,7 @@
     </cue>
     <library name="Reset_Globals">
       <actions>
-        <set_value name="Globals.$DebugChance" exact="100"/>
+        <set_value name="Globals.$DebugChance" exact="0"/>
         
         <!-- Define the options; these can be tweaked between lua reloads. -->
         <set_value name="Globals.$options" exact="[

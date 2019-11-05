@@ -9,7 +9,7 @@ local T = {}
 
 T.debugger = {
     -- Send chat messages on player actions to widgets.
-    actions_to_chat = true,
+    actions_to_chat = false,
     -- Print all commands run.
     announce_commands = false,
     -- Generic filter on messages.
@@ -159,13 +159,30 @@ T.widget_properties = {}
 -- stock defaults to widgets can override some stuff with widgets inheriting
 -- from row properties.
 
+
 -- Default properties for each widget, from helper.
--- Note: cell inherits from widget, various standalone widgets from cell.
--- These are largely copied from helper.lua defaultWidgetProperties,
---  which is local.
--- While bothersome, this needs to specify which properties are bools,
--- since md->lua is janky and makes md bools into lua 0/1, causing problems.
--- Library code will do proper bool conversion based on these contents.
+--[[
+    Note: cell inherits from widget, various standalone widgets from cell.
+    These are largely copied from helper.lua defaultWidgetProperties,
+    which is local.
+    While bothersome, this needs to specify which properties are bools,
+    since md->lua is janky and makes md bools into lua 0/1, causing problems.
+    Library code will do proper bool conversion based on these contents.
+    
+    Helper.lua defines some table fields that don't have intentional
+    defaults. It uses this term to represent them, and gives them a
+    'false' bool value, though they don't represent bools.
+    Some helper logic uses checks against this to know if a term wasn't
+    given, eg. for slider minSelect.
+    In the local menus, typing of bools is important for handling md
+    transfers.
+    So, the approach used here will be:
+        - Still use propertyDefaultValue, but set to "nil".
+        - Never apply top level defaults to property tables; let the backend
+          fill them in.
+]]
+local propertyDefaultValue = "nil"
+
 -- Note: to remove api support for a property, comment it out.
 T.widget_defaults = {
     ["widget"] = {

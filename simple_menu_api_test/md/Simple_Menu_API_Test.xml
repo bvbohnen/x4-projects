@@ -15,9 +15,12 @@
         <event_cue_signalled cue="md.Key_Capture.Reloaded" />
       </conditions>
       <actions>
+        <signal_cue_instantly 
+          cue="md.Key_Capture.Register_Shortcut" 
+          param="table[$id = 'simple_menu_test', $cue = Open_Menu]"/>
         <signal_cue_instantly
           cue="md.Key_Capture.Register_Key"
-          param="table[$key='shift b', $cue=Open_Menu]"/>
+          param="table[$key='shift b', $id='simple_menu_test']"/>
       </actions>
     </cue>
 
@@ -354,7 +357,17 @@
             ]"/>
         <!-- Count how many times it opened. -->
         <set_value name="Globals.$vars.$openings" operation="add"/>
-
+        
+        <!-- Extra table methods. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Call_Table_Method"
+          param = "table[
+            $method = 'setColWidthPercent',
+            $col = 1,
+            $width = 40,
+            ]"/>
+        
+        <!-- General widget filler. -->
         <include_actions ref="Fill_Menu"/>
       </actions>
     </cue>

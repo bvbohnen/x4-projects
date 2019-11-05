@@ -371,7 +371,7 @@ Complex properties:
 
 
 
-#### Widget Creation Cues
+#### Table Cues
     
 * Add_Row
   
@@ -396,6 +396,58 @@ Complex properties:
     * multiSelected = false
       - Bool, row is preselected for multiselect menu tables. },
       
+* Call_Table_Method
+  
+  Adjust some aspect of the table calling a backend table method. Generally for adjusting column widths.
+      
+  Param: Table with the following items.
+  * method
+    - String, name of the method being called.
+    - Further args depend on the method, as follows:
+  * ...
+    - Further args depending on the method called.
+    - Args described below.
+        
+  The possible methods are:
+  - "setColWidth"
+    * col
+    - Int, column index to adjust. Indexing starts at 1.
+    * width
+      - Int, pixel width of column
+    * scaling = true
+      - Bool, if the width is ui scaled.          
+  - "setColWidthMin"
+    * col
+    * width
+      - Int, minimum pixel width of column
+    * weight = 1
+      - Int, how heavily this column is favored vs others when widths are calculated.
+    * scaling = true
+      - Bool, if the width is ui scaled.            
+  - "setColWidthPercent"
+    * col
+    * width
+      - Int, percent width of column of total table.          
+  - "setColWidthMinPercent"
+    * col
+    * width
+      - Int, percent width of column of total table.
+    * weight = 1
+      - Int, how heavily this column is favored vs others.          
+  - "setDefaultColSpan"
+    * col
+    * colspan
+      - Int, how many extra columns widgets created in this column will be stretched across.          
+  - "setDefaultBackgroundColSpan"
+    * col
+    * bgcolspan
+      - Int, how many extra columns the backgrounds of widgets created in this column will be stretched across.      
+      
+
+
+
+#### Widget Creation Cues
+    
 * Make_Text
   
   Make a "text" cell for displaying non-interactive text. Adds to the most recent row.

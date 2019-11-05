@@ -248,12 +248,45 @@ function L._Process_Command(args)
         Options_Menu.Handle_Display_Command()
         
 
+    -- Adjust table aspects.
+    elseif args.command == "Call_Table_Method" then
+        -- Supported table methods and their order of call args.
+        local table_method_args = {
+            ["setColWidth"]                 = {"col", "width", "scaling"},
+            ["setColWidthMin"]              = {"col", "width", "weight", "scaling"},
+            ["setColWidthPercent"]          = {"col", "width"},
+            ["setColWidthMinPercent"]       = {"col", "width", "weight"},
+            ["setDefaultColSpan"]           = {"col", "colspan"},
+            ["setDefaultBackgroundColSpan"] = {"col", "bgcolspan"},
+        }
+
+        -- Generic defaults for col adjustments, regardless of if the
+        -- method uses it.  No particular field differs between calls.
+        local generic_defaults = {scaling = true, weight = 1}
+        Lib.Fill_Defaults(args, generic_defaults)
+        Lib.Fix_Bool_Args(args, generic_defaults)
+
+        -- Pack the method args. Always start with table itself, since
+        -- these methods are called like functions.
+        local method_args = {menu_data.ftable}
+        for i, field in ipairs(table_method_args[args.method]) do
+            -- Error check; should have been given by user or defaults.
+            if not args[field] then
+                error(table.format("Adjust_Table method '%s' missing field '%s'", args.method, field))
+            end
+            table.insert(method_args, args[field])
+        end
+
+        -- Call the method.
+        menu_data.ftable[args.method](table.unpack(method_args))
+
+
     -- Add a new row.
     elseif args.command == "Add_Row" then
         -- Filter for row properties, defaults, fix bools.
         local properties = Lib.Filter_Table(args, widget_properties["row"])
         Lib.Fill_Defaults(properties, menu_data.custom_widget_defaults["row"])
-        Lib.Fill_Defaults(properties, widget_defaults["row"])
+        Lib.Fill_Complex_Defaults(properties, widget_defaults["row"])
         Lib.Fix_Bool_Args(properties, widget_defaults["row"])
 
         -- This also supports a custom "selectable" flag, which wasn't fixed
@@ -345,12 +378,13 @@ function L.Make_Widget(args)
     -- Fill in custom defaults.
     Lib.Fill_Defaults(properties, menu_data.custom_widget_defaults[args.type])
 
-    -- Fill in defaults, particularly needed for subtables which the ego
+    -- Fill in subtable defaults, needed for subtables which the ego
     --  backend can't autofill with defaults (unless it replaces the
     --  entire table).
-    -- TODO: different Lib func which only fills defaults on subtables,
-    --  not the main level.
-    Lib.Fill_Defaults(properties, widget_defaults[args.type])
+    -- Do not touch top level args, since it can cause confusion with
+    --  some that are optional and the backend sets as 'false' (confusing
+    --  the following bool fix).
+    Lib.Fill_Complex_Defaults(properties, widget_defaults[args.type])
 
     -- Fix bools, which are 0/1 coming out of md.
     Lib.Fix_Bool_Args(properties, widget_defaults[args.type])

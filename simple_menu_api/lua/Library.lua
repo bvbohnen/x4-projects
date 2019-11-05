@@ -249,6 +249,22 @@ function L.Fill_Defaults(left, right)
     end
 end
 
+-- Update the first table with entries from the second where the entry is
+--  a subtable, and the first table contains an entry already for the field.
+-- The goal is that subtables (referred to as complex properties) will get
+--  defaults filled in for unused fields, while the top level table will
+--  be left alone (ego's backend can handle that already).
+function L.Fill_Complex_Defaults(left, right)
+    if not right then return end
+    for k, v in pairs(right) do
+        -- Check for both having tables.
+        if type(left[k]) == "table" and type(v) == "table" then
+            -- Hand off to the normal default filler function.
+            L.Fill_Defaults(left[k], v)
+        end
+    end
+end
+
 -- Update the left table with contents of the right one, overwriting
 -- when needed. Any subtables are similarly updated (not directly
 -- overwritten). Tables in right should always match to tables or nil in left.

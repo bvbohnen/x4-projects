@@ -17,120 +17,6 @@ TODO: hooks to modify stock menu parameters of interest.
 TODO: set up player facing option to remove some menu animation delays.
 ]]
 
---[[
-Development notes:
-
-menu.submenuHandler(optionParameter)
-    This function picks which submenu to open, based on what the player clicked
-    from the main menu.  optionParameter is a string, eg. "extensions".
-    This can be monkeypatched to support Simple Menu menus.
-    Requires the simple menu option be in the list first.
-    
-    Perhaps useful: this will raise a ui event for md listeners:
-    AddUITriggeredEvent(menu.name, "menu_" .. optionParameter)
-    
-    The top level menu appears to be opened by calling this function 
-    with "main" as the parameter.
-    There are many special case function calls, but a generic catchall at
-    the end handles "main" by calling a generic menu builder:
-        menu.displayOptions(optionParameter)
-        
-menu.displayOptions(optionParameter)
-    Reads generic specification info from config.optionDefinitions to build
-    a menu. The config table is private, so specs cannot be directly
-    modified.
-    
-    Rows are filled out near the end just before displaying:
-        
-        -- options
-        for optionIdx, option in ipairs(options) do
-            menu.displayOption(ftable, option)
-        end
-
-        ftable:setTopRow(menu.preselectTopRow)
-        menu.preselectTopRow = nil
-        menu.preselectOption = nil
-
-        frame:display()
-        
-    A monkeypatch could potentially call this function first to build the
-    submenu, then call menu.displayOption to fill in a custom row.
-    Hopefully this won't look odd to display() before the last row is
-    added in.
-    This approach would need a way to access the ftable from the frame from
-    the menu, which is unclear on how to do, since the menu table doesn't
-    store the frame or ftable explicitly.
-    
-    Alternatively, this function could be copied in full, with custom menus
-    using the copied code, and original menus reverting to calling the
-    original function (to be somewhat stable across patches).
-    
-    
-menu.displayOption(ftable, option, numCols)
-    Displays a single option in the main menu (or other menus) to open
-    a submenu.
-    "option" is a table defining the string to display and the
-    name of the submenu.
-    "numCols" is optional, and presumably for multi-col situations
-    (eg. if other parts of the table are 2 columns, maybe the
-    submenu options will have a 2-wide span.
-        
-    
-Accessing frame/ftable from menu:
-    Frames are added by Helper.
-    gameoptions/menu.createOptionsFrame() adds the frame, 
-    and makes a link in menu.optionsFrame.
-    
-    So, menu.optionsFrame should be sufficient to obtain the frame.
-    
-    From the frame, tables are added using frame:addTable. The prototype
-    for this is found in helper/widgetPrototypes.frame:addTable().
-    Here, the table is added to a list in frame.content.
-    If the frame has multiple content entries, the table will need to be
-    identified.  It is not given an "id" by gameoptions, but there should
-    be just one table, and the content.type field will be "table".
-    
-    So, loop over frame.content for frame.content[i].type == "table" to
-    find the desired table.
-    
-    
-After having trouble getting submenus to be selected. Thoughts:
-
-    menu.displayOption
-        Called on main menu for first submenu; works correctly.
-        Used in first submenu to access user submenu, does nothing on click.
-    
-    menu.onSelectElement(uitable, modified, row)
-        Gets called on selecting the submenu item.
-        Correctly called for user submenu, giving row=1, but the uitable
-        does not match menu.optionTable, leading to early return.
-        
-    menu.viewCreated(layer, ...)
-        Called from Helper.viewCreated.
-        Sets menu.optionTable if the layer is config.optionsLayer.
-        Different ... arg counts based on menu.currentOption, but expect
-        only one arg for the general case, presumably a table.
-        
-    Helper.viewCreated(menu, layer, frames)
-        Called from Helper.displayFrame.
-        Passes children of menu.frames[layer] to menu.viewCreated.
-        Implies there should only be one child of the optionsLayer for
-        the menu.currentOption to get set correctly.
-        
-    Likely problem: first pass of the intermediate submenu patterned
-    off of the 'extensions' menu, but that unpacks to three tables
-    with special handling in menu.viewCreated.
-    
-    Solutions:
-    a) Monkey patch menu.viewCreated, but eh.
-    b) Only use one table.
-    c) Put the table with submenu options first (assuming ordering is kept).
-    
-    Later observation: the title needs to be in a separate table to allow
-    the main data table to be scrollable.  Monkeypatching viewCreated may
-    be the only reliable way to handle this.
-        
-]]
 
 -- Import config and widget_properties tables.
 local Tables = require("extensions.simple_menu_api.lua.Tables")
@@ -293,6 +179,10 @@ local function Init_Gameoptions_Link()
 
             
             -- Display needs to be called again to get an updated frame drawn.
+            -- Note: this probably isn't entirely safe in general, but seems
+            -- to work okay in testing.
+            -- TODO: clear scripts for safety.
+            -- Helper.removeAllWidgetScripts(menu, config.optionsLayer)
             frame:display()
         end
     end
@@ -413,7 +303,7 @@ Init_Gameoptions_Link()
 function menu.Register_Options_Menu(args)
     -- Verify the id appears unique, at least among registered submenus.
     if custom_menu_specs[args.id] then
-        error("Submenu id conflicts with prior registrated id: "..args.id)
+        error("Submenu id conflicts with prior registered id: "..args.id)
     end
     
     -- Record to the global table.
@@ -600,6 +490,7 @@ function menu.Display_Custom_Menu(menu_spec)
     -- display now and later leads to errors in the log when going "back"
     -- a menu, apparently due to the back button's scripts not being
     -- registered properly somehow.
+    -- TODO: try this out again, with removeAllWidgetScripts enabled below.
     --frame:display()
 end
 
@@ -613,8 +504,129 @@ function menu.Handle_Display_Command()
     gameoptions_menu.preselectOption = nil
     
     -- Do the final display call.
+    -- TODO: manually clearing scripts first worked well in another test,
+    -- try it here:
+    -- Helper.removeAllWidgetScripts(menu, config.optionsLayer)
     menu_data.frame:display()
 end
 
 
 return menu
+
+
+
+
+--[[
+Development notes:
+
+menu.submenuHandler(optionParameter)
+    This function picks which submenu to open, based on what the player clicked
+    from the main menu.  optionParameter is a string, eg. "extensions".
+    This can be monkeypatched to support Simple Menu menus.
+    Requires the simple menu option be in the list first.
+    
+    Perhaps useful: this will raise a ui event for md listeners:
+    AddUITriggeredEvent(menu.name, "menu_" .. optionParameter)
+    
+    The top level menu appears to be opened by calling this function 
+    with "main" as the parameter.
+    There are many special case function calls, but a generic catchall at
+    the end handles "main" by calling a generic menu builder:
+        menu.displayOptions(optionParameter)
+        
+menu.displayOptions(optionParameter)
+    Reads generic specification info from config.optionDefinitions to build
+    a menu. The config table is private, so specs cannot be directly
+    modified.
+    
+    Rows are filled out near the end just before displaying:
+        
+        -- options
+        for optionIdx, option in ipairs(options) do
+            menu.displayOption(ftable, option)
+        end
+
+        ftable:setTopRow(menu.preselectTopRow)
+        menu.preselectTopRow = nil
+        menu.preselectOption = nil
+
+        frame:display()
+        
+    A monkeypatch could potentially call this function first to build the
+    submenu, then call menu.displayOption to fill in a custom row.
+    Hopefully this won't look odd to display() before the last row is
+    added in.
+    This approach would need a way to access the ftable from the frame from
+    the menu, which is unclear on how to do, since the menu table doesn't
+    store the frame or ftable explicitly.
+    
+    Alternatively, this function could be copied in full, with custom menus
+    using the copied code, and original menus reverting to calling the
+    original function (to be somewhat stable across patches).
+    
+    
+menu.displayOption(ftable, option, numCols)
+    Displays a single option in the main menu (or other menus) to open
+    a submenu.
+    "option" is a table defining the string to display and the
+    name of the submenu.
+    "numCols" is optional, and presumably for multi-col situations
+    (eg. if other parts of the table are 2 columns, maybe the
+    submenu options will have a 2-wide span.
+        
+    
+Accessing frame/ftable from menu:
+    Frames are added by Helper.
+    gameoptions/menu.createOptionsFrame() adds the frame, 
+    and makes a link in menu.optionsFrame.
+    
+    So, menu.optionsFrame should be sufficient to obtain the frame.
+    
+    From the frame, tables are added using frame:addTable. The prototype
+    for this is found in helper/widgetPrototypes.frame:addTable().
+    Here, the table is added to a list in frame.content.
+    If the frame has multiple content entries, the table will need to be
+    identified.  It is not given an "id" by gameoptions, but there should
+    be just one table, and the content.type field will be "table".
+    
+    So, loop over frame.content for frame.content[i].type == "table" to
+    find the desired table.
+    
+    
+After having trouble getting submenus to be selected. Thoughts:
+
+    menu.displayOption
+        Called on main menu for first submenu; works correctly.
+        Used in first submenu to access user submenu, does nothing on click.
+    
+    menu.onSelectElement(uitable, modified, row)
+        Gets called on selecting the submenu item.
+        Correctly called for user submenu, giving row=1, but the uitable
+        does not match menu.optionTable, leading to early return.
+        
+    menu.viewCreated(layer, ...)
+        Called from Helper.viewCreated.
+        Sets menu.optionTable if the layer is config.optionsLayer.
+        Different ... arg counts based on menu.currentOption, but expect
+        only one arg for the general case, presumably a table.
+        
+    Helper.viewCreated(menu, layer, frames)
+        Called from Helper.displayFrame.
+        Passes children of menu.frames[layer] to menu.viewCreated.
+        Implies there should only be one child of the optionsLayer for
+        the menu.currentOption to get set correctly.
+        
+    Likely problem: first pass of the intermediate submenu patterned
+    off of the 'extensions' menu, but that unpacks to three tables
+    with special handling in menu.viewCreated.
+    
+    Solutions:
+    a) Monkey patch menu.viewCreated, but eh.
+    b) Only use one table.
+    c) Put the table with submenu options first (assuming ordering is kept).
+    
+    Later observation: the title needs to be in a separate table to allow
+    the main data table to be scrollable.  Monkeypatching viewCreated may
+    be the only reliable way to handle this.
+        
+]]

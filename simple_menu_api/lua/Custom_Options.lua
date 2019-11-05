@@ -12,6 +12,10 @@ blackboard table instead of using signal params (limited to string/int/nil).
 TODO: possible future options
     - Reduce config.startAnimation.duration for faster open animations.
     - Increase ui scaling factor beyond 1.5 (needs monkeypatch).
+    - Remove modified tag entirely.
+      Requires accessing gameoptions config.optionDefinitions (private),
+      or monkeypatching wherever it gets used with a custom copy/pasted
+      version with the modified text function removed.
 ]]
 
 -- Set up any used ffi functions.

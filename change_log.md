@@ -38,3 +38,5 @@ Change Log
   - Added several menu level events.
   - Bug fix for confusion when a menu is created while the prior menu had pending events.
   - Various other tweaks.
+* 0.11
+  - Added support for changing column widths.
