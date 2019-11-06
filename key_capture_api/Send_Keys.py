@@ -466,39 +466,45 @@ def Compile_Combo(combo_string):
     encoded_combo_list = []
     for combo in combo_list:
     
-        # Set up a list for these keys, and add to the list of combos.
-        encoded_combo = []
+        # Wrap this in case of getting bad combos, like a "null" for an
+        # unfilled mission director var.
+        try:
+            # Set up a list for these keys, and add to the list of combos.
+            encoded_combo = []
     
-        # Map to Key and KeyCode objects.
-        for key_name in combo:
+            # Map to Key and KeyCode objects.
+            for key_name in combo:
     
-            # If empty, something weird happened like double spacing in the
-            #  user input. Treat that as okay, but ignore this split element.
-            if not key_name:
-                continue
+                # If empty, something weird happened like double spacing in the
+                #  user input. Treat that as okay, but ignore this split element.
+                if not key_name:
+                    continue
     
-            # TODO: error detection if not understood.
+                # TODO: error detection if not understood.
     
-            # Single letters are alphanumeric. Use as-is.
-            # Note: wrapping in a KeyCode will just have this key_name
-            # placed in its char field, which is pointless.
-            if len(key_name) == 1:
-                key = key_name
+                # Single letters are alphanumeric. Use as-is.
+                # Note: wrapping in a KeyCode will just have this key_name
+                # placed in its char field, which is pointless.
+                if len(key_name) == 1:
+                    key = key_name
     
-            # Longer names will map to an integer code.
-            else:
-                # Look up the enumerator entry, get its value, a KeyCode.
-                # From the KeyCode, use the vk attribute for the integer
-                # key value.
-                key = getattr(keyboard.Key, key_name).value.vk
+                # Longer names will map to an integer code.
+                else:
+                    # Look up the enumerator entry, get its value, a KeyCode.
+                    # From the KeyCode, use the vk attribute for the integer
+                    # key value.
+                    key = getattr(keyboard.Key, key_name).value.vk
     
-            encoded_combo.append(key)
+                encoded_combo.append(key)
             
-        # It is possible this encoded_combo is already present, due
-        #  to modifier keycode aliasing.
-        # Only record the new combo if unique.
-        if not any(encoded_combo == x for x in encoded_combo_list):
-            encoded_combo_list.append(encoded_combo)
+            # It is possible this encoded_combo is already present, due
+            #  to modifier keycode aliasing.
+            # Only record the new combo if unique.
+            if not any(encoded_combo == x for x in encoded_combo_list):
+                encoded_combo_list.append(encoded_combo)
+
+        except Exception as ex:
+            print("Error processing combo '{}', exception: {}".format(combo, ex))
             
     return encoded_combo_list
 

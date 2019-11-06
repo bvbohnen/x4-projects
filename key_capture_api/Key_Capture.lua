@@ -81,6 +81,12 @@ config.subHeaderTextProperties = {
     halign = "center",
     titleColor = Helper.defaultSimpleBackgroundColor,
 }
+config.standardTextProperties = {
+    font = config.font,
+    fontsize = config.standardFontSize,
+    x = config.standardTextOffsetX,
+    y = 2,
+}
 
 
 local function Init()
@@ -105,7 +111,7 @@ local function Init()
     
     -- Search the ego menu list. When this lua loads, they should all
     -- be filled in.
-    for i, ego_menu in ipairs(Menus) do
+    for _, ego_menu in ipairs(Menus) do
         if ego_menu.name == "OptionsMenu" then
             menu = ego_menu
         end
@@ -166,8 +172,129 @@ local function Init()
     --    L.unregisterDirectInput(ego_unregisterDirectInput)
     --    end
     
+
+    -- Listen for when menus open/close, to inform the md side what the
+    -- current hotkey context is (eg. suppress space-based hotkeys while
+    -- menus are open).
+    -- (Alternatively, can check this live by scanning all menus for
+    -- the menu.shown flag being set and menu.minimized being false.)
+
+    -- Patch into Helper.clearMenu for closings.
+    local ego_helper_clearMenu = Helper.clearMenu
+    Helper.clearMenu = function(menu, ...)
+        ego_helper_clearMenu(menu, ...)
+        L.Menu_Closed(menu)
+        end
+
+    -- Patch into all menu.showMenuCallback functions to catch when
+    -- they open.  Two steps: patch existing menus, and patch helper
+    -- for any future registered menus.
+    -- Both share this bit of logic:
+    local function patch_showMenuCallback(menu)
+        local ego_showMenuCallback = menu.showMenuCallback
+        menu.showMenuCallback = function(...)
+            ego_showMenuCallback(...)
+            L.Menu_Opened(menu)
+            end
+        -- These callbacks were registered to a 'show<name>' event, so update
+        -- that registry.
+        UnregisterEvent("show"..menu.name, ego_showMenuCallback)
+        RegisterEvent("show"..menu.name, menu.showMenuCallback)
+    end
+    -- Patch exiting menus.
+    for _, menu in ipairs(Menus) do
+        patch_showMenuCallback(menu)
+    end
+    -- Patch future menus.
+    local ego_registerMenu = Helper.registerMenu
+    Helper.registerMenu = function(menu, ...)
+        -- Run helper function first to set up the menu's callback func.
+        ego_registerMenu(menu, ...)
+        -- Can now patch it.
+        patch_showMenuCallback(menu)
+        end
+
+    -- Also want to catch minimized menus.
+    local ego_minimizeMenu = Helper.minimizeMenu
+    Helper.minimizeMenu = function(menu, ...)
+        ego_minimizeMenu(menu, ...)
+        L.Menu_Minimized(menu)
+        end
+    -- And restored menus.
+    local ego_restoreMenu = Helper.restoreMenu
+    Helper.restoreMenu = function(menu, ...)
+        ego_restoreMenu(menu, ...)
+        L.Menu_Restored(menu)
+        end
+    
+
 end
 
+-- Note: TopLevelMenu is the default when no other menus are open, and will
+-- generally be ignored here.
+-- This is called when menus are closed in Helper.
+function L.Menu_Closed(menu)
+    if menu.name == "TopLevelMenu" then return end
+    DebugError("Menu closed: "..tostring(menu.name))
+    Lib.Raise_Signal("Menu_Closed", menu.name)
+end
+
+-- This is called when menus are opened in Helper.
+function L.Menu_Opened(menu)
+    if menu.name == "TopLevelMenu" then return end
+    DebugError("Menu opened: "..tostring(menu.name))
+    Lib.Raise_Signal("Menu_Opened", menu.name)
+end
+
+-- This is called when menus are minimized in Helper.
+-- Treats menu as closing for the md side.
+function L.Menu_Minimized(menu)
+    if menu.name == "TopLevelMenu" then return end
+    DebugError("Menu minimized: "..tostring(menu.name))
+    Lib.Raise_Signal("Menu_Closed", menu.name)
+end
+
+-- This is called when menus are restored (unminimized) in Helper.
+-- Treats menu as opening for the md side.
+function L.Menu_Restored(menu)
+    if menu.name == "TopLevelMenu" then return end
+    DebugError("Menu restored: "..tostring(menu.name))
+    Lib.Raise_Signal("Menu_Opened", menu.name)
+end
+
+-- TODO: a timed check to occasionally go through all the menus and
+-- verify which are open/closed, just incase there is a problem above
+-- with missing an opened/closed signal, so that the api can recover.
+
+
+-- Test code: catching inputs directly.
+-- Result: ListenForInput is only good for one key press, and it will
+-- prevent that keypress from any other in-game effect.
+-- So this is a dead end without a way to refire the caught key artificially.
+-- There is also a C.ActivateDirectInput function, but that appears to be
+-- just for editboxes when selected to enable typing.
+--[[
+local keys_to_catch = 10
+function L.Input_Listener()
+    ListenForInput(true)
+    RegisterEvent("keyboardInput", L.Handle_Caught_Key)
+    -- In testing, the above only catch a single input, suggesting
+    -- either ListenForInput or the event registration gets cleared
+    -- after one catch.
+end
+function L.Handle_Caught_Key(_, keycode)
+    DebugError("Caught keyboard keycode: "..tostring(keycode))
+    keys_to_catch = keys_to_catch -1
+    if keys_to_catch > 0 then
+        -- Restart the listen function.
+        -- Limit how many times it happens, in case this locks out
+        -- inputs to the game.
+        ListenForInput(true)
+    end
+end
+-- Fire it off.
+L.Input_Listener()
+]]
 
 -- Handle md requests to update the shortcut registry.
 -- Reads data from a player blackboard var.
@@ -185,7 +312,7 @@ function L.Update_Shortcuts()
     -- Clear the md var by writing nil.
     SetNPCBlackboard(L.player_id, "$key_capture_shortcuts", nil)
     
-    Lib.Print_Table(L.shortcut_registry, "Update_Shortcuts shortcut_registry")
+    --Lib.Print_Table(L.shortcut_registry, "Update_Shortcuts shortcut_registry")
 end
 
 -- Read in the stored list of player shortcut keys.
@@ -201,7 +328,7 @@ function L.Read_Player_Keys()
     -- Clear the md var by writing nil.
     SetNPCBlackboard(L.player_id, "$key_capture_player_keys_from_md", nil)
     
-    Lib.Print_Table(L.player_shortcut_keys, "Read_Player_Keys player_shortcut_keys")
+    --Lib.Print_Table(L.player_shortcut_keys, "Read_Player_Keys player_shortcut_keys")
 end
 
 -- Write to the list of player shortcut keys to be stored in md.
@@ -211,7 +338,7 @@ function L.Write_Player_Keys()
     SetNPCBlackboard(L.player_id, "$key_capture_player_keys_from_lua", L.player_shortcut_keys)
     Lib.Raise_Signal("Store_Player_Keys")
     
-    Lib.Print_Table(L.player_shortcut_keys, "Write_Player_Keys player_shortcut_keys")
+    --Lib.Print_Table(L.player_shortcut_keys, "Write_Player_Keys player_shortcut_keys")
 end
 
 
@@ -526,14 +653,14 @@ end
 -- Inner part of remapInput, allowed to error.
 function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputsgn)
 
-    DebugError(string.format(
-        "Detected remap of code '%s'; new aspects: %s, %s, %s", 
-        tostring(menu.remapControl.controlcode),
-        tostring(newinputtype),
-        tostring(newinputcode),
-        tostring(newinputsgn)
-        ))
-    Lib.Print_Table(menu.remapControl, "menu.remapControl")
+    --DebugError(string.format(
+    --    "Detected remap of code '%s'; new aspects: %s, %s, %s", 
+    --    tostring(menu.remapControl.controlcode),
+    --    tostring(newinputtype),
+    --    tostring(newinputcode),
+    --    tostring(newinputsgn)
+    --    ))
+    --Lib.Print_Table(menu.remapControl, "menu.remapControl")
 
 
     -- Look up the matching shortcut.
@@ -586,9 +713,9 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
         -- These are uppercase and with "+" for modified keys.
         -- Translate to the combo form: space separated lowercase.
         new_combo = string.lower( string.gsub(ego_key_name, "+", " ") )
+        DebugError(string.format("Ego key %s translated to combo %s", ego_key_name, new_combo))
     end
     
-    DebugError(string.format("Ego key %s translated to combo %s", ego_key_name, new_combo))
 
     -- If the new_combo is already recorded as either of the existing inputs,
     -- do nothing.
@@ -648,6 +775,8 @@ function L.unregisterDirectInput(ego_unregisterDirectInput)
         ego_unregisterDirectInput()
     end
 end
+
+
 
 
 Init()

@@ -16,5 +16,7 @@ Change Log
 * 0.11
   - Integrated into the ego input selection menu.
   - Switched from direct key/cue pairings to setting up shortcut definitions that can set keys through md or player menu input.
+* 0.12
+  - Added support for shortcut contexts (flying, walking, menus, or specific menu) where is is valid.
 
 

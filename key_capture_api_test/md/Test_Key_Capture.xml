@@ -15,29 +15,53 @@ Relies on named pipe library; server side is written in python.
   <cue name="Register_Keys" instantiate="true">
     <conditions>
       <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-      <!-- Uncomment to disable this cue. -->
-      <check_value value="false"/>
+      <!-- Uncomment to disable this cue.
+      <check_value value="false"/> -->
     </conditions>
     <actions>
       <show_notification text="'Registering keys'" sound="notification_warning" priority="2" />
       
       <!-- Register some shortcuts. -->
-      <do_all exact="4" counter="$i">
-        <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
-          $id = 'key_capture_test_'+$i, 
-          $cue = OnKeyPress,
-          $name = 'Test '+$i, 
-          $description = 'Key Capture test '+$i]"/>
-      </do_all>
+      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+        $id = 'key_capture_test_space', 
+        $cue = OnKeyPress,
+        $name = 'Test Space', 
+        $description = 'Key Capture test Space',
+        $contexts = table[$flying = true],
+        ]"/>
 
-      <!-- Register a key with a callback. -Removed, switching to menu driven.
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='a', $cue=OnKeyPress]"/>
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='s', $cue=OnKeyPress]"/>
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='d', $cue=OnKeyPress]"/>
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='f', $cue=OnKeyPress]"/>
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='shift s', $cue=OnKeyPress]"/>
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='ctrl_l d', $cue=OnKeyPress]"/>
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='alt_r f', $cue=OnKeyPress]"/> -->
+      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+        $id = 'key_capture_test_walk', 
+        $cue = OnKeyPress,
+        $name = 'Test Walk', 
+        $description = 'Key Capture test Walk',
+        $contexts = table[$walking = true],
+        ]"/>
+
+      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+        $id = 'key_capture_test_menu', 
+        $cue = OnKeyPress,
+        $name = 'Test Menu', 
+        $description = 'Key Capture test Menu',
+        $contexts = table[$menus = true],
+        ]"/>
+
+      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+        $id = 'key_capture_test_api_menu', 
+        $cue = OnKeyPress,
+        $name = 'Test Simple Menu', 
+        $description = 'Key Capture test Simple Menu API',
+        $contexts = table[$menu_names = ['SimpleMenu']],
+        ]"/>
+
+      <!-- Set up some default keys.  -->
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='a',       $id = 'key_capture_test_space']" /> 
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='s',       $id = 'key_capture_test_space']" /> 
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='d',       $id = 'key_capture_test_space']" /> 
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='f',       $id = 'key_capture_test_space']" /> 
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='shift s', $id = 'key_capture_test_walk']" /> 
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='ctrl_l d',$id = 'key_capture_test_menu']" />
+      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='alt_r f', $id = 'key_capture_test_api_menu']" />
     </actions>
   </cue>
         
@@ -47,10 +71,9 @@ Relies on named pipe library; server side is written in python.
       <event_cue_signalled/>
     </conditions>    
     <actions>
-      <!-- Pull the value out of the param. -->
-      <set_value name="$key" exact="event.param"/>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Key Capture;' + $key"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="'shortcut;' + event.param.$id"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="'context;' + event.param.$context"/>
     </actions>
   </cue>
       

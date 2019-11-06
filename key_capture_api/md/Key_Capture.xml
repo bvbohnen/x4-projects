@@ -22,7 +22,23 @@ TODO:
 
   Add an option to suppress further key matching when a key is held down,
   eg. ignore the extra 'press' events sent by the keyboard without a 'release'
-  event.  
+  event.
+  
+  Add key context support, which situtions it is active:
+    menu (test: hard to do, need to track signals from lua)
+    space (test: not menu, player.occupiedship != null)
+    firstperson (test: not menu, player.occupiedship == null)
+  How to know when a menu is open (and not minimized)?
+  - Listen to events for all possible menu names (as screen)
+    Blank page: menu was opened (helper.lua line 872)
+    'menu_closed' page: menu was closed (helper.lua line 1261)
+  - Look up all registered menu names dynamically to be robust.
+  - Lua side can give the menu names, but md has no apparent good way
+    to read them in and set up cues (maybe spawn a listener cue instance
+    for each lua message, one message per menu name?).
+  - Alternatively, have lua patch into Helper to directly catch when
+    a menu opens/closes (cleaner if robust).
+    
 -->
 <cues>
 
@@ -67,6 +83,7 @@ TODO:
     
   * DebugChance
     - 0 or 100
+    
   * shortcut_registry
     - Table of tables, with each subtable describing a shortcut.
     - Keys are the shortcut ids.
@@ -84,7 +101,7 @@ TODO:
     - Note: this may be filled during init prior to shortcuts being
       registered, which is okay.
         
-  * $player_shortcut_keys
+  * player_shortcut_keys
     - Table of player assigned key descriptors, keyed by shortcut id.
     - Saved across reloads.
     - Lua will have a mirrored copy of this, and is primarily responsible
@@ -109,6 +126,15 @@ TODO:
             - Int, ego style input source type.  1 for keyboard.
           * signum
             - Int, ego style signum (signed prefix), generally 0.
+            
+  * menu_states
+    - Table, keyed by menu name (as registered with ego backend), holding
+      'true' if the menu is open, else 'false'.
+    - Minimized menus will be treated as closed.
+  * in_menu
+    - Bool, true if the player has a menu open.
+    - Updated whenever menu_states is changed, primarily to speedup checks
+      during key handling.
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -138,6 +164,9 @@ TODO:
     <actions>
       <set_value name="$shortcut_registry" exact="table[]"/>
       <set_value name="$key_shortcut_registry" exact="table[]"/>
+      <set_value name="$menu_states" exact="table[]"/>
+      <set_value name="$in_menu" exact="false"/>
+      
       <!-- TODO: somehow bounce this over to Server_Reader reliably.-->
       <set_value name="$DebugChance" exact="100" />
 
@@ -292,10 +321,31 @@ TODO:
     - If not given, defaults to the id.
   * description = ""
     - String, mouseover text use for the key in the menu.
+  * contexts
+    - Table holding the player contexts where the shortcut is valid.
+    - If not given, defaults to "table{$flying = true}".
+    - Fields:
+      * flying
+        - Bool, if the shortcut is valid while the player is piloting a ship.
+      * walking
+        - Bool, if the shortcut is valid while the player is on foot.
+      * menu
+        - Bool, if the shortcut is valid while the player is in any menu.
+      * menu_names
+        - List of names of menus where the shortcut is valid.
+        - 'menu' is ignored if this is given.
       
-  Keypress events will return the shortcut id in event.param.
+  Keypress events will return a table with these fields:
+  * id
+    - Matching id of the shortcut. May be useful if one callback cue handles
+      multiple shortcuts.
+  * context
+    - String, the player context when this shortcut was triggered.
+    - Either one of ["flying", "walking", "menu"], or the name of the
+      open menu matching an entry in menu_names.
     
   Usage example:
+    ```xml
     <code>
       <cue name="Register_Shortcut" instantiate="true">
         <conditions>
@@ -309,10 +359,12 @@ TODO:
               $cue  = OnKeyPress,
               $name = 'Test Key',
               $description = 'This key is just testing',
+              $contexts = table[ $flying = true, $walking = true ],
               ]"/>
         </actions>
       </cue>
     </code>
+    ```
   -->
   <cue name="Register_Shortcut" instantiate="true" namespace="this">
     <conditions>
@@ -329,6 +381,14 @@ TODO:
       <do_if value="not $args.$name?">
         <set_value name="$args.$name" exact="$args.$id"/>
       </do_if>
+      <do_if value="not $args.$contexts?">
+        <set_value name="$args.$contexts" exact="table[$flying=true]"/>
+      </do_if>
+      <!-- In case menu_names was given as an empty list, remove it. -->
+      <do_elseif value="$args.$contexts.$menu_names? and ($args.$contexts.$menu_names.count == 0)">
+        <remove_value name="$args.$contexts.$menu_names"/>
+      </do_elseif>
+      
       <set_value name="Globals.$shortcut_registry.{'$'+$args.$id}" exact="$args"/>
         
       <!-- Keep the lua updated. -->
@@ -344,6 +404,8 @@ TODO:
   If this is the first key registered, it will start the key listening loop.
   This is used by the menu system to set up player custom keys, but may
   also be called by a user to directly assign a key to a shortcut.
+  Keys added by direct user calls will not be visible in the menu, and have
+  fewer restrictions than the menu enforces.
   This should be re-sent each time Reloaded is signalled.
     
   Param  : Table with the following items:
@@ -371,7 +433,13 @@ TODO:
 
     <actions>
       <!--<debug_text text="'params: %s.'.[event.param]" chance="Globals.$DebugChance" filter="general"/>-->
-      
+
+      <!-- Validate that a string was sent. Removed; buggy, typeof thinks some chars are not strings.
+      <do_if value="(typeof event.param.$key) != datatype.string">
+        <debug_text text="'Error, given key is not a string: %1'.[event.param.$key]"
+                    chance="100" filter="error"/>
+      </do_if> -->
+       
       <!-- Adjust the key to prefix with a $ for x4 tables. -->
       <set_value name="$key" exact="'$' + event.param.$key"/>
       <set_value name="$id" exact="event.param.$id"/>
@@ -399,7 +467,6 @@ TODO:
 
       <!-- Make sure the read loop is started, if it wasn't already. -->
       <signal_cue cue="Server_Reader.$Start_Reading" />
-
     </actions>
   </cue>
 
@@ -523,6 +590,44 @@ TODO:
     </actions>
   </cue>
 
+  <!--
+    Capture menu open/close events.
+    This updates menu_states and in_menu.
+  -->
+  <library name="Lib_Update_Menu_Status">
+    <actions>
+      <!--Set the flag false initially, back to true on any menu open.-->
+      <set_value name="Globals.$in_menu" exact="false"/>
+      <do_all exact="Globals.$menu_states.keys.list.count" counter="$i">
+        <set_value name="$key" exact="Globals.$menu_states.keys.list.{$i}"/>
+        <do_if value="Globals.$menu_states.{$key}">
+          <set_value name="Globals.$in_menu" exact="true"/>
+        </do_if>
+      </do_all>
+      <debug_text text="'Globals.$in_menu = %1'.[Globals.$in_menu]"
+                  chance="Globals.$DebugChance" filter="general"/>
+    </actions>
+  </library>
+  
+  <cue name="Capture_Lua_Menu_Opened" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Key_Capture'" control="'Menu_Opened'" />
+    </conditions>
+    <actions>
+      <set_value name="Globals.$menu_states.{'$'+event.param3}" exact="true"/>
+      <include_actions ref="Lib_Update_Menu_Status"/>
+    </actions>
+  </cue>
+  
+  <cue name="Capture_Lua_Menu_Closed" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Key_Capture'" control="'Menu_Closed'" />
+    </conditions>
+    <actions>
+      <set_value name="Globals.$menu_states.{'$'+event.param3}" exact="false"/>
+      <include_actions ref="Lib_Update_Menu_Status"/>
+    </actions>
+  </cue>
     
 
   <!-- ################################################################## -->
@@ -549,21 +654,70 @@ TODO:
 
       <!-- Is the key returned actually registered? -->
       <do_if value="Globals.$key_shortcut_registry.{$key}?">
+        
+        <!-- Determine the current player context. -->
+        <!-- TODO: maybe pack into chained if/then/else expression. -->
+        <!-- If any menu is open, then in a menu. -->
+        <do_if value="Globals.$in_menu">
+          <set_value name="$context" exact="'$menus'"/>
+        </do_if>
+        <!-- Otherwise if piloting a ship, then flying. -->
+        <do_elseif value="player.occupiedship">
+          <set_value name="$context" exact="'$flying'"/>
+        </do_elseif>
+        <!-- Otherwise walking around. -->
+        <do_else>
+          <set_value name="$context" exact="'$walking'"/>
+        </do_else>
 
-        <!-- Convenience renaming. -->
+        
+        <!-- Convenience renaming of shortcut ids. -->
         <set_value name="$id_list" exact="Globals.$key_shortcut_registry.{$key}"/>
-
         <!-- Loop over the shortcut ids. -->
         <do_all exact="$id_list.count" counter="$i">
-          <!-- Verify the shortcut and cue still exist before calling it. -->
-          <set_value name="$cue" exact="@Globals.$shortcut_registry.{'$'+$id_list.{$i}}.$cue"/>
-          <do_if value="$cue.exists">
-            <!-- Call the cue, with this key combo (without $). -->
-            <signal_cue_instantly cue="$cue" param="event.param"/>
+          <!-- Get the actual shortcut info. -->
+          <set_value name="$shortcut" exact="Globals.$shortcut_registry.{'$'+$id_list.{$i}}"/>
+          
+          <!-- Determine if this shortcut is valid at this time. -->
+          <set_value name="$valid" exact="false"/>
+          
+          <!-- If in menu and a menu_list was given, check specific menu names. -->
+          <do_if value="Globals.$in_menu and ($shortcut.$contexts.$menu_names?)">
+            <!-- Go through all menu names and see if any are open. -->
+            <do_all exact="$shortcut.$contexts.$menu_names.count" counter="$j">
+              <!--Convenience renaming. TODO: prefix with $ at registration.-->
+              <set_value name="$menu_name" exact="'$'+$shortcut.$contexts.$menu_names.{$j}"/>
+              <!--Check this is a tracked menu, and in an open state.-->
+              <do_if value="Globals.$menu_states.{$menu_name}? and Globals.$menu_states.{$menu_name}">
+                <!-- This menu is open, so flag as valid. -->
+                <set_value name="$valid" exact="true"/>
+                <!-- Update the context for cue callback. -->
+                <set_value name="$context" exact="$menu_name"/>
+              </do_if>
+            </do_all>
           </do_if>
+          
+          <!-- Otherwise general context check. User may not have specified all contexts. -->
+          <do_elseif value="$shortcut.$contexts.{$context}? and $shortcut.$contexts.{$context}">
+            <!-- If here, got a context match. -->
+            <set_value name="$valid" exact="true"/>
+          </do_elseif>
+          
+          <!-- While context might be valid, there could be other problems. -->
+          <!-- Clear the $valid if the cue wasn't given or doesnt exist. -->
+          <set_value name="$cue" exact="@$shortcut.$cue"/>
+          <set_value name="$valid" exact="if ($cue.exists) then ($valid) else (false)"/>
           <!-- TODO: delink keys from non-existent shortcuts/cues. -->
+          
+          <!-- If valid is still true, can call the cue. -->
+          <do_if value="$valid">            
+            <!-- Call the cue, with return values. -->
+            <signal_cue_instantly cue="$cue" param="table[
+                                  $id = $id_list.{$i},
+                                  $context = $context,
+                                  ]"/>
+          </do_if>          
         </do_all>
-
       </do_if>
 
       <do_else>
@@ -571,85 +725,6 @@ TODO:
       </do_else>
     </actions>
   </cue>
-
-
-
-  <!-- ################################################################### -->
-  <!--                              Menu                                   -->
-  <!-- ################################################################### -->
-
-
-  <!--
-      Register an options menu.
-    -->
-  <cue name="Register_Options_Menu" instantiate="true" namespace="this">
-    <conditions>
-      <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
-    </conditions>
-    <actions>
-      <!-- Register the parent menu. -->
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Register_Options_Menu"
-        param = "table[
-            $id               = 'key_capture_menu',
-            $columns          = 2, 
-            $echo             = 'echo test 2',
-            $title            = 'Simple Menu Options Test',
-            $onOpen           = Build_Options_Menu,
-            ]"/>
-    </actions>
-  </cue>
-
-  <!--
-      Callback for building the options menu.
-      TODO: flesh out.
-    -->
-  <cue name="Build_Options_Menu" instantiate="true" namespace="this">
-    <conditions>
-      <event_cue_signalled/>
-    </conditions>
-    <actions>
-      <!-- Header. Shortcut names on left, values on right. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[ $col  = 1, $text = 'Shortcut', $halign='center', ]"/>
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Text"
-        param = "table[ $col  = 2, $text = 'Key', $halign='center', ]"/>
-
-      <!-- Loop over all shortcuts, giving each a line. -->
-      <do_all exact="Globals.$shortcut_registry.keys.list.count" counter="$i">
-        <set_value name="$key" exact="Globals.$shortcut_registry.keys.list.{$i}"/>
-        <set_value name="$shortcut" exact="Globals.$shortcut_registry.{$key}"/>
-
-        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Text"
-          param = "table[
-              $col  = 1, 
-              $text = $shortcut.$name, 
-              $mouseOverText = $shortcut.$description,
-              ]"/>
-
-        <!-- Show the current shortcut, if any. -->
-        <!-- TODO: how to accept user input to change this? -->
-        <set_value name="$key" exact="@Globals.$key_shortcut_registry.{$shortcut.$id}"/>
-        <set_value name="$key" exact="if $key then $key else 'none'"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Text"
-          param = "table[
-              $col  = 2, 
-              $text = $key,
-              ]"/>
-      </do_all>
-
-      <!-- Ready to display. (This is not used for standalone menus.) -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
-    </actions>
-  </cue>
-
-  <!-- TODO: sync with lua hookup to ego's input mapping menu. -->
 
     
   </cues>
