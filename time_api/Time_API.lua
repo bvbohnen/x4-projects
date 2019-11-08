@@ -28,47 +28,47 @@ Note: since multiple users may be accessing the timer during the same period,
 each command will take an id unique string parameter.
 
 Commands:
-  - getEngineTime (id)
-    - Returns the current engine operation time in seconds, as a long float.
-    - Note: this is the number of seconds since x4 was loaded, counting
-      only time while the game has been active (eg. ignores time while
-      minimized).
-    - Capture the time using event_ui_triggered.
-  - getSystemTime (id)
-    - Returns the system time reported by python through a pipe.
-    - Pipe communication will add some delay.
-    - Can be used to measure real time passed, even when x4 is minimized.
-    - Capture the time using event_ui_triggered.
-  - startTimer (id)
-    - Starts a timer instance under id.
-    - If the timer didn't exist, it is created.
-  - stopTimer (id)
-    - Stops a timer instance.
-  - getTimer (id)
-    - Returns the current time of the timer.
-    - Accumulated between all Start/Stop periods, and since the last Start.
-    - Capture the time using event_ui_triggered.
-  - resetTimer (id)
-    - Resets a timer to 0.
-    - If the timer was started, it will keep running.
-  - printTimer (id)
-    - Prints the time on the timer to the debug log.
-  - tic (id)
-    - Starts a fresh timer at time 0.
-    - Intended as a convenient 1-shot timing solution.
-  - toc (id)
-    - Stops the timer associated with tic, returns the time measured,
-      and prints the time to the debug log.
-  - setAlarm (id:<delay>)
-    - Sets an alarm to fire after a certain delay, in seconds.
-    - Arguments are a concantenated string, colon separated.
-    - Detect the alarm using event_ui_triggered.
-    - Returns the realtime the alarm was set for, for convenience in
-      creating clocks or similar.
-    - Note: precision based on game framerate.
+- getEngineTime (id)
+  - Returns the current engine operation time in seconds, as a long float.
+  - Note: this is the number of seconds since x4 was loaded, counting
+    only time while the game has been active (eg. ignores time while
+    minimized).
+  - Capture the time using event_ui_triggered.
+- getSystemTime (id)
+  - Returns the system time reported by python through a pipe.
+  - Pipe communication will add some delay.
+  - Can be used to measure real time passed, even when x4 is minimized.
+  - Capture the time using event_ui_triggered.
+- startTimer (id)
+  - Starts a timer instance under id.
+  - If the timer didn't exist, it is created.
+- stopTimer (id)
+  - Stops a timer instance.
+- getTimer (id)
+  - Returns the current time of the timer.
+  - Accumulated between all Start/Stop periods, and since the last Start.
+  - Capture the time using event_ui_triggered.
+- resetTimer (id)
+  - Resets a timer to 0.
+  - If the timer was started, it will keep running.
+- printTimer (id)
+  - Prints the time on the timer to the debug log.
+- tic (id)
+  - Starts a fresh timer at time 0.
+  - Intended as a convenient 1-shot timing solution.
+- toc (id)
+  - Stops the timer associated with tic, returns the time measured,
+    and prints the time to the debug log.
+- setAlarm (id:delay)
+  - Sets an alarm to fire after a certain delay, in seconds.
+  - Arguments are a concantenated string, colon separated.
+  - Detect the alarm using event_ui_triggered.
+  - Returns the realtime the alarm was set for, for convenience in
+    creating clocks or similar.
+  - Note: precision based on game framerate.
 
 
-- Full example: get real time.
+- Full example: get engine time.
   ```xml
   <cue name="Test" instantiate="true">
     <conditions>
@@ -83,7 +83,7 @@ Commands:
           <event_ui_triggered screen="'Time'" control="'my_test'" />
         </conditions>
         <actions>
-          <set_value name="$realtime" exact="event.param3"/>
+          <set_value name="$time" exact="event.param3"/>
         </actions>
       </cue>
     </cues>
