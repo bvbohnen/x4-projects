@@ -11,6 +11,8 @@ import re
 import sys
 import shutil
 import zipfile
+import argparse
+
 import Version
 import Make_Documentation
 
@@ -20,6 +22,10 @@ project_dir = Path(__file__).resolve().parents[1]
 x4_customizer_dir = project_dir.parent / 'X4_Customizer'
 sys.path.append(str(x4_customizer_dir))
 import Framework as X4_Customizer
+
+# Import the pipe server for its exe maker.
+sys.path.append(str(project_dir / 'X4_Named_Pipes_API'))
+from X4_Python_Pipe_Server import Make_Executable
 
 # Dict matching each release zip with the files it includes.
 # Note: root_dir is where other paths are taken relative to, and also the
@@ -41,7 +47,8 @@ release_files_specs = {
             'extensions/named_pipes_api/md/Pipe_Server_Host.xml',
             'extensions/named_pipes_api/md/Pipe_Server_Lib.xml',
         ]},
-    'X4_Python_Pipe_Server':{ 
+    # Python style of pipe server.
+    'X4_Python_Pipe_Server_py':{ 
         'root_path':project_dir / 'X4_Named_Pipes_API', 
         'doc_path' : 'X4_Python_Pipe_Server',
         'files':[
@@ -50,6 +57,13 @@ release_files_specs = {
             'X4_Python_Pipe_Server/Classes/__init__.py',
             'X4_Python_Pipe_Server/Classes/Pipe.py',
             'X4_Python_Pipe_Server/Classes/Server_Thread.py',
+        ]},
+    # Exe style of pipe server. TODO: just combine with above?
+    'X4_Python_Pipe_Server_exe':{ 
+        'root_path':project_dir / 'X4_Named_Pipes_API' / 'X4_Python_Pipe_Server', 
+        'doc_path' : '',
+        'files':[
+            '../bin/X4_Python_Pipe_Server.exe',
         ]},
     'Key_Capture_API':{ 
         'root_path':project_dir / 'X4_Key_Capture_API', 
@@ -98,10 +112,35 @@ release_files_specs = {
         ]},
     }
 
-def Run():
+# TODO: package up pipe server binary into a separate exe for users
+# without python.
+# TODO: join release that includes everything.
 
-    # Update documentation.
-    Make_Documentation.Run()
+def Make(*args):
+    # Set up command line arguments.
+    argparser = argparse.ArgumentParser(
+        description='Generate zip files for releases.',
+        )
+    
+    argparser.add_argument(
+        '-refresh', 
+        action='store_true',
+        help = 'Automatically call Make_Documentation and Make_Executable.')
+    
+
+    # Run the parser on the input args.
+    # Split off the remainder, mostly to make it easy to run this
+    # in VS when its default args are still set for Main.
+    args, remainder = argparser.parse_known_args(args)
+
+
+    # Update the documentation and binary and patches.
+    if args.refresh:
+        print('Refreshing documentation.')
+        Make_Documentation.Make()
+        print('Refreshing executable.')
+        Make_Executable.Make()
+
 
     # TODO: consider cat packing the extension files, using x4 customizer.
 
@@ -172,8 +211,7 @@ def Make_Zip(zip_path, root_path, file_paths):
             compresslevel = 9 # 9 is max for deflated
             )
 
-    # Add all files to the zip, with an extra nesting folder to
-    # that the files don't sprawl out when unpacked.
+    # Add all files to the zip.
     for path in file_paths:
         # Give an alternate internal path and name.
         # This will be relative to the root dir.
@@ -202,4 +240,4 @@ def Make_Zip(zip_path, root_path, file_paths):
 
 
 if __name__ == '__main__':
-    Run()
+    Make(*sys.argv[1:])

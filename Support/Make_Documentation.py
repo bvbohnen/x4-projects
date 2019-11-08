@@ -45,7 +45,7 @@ extension_dirs = {
 gen_doc_name = "API Functions.md"
 
 
-def Run():
+def Make():
     Make_Lua_Loader_Doc()
     Make_Key_Capture_Doc()
     Make_Named_Pipes_Doc()
@@ -380,5 +380,5 @@ def Make_BB_Code(doc_dir, header_lines = []):
 
 
 if __name__ == '__main__':
-    Run()
+    Make()
 
