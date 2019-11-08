@@ -7,55 +7,33 @@ An external Python server is used for the key capture and combo recognition, and
 ### Requirements
 
 * Named Pipe API extension
-* Python 3.6+ with the pywin32 and pynput packages.
+  - https://github.com/bvbohnen/x4-named-pipes-api
+* Simple Menu API
+  - https://github.com/bvbohnen/x4-simple-menu-api
+* Optionally, Python 3.6+ with the pywin32 and pynput packages.
   - The named pipe host server needs to be running alongside X4.
+  - Python not needed if using the standalone server executable.
 
 
-### Key syntax
- - Keys may be given singular or as a combination.
- - Combinations are space separated.
- - A combo is triggered when the last key is pressed while all prior keys
-   are held.
-   - Examples:
-   - "shift ctrl k" : 'shift' and 'ctrl' held when 'k' pressed.
-   - "space 5" : 'space' held when '5' pressed
- - Shift, alt, ctrl act as modifiers.
- - Alphanumeric keys use their standard character.
- - Special keys use their names from pynput:
-   - alt
-   - alt_gr
-   - alt_l
-   - alt_r
-   - backspace
-   - caps_lock
-   - cmd
-   - cmd_l
-   - cmd_r
-   - ctrl
-   - ctrl_l
-   - ctrl_r
-   - delete
-   - down
-   - end
-   - enter
-   - esc
-   - f1 - f20
-   - home
-   - insert
-   - left
-   - menu
-   - num_lock
-   - page_down
-   - page_up
-   - pause
-   - print_screen
-   - right
-   - scroll_lock
-   - shift
-   - shift_l
-   - shift_r
-   - space
-   - tab
-   - up
+### Usage
+
+Extensions may define custom hotkeys by registering a new shortcut with the api. Shortcuts will appear in the standard options controls menu for the player. Each shortcut may specify in which contexts it will be valid: when flying, when walking, or in menus.
+
+Example shortcut registration:
+  ```xml
+  <signal_cue_instantly 
+    cue="md.Key_Capture.Register_Shortcut" 
+    param="table[
+      $id = 'kc_target_follow', 
+      $cue = Target_Follow,
+      $name = 'Follow Target', 
+      $description = 'Turns on autopilot to follow the target'
+    ]"/>
+  ```
+
+Optionally, a key or key combination may be directly assigned to the shortcut from md script. When done this way, a wider variety of combinations are supported than possible through the standard options menu.
+
+See "API Functions.md" for full details.
+
 
   
