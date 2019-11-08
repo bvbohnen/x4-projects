@@ -38,9 +38,20 @@ x4 side should automatically reconnect.
 # Setup include path to this package.
 import sys
 from pathlib import Path
-home_path = Path(__file__).resolve().parents[1]
+
+# To support packages cross-referencing each other, set up this
+# top level as a package, findable on the sys path.
+# Extra 'frozen' stuff is to support pyinstaller generated exes.
+# TODO: this is a little redundant with Home_Path, but it is unclear
+# on how to import home_path before this is done, so just repeat
+# the effort for now.
+if getattr(sys, 'frozen', False):
+    home_path = Path(sys._MEIPASS).parent
+else:
+    home_path = Path(__file__).resolve().parents[1]
 if str(home_path) not in sys.path:
     sys.path.append(str(home_path))
+
     
 from X4_Python_Pipe_Server.Servers import Test1
 #from X4_Python_Pipe_Server.Servers import Send_Keys
@@ -52,6 +63,11 @@ import win32file
 import win32pipe
 import threading
 import traceback
+
+# Note: in other projects importlib.machinery could be used directly,
+# but appears to be failing when pyinstalling this package, so do
+# a more directly import of machinery.
+from importlib import machinery
 
 # Flag to use during development, for extra exception throws.
 developer = True
@@ -238,8 +254,7 @@ def Import(full_path):
     
     try:
         # Attempt to load/run the module.
-        import importlib        
-        module = importlib.machinery.SourceFileLoader(
+        module = machinery.SourceFileLoader(
             # Provide the name sys will use for this module.
             # Use the basename to get rid of any path, and prefix
             #  to ensure the name is unique (don't want to collide

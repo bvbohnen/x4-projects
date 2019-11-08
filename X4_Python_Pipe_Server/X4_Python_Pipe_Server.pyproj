@@ -5,7 +5,7 @@
     <ProjectGuid>{ea6dd6ee-64b2-4ea4-a002-17495bf8a5ad}</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>Main.py</StartupFile>
+    <StartupFile>Make_Executable.py</StartupFile>
     <SearchPath>..\X4_Files\extensions\key_capture_api</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -21,6 +21,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Make_Executable.py" />
     <Compile Include="Old\Launcher.py" />
     <Compile Include="Classes\Log_Reader.py">
       <SubType>Code</SubType>

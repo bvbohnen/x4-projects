@@ -3,6 +3,8 @@
 *.xpl
 # Ignore stuff in private/ folders.
 [Pp]rivate/
+# Ignore pyinstaller build folder
+build/
 
 
 ## Ignore Visual Studio temporary files, build results, and
