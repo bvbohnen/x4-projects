@@ -13,17 +13,23 @@ There are three components to this API:
 ### Requirements
 
 * Lua Loader API extension
+  - https://github.com/bvbohnen/x4-lua-loader-api
 * Time API extension
-* Python 3.6+ with the pywin32 package.
-  - Optional, only needed if using the python pipe server.
+  - https://github.com/bvbohnen/x4-time-api
+* Optionally, Simple Menu API
+  - https://github.com/bvbohnen/x4-simple-menu-api
+* Optionally, Python 3.6+ with the pywin32 package.
+  - Only needed if using the python pipe server from source.
+  - An executable is provided as an alternative.
   - This package is part of the Anaconda distribution of python by default.
   - Future releases may package this in an exe to avoid the python requirement.
 
 ### Installation
 
-Place the named_pipes_api folder in extensions, as with normal mods.
-Place winpipe64.dll in ui\core\lualibs.
-Place the X4_Python_Pipe_Server anywhere convenient.
+* Place the named_pipes_api folder in extensions, as with normal mods.
+* Place winpipe64.dll in ui\core\lualibs.
+* Place the X4_Python_Pipe_Server (exe or py) anywhere convenient.
+  - Run this pipe server alongside X4.
 
 ### Components
 
@@ -36,7 +42,6 @@ Place the X4_Python_Pipe_Server anywhere convenient.
   This api is found in Pipe_Server_Host, and allows MD code to register a python module with the host server.
   The host (if running) will dynamically import the custom module.
   Such modules may be distributed with extensions.
-
 
 * Lua Pipe API
 
