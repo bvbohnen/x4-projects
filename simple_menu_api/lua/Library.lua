@@ -313,14 +313,27 @@ end
 -- Print a table's contents to the log.
 -- Optionally give the table a name.
 -- TODO: maybe recursive.
+-- Note: in practice, DebugError is limited to 8192 characters, so this
+-- will try to break up long prints.
 function L.Print_Table(itable, name)
     if not name then name = "" end
     -- Construct a string with newlines between table entries.
     -- Start with header.
     local str = "Table "..name.." contents:\n"
+    local line
 
     for k,v in pairs(itable) do
-        str = str .. "["..k.."] = "..tostring(v).." ("..type(v)..")\n"
+        line = "["..k.."] = "..tostring(v).." ("..type(v)..")\n"
+        -- If this line will put the str over 8192, do an early str dump
+        -- first.
+        if #line + #str >= 8192 then
+            DebugError(str)
+            -- Restart the str.
+            str = line
+        else
+            -- Append to running str.
+            str = str .. line
+        end
     end
     DebugError(str)
 end

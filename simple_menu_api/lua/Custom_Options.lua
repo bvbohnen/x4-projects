@@ -10,12 +10,27 @@ TODO: consider switching to reading md settings state directly from a
 blackboard table instead of using signal params (limited to string/int/nil).
 
 TODO: possible future options
-    - Reduce config.startAnimation.duration for faster open animations.
-    - Increase ui scaling factor beyond 1.5 (needs monkeypatch).
-    - Remove modified tag entirely.
-      Requires accessing gameoptions config.optionDefinitions (private),
-      or monkeypatching wherever it gets used with a custom copy/pasted
-      version with the modified text function removed.
+- Reduce config.startAnimation.duration for faster open animations.
+- Increase ui scaling factor beyond 1.5 (needs monkeypatch).
+- Remove modified tag entirely.
+    Requires accessing gameoptions config.optionDefinitions (private),
+    or monkeypatching wherever it gets used with a custom copy/pasted
+    version with the modified text function removed.
+- Adjust stuff in targetsystem.lua
+    Here, all config is added to the global 'config' from widget_fullscreen.
+    Update: in testing, targetsystem config entires don't show up in the global
+    table, for some unknown reason.
+- ExecuteDebugCommand
+    Maybe set up buttons to refreshmd/refreshai/reloadui (latter closes
+    the menu). This is probably not the place for it, though. Perhaps
+    a debug menu.
+
+- Try out some global functions:
+    GetTrafficDensityOption / SetTrafficDensityOption
+    GetCharacterDensityOption
+    ClearLogbook
+
+
 ]]
 
 -- Set up any used ffi functions.
@@ -50,8 +65,20 @@ end
 
 function L.Init()
     -- Event registration.
+    -- TODO: switch to single event, general table of args sent
+    -- through blackboard var.
     RegisterEvent("Simple_Menu_Options.disable_animations", L.Handle_Disable_Animations)
     RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , L.Handle_Tooltip_Font)
+    RegisterEvent("Simple_Menu_Options.adjust_fov"        , L.Handle_FOV)
+    
+
+    -- Testing.
+    --Lib.Print_Table(_G, "_G")
+    --Lib.Print_Table(global_config, "global_config")
+    -- Note: debug.getinfo(function) is pretty useless.
+    --Lib.Print_Table(DebugConfig, "DebugConfig")
+    --Lib.Print_Table(Color, "Color")
+    
 end
 
 
@@ -158,6 +185,43 @@ function L.Handle_Tooltip_Font(_, new_size)
     -- Base was set to 225 wide.
     local maxWidth = math.floor(225 * new_size / 9)
     global_config.mouseOverText.maxWidth = maxWidth
+end
+
+------------------------------------------------------------------------------
+-- Support for changing fov
+--[[
+    There is an unused global function for changing field of view.
+    By experiment, its input appears to be a multiplier on the default
+    fov, upscaled 10x.  Eg. '10' is nominal, '13' adds 30%, etc.
+    SetFOVOption(mult_x10)
+
+    The ui gets squished or stretched with the fov adjustment, so it
+    doesn't make sense to go smaller (cuts off ui) or much higher
+    (ui hard to read). This will limit to 1x to 1.3x for now.
+
+    In testing:
+        Works okay initially.
+        Changing ship (getting in spacesuit) resets the fov to normal,
+        but leaves the value used with SetFOVOption unchanged.
+        Eg. if fov was changed to 12 (+20%), and player gets in a spacesuit,
+        then 12 will become standard fov, and getting back the +20% would
+        require setting fov to 14.4.
+
+    For now, this is disabled in the options menu pending further development
+    to work around issues.
+]]
+-- This will take the multiplier as a %.
+function L.Handle_FOV(_, new_mult)
+    -- Validate within reasonable size limits.
+    if new_mult < 100 or new_mult > 130 then
+        error("Handle_FOV received unsupported size: "..tostring(new_mult))
+    end
+    if debugger.verbose then
+        DebugError("Handle_FOV called with " .. tostring(new_mult))
+    end
+
+    -- Adjust the % to center around 10.
+    SetFOVOption(new_mult / 10)
 end
 
 

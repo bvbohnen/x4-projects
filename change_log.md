@@ -40,3 +40,6 @@ Change Log
   - Various other tweaks.
 * 0.11
   - Added support for changing column widths.
+* 0.11.1  
+  - Fixed reloaded signal to not depend on named pipes api.
+ 

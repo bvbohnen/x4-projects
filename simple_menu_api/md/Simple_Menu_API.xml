@@ -236,7 +236,7 @@ Complex properties:
       -->
       <cue name="Reset_On_Lua_Reload" instantiate="true">
         <conditions>
-          <event_ui_triggered screen="'Named_Pipes'" control="'reloaded'" />
+          <event_ui_triggered screen="'Simple_Menu'" control="'reloaded'" />
         </conditions>
         <actions>
           <include_actions ref="Reset_Globals"/>

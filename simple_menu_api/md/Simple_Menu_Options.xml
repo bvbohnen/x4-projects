@@ -40,6 +40,9 @@
         - List of subtables, each describing an option, in order that they
           should be displayed.
         - Subtable contents:
+          * disabled
+            - Bool or non-existent, if true then disabling this option
+              pending further development.
           * id
             - String identifier for the option, starting with $.
           * name
@@ -100,6 +103,20 @@
               ],
             ],
             
+          table[
+            $disabled   = true,
+            $id         = '$adjust_fov',
+            $name       = 'Adjust Field of View',
+            $mouseover  = 'Changes the FoV multiplier; ui will shrink',
+            $default    = 100,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 100,
+              $max      = 130,
+              $suffix   = ' %',
+              $hideMaxValue = true,
+              ],
+            ],
           ]" />
         
         <!--Autofill defaults for missing storage entries.-->
@@ -112,9 +129,16 @@
         </do_all>
         
         <!-- Transmit current values to the lua, to restore after reload. -->
+        <!-- TODO: loop over options for this, and check $disabled. -->
         <raise_lua_event
           name="'Simple_Menu_Options.disable_animations'"
-          param="Globals.$storage.$disable_animations"/>        
+          param="Globals.$storage.$disable_animations"/>
+        <raise_lua_event
+          name="'Simple_Menu_Options.tooltip_fontsize'"
+          param="Globals.$storage.$tooltip_fontsize"/>
+        <!--<raise_lua_event
+          name="'Simple_Menu_Options.adjust_fov'"
+          param="Globals.$storage.$adjust_fov"/>-->
           
       </actions>
     </library>
@@ -173,6 +197,11 @@
         <do_all exact="Globals.$options.count" counter="$i">          
           <!-- Rename -->
           <set_value name="$option" exact="Globals.$options.{$i}"/>
+
+          <!-- Don't list disabled options. -->
+          <do_if value="$option.$disabled? and $option.$disabled">
+            <continue/>
+          </do_if>
           
           <!-- Prepare a row -->
           <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
@@ -288,7 +317,19 @@
 
           </do_if>
         </do_elseif>
-        
+
+        <do_elseif value="$id == '$adjust_fov'">
+          <do_if value="event.param.$valuechanged">
+            <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+
+            <!-- Signal the lua, sending new fov. -->
+            <raise_lua_event
+              name="'Simple_Menu_Options.adjust_fov'"
+              param="Globals.$storage.{$id}"/>
+
+          </do_if>
+        </do_elseif>
+
       </actions>
     </cue>
 
