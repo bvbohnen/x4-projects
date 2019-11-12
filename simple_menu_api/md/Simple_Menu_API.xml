@@ -684,7 +684,7 @@ Complex properties:
             param = "table[
               $id      = 'my_unique_menu_1',
               $title   = 'My Menu',
-              $cue     = Fill_Options_Menu,
+              $onOpen  = Fill_Options_Menu,
               $columns = 2, 
               ]"/>
         </actions>

@@ -153,7 +153,6 @@ Complex properties:
       - Register_Options_Menu
       - Create_Menu
       - Close_Menu
-      - Display_Menu
       - Add_Submenu_Link
       - Add_Row
       - Make_Widget
@@ -325,7 +324,7 @@ Complex properties:
     - Cue to be called when the submenu is being opened by the player.
     - This cue should use addRow and Make_ functions to build the menu.
     - Do not call Create_Menu from this cue.
-    - End this cue with Display_Menu.
+    - Widgets should be set up in the same frame; menu will display on the following frame.
   * onRowChanged
     - Same as for Create_Menu.
   * onColChanged
@@ -347,16 +346,12 @@ Complex properties:
           param = "table[
             $id      = 'my_unique_menu_1',
             $title   = 'My Menu',
-            $cue     = Fill_Options_Menu,
+            $onOpen  = Fill_Options_Menu,
             $columns = 2, 
             ]"/>
       </actions>
     </cue>
   ```
-      
-* Display_Menu
-  
-  Display an options menu. Call this after all other widget creation cues. This is not for use with Standalone menus.
       
 * Add_Submenu_Link
   
