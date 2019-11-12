@@ -14,7 +14,6 @@ TODO: hooks to modify stock menu parameters of interest.
       for higher scaling (above 1.5)
     - menu.valueGfxAA to unlock higher ssaa (probably not useful)
 
-TODO: set up player facing option to remove some menu animation delays.
 ]]
 
 
@@ -179,10 +178,10 @@ local function Init_Gameoptions_Link()
 
             
             -- Display needs to be called again to get an updated frame drawn.
-            -- Note: this probably isn't entirely safe in general, but seems
-            -- to work okay in testing.
-            -- TODO: clear scripts for safety.
-            -- Helper.removeAllWidgetScripts(menu, config.optionsLayer)
+            -- Clear scripts for safety, though got no warnings when
+            -- skipping this, likely due to main menu just looking for row
+            -- selection and having no active widgets.
+            Helper.removeAllWidgetScripts(menu, config.optionsLayer)
             frame:display()
         end
     end
@@ -491,12 +490,34 @@ function menu.Display_Custom_Menu(menu_spec)
     -- a menu, apparently due to the back button's scripts not being
     -- registered properly somehow.
     -- TODO: try this out again, with removeAllWidgetScripts enabled below.
+    -- Update: not needed with the 1-frame delay style.
     --frame:display()
+
+    -- To allow users to make widgets without having to say when to
+    -- display the menu, an automated 1-frame delayed display() can
+    -- be used.
+    SetScript("onUpdate", menu.Handle_Delayed_Display)
+    -- Record the start time of the delay, otherwise the onUpdate may
+    -- happen in this frame before widgets are set up.
+    menu.opened_time = GetCurRealTime()
 end
 
--- This function is called when the interface receives the user's
--- Display_Menu call, after they set up all widgets.
-function menu.Handle_Display_Command()
+function menu.Handle_Delayed_Display()
+    -- Make sure a frame has passed.
+    if menu.opened_time == GetCurRealTime() then return end
+
+    --DebugError("Handle_Delayed_Display called")
+
+    -- Stop listening to updates.
+    RemoveScript("onUpdate", menu.Handle_Delayed_Display)
+
+    -- In testing, a user that sets up the options menu onOpen event to
+    -- create a standalone menu caused some confusion here.
+    -- This case can be detected by the ftable having been cleared when
+    -- the options menu was force closed. (Why this works is unclear;
+    -- perhaps the log error was due to something else?)
+    if not menu_data.ftable then return end
+        
     -- A couple options menu cleanup steps, related to support
     -- for going back a level and reselecting the prior row.
     menu_data.ftable:setTopRow(gameoptions_menu.preselectTopRow)
@@ -504,9 +525,10 @@ function menu.Handle_Display_Command()
     gameoptions_menu.preselectOption = nil
     
     -- Do the final display call.
-    -- TODO: manually clearing scripts first worked well in another test,
-    -- try it here:
-    -- Helper.removeAllWidgetScripts(menu, config.optionsLayer)
+    -- For safety, clean old scripts, though this shouldn't be needed
+    -- with the current setup (eg. no display() calls should have
+    -- occurred before this).
+    --Helper.removeAllWidgetScripts(gameoptions_menu, config.optionsLayer)
     menu_data.frame:display()
 end
 

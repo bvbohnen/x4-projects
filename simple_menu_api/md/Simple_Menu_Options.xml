@@ -255,9 +255,6 @@
           <signal_cue_instantly cue="md.Simple_Menu_API.Send_Command" param = "$args"/>
         
         </do_all>
-
-        <!-- Ready to display. -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
       </actions>
     </cue>
 

@@ -80,6 +80,9 @@ end
 function menu.Open(args)
     -- Close any currently open menu, which will also clear out old
     -- data (eg. don't want to append to old rows).
+    -- TODO: try to avoid GoToSlide errors by putting a 1-frame delay
+    --  here if a menu was opened and needed closing; maybe the backend
+    --  just can't start a new menu on the same frame as closing an old one.
     menu.Close()
             
     -- Delay following commands since the menu isn't set up immediately.
@@ -105,6 +108,10 @@ function menu.Open(args)
 end
 
 
+-- TODO: this doesn't work completely, and debuglog gets a bunch of
+-- "GotoSlide" error messages if opening a new menu while one is
+-- already open, which don't occur if manually closing a menu before
+-- reopening.
 function menu.Close()
     -- Clear old menu_data to be safe.
     menu_data:reset()
@@ -417,7 +424,9 @@ function menu.onCloseElement(dueToClose, allowAutoMenu)
     -- Note: allowAutoMenu appears to lead to code that opens a new menu
     -- automatically if the player is in a ship, either dockedmenu or
     -- toplevelmenu.  Can ignore.
-    Helper.closeMenu(menu, dueToClose, allowAutoMenu)
+    -- TODO: support for "back", which will cause Helper to try to open
+    -- another menu possibly stored in menu.param2 somehow.
+    Helper.closeMenu(menu, dueToClose)
     menu.cleanup()
 
     -- Signal md. Use similar format to widget events.

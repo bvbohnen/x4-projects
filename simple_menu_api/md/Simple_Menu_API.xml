@@ -342,7 +342,6 @@ Complex properties:
         - Register_Options_Menu
         - Create_Menu
         - Close_Menu
-        - Display_Menu
         - Add_Submenu_Link
         - Add_Row
         - Make_Widget
@@ -662,7 +661,8 @@ Complex properties:
       - Cue to be called when the submenu is being opened by the player.
       - This cue should use addRow and Make_ functions to build the menu.
       - Do not call Create_Menu from this cue.
-      - End this cue with Display_Menu.
+      - Widgets should be set up in the same frame; menu will display
+        on the following frame.
     * onRowChanged
       - Same as for Create_Menu.
     * onColChanged
@@ -703,11 +703,13 @@ Complex properties:
     </actions>
   </cue>
 
-  <!--@doc-cue
+  <!--
     Display an options menu. Call this after all other widget creation
     cues.
     This is not for use with Standalone menus.
-    -->
+    
+    -Removed; lua side does an automatic 1-frame delayed display() call.
+    
   <cue name="Display_Menu" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
@@ -719,6 +721,7 @@ Complex properties:
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
+    -->
   
   <!--@doc-cue
     Add a link to another options menu.

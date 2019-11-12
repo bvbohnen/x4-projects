@@ -42,4 +42,6 @@ Change Log
   - Added support for changing column widths.
 * 0.11.1  
   - Fixed reloaded signal to not depend on named pipes api.
+* 0.12
+  - Removed Display_Menu command. Options menus now autodisplay after one frame.
  

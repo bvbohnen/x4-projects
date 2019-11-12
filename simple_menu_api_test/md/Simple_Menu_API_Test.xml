@@ -17,7 +17,11 @@
       <actions>
         <signal_cue_instantly 
           cue="md.Key_Capture.Register_Shortcut" 
-          param="table[$id = 'simple_menu_test', $cue = Open_Menu]"/>
+          param="table[
+            $id = 'simple_menu_test', 
+            $cue = Open_Menu,
+            $contexts = table[$flying = true, $walking = true, $menu_names = ['SimpleMenu']],
+            ]"/>
         <signal_cue_instantly
           cue="md.Key_Capture.Register_Key"
           param="table[$key='shift b', $id='simple_menu_test']"/>
@@ -320,6 +324,9 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <debug_text text="'Creating test standalone menu'"
+                chance="100" filter="general"/>
+        
         <!-- Create a new blank menu. -->
         <!-- TODO: move some args to a global table, for cleaner integration with menu updates. -->
         <signal_cue_instantly
@@ -452,8 +459,6 @@
               ]"/>
         </do_all>
 
-        <!-- Ready to display. (This is not used for standalone menus.) -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
       </actions>
     </cue>
 
@@ -467,9 +472,6 @@
       <actions>
         <!-- To be lazy, use the default fill again. -->
         <include_actions ref="Fill_Menu"/>
-
-        <!-- Ready to display. (This is not used for standalone menus.) -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
       </actions>
     </cue>
 

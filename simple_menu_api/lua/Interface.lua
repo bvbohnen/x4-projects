@@ -213,8 +213,7 @@ function L._Process_Command(args)
         Lib.Print_Table(args, "Args")
     end
     
-    -- Create a new menu; does not display.
-    -- TODO: does the shell of the menu display anyway?
+    -- Create a new menu; does not display immediately.
     if args.command == "Create_Menu" then
         -- Hand off to the standalone menu.
         Standalone_Menu.Open(args)
@@ -236,17 +235,7 @@ function L._Process_Command(args)
         })
         -- Hand off.
         Options_Menu.Register_Options_Menu(args)
-
-        
-    -- Display a menu that has been finished.
-    elseif args.command == "Display_Menu" then
-        -- Verify this is for an options menu, not standalone.
-        if menu_data.mode ~= "options" then
-            error("Display_Menu only supported for options menus")
-        end
-        -- Hand off to options menu, which deals with these commands.
-        Options_Menu.Handle_Display_Command()
-        
+                
 
     -- Adjust table aspects.
     elseif args.command == "Call_Table_Method" then
