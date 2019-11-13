@@ -16,13 +16,13 @@ Two types of menus are supported: options menus that are integrated with the sta
   - Call Create_Menu to open a new menu, closing any others.
   - Fill the menu with rows and widgets, specifying callback cues.
   - Callback cues will be signalled on player input.
+  - Access through a trigger condition of your choice.
 
 * Options menu
   - Call Register_Options_Menu to register your menu with the backend.
-  - Create a cue which will fill in the menu when the player opens the menu.
-  - Fill the menu with rows and widgets, specifying callback cues.
-  - Complete the menu with a call to Display_Menu.
-  - Callback cues will be signalled on player input.
+  - Create a cue which will make the rows and widgets as above.
+  - Set the above cue as the onOpen callback target during registration.
+  - Access through the "Extension Options" page of the main menu.
 
 ### Examples
 
@@ -60,7 +60,7 @@ Two types of menus are supported: options menus that are integrated with the sta
           $id = 'my_unique_menu',
           $columns = 1, 
           $title = 'My Options',
-          $cue = Build_Options_Menu
+          $onOpen = Build_Options_Menu
           ]"/>
     </actions>
   </cue>
@@ -74,7 +74,6 @@ Two types of menus are supported: options menus that are integrated with the sta
       <signal_cue_instantly
         cue="md.Simple_Menu_API.Make_Label"
         param = "table[$col=1, $text='Hello world']"/>
-      <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
     </actions>
   </cue>
   ```
