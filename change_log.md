@@ -47,4 +47,6 @@ Change Log
 * 0.12.1
   - Dropdown callback value clarified as "option_id".
   - Add_Submenu_Link documentation typo fixed for arg "id".
+* 0.13
+  - Dropdown options changed to no longer use an "id" field, and callback now returns "option_index" and "option" instead of "option_id".
  

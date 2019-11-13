@@ -489,9 +489,10 @@ function L.Make_Widget(args)
 
         -- Fill default ids in options.
         for i, option in ipairs(args.options) do
-            if not option.id then
-                option.id = i
-            end
+            -- Always overwrite the option's id field; this is required
+            -- to be the index when the ego callback returns it (as a string).
+            option.id = i
+
             -- Default icon needs to be "" not nil.
             if not option.icon then
                 option.icon = ""
@@ -510,12 +511,14 @@ function L.Make_Widget(args)
                 
         -- Event handlers.
         -- Swapping ego's "value" to "option_id".
+        -- Note: ego's backend converts the id to a string; special handling
+        -- will be used to convert them to numbers at callback.
         L.Widget_Event_Script_Factory(row[col], "onDropDownActivated", 
             row_index, args.col, {})
         L.Widget_Event_Script_Factory(row[col], "onDropDownConfirmed", 
-            row_index, args.col, {"option_id"})
+            row_index, args.col, {"option_index"}, {["option_index"] = "number"})
         L.Widget_Event_Script_Factory(row[col], "onDropDownRemoved", 
-            row_index, args.col, {"option_id"})
+            row_index, args.col, {"option_index"}, {["option_index"] = "number"})
 
     else
         -- Shouldn't be here.
@@ -532,9 +535,11 @@ end
 --  Row/col: widget coordinates.
 --  Params: List of names of values returned by the event, excepting the
 --   widget.  Eg. {"text", "textchanged", "wasconfirmed"}.
+--  Conversions: table of params (keyed by name) holding their conversion
+--   types, if any. Added to convert dropdown option strings to numbers.
 -- TODO: make use of Helper.set<name>Script functions, which can
 --  wrap the callback function with a ui event and sound.
-function L.Widget_Event_Script_Factory(widget, event, row, col, params)
+function L.Widget_Event_Script_Factory(widget, event, row, col, params, conversions)
 
     -- Handlers are set up in the "handlers" widget subtable.
     -- Note: lua variable args are handled with "..." in the function args.
@@ -556,7 +561,14 @@ function L.Widget_Event_Script_Factory(widget, event, row, col, params)
             -- In the unusual case of getting row/col, avoid overwrite
             -- just in case there is a difference.
             if not ret_table[field] then
-                ret_table[field] = vargs[i]
+                value = vargs[i]
+                -- Deal with any type conversions.
+                if conversions and conversions[field] then
+                    if conversions[field] == "number" then
+                        value = tonumber(value)
+                    end
+                end
+                ret_table[field] = value
             end
         end
         

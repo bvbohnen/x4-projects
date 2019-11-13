@@ -713,12 +713,10 @@ Complex properties:
         - String, option text.
       * icon = ""
         - String, icon name.
-      * id
-        - Optional string or number, identifier of the option.
-        - Returned to callbacks to indicate option selected.
-        - Defaults to the option's list index (1-based).
       * displayremoveoption = false
         - Bool, if true the option will show an 'x' that the player can click to remove it from the dropdown list.
+      * ...
+        - Similar to "echo", other subtable fields will be included in the cue callback.
   * onDropDownActivated
     - Cue to call when the player activates the dropdown.
   * onDropDownConfirmed
@@ -756,13 +754,17 @@ Complex properties:
           
   onDropDownConfirmed event returns:
   * row, col, echo, event, id
-  * option_id
-    - String or number, id of the selected option.
+  * option_index
+    - Number, index of the selected option.
+  * option
+    - Table, the original option specification subtable given to widget creation that matches the option_index.
         
   onDropDownRemoved event returns:
   * row, col, echo, event, id
-  * option_id
-    - String or number, id of the removed option.
+  * option_index
+    - Number, index of the selected option.
+  * option
+    - Table, the original option specification subtable given to widget creation that matches the player selection.
         
       
 * **Make_Icon**
