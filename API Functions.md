@@ -133,7 +133,7 @@ Complex properties:
 
 ### Simple Menu API Cues
 
-* Reloaded
+* **Reloaded**
   
   Dummy cue used for signalling that the game or ui was reloaded. Users that are registering options menus should listen to this cue being signalled.
     
@@ -142,7 +142,7 @@ Complex properties:
 
 #### Generic Command Cue
     
-* Send_Command
+* **Send_Command**
   
   Generic cue for sending commands to lua. Other api cues redirect here to interface with the lua backend. Users may utilize this cue if they find it more convenient. See other cues for arg descriptions.
       
@@ -166,7 +166,7 @@ Complex properties:
 
 #### Menu Creation Cues
     
-* Create_Menu
+* **Create_Menu**
   
   Create a fresh standalone menu. Note: these menus are not attached to the normal options menu. To be followed by Add_Row and similar cue calls to fill in the menu.
       
@@ -302,7 +302,7 @@ Complex properties:
     - Echo field of the row, if available.
         
       
-* Register_Options_Menu
+* **Register_Options_Menu**
   
   Register an options menu, which will be accessible as a submenu of the normal game options. These menus will be set to use the same visual style as the standard options menus, and so support a reduced set of args compared to standalone menus.
       
@@ -353,14 +353,14 @@ Complex properties:
     </cue>
   ```
       
-* Add_Submenu_Link
+* **Add_Submenu_Link**
   
-  Add a link to another options menu. The other option menu will need to registered by Register_Options_Menu. This will add a new row to the menu table, though that row will be ignored for the Make_ commands. Only for use with options menus, not those made through Create_Menu.
+  Add a link to another options menu. The other option menu will need to registered by Register_Options_Menu (normally with the private flag set). This will add a new row to the menu table, though that row will be ignored for the Make_ commands. Only for use with options menus, not those made through Create_Menu.
       
   Param: Table with the following items:
     * text
       - String, text to display in the selection line.
-    * menu_id
+    * id
       - String, unique id of the submenu to be opened, as set at registration.
       
 
@@ -368,7 +368,7 @@ Complex properties:
 
 #### Table Cues
     
-* Add_Row
+* **Add_Row**
   
     Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 130 rows.
       
@@ -391,7 +391,7 @@ Complex properties:
     * multiSelected = false
       - Bool, row is preselected for multiselect menu tables. },
       
-* Call_Table_Method
+* **Call_Table_Method**
   
   Adjust some aspect of the table calling a backend table method. Generally for adjusting column widths.
       
@@ -443,7 +443,7 @@ Complex properties:
 
 #### Widget Creation Cues
     
-* Make_Text
+* **Make_Text**
   
   Make a "text" cell for displaying non-interactive text. Adds to the most recent row.
       
@@ -483,7 +483,7 @@ Complex properties:
         ]"/>
   ```
       
-* Make_BoxText
+* **Make_BoxText**
   
   Make a "boxtext" cell.  Similar to text, but with an outlining box. Note: the outline box highlighting can behave oddly as the player interacts with other widgets. Adds to the most recent row.
           
@@ -508,7 +508,7 @@ Complex properties:
   * wordwrap
   * minRowHeight
       
-* Make_Button
+* **Make_Button**
   
   Make a "button" cell. Adds to the most recent row.
       
@@ -552,7 +552,7 @@ Complex properties:
   onRightClick event returns:
   * row, col, echo, event, id
       
-* Make_EditBox
+* **Make_EditBox**
   
   Make an "editbox" cell, for text entry. Adds to the most recent row.
       
@@ -604,7 +604,7 @@ Complex properties:
   * wasconfirmed
     - Bool, false if the player pressed "escape", else true.
       
-* Make_Slider
+* **Make_Slider**
   
   Make a horizontal "slidercell" cell. Adds to the most recent row.
       
@@ -695,7 +695,7 @@ Complex properties:
     - If the player escapes out of the editbox, this will be false and the value will be the pre-edit value.
         
       
-* Make_Dropdown
+* **Make_Dropdown**
   
   Make a "dropdown" selection cell. Adds to the most recent row. Note: indices start at 1.
       
@@ -739,11 +739,8 @@ Complex properties:
   * optionWidth, optionHeight = 0
     - Dimensions of the options.
   * allowMouseOverInteraction = false
-    - Bool, ?
   * textOverride = ""
-    - String, ?
   * text2Override = ""
-    - String, ?
   * text
    - TextProperty
   * text2
@@ -759,16 +756,16 @@ Complex properties:
           
   onDropDownConfirmed event returns:
   * row, col, echo, event, id
-  * id
+  * option_id
     - String or number, id of the selected option.
         
   onDropDownRemoved event returns:
   * row, col, echo, event, id
-  * id
+  * option_id
     - String or number, id of the removed option.
         
       
-* Make_Icon
+* **Make_Icon**
   
   Make an "icon" cell. Note: many icons are large, and may need explicit width/height to adjust the sizing. Adds to the most recent row.
           
@@ -792,7 +789,7 @@ Complex properties:
     - TextProperty
     - Updateable text
       
-* Make_CheckBox
+* **Make_CheckBox**
   
   Make a "checkbox" cell. Adds to the most recent row.
       
@@ -819,7 +816,7 @@ Complex properties:
     - Int, 0 or 1, checkbox status after click.
         
       
-* Make_StatusBar
+* **Make_StatusBar**
   
   Make a "statusbar" cell. This is a bar that have a baseline value, is filled based on current value, and coloring is based on if the current is greater or less than the baseline. Adds to the most recent row.
       
@@ -851,7 +848,7 @@ Complex properties:
   * markerColor = Helper.defaultStatusBarMarkerColor
     - Color
       
-* Update_Widget
+* **Update_Widget**
   
   Update a widget's state after creation.
       

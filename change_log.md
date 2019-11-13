@@ -44,4 +44,7 @@ Change Log
   - Fixed reloaded signal to not depend on named pipes api.
 * 0.12
   - Removed Display_Menu command. Options menus now autodisplay after one frame.
+* 0.12.1
+  - Dropdown callback value clarified as "option_id".
+  - Add_Submenu_Link documentation typo fixed for arg "id".
  

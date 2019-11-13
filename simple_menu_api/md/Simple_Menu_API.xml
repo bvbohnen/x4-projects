@@ -725,7 +725,8 @@ Complex properties:
   
   <!--@doc-cue
     Add a link to another options menu.
-    The other option menu will need to registered by Register_Options_Menu.
+    The other option menu will need to registered by Register_Options_Menu
+    (normally with the private flag set).
     This will add a new row to the menu table, though that row will be
     ignored for the Make_ commands.
     Only for use with options menus, not those made through Create_Menu.
@@ -734,7 +735,7 @@ Complex properties:
       Table with the following items:
       * text
         - String, text to display in the selection line.
-      * menu_id
+      * id
         - String, unique id of the submenu to be opened, as set at
           registration.
     -->
@@ -1245,11 +1246,8 @@ Complex properties:
     * optionWidth, optionHeight = 0
       - Dimensions of the options.
     * allowMouseOverInteraction = false
-      - Bool, ?
     * textOverride = ""
-      - String, ?
     * text2Override = ""
-      - String, ?
     * text
      - TextProperty
     * text2
@@ -1265,12 +1263,12 @@ Complex properties:
         
     onDropDownConfirmed event returns:
     * row, col, echo, event, id
-    * id
+    * option_id
       - String or number, id of the selected option.
       
     onDropDownRemoved event returns:
     * row, col, echo, event, id
-    * id
+    * option_id
       - String or number, id of the removed option.
       
     -->

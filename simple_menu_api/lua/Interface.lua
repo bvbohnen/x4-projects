@@ -352,11 +352,16 @@ function L.Make_Widget(args)
         
     -- Error if no rows present yet.
     if #menu_data.user_rows == 0 then
-        error("Simple_Menu.Make_Label: no user rows for Make command")
+        error("Simple_Menu.Make_Widget: no user rows for Make command")
     end
     -- Set the last row index, and pick out the row object.
     local row_index = #menu_data.user_rows
     local row = menu_data.user_rows[row_index]
+
+    -- Make sure the col is in range.
+    if not row[col] then
+        error("Simple_Menu.Make_Widget: column out of range")
+    end
         
     -- Filter for widget properties.
     --  Note: the widget creator does some property name validation,
@@ -504,13 +509,13 @@ function L.Make_Widget(args)
         row[col]:createDropDown(args.options, properties)
                 
         -- Event handlers.
-        -- Swapping ego's "value" to "id".
+        -- Swapping ego's "value" to "option_id".
         L.Widget_Event_Script_Factory(row[col], "onDropDownActivated", 
             row_index, args.col, {})
         L.Widget_Event_Script_Factory(row[col], "onDropDownConfirmed", 
-            row_index, args.col, {"id"})
+            row_index, args.col, {"option_id"})
         L.Widget_Event_Script_Factory(row[col], "onDropDownRemoved", 
-            row_index, args.col, {"id"})
+            row_index, args.col, {"option_id"})
 
     else
         -- Shouldn't be here.
