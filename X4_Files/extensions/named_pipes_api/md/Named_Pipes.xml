@@ -59,7 +59,7 @@ TODO:
     </conditions>
     <actions>
       <raise_lua_event name="'Lua_Loader.Load'" 
-                       param="'extensions.named_pipes_api.Named_Pipes'"/>
+                       param="'extensions.named_pipes_api.lua.Interface'"/>
     </actions>
   </cue>
   
@@ -487,6 +487,7 @@ TODO:
       </do_else>
       
       <!-- Calculate the real time of the timeout, by adding to current age. -->
+      <!-- TODO: switch to using realtime api. -->
       <do_if value="event.param.{'$time'}?">
         <set_value name="$scheduled_timeout"  exact="player.age + event.param.{'$time'}" />
       </do_if>
@@ -711,9 +712,6 @@ TODO:
             $cellBGColor = 'Helper.color.transparent60',
             ]"/>
       </do_all>
-
-      <!-- Ready to display. -->
-      <signal_cue_instantly cue="md.Simple_Menu_API.Display_Menu"/>
     </actions>
   </cue>
 

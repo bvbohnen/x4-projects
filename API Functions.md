@@ -32,7 +32,7 @@ Note on timeouts:
 
 ### MD Named Pipe API Cues
 
-* Register_Menu_Entry
+* **Register_Menu_Entry**
   
       
   User function to register a pipe handling cue to the overall menu. Menu will display pipe connection status and name.    
@@ -46,7 +46,7 @@ Note on timeouts:
   * server_connected
     - Bool, true when the pipe is connected to a server.
     
-* Write
+* **Write**
   
       
   User function to write a pipe. Called through signal_cue_instantly.
@@ -71,7 +71,7 @@ Note on timeouts:
           $cue=Write_Callback]">
   
     
-* Write_Special
+* **Write_Special**
   
     
   As Write, but sends a special command in the message to the lua, which determines the actual message to send.  The only currently supported command is "package.path", which sends the current lua package import path list.
@@ -87,7 +87,7 @@ Note on timeouts:
           $time=5s]">
   
     
-* Read
+* **Read**
   
   User function to read a pipe. Called through signal_cue_instantly.
       
@@ -134,7 +134,7 @@ Note on timeouts:
       </cue>
   
     
-* Check
+* **Check**
   
   User function to check if a pipe is connected to a server, making the connection if needed. Note: if a pipe was connected in the past but the server has since closed, and no other operations have been attempted in the meantime, this function will report the pipe as still connected. Note: this may return prior to following writes or reads. Called through signal_cue_instantly.
       
@@ -157,7 +157,7 @@ Note on timeouts:
           $time=5s]">
   
     
-* Close
+* **Close**
   
   User function to close a pipe. This is passed down to the lua level, where the pipe file is closed and all pending accesses killed (return errors). Does nothing if the pipe does not exist.
       
@@ -210,7 +210,7 @@ Usage:
 
 ### MD Pipe Server API Cues
 
-* Register_Module
+* **Register_Module**
    
   User function to register a python server module. This should be resent each time Reloaded is signalled.
       

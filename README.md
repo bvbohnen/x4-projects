@@ -19,10 +19,9 @@ There are three components to this API:
 * Optionally, Simple Menu API
   - https://github.com/bvbohnen/x4-simple-menu-api
 * Optionally, Python 3.6+ with the pywin32 package.
-  - Only needed if using the python pipe server from source.
+  - Only needed if running the pipe server from python source code.
   - An executable is provided as an alternative.
-  - This package is part of the Anaconda distribution of python by default.
-  - Future releases may package this in an exe to avoid the python requirement.
+  - The pywin32 package is part of the Anaconda distribution of python by default.
 
 ### Installation
 

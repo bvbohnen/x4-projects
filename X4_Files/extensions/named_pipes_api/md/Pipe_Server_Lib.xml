@@ -84,7 +84,7 @@ Notes on server access looping cues:
     * ping_count
       - Int, how many failed pings have occurred.
       - Used to increase ping delay after failures.
-      - Not an exactly count; only goes up to the highest delay.
+      - Not an exactly count; only goes up to the highest delay, eg. 10.
         
     Note: 
       x4 has problems when a cue using this library is created alongside
@@ -316,7 +316,10 @@ Notes on server access looping cues:
                 <!-- Connected; continue with startup. -->
                 <set_value name="$server_connected" exact="1"/>
                 <!-- Reset the ping counter. TODO: maybe unnecessary. -->
-                <set_value name="$ping_count" exact="0"/>                
+                <set_value name="$ping_count" exact="0"/>
+
+                <debug_text text="'Connected to ' + $Pipe_Name"
+                            chance="$DebugChance" filter="general"/>
 
                 <!-- Run any user supplied actions. -->
                 <do_if value="$Actions_On_Connect.exists">

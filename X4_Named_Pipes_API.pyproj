@@ -25,7 +25,9 @@
     <Content Include="API Functions.md" />
     <Content Include="change_log.md" />
     <Content Include="X4_Files\extensions\named_pipes_api\content.xml" />
-    <Content Include="X4_Files\extensions\named_pipes_api\Named_Pipes.lua" />
+    <Content Include="X4_Files\extensions\named_pipes_api\lua\Interface.lua" />
+    <Content Include="X4_Files\extensions\named_pipes_api\lua\Library.lua" />
+    <Content Include="X4_Files\extensions\named_pipes_api\lua\Pipes.lua" />
     <Content Include="X4_Files\extensions\named_pipes_api\md\Named_Pipes.xml" />
     <Content Include="X4_Files\extensions\named_pipes_api\md\Pipe_Server_Host.xml" />
     <Content Include="X4_Files\extensions\named_pipes_api\md\Pipe_Server_Lib.xml" />
@@ -38,6 +40,7 @@
     <Folder Include="X4_Files\extensions\" />
     <Folder Include="X4_Files\extensions\named_pipes_api\" />
     <Folder Include="X4_Files\extensions\named_pipes_api\md\" />
+    <Folder Include="X4_Files\extensions\named_pipes_api\lua\" />
     <Folder Include="X4_Files\extensions\named_pipes_api_test\" />
     <Folder Include="X4_Files\extensions\named_pipes_api_test\md\" />
   </ItemGroup>
