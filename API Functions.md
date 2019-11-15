@@ -172,8 +172,6 @@ Complex properties:
       
   Each menu created will internally be given a frame to hold a table in which widgets will be placed.  The frame and table properties are also set with this cue.
       
-  Note: table and frame properties are pending development.
-      
   Param: Table with the following items:
   * id, echo
     - Standard api args
@@ -821,8 +819,6 @@ Complex properties:
 * **Make_StatusBar**
   
   Make a "statusbar" cell. This is a bar that have a baseline value, is filled based on current value, and coloring is based on if the current is greater or less than the baseline. Adds to the most recent row.
-      
-  Pending development.
       
   Param: Table with the following items
   * col, colspan, id, echo
