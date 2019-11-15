@@ -131,7 +131,7 @@ L.timers = {}
 L.alarms = {}
 
 -- TODO: conditionally include pipes api. For now hardcode.
-local pipes_api = require('extensions.named_pipes_api.Named_Pipes')
+local pipes_api = require('extensions.named_pipes_api.lua.Interface')
 
 function Init()
     -- Set up all unique events.

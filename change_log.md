@@ -8,3 +8,5 @@ Change Log
 * 0.3
   - Added python pipe host.
   - tic/toc uses in-frame timing through the pipe.
+* 0.3.1
+  - Sync'd with named pipes api folder change.
