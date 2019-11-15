@@ -120,7 +120,7 @@ def Make_Named_Pipes_Doc():
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Pipe_Server_Host.xml')
 
     # The Lua pipe api.
-    doc_lines += Get_Lua_Text(ext_dir / 'Named_Pipes.lua')
+    doc_lines += Get_Lua_Text(ext_dir / 'lua' / 'Interface.lua')
     
     with open(doc_dir / gen_doc_name, 'w') as file:
         file.write('\n'.join(doc_lines))
@@ -227,7 +227,7 @@ def Sections_To_Lines(doc_text_sections):
                 functions_started = True
                 ret_text_lines += ['', '### {} Cues'.format(title), '']
             # Bullet the function name.
-            ret_text_lines.append('* {}'.format(key))
+            ret_text_lines.append('* **{}**'.format(key))
             
         # Process the text a bit.
         text = Merge_Lines(text)

@@ -42,10 +42,12 @@ release_files_specs = {
             '../Readme.md',
             'ui/core/lualibs/winpipe_64.dll',
             'extensions/named_pipes_api/content.xml',
-            'extensions/named_pipes_api/Named_Pipes.lua',
             'extensions/named_pipes_api/md/Named_Pipes.xml',
             'extensions/named_pipes_api/md/Pipe_Server_Host.xml',
             'extensions/named_pipes_api/md/Pipe_Server_Lib.xml',
+            'extensions/named_pipes_api/lua/Interface.lua',
+            'extensions/named_pipes_api/lua/Library.lua',
+            'extensions/named_pipes_api/lua/Pipes.lua',
         ]},
     # Python style of pipe server.
     'X4_Python_Pipe_Server_py':{ 
@@ -73,6 +75,9 @@ release_files_specs = {
             'key_capture_api/content.xml',
             'key_capture_api/Send_Keys.py',
             'key_capture_api/md/Key_Capture.xml',
+            'key_capture_api/md/KC_Extra_Commands.xml',
+            'key_capture_api/lua/Key_Capture.lua',
+            'key_capture_api/lua/Library.lua',
         ]},
     'Lua_Loader_API':{ 
         'root_path':project_dir / 'X4_Lua_Loader_API', 
