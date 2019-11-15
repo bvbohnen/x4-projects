@@ -54,7 +54,7 @@ TODO:
     </conditions>
     <actions>
       <raise_lua_event name="'Lua_Loader.Load'"
-                        param="'extensions.key_capture_api.Key_Capture'"/>
+                        param="'extensions.key_capture_api.lua.Key_Capture'"/>
     </actions>
   </cue>
 
@@ -304,7 +304,7 @@ TODO:
     </actions>
   </cue>
 
-
+  <!--TODO: 'category name' for organizing keys better in the menu.-->
   <!--@doc-cue
   User function to register a shortcut. These shortcuts will be displayed
   in the api options menu for use assignment of a hotkey.
@@ -436,7 +436,7 @@ TODO:
     - "space 5" : 'space' held when '5' pressed
   - Shift, alt, ctrl act as modifiers.
   - Alphanumeric keys use their standard character.
-  - Special keys use their names from pynput:
+  - Special keys use these names (from pynput with some additions):
     - alt
     - alt_gr
     - alt_l
@@ -472,6 +472,23 @@ TODO:
     - space
     - tab
     - up
+    - num_0
+    - num_1
+    - num_2
+    - num_3
+    - num_4
+    - num_5
+    - num_6
+    - num_7
+    - num_8
+    - num_9
+    - num_.
+    - num_+
+    - num_-
+    - num_*
+    - win_l
+    - win_r
+  - Note: numpad 'enter' and '/' alias to normal versions of those keys.
 
   -->
   <cue name="Register_Key" instantiate="true" namespace="this">
@@ -549,30 +566,32 @@ TODO:
         <debug_text text="'Warning, key %s has no registered shortcuts.'.[$key]"
                     chance="Globals.$DebugChance" filter="general"/>
       </do_if>
-
-      <!-- Check if the id is recorded for this key. -->
-      <set_value name="$id_index" exact="Globals.$key_shortcut_registry.{$key}.indexof.{$id}"/>
-      <do_if value="$id_index == 0">
-        <!-- It isn't recorded, so print a warning. -->
-        <debug_text text="'Warning, cue %s is not registered to key %s.'.[$cue.name, $key]"
-                    chance="Globals.$DebugChance" filter="general"/>
-      </do_if>
-
+      
       <do_else>
-        <!-- Proceed with removal. -->
-        <remove_value name="Globals.$key_shortcut_registry.{$key}.{$id_index}" />
-        <debug_text text="'Removed shortcut %s from key %s.'.[$id, $key]"
-                    chance="Globals.$DebugChance" filter="general"/>
+        <!-- Check if the id is recorded for this key. -->
+        <set_value name="$id_index" exact="Globals.$key_shortcut_registry.{$key}.indexof.{$id}"/>
+        <do_if value="$id_index == 0">
+          <!-- It isn't recorded, so print a warning. -->
+          <debug_text text="'Warning, shortcut %s is not registered to key %s.'.[$id, $key]"
+                      chance="Globals.$DebugChance" filter="general"/>
+        </do_if>
 
-        <!-- If the key's cue list is empty, also remove the key itself. -->
-        <do_if value="Globals.$key_shortcut_registry.{$key}.count == 0">
-          <remove_value name="Globals.$key_shortcut_registry.{$key}" />
-          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]"
+        <do_else>
+          <!-- Proceed with removal. -->
+          <remove_value name="Globals.$key_shortcut_registry.{$key}.{$id_index}" />
+          <debug_text text="'Removed shortcut %s from key %s.'.[$id, $key]"
                       chance="Globals.$DebugChance" filter="general"/>
 
-          <!-- Update the server. If it isn't connected, ignore any error. -->
-          <signal_cue_instantly cue="Register_Keys_With_Server_2"/>
-        </do_if>
+          <!-- If the key's cue list is empty, also remove the key itself. -->
+          <do_if value="Globals.$key_shortcut_registry.{$key}.count == 0">
+            <remove_value name="Globals.$key_shortcut_registry.{$key}" />
+            <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]"
+                        chance="Globals.$DebugChance" filter="general"/>
+
+            <!-- Update the server. If it isn't connected, ignore any error. -->
+            <signal_cue_instantly cue="Register_Keys_With_Server_2"/>
+          </do_if>
+        </do_else>
       </do_else>
 
     </actions>
@@ -652,8 +671,8 @@ TODO:
           <set_value name="Globals.$in_menu" exact="true"/>
         </do_if>
       </do_all>
-      <debug_text text="'Globals.$in_menu = %1'.[Globals.$in_menu]"
-                  chance="Globals.$DebugChance" filter="general"/>
+      <!--<debug_text text="'Globals.$in_menu = %1'.[Globals.$in_menu]"
+                  chance="Globals.$DebugChance" filter="general"/>-->
     </actions>
   </library>
   

@@ -33,6 +33,8 @@ Example shortcut registration:
 
 Optionally, a key or key combination may be directly assigned to the shortcut from md script. When done this way, a wider variety of combinations are supported than possible through the standard options menu.
 
+Warning: the windows backend confuses numpad enter and numpad / with their normal key counterparts.  If one of these keys is used, both the numpad and normal key will trigger the hotkey callback.
+
 See "API Functions.md" for full details.
 
 

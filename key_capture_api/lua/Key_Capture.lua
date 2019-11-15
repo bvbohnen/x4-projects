@@ -4,6 +4,9 @@ This primarily aims to interface tightly with the egosoft menu system,
 to leverage existing code for allowing players to customize hotkeys.
 
 Patches the OptionsMenu.
+
+TODO: split apart md interface stuff from the menu plugin stuff,
+to reduce file sizes.
 ]]
 
 -- Set up any used ffi functions.
@@ -14,9 +17,13 @@ ffi.cdef[[
 ]]
 
 -- Imports. TODO: maybe pull from other helper extensions.
-local Lib = require("extensions.key_capture_api.Library")
+local Lib = require("extensions.key_capture_api.lua.Library")
 
 -- Local functions and data.
+local debug = {
+    print_keycodes = true,
+    print_keynames = true,
+}
 local L = {
     -- Shadow copy of the md's shortcut registry.
     shortcut_registry = {},
@@ -235,14 +242,14 @@ end
 -- This is called when menus are closed in Helper.
 function L.Menu_Closed(menu)
     if menu.name == "TopLevelMenu" then return end
-    DebugError("Menu closed: "..tostring(menu.name))
+    --DebugError("Menu closed: "..tostring(menu.name))
     Lib.Raise_Signal("Menu_Closed", menu.name)
 end
 
 -- This is called when menus are opened in Helper.
 function L.Menu_Opened(menu)
     if menu.name == "TopLevelMenu" then return end
-    DebugError("Menu opened: "..tostring(menu.name))
+    --DebugError("Menu opened: "..tostring(menu.name))
     Lib.Raise_Signal("Menu_Opened", menu.name)
 end
 
@@ -250,7 +257,7 @@ end
 -- Treats menu as closing for the md side.
 function L.Menu_Minimized(menu)
     if menu.name == "TopLevelMenu" then return end
-    DebugError("Menu minimized: "..tostring(menu.name))
+    --DebugError("Menu minimized: "..tostring(menu.name))
     Lib.Raise_Signal("Menu_Closed", menu.name)
 end
 
@@ -258,7 +265,7 @@ end
 -- Treats menu as opening for the md side.
 function L.Menu_Restored(menu)
     if menu.name == "TopLevelMenu" then return end
-    DebugError("Menu restored: "..tostring(menu.name))
+    --DebugError("Menu restored: "..tostring(menu.name))
     Lib.Raise_Signal("Menu_Opened", menu.name)
 end
 
@@ -511,9 +518,9 @@ function L.displayControls (optionParameter)
             
     -- Need to re-display.
     -- TODO: stress test for problems.
-    -- In practice, this causes log warning spam display() done directly, since
-    -- the display() function builds a whole new frame, but the old frame's
-    -- scripts weren't cleared out.
+    -- In practice, this causes log warning spam if display() done directly,
+    -- since the display() function builds a whole new frame, but the old
+    -- frame's scripts weren't cleared out.
     -- Manually do the script clear first.
     -- (Unlike clearDataForRefresh, this call just removes scripts,
     -- not existing widget descriptors.)
@@ -653,14 +660,23 @@ end
 -- Inner part of remapInput, allowed to error.
 function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputsgn)
 
-    --DebugError(string.format(
-    --    "Detected remap of code '%s'; new aspects: %s, %s, %s", 
-    --    tostring(menu.remapControl.controlcode),
-    --    tostring(newinputtype),
-    --    tostring(newinputcode),
-    --    tostring(newinputsgn)
-    --    ))
-    --Lib.Print_Table(menu.remapControl, "menu.remapControl")
+
+    if debug.print_keycodes then
+        Lib.Print_Table({
+            controlcode = menu.remapControl.controlcode,
+            newinputtype = newinputtype,
+            newinputcode = newinputcode,
+            newinputsgn = newinputsgn,
+            }, "Control remap info")
+        --DebugError(string.format(
+        --    "Detected remap of code '%s'; new aspects: type %s, %s, %s", 
+        --    tostring(menu.remapControl.controlcode),
+        --    tostring(newinputtype),
+        --    tostring(newinputcode),
+        --    tostring(newinputsgn)
+        --    ))
+        --Lib.Print_Table(menu.remapControl, "menu.remapControl")
+    end
 
 
     -- Look up the matching shortcut.
@@ -706,21 +722,30 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
         new_combo = ""
     else
         -- Get the new combo string.
-        -- Start with ego's key name.
-        -- TODO: probably not robust across languages.
-        local ego_key_name, icon = menu.getInputName(newinputtype, newinputcode, newinputsgn)
+        new_combo = string.format("code %d %d %d", newinputtype, newinputcode, newinputsgn)
 
-        -- These are uppercase and with "+" for modified keys.
-        -- Translate to the combo form: space separated lowercase.
-        new_combo = string.lower( string.gsub(ego_key_name, "+", " ") )
-        DebugError(string.format("Ego key %s translated to combo %s", ego_key_name, new_combo))
+        -- -Removed, updated 3.0 makes ego's version too hard to use since
+        --  it uses some special escape character and icon code for modifiers.
+        ---- Start with ego's key name.
+        ---- TODO: probably not robust across languages.
+        ---- TODO: try out GetLocalizedRawKeyName
+        --local ego_key_name, icon = menu.getInputName(newinputtype, newinputcode, newinputsgn)
+        --
+        ---- These are uppercase and with "+" for modified keys.
+        ---- Translate to the combo form: space separated lowercase.
+        --new_combo = string.lower( string.gsub(ego_key_name, "+", " ") )
+        --if debug.print_keynames then
+        --    DebugError(string.format("Ego key %s translated to combo %s", ego_key_name, new_combo))
+        --end
     end
     
 
     -- If the new_combo is already recorded as either of the existing inputs,
     -- do nothing.
     if shortcut_keys.inputs[1].combo == new_combo or shortcut_keys.inputs[2].combo == new_combo then
-        DebugError("Ignoring already recorded key combo: "..new_combo)
+        if debug.print_keynames then
+            DebugError("Ignoring already recorded key combo: "..new_combo)
+        end
         return return_func()
     end
 

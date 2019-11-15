@@ -1,11 +1,11 @@
 
 ### Key Capture API Cues
 
-* Reloaded
+* **Reloaded**
   
   Dummy cue used for signalling that the api reloaded. Users that are registering shortcuts should listen to this cue being signalled.
     
-* Register_Shortcut
+* **Register_Shortcut**
   
   User function to register a shortcut. These shortcuts will be displayed in the api options menu for use assignment of a hotkey. This should be re-sent each time Reloaded is signalled.
       
@@ -63,7 +63,7 @@
   
     ```
     
-* Register_Key
+* **Register_Key**
   
   Function to register a key with a shortcut. If this is the first key registered, it will start the key listening loop. This is used by the menu system to set up player custom keys, but may also be called by a user to directly assign a key to a shortcut. Keys added by direct user calls will not be visible in the menu, and have fewer restrictions than the menu enforces. This should be re-sent each time Reloaded is signalled.
       
@@ -94,7 +94,7 @@
     - "space 5" : 'space' held when '5' pressed
   - Shift, alt, ctrl act as modifiers.
   - Alphanumeric keys use their standard character.
-  - Special keys use their names from pynput:
+  - Special keys use these names (from pynput with some additions):
     - alt
     - alt_gr
     - alt_l
@@ -130,9 +130,26 @@
     - space
     - tab
     - up
+    - num_0
+    - num_1
+    - num_2
+    - num_3
+    - num_4
+    - num_5
+    - num_6
+    - num_7
+    - num_8
+    - num_9
+    - num_.
+    - num_+
+    - num_-
+    - num_*
+    - win_l
+    - win_r
+  - Note: numpad 'enter' and '/' alias to normal versions of those keys.
   
     
-* Unregister_Key
+* **Unregister_Key**
   
   Function to unregister a key from a shortcut. Params are the same as for Register_Key. If this was the only cue registered (across all keys), the key listerner loop will stop itself.
       

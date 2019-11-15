@@ -15,8 +15,8 @@ Relies on named pipe library; server side is written in python.
   <cue name="Register_Keys" instantiate="true">
     <conditions>
       <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-      <!-- Uncomment to disable this cue.
-      <check_value value="false"/> -->
+      <!-- Uncomment to disable this cue. -->
+      <check_value value="false"/>
     </conditions>
     <actions>
       <show_notification text="'Registering keys'" sound="notification_warning" priority="2" />
