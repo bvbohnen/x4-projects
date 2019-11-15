@@ -41,5 +41,3 @@ Change Log
   - Switch to the Time API setting time between reconnect pings while the game is paused.
 * 0.12
   - Exposed lua api to other lua modules.
-* 0.12.1
-  - More graceful shutdown if a pipe server is already running.
