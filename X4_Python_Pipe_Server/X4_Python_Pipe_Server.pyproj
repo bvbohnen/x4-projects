@@ -6,7 +6,8 @@
     <ProjectHome>
     </ProjectHome>
     <StartupFile>Main.py</StartupFile>
-    <SearchPath>..\X4_Files\extensions\key_capture_api</SearchPath>
+    <SearchPath>
+    </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>X4_Python_Pipe_Server</Name>

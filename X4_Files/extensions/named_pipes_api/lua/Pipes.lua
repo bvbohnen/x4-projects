@@ -270,7 +270,7 @@ function L.Connect_Pipe(pipe_name)
         
         -- If the entry is still nil, the open failed.
         if pipes[pipe_name].file == nil then
-            if print_connect_errors then
+            if debug.print_connect_errors then
                 CallEventScripts("directChatMessageReceived", pipe_name..";open_pipe returned nil")
             end
             -- A simple error description is used for the Test function.
@@ -283,7 +283,7 @@ function L.Connect_Pipe(pipe_name)
         -- pipes[pipe_name].file:write('connected\n')
         
         -- Debug print.
-        if print_connect then
+        if debug.print_connect then
             CallEventScripts("directChatMessageReceived", pipe_name..";Pipe connected in lua")
         end
         
@@ -321,7 +321,7 @@ function L.Disconnect_Pipe(pipe_name)
         
         -- Signal the disconnect.
         Lib.Raise_Signal(pipe_name.."_disconnected")
-        if print_connect_errors then
+        if debug.print_connect_errors then
             CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
         end
     end

@@ -73,6 +73,8 @@ from importlib import machinery
 developer = True
 
 # Use a python test client, instead of needing x4 open.
+# Note: putting breakpoints on tested modules requires opening them from
+# their extension folder path, not their git repo path that was symlinked over.
 test_python_client = 0
 
 # Name of the host pipe.
@@ -189,7 +191,7 @@ def Main():
                         # Pull out the main() function.
                         main = getattr(module, 'main', None)
 
-                        # Start a new thread for it.
+                        # Start the thread.
                         if main != None:
                             thread = Server_Thread(module.main, test = test_python_client)
                             threads.append(thread)
@@ -203,9 +205,15 @@ def Main():
             #  funcname : Name of function that errored, eg. 'ReadFile'
             #  strerror : String description of error
 
+            # If another host was already running, there will have been
+            # an error when trying to set up the pipe.
+            if ex.funcname == 'CreateNamedPipe':
+                print('Pipe creation error. Is another instance already running?')
+                shutdown = True
+
             # If just in testing mode, assume the tests completed and
             #  shut down.
-            if test_python_client:
+            elif test_python_client:
                 print('Pipe client disconnected; stopping test.')
                 shutdown = True
 
@@ -221,8 +229,14 @@ def Main():
             raise ex
 
         finally:
-            # Close the pipe.
-            pipe.Close()
+            # Close the pipe if open.
+            # This will error if the exit condition was a CreateNamedPipe
+            # error, so just wrap it for safety.
+            try:
+                pipe.Close()
+            except Exception as ex:
+                pass
+
             # This should now loop back and restart the pipe, if
             # shutdown wasn't set.
 
@@ -304,8 +318,8 @@ def Pipe_Client_Test():
     # Announce module relative paths.
     # TODO: make it easy to specify an extension being tested.
     modules = [
-        #"extensions/key_capture_api/Send_Keys.py",
-        "extensions/time_api/Time_API.py",
+        "extensions/key_capture_api/Send_Keys.py",
+        #"extensions/time_api/Time_API.py",
         ]
     # Separated with ';', end with a ';'.
     message = ';'.join(modules) + ';'
