@@ -24,7 +24,9 @@ Relies on named pipe library; server side is written in python.
       <!-- Register some shortcuts. -->
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
         $id = 'key_capture_test_space', 
-        $cue = OnKeyPress,
+        $onPress   = OnKeyEvent,
+        $onRelease = OnKeyEvent,
+        $onRepeat  = OnKeyEvent,
         $name = 'Test Space', 
         $description = 'Key Capture test Space',
         $contexts = table[$flying = true],
@@ -32,7 +34,7 @@ Relies on named pipe library; server side is written in python.
 
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
         $id = 'key_capture_test_walk', 
-        $cue = OnKeyPress,
+        $onPress = OnKeyEvent,
         $name = 'Test Walk', 
         $description = 'Key Capture test Walk',
         $contexts = table[$walking = true],
@@ -40,7 +42,7 @@ Relies on named pipe library; server side is written in python.
 
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
         $id = 'key_capture_test_menu', 
-        $cue = OnKeyPress,
+        $onPress = OnKeyEvent,
         $name = 'Test Menu', 
         $description = 'Key Capture test Menu',
         $contexts = table[$menus = true],
@@ -48,7 +50,7 @@ Relies on named pipe library; server side is written in python.
 
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
         $id = 'key_capture_test_api_menu', 
-        $cue = OnKeyPress,
+        $onPress = OnKeyEvent,
         $name = 'Test Simple Menu', 
         $description = 'Key Capture test Simple Menu API',
         $contexts = table[$menu_names = ['SimpleMenu']],
@@ -65,15 +67,17 @@ Relies on named pipe library; server side is written in python.
     </actions>
   </cue>
         
-  <!-- Handle pressed keys. -->
-  <cue name="OnKeyPress" instantiate="true" namespace="this">
+  <!-- Handle press/repeat/release events. -->
+  <cue name="OnKeyEvent" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>    
     <actions>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'shortcut;' + event.param.$id"/>
-      <raise_lua_event name="'directChatMessageReceived'" param="'context;' + event.param.$context"/>
+      <raise_lua_event name="'directChatMessageReceived'" 
+                       param="'key;%s (%s %s)'.[event.param.$id, 
+                                                event.param.$context, 
+                                                event.param.$event]"/>
     </actions>
   </cue>
       

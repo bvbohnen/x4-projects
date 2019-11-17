@@ -26,7 +26,7 @@
         <!-- Register a shortcut with a callback. -->
         <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
           $id = 'kc_target_follow', 
-          $cue = Target_Follow,
+          $onPress = Target_Follow,
           $name = 'Follow Target', 
           $description = 'Turns on autopilot to follow the target'
           ]"/>

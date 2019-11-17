@@ -20,5 +20,8 @@ Change Log
   - Added support for shortcut contexts (flying, walking, menus, or specific menu) where is is valid.
 * 0.13
   - Improved general keycode support, particularly for numpad keys.
+* 0.14
+  - Replaced $cue with $onPress, $onRelease, $onRepeat key events.
+  - Callbacks receive a more detailed table with capture event properties.
 
 

@@ -21,8 +21,8 @@ local Lib = require("extensions.key_capture_api.lua.Library")
 
 -- Local functions and data.
 local debug = {
-    print_keycodes = true,
-    print_keynames = true,
+    print_keycodes = false,
+    print_keynames = false,
 }
 local L = {
     -- Shadow copy of the md's shortcut registry.

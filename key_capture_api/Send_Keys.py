@@ -88,11 +88,6 @@ def main():
     Note: by experience, x4 side sometimes has several seconds of lag
     before processing keys sent.
     '''
-    # Testing keyboard class types/attributes.
-    #a = keyboard.KeyCode(char='a')
-    #shift_l = keyboard.Key.shift_l.value
-
-
     # Set up the pipe and connect to x4.
     pipe = Pipe_Server(pipe_name)
         
@@ -105,49 +100,24 @@ def main():
     # Wait for client.
     pipe.Connect()
 
-    # Announce this as global, since it gets reassigned at one point.
-    global key_buffer
-    # Clear any old data before continuing, since it may have stuff from
-    # the last time x4 was connected.
-    key_buffer.clear()
-    
-    # Max keys in flight to x4, not yet acknowledged.
-    max_keys_piped = 10
-    # Current count of piped keys.
-    keys_piped = 0
-    
-    # List of keys being recorded.
-    # TODO: delete when combo support finished.
-    keys_to_record = set()
-    
-    # See comments on this elsewhere.
-    # Setting a default to make sure this is known.
-    categorized_combo_specs = defaultdict(list)
+    # Set up the listener class object to use.
+    keyboard_listener = Keyboard_Listener()
 
-    # Set of keys (Key or KeyCode) in a pressed state.
-    # Updated when key_buffer is processed.
-    # Note: only tracks keys of interest to the combos. Assumes combos
-    # will not be changing often enough to worry about tracking unused
-    # keys that might be used in the future.
-    keys_down = set()
+    # Set up a key combo processor.
+    combo_processor = Key_Combo_Processor()
 
-    
     # Note: x4 will sometimes send non-ack messages to the pipe, and there
     # is no way to know when they will arrive other than testing it.
     # This cannot be done in one thread with blocking Reads/Writes.
     # While conceptually spinning off a second Read thread will work,
-    # it was tried and failed, as the write thread got stuck on Write
-    # while the read thread was waiting on Read.
+    #  it was tried and failed, as the write thread got stuck on Write
+    #  while the read thread was waiting on Read since both were waiting
+    #  on the same pipe that can only wait on one request.
     # The solution is to set the pipe to non-blocking, and do everything
-    # in a single thread.
+    #  in a single thread.
+    # TODO: maybe revisit if ever changing to paired unidirectional pipes.
     pipe.Set_Nonblocking()
    
-            
-    if 0:
-        key_buffer.append((1,1,'$a'))
-        key_buffer.append((1,1,'$s'))
-        key_buffer.append((1,1,'$d'))
-        key_buffer.append((1,1,'$f'))
 
     try:
         while 1:
@@ -162,10 +132,12 @@ def main():
             if focused_window_title.endswith(window_title):
                 x4_has_focus = True
                 # Start the keyboard listener if not yet running.
-                Start_Keyboard_Listener()
+                keyboard_listener.Start()
 
             else:
                 x4_has_focus = False
+                # Stop the keyboard listener when tabbed out if it is running.
+                keyboard_listener.Stop()
                 # When x4 loses focus, assume all pressed keys are released
                 # upon returning to x4. This addresses the common case of
                 # alt-tabbing out (which leaves alt as pressed when clicking
@@ -173,9 +145,8 @@ def main():
                 # An alternate solution would be to capture all keys even
                 # when x4 lacks focus, but while that was tried and worked,
                 # it was distasteful.
-                keys_down.clear()
-                # Stop the keyboard listener when tabbed out if it is running.
-                Stop_Keyboard_Listener()
+                # Clear key states.
+                combo_processor.Reset_State()
             
 
             # Try to read any data.
@@ -187,28 +158,13 @@ def main():
                 if message == 'ping':
                     pass
 
-                # Acks will update the piped keys counter.
-                # TODO: think about how to make more robust; really want a
-                # way to sample the client pipe fill.
-                # Note: if something messed up x4 side somehow, its md cue may
-                # cancel a read request (sends no ack) but the lua side would
-                # still process the read (gets the combo), in which case a combo
-                # is transferred but not acked.
-                # So, instead of tracking acks, try to think of another approach.
-                # TODO; keys_piped check commented out further below.
-                elif message == 'ack':
-                    keys_piped -= 1
-
                 # Update the key list.
                 elif message.startswith('setkeys:'):
-                    # Each new message has a full key set, so ignore prior keys.
-                    #keys_to_record.clear()
-
-                    # Starts with "setkeys:"; toss that.
+                    # Toss the prefix.
                     message = message.replace('setkeys:', '')
 
                     # Get the new compiled combos.
-                    categorized_combo_specs = Update_Combos(message)
+                    combo_processor.Update_Combos(message)
                     print('Updated combos to: {}'.format(message))
 
                     # TODO: if all keys are unregistered, kill off this thread
@@ -220,37 +176,21 @@ def main():
                 
 
             # If anything is in the key_buffer, process into key combos.
+            key_buffer = keyboard_listener.Retrieve_Key_Buffer()
             if key_buffer:
-
-                # Grab everything out of the key_buffer in one step, to play
-                # more nicely with threading (assume interruption at any time).
-                # Just do this with rebinding.
-                raw_keys = key_buffer
-                key_buffer = []
-
-                print('Processing: {}'.format(raw_keys))
+                print('Processing: {}'.format(key_buffer))
 
                 # Process the keys, updating what is pressed and getting any
                 # matched combos.
-                matched_combos = Process_Key_Events(
-                    key_buffer = raw_keys, 
-                    keys_down = keys_down, 
-                    categorized_combo_specs = categorized_combo_specs)
+                matched_combos = combo_processor.Process_Key_Events(key_buffer)
             
                 # Start transmitting.
                 for combo in matched_combos:
-                    #-Removed; janky and needs better solution.
-                    ## Only go up to the max that can be piped at once.
-                    #if keys_piped >= max_keys_piped:
-                    #    print('Suppressing combo; max pipe reached.')
-                    #    break
-
                     # Transmit to x4.
                     # Note: this doesn't put the '$' back for now, since that
                     # is easier to add in x4 than remove afterwards.
                     print('Sending: ' + combo)
                     pipe.Write(combo)
-                    keys_piped += 1
 
 
             # General pause between checks.
@@ -269,32 +209,49 @@ def main():
 
     finally:
         # Stop the listener when an error occurs, eg. x4 closing.
-        Stop_Keyboard_Listener()
+        keyboard_listener.Stop()
     return
 
 
-# Set up the keyboard listener.
+def Pipe_Client_Test():
+    '''
+    Function to mimic the x4 client.
+    '''
+    pipe = Pipe_Client(pipe_name)
 
-# Buffer of raw keys pressed. Index 0 is oldest press.
-# Each entry is a tuple of:
-# (1 for pressed or 0 released, Key or KeyCode).
-# TODO: maybe some sort of queue with max size that tosses oldest.
-# TODO: rethink buffer limit; it is mostly for safety, but if ever
-# hit it will cause problems with detecting key releases (eg. set
-# of held keys may have false state).
-key_buffer = []
-max_keys_buffered = 50
+    # Pick some keys to capture.
+    # Some given as MD registered string combos, some as ego keycodes.
+    # 286 is shift-a, 82 is numpad 0.
+    keys = 'setkeys:' + ';'.join([
+            '$a onPress',
+            '$a onRepeat',
+            '$a onRelease',
+            '$shift_l a onPress',
+            '$shift_l s onPress',
+            '$ctrl_l d onPress',
+            '$alt_r f onPress',
+            '$code 1 286 0 onPress',
+            '$code 1 82 0 onPress',
+        ]) + ';'
+    pipe.Write(keys)
+
+    # Capture a few characters.
+    for _ in range(50):
+        char = pipe.Read()
+        print(char)
+        pipe.Write('ack')
+            
+    return
+
 
 # Scancode dict.
 # This will map from windows vk codes to keyboard scancodes.
 vk_scancode_mapping = {}
 
-# The listener thread itself.
-listener_thread = None
 
-class Key:
+class Key_Event:
     '''
-    Locally defined Key object.
+    Container for information about a key press or release event.
     This aims to simplify between pynput Key and KeyCode differences,
     and will also record key scancodes.
     Initializes from a pynput key object.
@@ -335,438 +292,475 @@ class Key:
         return
     
     def __repr__(self):
-        return self.name
+        return self.name + ' down' if self.pressed else ' up'
     def __str__(self):
         return repr(self)
 
 
-# Capture key presses into a queue.
-def Buffer_Presses(key_object):
+class Keyboard_Listener():
     '''
-    Function to be called by the key listener on button presses.
-    Kept super simple, due to pynput warning about long callbacks.
+    Class for listening to keyboard inputs.  Wraps pynput's listerner with
+    extra functionality, buffering, and correction for missing info
+    (notably up/down event annotation and key scancodes.
     '''
-    if len(key_buffer) < max_keys_buffered:
-        key_buffer.append( Key(key_object, True))
-    return
+    def __init__(self):
+        # Set up the keyboard listener.
+
+        # Buffer of Key_Events. Index 0 is oldest press.
+        # TODO: rethink buffer limit; it is mostly for safety, but if ever
+        # hit it will cause problems with detecting key releases (eg. set
+        # of held keys may have false state).
+        self.key_buffer = []
+        self.max_keys_buffered = 50
+
+        # The listener thread itself.
+        self.listener_thread = None
+
+
+    def Retrieve_Key_Buffer(self):
+        '''
+        Returns the current contents of the key buffer, and empty the buffer.
+        '''
+        # Grab everything out of the key_buffer in one step, to play
+        # more nicely with threading (assume interruption at any time).
+        # Just do this with rebinding.
+        ret_val = self.key_buffer
+        self.key_buffer = []
+        return ret_val
+
+    # Capture key presses into a queue.
+    def Buffer_Presses(self, key_object):
+        '''
+        Function to be called by the key listener on button presses.
+        Kept super simple, due to pynput warning about long callbacks.
+        '''
+        if len(self.key_buffer) < self.max_keys_buffered:
+            self.key_buffer.append( Key_Event(key_object, True))
+        return
     
-def Buffer_Releases(key_object):
-    '''
-    Function to be called by the key listener on button releases.
-    Kept super simple, due to pynput warning about long callbacks.
-    '''
-    if len(key_buffer) < max_keys_buffered:
-        key_buffer.append( Key(key_object, False))
-    return
-
-def Keypress_Precheck(msg, data):
-    '''
-    Function to be called whenever pynput detects an input event.
-    Should return True to continue processing the event, else False.
-    From a glance at pynput source, this might be called significantly
-    ahead of the on_press and on_release callbacks.
-
-    This is mainly used to try to get more key information, since normal
-    pynput KeyPress objects use windows keycodes which don't distinguish
-    all keys (eg. enter vs numpad_enter).
-
-    Event scanCodes will be added to vk_scancode_mapping, overwriting
-    any existing entry.
-    '''
-    # 'data' is a dict with keys matching those in KBLLHOOKSTRUCT:
-    # https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-kbdllhookstruct
-    # Pynput normally returns the vkCode, but scanCode will better match
-    # up with x4.
-    # Note: goal was to have scancode differ between 'enter' and 'numpad_enter',
-    # but in practice even at this low level windows will conflate the two,
-    # and just returns the scancode for the normal 'enter' key always.
-    vk_scancode_mapping[data.vkCode] = data.scanCode
-    return True
-
-
-def Start_Keyboard_Listener():
-    '''
-    Start up the keyboard listener thread if it isn't running already.
-    Warning: multiple server restarts making fresh listeners led to
-    pynput getting in some buggy state where it only returned codes
-    instead of letters (eg. b'\x01' instead of 'a').
-    '''
-    global listener_thread
-
-    # Return early if a thread is already set up.
-    if listener_thread:
+    def Buffer_Releases(self, key_object):
+        '''
+        Function to be called by the key listener on button releases.
+        Kept super simple, due to pynput warning about long callbacks.
+        '''
+        if len(self.key_buffer) < self.max_keys_buffered:
+            self.key_buffer.append( Key_Event(key_object, False))
         return
 
-    print('Starting keyboard listener')
-    # Start the listener thread.
-    listener_thread = keyboard.Listener(
-        on_press   = Buffer_Presses,
-        on_release = Buffer_Releases,
-        win32_event_filter = Keypress_Precheck)
+    def Event_Precheck(self, msg, data):
+        '''
+        Function to be called whenever pynput detects an input event.
+        Should return True to continue processing the event, else False.
+        From a glance at pynput source, this might be called significantly
+        ahead of the on_press and on_release callbacks.
 
-    listener_thread.start()
-    return
+        This is mainly used to try to get more key information, since normal
+        pynput KeyPress objects use windows keycodes which don't distinguish
+        all keys (eg. enter vs numpad_enter).
+
+        Event scanCodes will be added to vk_scancode_mapping, overwriting
+        any existing entry.
+        '''
+        # 'data' is a dict with keys matching those in KBLLHOOKSTRUCT:
+        # https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-kbdllhookstruct
+        # Pynput normally returns the vkCode, but scanCode will better match
+        # up with x4.
+        # Note: goal was to have scancode differ between 'enter' and 'numpad_enter',
+        # but in practice even at this low level windows will conflate the two,
+        # and just returns the scancode for the normal 'enter' key always.
+        vk_scancode_mapping[data.vkCode] = data.scanCode
+        return True
 
 
-def Stop_Keyboard_Listener():
+    def Start(self):
+        '''
+        Start up the keyboard listener thread if it isn't running already.
+        '''
+        # Return early if a thread is already set up.
+        if self.listener_thread:
+            return
+
+        print('Starting keyboard listener')
+        # Start the listener thread.
+        self.listener_thread = keyboard.Listener(
+            on_press   = self.Buffer_Presses,
+            on_release = self.Buffer_Releases,
+            win32_event_filter = self.Event_Precheck)
+
+        self.listener_thread.start()
+        return
+
+
+    def Stop(self):
+        '''
+        Stop any currently running keyboard listener, and clears any
+        currently buffered keys.
+        '''
+        if self.listener_thread:
+            print('Stopping keyboard listener')
+            self.listener_thread.stop()
+            self.key_buffer.clear()
+            # Can't reuse these threads, so just release and start a fresh
+            # one when needed.
+            self.listener_thread = None
+        return
+
+
+class Key_Combo:
     '''
-    Stop any currently running keyboard listener.
+    A key combination to listen for, as requested by x4.
+
+    Attributes:
+    * name
+      - Name of the combo, as sent from x4.
+    * key_codes
+      - List of scancodes for this combo.
+    * event
+      - String, key event to look for.
+      - onPress, onRelease, onRepeat
+    * mod_flags
+      - Int, 1-hot vector signifying which modifier keys are used in
+        this combo.
+      - Ordering of bits depends on order of "_mod_keys" list.
+    * active
+      - Bool, if this combo is currently active: was pressed and has not
+        yet been released.
     '''
-    global listener_thread
-    if listener_thread:
-        print('Stopping keyboard listener')
-        listener_thread.stop()
-        # Can't reuse these, so just release and start a fresh
-        # one when needed.
-        listener_thread = None
-    return
+    def __init__(self, name, key_codes, event):
+        self.name = name
+        self.key_codes = key_codes
+        self.event = event
+        self.active = False
 
-
-def Update_Combos(message):
-    '''
-    From a suitable "setkeys:" message, compile into the pynput
-    key objects it represents, and update the watched-for combos.
-
-    Returns categorized_combo_specs, a dict of lists of tuples of 
-    (combo name from a message, compiled list of corresponding pynput keys),
-    and keyed by a 6-bit category code matching to which ctrl-alt-shift
-    modifier keys must be pressed for the combo.
-    A given combo name may be present multiple times, for variations on its 
-    compiled combo list.
-    '''
-    combo_specs = []
-
-    # If all key/combos have been cleared, the rest of the message is blank.
-    if not message:
-        # Return early.
-        return combo_specs
-
-    # Expect each key combo to be prefixed with '$' and end with
-    #  ';'.  Can separate on ';$', ignoring first and last char.
-    # Note: any '$' or ';' in the combo itself is fine, since they
-    #  will always be required to be space separated, and so won't
-    #  get matched here.
-    combos_requested = message[1:-1].split(';$')
-
-    # Compile these into pynput keys.
-    for combo_string in combos_requested:
-        # Collect the combo groups; each combo_string may make multiple.
-        # Skip any with errors.
-        try:
-            for combo in Compile_Combo(combo_string):
-                combo_specs.append((combo_string, combo))
-        except Exception as ex:
-            print('Error when handling combo {}, exception: {}'.format(combo_string, ex))
-            continue
-
-
-    # Categorize combos based on the modifier keys used.
-    # For variants of modifier keys, encode into an integer category label.
-    categorized_combo_specs = defaultdict(list)
-    for combo_spec in combo_specs:
-
-        # Category code; starts at 0, gets bits set.
-        category = 0
+        # Set modifier flags here.
+        # Code; starts at 0, gets bits set.
+        self.mod_flags = 0
         # Check each modifier.
-        for index, mod_key in enumerate(mod_keycodes):
-            if mod_key in combo_spec[1]:
+        for index, mod_key in enumerate(_mod_keycodes):
+            if mod_key in key_codes:
                 # Set a bit for this position.
-                category += (1 << index)
-
-        # Add this combo to the dict.
-        categorized_combo_specs[category].append(combo_spec)
-
-    return categorized_combo_specs
+                self.mod_flags += (1 << index)
+        return
 
 
-
-def Compile_Combo(combo_string):
+class Key_Combo_Processor:
     '''
-    Translates a key/combo string from x4 into separate key strings, 
-    with generic shift-alt-ctrl keys being uniquified. Normal alphanumeric
-    entries are kept as strings, but special keys will be remapped to
-    their integer key codes.
+    Process key combos, including parsing messages from x4 which set
+    the combos to look for, and checking captured key presses for
+    matches to these combos.
 
-    Returns a list of lists of strings and integers.
+    Atteributes:
+    * key_combo_list
+      - List of Key_Combo objects being checked.
+    * keys_in_combos
+      - List of key scancodes involved in the combos, along with all
+        modifier keys, to be used for filtering out don't-care events.
+    * keys_down
+      - List of scancodes that were pressed but not released yet.
     '''
-    '''
-    Note on generic keyname combos:
+    def __init__(self):
+        # Recorded combos.
+        self.key_combo_list = []
+        
+        # Set of keycodes involved in any combos, and modifiers.
+        self.keys_in_combos = set()
 
-        For a combo to be matched on a key press, all earlier keys in
-        the combo must be in a pressed state when the final key of the
-        combo is pressed.
+        # Set of keys (Key or KeyCode) in a pressed state.
+        # Updated when key_buffer is processed.
+        # Note: only tracks keys of interest to the combos. Assumes combos
+        # will not be changing often enough to worry about tracking unused
+        # keys that might be used in the future.
+        self.keys_down = set()
+        return
 
-        Input combos are represented using a mix of alphanumeric characters and
-        names of Keys from https://pynput.readthedocs.io/en/latest/keyboard.html
-        Eg. 'space', 'shift_l', etc.
+    def Reset_State(self):
+        '''
+        Reset key states, for use when x4 loses focus and the keyboard
+        listener has stopped, which will cause state to be invalid.
+        '''
+        # Set all combos as inactive.
+        for combo in self.key_combo_list:
+            combo.active = False
+        # Clear held keys.
+        self.keys_down.clear()
+        return
 
-        Each key in an input combo will be separated by a space (' ') character;
-        spacebar itself would be 'space'.
-        Eg. "shift_l a" or "space +".    
 
-        Each single-letter key name is treated as alphanumeric, while multi-letter
-        key names are mapped to special keys (shift, space, etc.).
+    def Update_Combos(self, message):
+        '''
+        From a suitable "setkeys:" message, compile into the pynput
+        key objects it represents, and update the watched-for combos.
+        Overwrites any prior recorded combos.
+        '''
+        # Don't reuse old combos; each message should be a fully complete
+        # list of currently desired combos.
+        self.key_combo_list.clear()
+        self.keys_in_combos.clear()
 
-        For now, these key names will not distinguish between numpad
-        inputs and normal keys.
+        # If all key/combos have been cleared, the rest of the message is blank.
+        if not message:
+            return
 
-    Note on egosoft keycodes:
+        # Expect each key combo to be prefixed with '$' and end with
+        #  ';'.  Can separate on ';$', ignoring first and last char.
+        # Note: any '$' or ';' in the combo itself is fine, since they
+        #  will always be required to be space separated, and so won't
+        #  get matched here.
+        combos_requested = message[1:-1].split(';$')
+        
+        # Compile message strings to codes.
+        for combo_string in combos_requested:
+            # Collect the combo groups; each combo_string may make multiple,
+            #  in cases where ambiguous modifier keys are uniquified
+            #  (eg. 'ctrl' to 'ctrl_r' and 'ctrl_l' versions).
+            # Skip any with errors.
+            try:
+                self.key_combo_list += self.Compile_Combo(combo_string)
+            except Exception as ex:
+                print('Error when handling combo {}, exception: {}'.format(combo_string, ex))
+                continue
 
+        # Update the list of keys to watch.
+        for combo in self.key_combo_list:
+            self.keys_in_combos.update(combo.key_codes)
+        # Include modifiers always, left/right variations.
+        self.keys_in_combos.update(_mod_keycodes)
+
+        return
+
+
+    def Compile_Combo(self, combo_msg):
+        '''
+        Translates a key/combo string from x4 into key scancode lists, 
+        with generic shift-alt-ctrl keys being uniquified into left/right
+        versions.
+
+        Returns a list of Key_Combo objects.
+        Throws an exception on unrecognized key names.
+        '''
+        # Pick off the suffixed event type.
+        combo_string, event_name = combo_msg.rsplit(' ', 1)
+        # Check it; skip if bad.
+        if event_name not in ['onPress', 'onRelease', 'onRepeat']:
+            print('Unrecognized event for combo: {}',format(combo_msg))
+            return []
+
+        # Process egosoft keycodes.
+        # Aim is to unify their format with generic key combo strings, so
+        # both can share the subsequent code.
+        if combo_string.startswith('code '):
+            key_name_list = self.Ego_Keycode_To_Combo(combo_string)
+        else:
+            # Break out the requested keys by spacing.
+            key_name_list = combo_string.split()
+    
+
+        # For generic shift-alt-ctrl, uniquify them into left/right
+        # versions. This could potentially generate up to 6 sub-combos
+        # if all such keys are used.
+        # Note: scancodes are not duplicated between left/right keys, so
+        # this shouldn't have a danger of creating duplicate code combos.
+        # Process combo_names into a new list of lists.
+        # Seed this with a single empty list.
+        key_name_list_list = [[]]
+        for key_name in key_name_list:
+            if key_name in ['shift','alt','ctrl']:
+
+                # Duplicate the existing groups.
+                l_combos = copy.deepcopy(key_name_list_list)
+                r_combos = copy.deepcopy(key_name_list_list)
+
+                # Append uniquified names.
+                for groups, suffix in zip([l_combos, r_combos], ['_l','_r']):
+                    for group in groups:
+                        group.append(key_name + suffix)
+                # Stick the new groups together again.
+                key_name_list_list = l_combos + r_combos
+            else:
+                # Add the name to all groups.
+                for group in key_name_list_list:
+                    group.append(key_name)
+                
+
+        # Handle the key name to combo mapping.
+        combo_list = []
+        for key_name_list in key_name_list_list:
+    
+            # Map names to scancodes.
+            # Skip empty key names, which may be the result of double
+            # spacing in the message.
+            # Unrecognized entries will have a dict key lookup error.
+            scancodes = [_name_to_scancode_dict[x]
+                            for x in key_name_list if x]
+
+            # Pack into a Key_Combo and record.
+            combo_list.append(Key_Combo(combo_msg, scancodes, event_name))
+
+        return combo_list
+
+
+
+    def Process_Key_Events(self, key_buffer):
+        '''
+        Processes raw key presses/releases captured into key_buffer,
+        updating keys_down and matching to combos in combo_specs.
+        Returns a list of combos names matched, using the original
+        names from x4.
+
+        * key_buffer
+          - List of Keys that were captured since the last processing.
+        '''
+        matched_combo_names = []
+    
+        # Loop over the key events in recorded order.
+        for key_event in key_buffer:
+
+            # Use the scancode for the key tracking.
+            key = key_event.code
+        
+            # If key is not of interest, ignore it.
+            if key not in self.keys_in_combos:
+                continue
+
+            # Update pressed/released state.
+            # Note: a raw modifier key (eg. shift_l) will be categorized as
+            # needing itself held down, so update keys_down prior to
+            # checking the combos to simplify following logic.
+            if key_event.pressed:
+                self.keys_down.add(key)
+            elif key in self.keys_down:
+                self.keys_down.remove(key)
+            print('Keys down: {}'.format(self.keys_down))
+
+
+            # The first pass logic will group combos into those
+            # matched, held, unheld.
+            # - Held: keys all pressed, other modifiers unpressed, but last key
+            #   is not the latest key (should have had a press event earlier).
+            # - Matched: as Held, but last key is the latest key.
+            # - Unheld: everything else.
+            # Checking these categories against the prior held combos will
+            #  determine which ones are pressed (newly held), repeated
+            #  (already held), released (no longer held).
+            combos_held    = []
+            combos_matched = []
+            combos_unheld  = []
+
+        
+            # Get which modifier keys are currently held, and their
+            #  corresponding category code.
+            mod_flags = 0
+            # Check each modifier.
+            for index, mod_key in enumerate(_mod_keycodes):
+                if mod_key in self.keys_down:
+                    # Add a 1-hot bit.
+                    mod_flags += (1 << index)
+
+
+            # Check the combos for state updates.
+            for combo in self.key_combo_list:
+
+                # Determine if this combo is currently held.
+                held = False
+                # Make sure the mod_flags match.
+                if combo.mod_flags == mod_flags:
+                    # Check all keys being pressed.
+                    held = all(x in self.keys_down for x in combo.key_codes)
+
+                # Common case: not held and was not active, so idle.
+                # Quick checking this, though somewhat redundant with
+                # logic below.
+                if not held and not combo.active:
+                    continue
+
+                # Determine if this combo is being triggered, eg. the last
+                # combo key was pressed.
+                triggered = held and key == combo.key_codes[-1]
+
+                # Determine event trigger to match, and update combo active
+                # state.
+                if triggered:
+                    # Was newly pressed if not already active, else it is
+                    # being repeated.
+                    event = 'onPress' if not combo.active else 'onRepeat'
+                    combo.active = True
+                elif held:
+                    # Being held, but not a new trigger, so this can
+                    # be ignored.
+                    event = None
+                else:
+                    # Was released if it was formerly active.
+                    event = 'onRelease' if combo.active else None
+                    combo.active = False
+
+                # If the event matches what the combo is looking for, then
+                # can signal it back to x4.
+                if combo.event == event:
+                    matched_combo_names.append(combo.name)
+
+        return matched_combo_names
+
+    
+    @staticmethod
+    def Ego_Keycode_To_Combo(combo_string):
+        '''
+        Takes a combo_string from egosoft's input capture, and translates
+        to a key combo. Returns a list with 1-3 items: 'shift' and 'ctrl'
+        as optional modifiers, and the string name of the main key.
+
+        The combo_string should begin with "code ".
+        '''
+        '''
         These come from using the ego menu system, and have the form:
             "code <input type> <key code> <sign>"
         For keyboard inputs, type is always 1, sign is always 0.
         So for now, the expected form is:
             "code 1 <key code> 0"
 
-        Keycodes use standard keyboard encoding, which differs from the OS
-        codes and those used by pynput.
-        Further, modifiers for shift and ctrl are baked into the keycode's
-        high byte:
+        Keycodes use standard keyboard scancodes.
+        Modifiers for shift and ctrl are baked into the keycode's high byte:
             shift: 0x100
             ctrl : 0x400
-
-        Numpad keys will use different keycodes than standard keys.
-
-    '''
-    # Process egosoft keycodes.
-    # Aim is to unify their format with generic key combo strings, so
-    # both can share the subsequent code.
-    if combo_string.startswith('code '):
-        combo = Ego_Keycode_To_Combo(combo_string)
-    else:
-        # Break out the requested keys by spacing.
-        combo = combo_string.split()
+        '''
+        assert combo_string.startswith('code ')
     
-    # For generic shift-alt-ctrl, uniquify them into left/right
-    # versions. This could potentially generate up to 6 sub-combos
-    # if all such keys are used.
-    # Process combo_names into a new list of lists.
-    # Seed this with a single empty list.
-    combo_list = [[]]
-    for name in combo:
-        if name in ['shift','alt','ctrl']:
+        # Obtain the generic keyboard keycode, the third term.
+        # Convert this from string to int.
+        keycode = int(combo_string.split()[2])
 
-            # Triplicate all groups.
-            bare_combos = combo_list
-            l_combos = copy.deepcopy(combo_list)
-            r_combos = copy.deepcopy(combo_list)
+        # Convert into a new generic combo list.
+        combo = []
 
-            # Add uniquified names.
-            # Left, right, and unsuffixed versions are kept.
-            for groups, suffix in zip([bare_combos, l_combos, r_combos], ['','_l','_r']):
-                for group in groups:
-                    group.append(name + suffix)
-            # Stick the new groups together again.
-            combo_list = bare_combos + l_combos + r_combos
+        # Isolate modifiers.
+        # Note: ego code doesn't distinguish between left/right keys.
+        # Ctrl at 0x400.
+        if keycode & 0x400:
+            keycode -= 0x400
+            combo.append('ctrl')
 
-        else:
-            # Add the name to all groups.
-            for group in combo_list:
-                group.append(name)
-                
+        # Shift at 0x100.
+        if keycode & 0x100:
+            keycode -= 0x100
+            combo.append('shift')
 
-    # Map the named keys to pynput keycodes.
-    # In practice, this will mean alphanumeric keys remain strings, but
-    # special keys map to integers.
-    # TODO: alphanumeric also as keycodes.
-    encoded_combo_list = []
-    for combo in combo_list:
-    
-        # Wrap this in case of getting bad combos, like a "null" for an
-        # unfilled mission director var.
-        try:
-            # Set up a list for these keys, and add to the list of combos.
-            encoded_combo = []
-    
-            # Map to Key and KeyCode objects.
-            for key_name in combo:
-    
-                # If empty, something weird happened like double spacing in the
-                #  user input. Treat that as okay, but ignore this split element.
-                if not key_name:
-                    continue
+        # Convert the remainder to a key name.
+        # Note: shortly after this the name will convert back into a code,
+        #  which will be the same for most keys, but some aliased keys will
+        #  get swapped to the windows returned scancode.
+        keyname = _scancode_to_name_dict.get(keycode, None)
+        # Error if the keyname not supported.
+        if not keyname:
+            raise Exception("Ego keycode {} not supported".format(keycode))
+        combo.append(keyname)
 
-                # Translate to a scancode.
-                code = _name_to_scancode_dict.get(key_name, None)
-                assert code
+        return combo
 
-                # -Removed; standardized key scancode handling earlier.
-                ## If the name is a special name to map to a virtual key
-                ## manually, look it up here.
-                ## This is mainly for numpad inputs, which pynput doesn't
-                ## distinguish from normal key names.
-                #if key_name in _keyname_to_vk_dict:
-                #    key = _keyname_to_vk_dict[key_name]    
-                #
-                ## Single letters are alphanumeric.
-                ## There is no way to translate this into a virtual key,
-                ##  since packing it into a KeyCode will just create that
-                ##  object with a defined 'char' but no 'vk'.
-                ## So, keep these letters as-is.
-                #elif len(key_name) == 1:
-                #    key = key_name
-                #
-                ## Longer names will map to existing defined pynput
-                ## keys (shift, enter, etc.).
-                #else:
-                #    # Look up the enumerator entry, get its value, a KeyCode.
-                #    # From the KeyCode, use the vk attribute for the integer
-                #    # key value.
-                #    key = getattr(keyboard.Key, key_name).value.vk
-    
-                encoded_combo.append(code)
-            
-            # It is possible this encoded_combo is already present, due
-            #  to modifier keycode aliasing.
-            # Only record the new combo if unique.
-            if not any(encoded_combo == x for x in encoded_combo_list):
-                encoded_combo_list.append(encoded_combo)
-
-        except Exception as ex:
-            print("Error processing combo '{}', exception: {}".format(combo, ex))
-            
-    return encoded_combo_list
-
-
-def Process_Key_Events(key_buffer, keys_down, categorized_combo_specs):
-    '''
-    Processes raw key presses/releases captured into key_buffer,
-    updating keys_down and matching to combos in combo_specs.
-    Returns a list of combos matched, using string names from
-    the categorized_combo_specs entries.
-    '''
-    matched_combo_names = []
-
-    # Translate combo_dict into a set of keys of interest.
-    # TODO: do this once when combo_specs built and reuse.
-    keys_in_combos = set()
-    for combo_specs in categorized_combo_specs.values():
-        for _, combo in combo_specs:
-            keys_in_combos.update(combo)
-    # Include modifier always, left/right variations.
-    keys_in_combos.update(mod_keycodes)
-
-
-    # Loop over the key events in recorded order.
-    for key_event in key_buffer:
-
-        # Use the scancode for the key tracking.
-        key = key_event.code
-        
-        # If key is not of interest, ignore it.
-        if key not in keys_in_combos:
-            continue
-
-        # Update pressed/released state.
-        # Note: a raw modifier key (eg. shift_l) will be categorized as
-        # needing itself held down, so update keys_down prior to
-        # checking the combos.
-        if key_event.pressed:
-            keys_down.add(key)
-        elif key in keys_down:
-            keys_down.remove(key)
-
-
-        # On press, match up against combos.
-        if key_event.pressed:
-
-            # Get which modifier keys are currently held, and their
-            #  corresponding category code.
-            category = 0
-            # Check each modifier.
-            for index, mod_key in enumerate(mod_keycodes):
-                if mod_key in keys_down:
-                    # Add a 1-hot bit.
-                    category += (1 << index)
-
-            print('Keys down: {}'.format(keys_down))
-
-            # Use the appropriate combo category, to filter out those
-            # that don't match the modifiers held.
-            combo_specs = categorized_combo_specs[category]
-            for name, combo in combo_specs:
-                # Ignore if this isn't the last key of the combo.
-                if key != combo[-1]:
-                    continue
-
-                # All combo keys before the last need to be down.
-                # Note: this ends up duplicating checks of modifier keys
-                #  for now, but is handy to catch a mod key as a standalone.
-                if all(x in keys_down for x in combo[1:]):
-                    # This is a combo match.
-                    matched_combo_names.append(name)                        
-
-    return matched_combo_names
-
-
-def Ego_Keycode_To_Combo(combo_string):
-    '''
-    Takes a combo_string from egosoft's input capture, and translates
-    to a key combo. Returns a list with 1-3 items: 'shift' and 'ctrl'
-    as optional modifiers, and the string name of the main key.
-
-    The combo_string should begin with "code ".
-    '''
-    assert combo_string.startswith('code ')
-    
-    # Obtain the generic keyboard keycode.
-    # Convert this from string to int.
-    keycode = int(combo_string.split()[2])
-
-    # Convert into a new generic combo list.
-    combo = []
-
-    # Isolate modifiers.
-    # Note: ego code doesn't distinguish between left/right keys.
-    # Ctrl at 0x400.
-    if keycode & 0x400:
-        keycode -= 0x400
-        combo.append('ctrl')
-
-    # Shift at 0x100.
-    if keycode & 0x100:
-        keycode -= 0x100
-        combo.append('shift')
-
-    # Convert the remainder to a key name.
-    # Note: shortly after this the name will convert back into a code,
-    #  which will be the same for most keys, but some aliased keys will
-    #  get swapped to the windows returned scancode.
-    keyname = _scancode_to_name_dict.get(keycode, None)
-    # Error if the keyname not supported.
-    if not keyname:
-        raise Exception("Ego keycode {} not supported".format(keycode))
-    combo.append(keyname)
-
-    return combo
-
-
-def Pipe_Client_Test():
-    '''
-    Function to mimic the x4 client.
-    '''
-    pipe = Pipe_Client(pipe_name)
-
-    # Pick some keys to capture.
-    # Some given as MD registered string combos, some as ego keycodes.
-    # 286 is shift-a, 82 is numpad 0.
-    keys = 'setkeys:$a;$shift_l a;$shift_l s;$ctrl_l d;$alt_r f;$code 1 286 0;$code 1 82 0;'
-    pipe.Write(keys)
-
-    # Capture a few characters.
-    for _ in range(50):
-        char = pipe.Read()
-        print(char)
-        pipe.Write('ack')
-            
-    return
 
 
 
 # Dict mapping egosoft keycodes to key name strings understood by pynput.
 # Ego keys appear to match this (excepting special shift/ctrl handling):
 #  https://github.com/wgois/OIS/blob/master/includes/OISKeyboard.h
-# TODO: think about numpad keys.
 # TODO: maybe put in another python module.
 # TODO: maybe decimal instead of hex, to make easier to debug.
 _scancode_to_name_dict = {    
@@ -930,32 +924,9 @@ _name_to_scancode_dict = { v:k for k,v in sorted(_scancode_to_name_dict.items(),
 # List of modifier key names, used a couple places to categorize key combos.
 # These are left/right versions, as well as the plain version, since
 # 'shift' was observed to be returned plain for left-shift.
-mod_keys = ['alt_l','alt_r',
+_mod_keys = ['alt_l','alt_r',
             'ctrl_l','ctrl_r',
             'shift_l','shift_r',]
 # The associated integer key codes.
-mod_keycodes = [_name_to_scancode_dict[x] for x in mod_keys]
+_mod_keycodes = [_name_to_scancode_dict[x] for x in _mod_keys]
 
-
-# -Removed; working in scancodes earlier.
-# Dict mapping special keynames to virtual keycodes.
-# Codes found at:
-# https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-# These are also present in pynput._util.win32_vks.py.
-#_keyname_to_vk_dict = {
-#    'num_0' : 0x60,
-#    'num_1' : 0x61,
-#    'num_2' : 0x62,
-#    'num_3' : 0x63,
-#    'num_4' : 0x64,
-#    'num_5' : 0x65,
-#    'num_6' : 0x66,
-#    'num_7' : 0x67,
-#    'num_8' : 0x68,
-#    'num_9' : 0x69,
-#    'win_l' : 0x5B,
-#    'win_r' : 0x5C,
-#    }
-## Convenience reversal of the above dict, mostly for keycodes as dict keys
-## for easy definition checks.
-#_vk_to_keyname_dict = { v:k for k,v in _keyname_to_vk_dict.items()}
