@@ -78,6 +78,7 @@ release_files_specs = {
             'key_capture_api/md/KC_Extra_Commands.xml',
             'key_capture_api/lua/Key_Capture.lua',
             'key_capture_api/lua/Library.lua',
+            'key_capture_api/lua/Tables.lua',
         ]},
     'Lua_Loader_API':{ 
         'root_path':project_dir / 'X4_Lua_Loader_API', 
@@ -113,7 +114,9 @@ release_files_specs = {
             'Readme.md',
             'time_api/content.xml',
             'time_api/md/Time_API.xml',
-            'time_api/Time_API.lua',
+            'time_api/lua/Interface.lua',
+            'time_api/lua/Pipe_Time.lua',
+            'time_api/Time_API.py',
         ]},
     }
 
