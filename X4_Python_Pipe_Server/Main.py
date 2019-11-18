@@ -53,10 +53,11 @@ if str(home_path) not in sys.path:
     sys.path.append(str(home_path))
 
     
-from X4_Python_Pipe_Server.Servers import Test1
+#from X4_Python_Pipe_Server.Servers import Test1
 #from X4_Python_Pipe_Server.Servers import Send_Keys
 from X4_Python_Pipe_Server.Classes import Server_Thread
 from X4_Python_Pipe_Server.Classes import Pipe_Server, Pipe_Client
+from X4_Python_Pipe_Server.Classes import Client_Garbage_Collected
 import win32api
 import winerror
 import win32file
@@ -124,6 +125,10 @@ def Main():
                 # A ping will be sent first, testing the pipe from x4 side.
                 if message == 'ping':
                     pass
+
+                # Handle restart requests similar to pipe disconnect exceptions.
+                elif message == 'restart':
+                    raise Reset_Requested()
             
                 elif message.startswith('package.path:'):
                     message = message.replace('package.path:','')
@@ -199,31 +204,42 @@ def Main():
                             print('Module lacks "main()": {}'.format(module_path))
 
 
-        except win32api.error as ex:
-            # These exceptions have the fields:
+        except (win32api.error, Client_Garbage_Collected) as ex:
+            # win32api.error exceptions have the fields:
             #  winerror : integer error code (eg. 109)
             #  funcname : Name of function that errored, eg. 'ReadFile'
             #  strerror : String description of error
 
-            # If another host was already running, there will have been
-            # an error when trying to set up the pipe.
-            if ex.funcname == 'CreateNamedPipe':
-                print('Pipe creation error. Is another instance already running?')
-                shutdown = True
-
             # If just in testing mode, assume the tests completed and
             #  shut down.
-            elif test_python_client:
-                print('Pipe client disconnected; stopping test.')
+            if test_python_client:
+                print('Stopping test.')
                 shutdown = True
 
+            elif isinstance(ex, Client_Garbage_Collected):
+                print('Pipe client garbage collected, restarting.')
+                
+            # If another host was already running, there will have been
+            # an error when trying to set up the pipe.
+            elif ex.funcname == 'CreateNamedPipe':
+                print('Pipe creation error. Is another instance already running?')
+                shutdown = True
+                
             # If X4 was reloaded, this results in a ERROR_BROKEN_PIPE error
             # (assuming x4 lua was wrestled into closing its pipe properly
             #  on garbage collection).
+            # Update: as of x4 3.0 or so, garbage collection started crashing
+            #  the game, so this error is only expected when x4 shuts down
+            #  entirely.
             elif ex.winerror == winerror.ERROR_BROKEN_PIPE:
                 # Keep running the server.
-                print('Pipe client disconnected, restarting.')
-
+                print('Pipe client disconnected.')
+                
+            # This should now loop back and restart the pipe, if
+            # shutdown wasn't set.
+            if not shutdown:
+                print('Restarting host.')
+                
         except Exception as ex:
             # Any other exception, reraise for now.
             raise ex
@@ -236,9 +252,18 @@ def Main():
                 pipe.Close()
             except Exception as ex:
                 pass
+            
+            # Let subthreads keep running; they internally loop.
+            #if threads:
+            #    print('Shutting down subthreads.')
+            ## Close all subthreads.
+            #for thread in threads:
+            #    thread.Close()
+            ## Wait for closures to complete.
+            #for thread in threads:
+            #    thread.Join()
 
-            # This should now loop back and restart the pipe, if
-            # shutdown wasn't set.
+
 
     #base_thread = Server_Thread(Control)
 

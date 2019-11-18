@@ -10,11 +10,18 @@ import win32pipe
 # This reads/writes the pipe file.
 import win32file
 
+from .Misc import Client_Garbage_Collected
 
 class Pipe:
     '''
     Base class for Pipe_Server and Pipe_Client.
     Aims to implement any shared functionality.
+
+    TODO: switch to paired unidirectional pipes instead of a single
+    bidirectional pipe, to better match what linux would need, and
+    to enable servers to set parallel read/write threads without them
+    blocking each other by trying to use the same pipe (eg. pipe
+    waiting to be Read will obstruct to other thread trying to Write)
     
     Parameters:
     * pipe_name
@@ -51,6 +58,9 @@ class Pipe:
         '''
         Read a message from the open pipe.
         This will block unless Set_Nonblocking has been called.
+
+        Raises Client_Garbage_Collected exception if this gets a
+        "garbage_collected" message.
         '''
         # Get byte data, up to the size of the buffer.
         # Non-blocking reads raise ERROR_NO_DATA if the pipe is empty.
@@ -70,6 +80,9 @@ class Pipe:
             else:
                 # Re-raise other exceptions.
                 raise ex
+
+        if message == 'garbage_collected':
+            raise Client_Garbage_Collected()
         return message
 
     

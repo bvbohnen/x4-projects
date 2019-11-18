@@ -1,5 +1,19 @@
 --[[
     Functionality for opening, reading, writing to pipes.
+
+    TODO: getting repeatable crash when:
+    -1 start host
+    -2 let x4 connect
+    -3 reloadui, reconnect okay
+    -4 restart host
+    -5 tabbing back into game crashes, though pipe does initially reconnect
+       and ping okay. No messages in x4 log.
+    - doesn't crash if just continually restarting the host.
+    - doesn't crash if just continually doing reloadui
+    - somehow the interaction crashes?
+    - Also noticed to crash if restarting host first, then doing reloadui.
+    - TODO: try disabling keycapture and time apis, and recreate crash
+      with just the main host pipe.
 ]]
 
 local debug = {    
@@ -29,6 +43,8 @@ local winpipe = require("winpipe")
 local Lib = require("extensions.named_pipes_api.lua.Library")
 FIFO = Lib.FIFO
 
+local Time = require("extensions.time_api.lua.Interface")
+
 
 -- Local functions and state. These are returned on require().
 local L = {
@@ -47,25 +63,27 @@ Pipe state objects, generally alive while the link is set up.
 Keys are the pipe names sent from the MD side, without path extension.
     
 Each entry is a subtable with these fields:
+* name
+  - Name of the pipe.
 * file
-    - File object to read/write/close.
+  - File object to read/write/close.
 * retry_allowed
-    - Bool, if a failed access is allowed one retry.
-    - Set prior to an access attempt if the pipe was already open, but
+  - Bool, if a failed access is allowed one retry.
+  - Set prior to an access attempt if the pipe was already open, but
     is not known to be still connected.
-    - On a retry attempt, this flag should be cleared.
+  - On a retry attempt, this flag should be cleared.
 * suppress_reads_when_paused
-    - Bool, if true then messages read during a game pause are thrown away.
+  - Bool, if true then messages read during a game pause are thrown away.
 * read_fifo
-    - FIFO of callback IDs or function handles for read completions.
-    - Callback ID is a string.
-    - Function handle is for any lua function, taking 1 argument.
-    - Entries removed as reads complete.
-    - When empty, stop trying to read this pipe.
+  - FIFO of callback IDs or function handles for read completions.
+  - Callback ID is a string.
+  - Function handle is for any lua function, taking 1 argument.
+  - Entries removed as reads complete.
+  - When empty, stop trying to read this pipe.
 * write_fifo
-    - FIFO of lists of [callback ID, message pending writing]
-    - Entries removed as writes complete succesfully or fail completely.
-    - When empty, stop trying to write this pipe.
+  - FIFO of lists of [callback ID, message pending writing]
+  - Entries removed as writes complete succesfully or fail completely.
+  - When empty, stop trying to write this pipe.
 ]]
 -- Have this be plainly local, for easier usage.
 local pipes = {}
@@ -81,6 +99,10 @@ local function Init()
     -- then fail to be able to open a new pipe.
     -- By GC'ing here, the old File should close properly and the server
     -- can restart quicker.
+    collectgarbage()
+    -- Due to lua funkiness, this may need to be called twice to ensure
+    -- cleanup.  (Things ran fine without a second call for a while, though
+    -- this was added when trying to track down a crash bug.)
     collectgarbage()
 end
 -- Can run Init right away.
@@ -111,7 +133,8 @@ function L.Schedule_Read(pipe_name, callback)
         -- Do this by hooking into the onUpdate signal, which appears to
         -- run every frame.
         -- TODO: move this to Poll_For_Reads, and call it once.
-        SetScript("onUpdate", L.Poll_For_Reads)
+        --SetScript("onUpdate", L.Poll_For_Reads)
+        Time.Register_NewFrame_Callback(L.Poll_For_Reads)
         
         -- Debug printout.
         if debug.print_to_chat then
@@ -139,7 +162,8 @@ function L.Schedule_Write(pipe_name, callback, message)
     if L.write_polling_active == false then
         -- Do this by hooking into the onUpdate signal, which appears to
         -- run every frame.
-        SetScript("onUpdate", L.Poll_For_Writes)
+        --SetScript("onUpdate", L.Poll_For_Writes)
+        Time.Register_NewFrame_Callback(L.Poll_For_Writes)
         
         -- Debug printout.
         if debug.print_to_chat then
@@ -184,16 +208,29 @@ function L.Pipe_Garbage_Collection_Handler(pipe_table)
     if pipe_table.file ~= nil then
         -- Verification message.
         if debug.print_to_log then
-            DebugError("Pipe being garbage collected, file closed.")
+            DebugError("Pipe "..pipe_table.name.." being garbage collected...")
         end
-        -- TODO: repeated code with elsewhere; maybe reuse.
-        success, message = pcall(function () pipe_table.file:close() end)
+
+        -- Note: during 3.0 beta this call started crashing the game, though
+        -- calling file:close from a normal Disconnect point works fine
+        -- (even if called repeatedly). Unknown reason why this stopped
+        -- working; attempted fixes in the c dll failed to help.
+        --success, message = pcall(function () pipe_table.file:close() end)
+
+        -- As a workaround, instead explicitly try to message the server
+        -- to restart the other end of the pipe.
+        success, message = pcall(function () pipe_table.file:write("garbage_collected") end)
+
         if not success then
             if debug.print_to_log then
-                DebugError("Failed to close pipe file with error: "..message)
+                DebugError("Failed to close with error: "..tostring(message))
             end
         end
-        -- TODO: maybe nil the file once closed.
+        -- TODO: maybe nil the file once closed, though shouldn't be needed.
+        pipe_table.file = nil
+        if debug.print_to_log then
+            DebugError("GC complete.")
+        end
     end
 end
 
@@ -231,6 +268,7 @@ function L.Declare_Pipe(pipe_name)
     if pipes[pipe_name] == nil then
         -- Set up the pipe entry, with subfields.
         pipes[pipe_name] = {
+            name = pipe_name,
             file = nil,
             retry_allowed = false,
             suppress_reads_when_paused = false,
@@ -286,6 +324,9 @@ function L.Connect_Pipe(pipe_name)
         if debug.print_connect then
             CallEventScripts("directChatMessageReceived", pipe_name..";Pipe connected in lua")
         end
+        if debug.print_to_log then
+            DebugError(pipe_name.." connected in lua")
+        end
         
     else    
         -- Since no real testing done, allow one retry if an access fails.
@@ -299,6 +340,7 @@ function L.Connect_Pipe(pipe_name)
     --  problem when the user requests a read.
     -- For now, just hope things work out if the file opened, and check for
     --  errors in the Read/Write functions.
+
 end
 
 
@@ -308,11 +350,10 @@ end
 function L.Disconnect_Pipe(pipe_name)
     if pipes[pipe_name].file ~= nil then
         -- Do a safe file close() attempt, ignoring errors.
-        -- TODO: does this need an anon function around it?
         success, message = pcall(function () pipes[pipe_name].file:close() end)
         if not success then
             if debug.print_to_log then
-                DebugError("Failed to close pipe file with error: "..message)
+                DebugError("Failed to close pipe file with error: "..tostring(message))
             end
         end
         
@@ -323,6 +364,9 @@ function L.Disconnect_Pipe(pipe_name)
         Lib.Raise_Signal(pipe_name.."_disconnected")
         if debug.print_connect_errors then
             CallEventScripts("directChatMessageReceived", pipe_name..";Pipe disconnected in lua")
+        end
+        if debug.print_to_log then
+            DebugError(pipe_name.." disconnected in lua")
         end
     end
 end
@@ -453,7 +497,8 @@ function L.Poll_For_Reads()
     
     -- If no reads are pending, unschedule this function.
     if activity_still_pending == false then
-        RemoveScript("onUpdate", L.Poll_For_Reads)
+        --RemoveScript("onUpdate", L.Poll_For_Reads)
+        Time.Unregister_NewFrame_Callback(L.Poll_For_Reads)
         -- Debug printout.
         if debug.print_to_chat then
             CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Reads")
@@ -538,7 +583,8 @@ function L.Poll_For_Writes()
     
     -- If no accesses are pending, unschedule this function.
     if activity_still_pending == false then
-        RemoveScript("onUpdate", L.Poll_For_Writes)
+        --RemoveScript("onUpdate", L.Poll_For_Writes)
+        Time.Unregister_NewFrame_Callback(L.Poll_For_Writes)
         -- Debug printout.
         if debug.print_to_chat then
             CallEventScripts("directChatMessageReceived", "LUA;Unregistering Poll_For_Writes")
@@ -617,8 +663,6 @@ function L.Read_Pipe(pipe_name)
                 
             -- Overwrite the success flag.
             success, message = pcall(L._Read_Pipe_Raw, pipe_name)
-            -- Clear the retry flag.
-            pipes[pipe_name].retry_allowed = false
             
             if not success then
                 -- Disconnect the pipe (close file) on any hard error.
@@ -700,9 +744,7 @@ function L.Write_Pipe(pipe_name, message)
                 CallEventScripts("directChatMessageReceived", pipe_name..";Retrying write...")
             end
             -- Overwrite the success flag.
-            local call_success, retval = pcall(L._Write_Pipe_Raw, pipe_name, message)
-            -- Clear the retry flag.
-            pipes[pipe_name].retry_allowed = false            
+            local call_success, retval = pcall(L._Write_Pipe_Raw, pipe_name, message)       
             
             if not success then
                 -- Disconnect the pipe (close file) on any hard error.
@@ -713,6 +755,20 @@ function L.Write_Pipe(pipe_name, message)
     
     return call_success, retval
 end
+
+
+-- Test connect/disconnect. Host should be running when x4 loads.
+-- This will not try to reconnect right away, since the host is
+-- expected to have some delay to detect disconnection and restart.
+local function Test_Disconnect()
+    local pipe_name = 'x4_python_host'
+    DebugError("Testing Connect_Pipe")
+    L.Connect_Pipe(pipe_name)
+    DebugError("Testing Disconnect_Pipe")
+    L.Disconnect_Pipe(pipe_name)
+end
+-- Uncomment to enable this test.
+-- Test_Disconnect()
 
 
 -- Pass all local functions back on require() for now.

@@ -156,8 +156,7 @@ void lcb_free(void *data) {
 
 typedef struct {
     callback_data_
-        HANDLE hWrite;
-
+    HANDLE hWrite;
 } File;
 
 
@@ -264,25 +263,39 @@ static int l_GetLastError(lua_State *L) {
 
 static int l_File_close(lua_State *L) {
     File *this = File_arg(L, 1);
-    if (this->hWrite != lcb_handle(this))
+    //-- Adding check for hWrite being not null.
+    if (this->hWrite && this->hWrite != lcb_handle(this)){
         CloseHandle(this->hWrite);
+        // --Similar to __gc below, for safety make sure the handle is null.
+        this->hWrite = NULL;
+    }
     lcb_free(this);
     return 0;
 }
 
+// -- The autocalled garbage collection will clear the char* memory section
+// set up in lcb_allocate_buffer with malloc.
 static int l_File___gc(lua_State *L) {
     File *this = File_arg(L, 1);
-    free(this->buf);
+    //-- Adding check for buf being not null.
+    if (this->buf) {
+        free(this->buf);
+        // -- Shouldn't this set buf to NULL?
+        // Adding it in, in an attempt to fix a crash when garbage collecting
+        // files and trying to call :close to close their handle.
+        // (It didn't help, but leaving in anyway.)
+        this->buf = NULL;
+    }
     return 0;
 }
 
 static const struct luaL_Reg File_methods[] = {
-     {"write",l_File_write},
-   {"read",l_File_read},
-   //{"read_async",l_File_read_async},
-   {"close",l_File_close},
-   {"__gc",l_File___gc},
-  {NULL, NULL}  /* sentinel */
+    {"write",l_File_write},
+    {"read",l_File_read},
+    //{"read_async",l_File_read_async},
+    {"close",l_File_close},
+    {"__gc",l_File___gc},
+    {NULL, NULL}  /* sentinel */
 };
 
 static void File_register(lua_State *L) {

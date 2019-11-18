@@ -22,6 +22,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Classes\Misc.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Make_Executable.py" />
     <Compile Include="Old\Launcher.py" />
     <Compile Include="Classes\Log_Reader.py">

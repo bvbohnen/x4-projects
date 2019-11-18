@@ -2,6 +2,7 @@
 import threading
 import win32api
 import winerror
+from .Misc import Client_Garbage_Collected
 
 class Server_Thread:
     '''
@@ -53,23 +54,28 @@ class Server_Thread:
             # Fire up the server, listening for particular errors.
             try:
                 self.entry_function()
-
-            except win32api.error as ex:
-                # These exceptions have the fields:
+                
+            except (win32api.error, Client_Garbage_Collected) as ex:
+                # win32api.error exceptions have the fields:
                 #  winerror : integer error code (eg. 109)
                 #  funcname : Name of function that errored, eg. 'ReadFile'
                 #  strerror : String description of error
 
                 if self.test:
                     print('Pipe client disconnected; stopping test.')
-
+                    
+                elif isinstance(ex, Client_Garbage_Collected):
+                    print('Pipe client garbage collected, restarting server.')
+                    # Keep running the server.
+                    boot_server = True
+                
                 # If X4 was reloaded, this results in a ERROR_BROKEN_PIPE error
                 # (assuming x4 lua was wrestled into closing its pipe properly
                 #  on garbage collection).
                 elif ex.winerror == winerror.ERROR_BROKEN_PIPE:
+                    print('Pipe client disconnected, restarting server.')
                     # Keep running the server.
                     boot_server = True
-                    print('Pipe client disconnected, restarting.')
 
             #except Exception as ex:
             #    # Any other exception, reraise for now.

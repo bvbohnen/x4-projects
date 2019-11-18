@@ -52,6 +52,7 @@ Notes on server access looping cues:
       - May be used to add variables to the library, which are in turn
         used in other actions.
       - May be used to init Pipe_Name instead of giving it as a param.
+      - TODO: get rid of init, just use reload, and reload once on init.
     * Actions_On_Reload
       - Optional library of actions to take when reloading after a pipe
         disconnect, savegame reload, or ui reload.
@@ -276,6 +277,8 @@ Notes on server access looping cues:
               <signal_cue_instantly 
                 cue="md.Named_Pipes.Write" 
                 param="table[$pipe=$Pipe_Name, $msg='ping', $cue=Ping_Callback]"/>
+              <debug_text text="'Pinging ' + $Pipe_Name"
+                          chance="$DebugChance" filter="general"/>
             </actions>
           </cue>
           
@@ -422,9 +425,9 @@ Notes on server access looping cues:
                 <set_value name="$server_connected" exact="0"/>
                 
                 <!-- Restart pinging routine. -->
-                <signal_cue_instantly cue="Ping_Server"/>                
-                <debug_text text="'pipe error; restarting Ping_Server'" 
-                            chance="$DebugChance" filter="general"/>                
+                <signal_cue_instantly cue="Ping_Server"/>
+                <debug_text text="'pipe error; restarting Ping_Server for '+$Pipe_Name" 
+                            chance="$DebugChance" filter="general"/>            
               </do_if>
               
               <!-- On a game reload, this comes back as cancelled; don't loop. -->

@@ -41,3 +41,6 @@ Change Log
   - Switch to the Time API setting time between reconnect pings while the game is paused.
 * 0.12
   - Exposed lua api to other lua modules.
+* 0.13
+  - Fixed x4 crash when using /reloadui that showed up in 3.0 beta.
+  - Reduced reliance on onUpdate events for pipe reading, due to dropouts.

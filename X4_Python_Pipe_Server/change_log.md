@@ -8,3 +8,5 @@ Change Log
     dynamically loading python servers from extensions.
 * 0.9
   - More graceful shutdown if a pipe server is already running.
+* 0.10
+  - Servers restart on receiving 'garbage_collected' pipe client messages.

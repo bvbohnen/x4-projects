@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="named_pipes_api" name="Named Pipes API" description="Adds API support for Windows named pipes, for inter-process communication." author="SirNukes" version="012" date="2019-07-23" save="false" sync="false">
+<content id="named_pipes_api" name="Named Pipes API" description="Adds API support for Windows named pipes, for inter-process communication." author="SirNukes" version="013" date="2019-07-23" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>

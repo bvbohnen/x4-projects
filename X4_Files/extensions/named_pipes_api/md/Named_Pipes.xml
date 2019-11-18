@@ -544,7 +544,7 @@ TODO:
       <library name="Complete_Access">
         <actions>
           <!-- Signal the callback cue with this response. -->
-          <do_if value="$callback_cue != null">
+          <do_if value="$callback_cue.exists">
             <signal_cue_instantly cue="$callback_cue" param="$response"/>
           </do_if>
           
@@ -635,7 +635,7 @@ TODO:
 
   <!--
     Small menu plugin for reporting status.
-    Makes use of the simple menu api, if available.
+    Makes use of the simple menu api, if available, else throws an error.
   -->
   <cue name="Register_Options_Menu" instantiate="true" namespace="this">
     <conditions>
