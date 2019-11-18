@@ -19,7 +19,7 @@
           cue="md.Key_Capture.Register_Shortcut" 
           param="table[
             $id = 'simple_menu_test', 
-            $cue = Open_Menu,
+            $onPress = Open_Menu,
             $contexts = table[$flying = true, $walking = true, $menu_names = ['SimpleMenu']],
             ]"/>
         <signal_cue_instantly
