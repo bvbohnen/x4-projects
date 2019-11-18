@@ -16,7 +16,7 @@ Tests for the time api.
     <actions>
       <signal_cue_instantly
         cue="md.Key_Capture.Register_Shortcut"
-        param="table[$id = 'time_test', $cue = Run_Test]"/>
+        param="table[$id = 'time_test', $onPress = Run_Test]"/>
       <signal_cue_instantly
         cue="md.Key_Capture.Register_Key"
         param="table[$key='ctrl b', $id = 'time_test']"/>

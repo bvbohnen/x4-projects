@@ -20,10 +20,26 @@ counter.
 
 --[[ @doc-functions
 
-General commands are sent using raise_lua_event of the form "Time.<command>",
+Other lua modules may require() this module to access these api functions:
+
+* Register_NewFrame_Callback(function)
+  - Sets the function to be called on every frame.
+  - Detects frame changes through two methods:
+    - onUpdate events (sometimes have gaps)
+    - MD signals (when not paused)
+  - Some frames may be missed while the game is paused.
+  - Callback function is given the current engine time.
+* Unregister_NewFrame_Callback(function)
+  - Remove a per-frame callback function that was registered.
+
+An MD ui event is raised on every frame, which MD cues may listen to.
+The event.param3 will be the current engine time. Example:
+`<event_ui_triggered screen="'Time'" control="'Frame_Advanced'" />`
+
+
+MD commands are sent using raise_lua_event of the form "Time.<command>",
 and responses (if any) are captured in screen "Time" with control "id".
 Return values will be in "event.param3".
-
 Note: since multiple users may be accessing the timer during the same period,
 each command will take an id unique string parameter.
 
@@ -68,7 +84,7 @@ Commands:
   - Note: precision based on game framerate.
 
 
-- Full example: get engine time.
+- Example: get engine time.
   ```xml
   <cue name="Test" instantiate="true">
     <conditions>
@@ -90,7 +106,7 @@ Commands:
   </cue>  
   ```
   
-  - Full example: set an alarm.
+- Example: set an alarm.
   ```xml
   <cue name="Delay_5s" instantiate="true">
     <conditions>
@@ -113,13 +129,19 @@ Commands:
   ```
 ]]
 
+-- Table of data/functions to export to other lua modules on require.
+local E = {}
+
 -- Table of local functions and data.
 local L = {
     debug = false,
     -- Flag, if true then alarms are being checked every cycle.
     checking_alarms = false,
-    -- Name of the pipe for higher precision timing.
-    pipe_name = 'x4_time',
+
+    -- Last frame update engine time.
+    last_frame_time = 0,
+    -- Lua functions registered to be called every frame.
+    frame_callbacks = {}
     }
 
 -- Table of timers, keyed by id.
@@ -129,9 +151,6 @@ L.timers = {}
 -- Table of alarms scheduled. Values are the realtime the alarm
 -- will go off.
 L.alarms = {}
-
--- TODO: conditionally include pipes api. For now hardcode.
-local pipes_api = require('extensions.named_pipes_api.lua.Interface')
 
 function Init()
     -- Set up all unique events.
@@ -143,10 +162,13 @@ function Init()
     RegisterEvent("Time.printTimer"   , L.Print_Timer)
     RegisterEvent("Time.setAlarm"     , L.Set_Alarm)
 
-    -- Pipe interfacing functions.    
-    RegisterEvent("Time.getSystemTime", L.Get_System_Time)
-    RegisterEvent("Time.tic"          , L.Tic)
-    RegisterEvent("Time.toc"          , L.Toc)
+    -- Misc
+    RegisterEvent("Time.MD_New_Frame" , L.New_Frame_Detector)
+    
+    -- Init loading frame time.
+    L.last_frame_time = GetCurRealTime()
+    -- Start listening to onUpdate events.
+    SetScript("onUpdate", L.New_Frame_Detector)
 end
 
 -- Raise an event for md to capture.
@@ -277,7 +299,8 @@ function L.Set_Alarm(_, id_time)
 
     -- Start polling if not already.
     if not L.checking_alarms then
-        SetScript("onUpdate", L.Poll_For_Alarm)
+        --SetScript("onUpdate", L.Poll_For_Alarm)
+        E.Register_NewFrame_Callback(L.Poll_For_Alarm)
         L.checking_alarms = true
         if L.debug then
             DebugError("Time.Set_Alarm started polling")
@@ -320,7 +343,8 @@ function L.Poll_For_Alarm()
 
     -- If no alarms remaining, stop polling.
     if not alarms_still_pending then
-        RemoveScript("onUpdate", L.Poll_For_Alarm)
+        --RemoveScript("onUpdate", L.Poll_For_Alarm)
+        E.Unregister_NewFrame_Callback(L.Poll_For_Alarm)
         L.checking_alarms = false
         if L.debug then
             DebugError("Time.Set_Alarm stopped polling")
@@ -346,57 +370,59 @@ end
 
 
 ------------------------------------------------------------------------------
--- Python pipe interface functions.
+-- Every-frame triggers.
+--[[
+    The "onUpdate" script events normally seem to fire every frame, but
+    sometimes can drop out for stretches of time.
+    To help with this problem, MD will signal every unpaused frame as well,
+    to generate a unified Frame_Advanced detector here.
+]]
 
-function L.Get_System_Time(_, id)
-    -- Send a request to the pipe api. Optimistically assume the server
-    -- is running. Ignore result.
-    pipes_api.Schedule_Write(L.pipe_name, nil, 'get')
+function L.New_Frame_Detector()
+    local now = GetCurRealTime()
+    -- Skip if this frame already handled.
+    if L.last_frame_time == now then return end
+    -- Update recorded time and continue.
+    L.last_frame_time = now
 
-    -- Read the response, providing a callback function.
-    pipes_api.Schedule_Read(
-        L.pipe_name, 
-        function(message)
-            -- Punt on errors for now.
-            if message ~= 'ERROR' then
-                -- Put the time in the log.
-                DebugError(string.format("Request id '%s' system time: %f seconds", id, message))
-                -- Return to md.
-                L.Raise_Signal(id, message)
-            else
-                DebugError("Time.Get_System_Time failed; pipe not connected.")
-            end
+    -- Signal MD listeners, returning time for convenience.
+    L.Raise_Signal("Frame_Advanced", now)
+
+    -- Handle any callback functions.
+    for i, callback in ipairs(L.frame_callbacks) do
+        success, message = pcall(callback, now)
+        if not success then
+            DebugError("Frame Callback function error: "..tostring(message))
         end
-        )
+    end
 end
 
-
-function L.Tic(_, id)
-    -- Send a request to the pipe api.
-    pipes_api.Schedule_Write(L.pipe_name, nil, 'tic')
+-- Lua api function for users to register a callback function.
+function E.Register_NewFrame_Callback(callback)
+    if type(callback) ~= "function" then
+        DebugError("Register_Frame_Callback got a non-function: "..type(callback))
+        return
+    end
+    table.insert(L.frame_callbacks, callback)
 end
 
-
-function L.Toc(_, id)
-    -- Send a request to the pipe api.
-    pipes_api.Schedule_Write(L.pipe_name, nil, 'toc')
-    
-    -- Read the response, providing a callback function.
-    pipes_api.Schedule_Read(
-        L.pipe_name, 
-        function(message)
-            -- Punt on errors for now.
-            if message ~= 'ERROR' then
-                -- Put the time in the log.
-                DebugError(string.format("Toc id '%s': %f seconds", id, message))
-                -- Return to md.
-                L.Raise_Signal(id, message)
-            else
-                DebugError("Time.Toc failed; pipe not connected.")
-            end
+-- Lua api function to remove a frame callback.
+function E.Unregister_NewFrame_Callback(callback)
+    if type(callback) ~= "function" then
+        DebugError("Register_Frame_Callback got a non-function: "..type(callback))
+        return
+    end
+    -- Search for it and remove.
+    for index, value in ipairs(L.frame_callbacks) do
+        if value == callback then
+            -- This will edit the table directly, so don't keep looping.
+            table.remove(L.frame_callbacks, index)
+            break
         end
-        )
+    end
 end
 
 
 Init()
+
+return E

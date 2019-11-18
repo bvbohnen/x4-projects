@@ -15,7 +15,9 @@
     </conditions>
     <actions>
       <raise_lua_event name="'Lua_Loader.Load'"
-                       param="'extensions.time_api.Time_API'"/>
+                       param="'extensions.time_api.lua.Interface'"/>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                       param="'extensions.time_api.lua.Pipe_Time'"/>
     </actions>
   </cue>
   
@@ -30,6 +32,42 @@
         param="'extensions/time_api/Time_API.py'"/>
     </actions>
   </cue>
+  
+  <!-- 
+  MD to lua heartbeat, firing every unpaused frame. 
+  
+  The primary motivation for this is that the lua side Update events
+  sometimes go many frames/seconds without firing, though normally seem
+  to fire regularly.  The reason for these hiccups is not understood,
+  but an md-trigger signal to lua can provide a way to reliably fire
+  every frame that the game is unpaused, alleviated the problem somwhat.
+  -->
+  <cue name="MD_New_Frame" instantiate="true" checkinterval="1ms">
+    <!--No conditions.-->
+    <actions>
+      <raise_lua_event name="'Time.MD_New_Frame'"/>
+    </actions>
+  </cue>
+
+
+  <!--
+  The lua side will watch for onUpdate script calls as well as md
+  heartbeat signals, and use these to generate a unified heartbeat,
+  firing only once per frame at most (duplicate events suppressed).
+  
+  Users can listen to this cue being signalled in MD to trigger their
+  cues every frame.
+  
+  The param will be the current engine time.
+  <cue name="Frame_Advanced" instantiate="true" checkinterval="1ms">
+    <conditions>
+      <event_ui_triggered screen="'Time'" control="'Frame_Advanced'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Time.MD_Heartbeat'"/>
+    </actions>
+  </cue>
+  -->
   
 </cues>
   
