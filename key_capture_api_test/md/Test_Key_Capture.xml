@@ -15,8 +15,8 @@ Relies on named pipe library; server side is written in python.
   <cue name="Register_Keys" instantiate="true">
     <conditions>
       <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-      <!-- Uncomment to disable this cue. -->
-      <check_value value="false"/>
+      <!-- Uncomment to disable this cue.
+      <check_value value="false"/> -->
     </conditions>
     <actions>
       <show_notification text="'Registering keys'" sound="notification_warning" priority="2" />
@@ -30,6 +30,7 @@ Relies on named pipe library; server side is written in python.
         $name = 'Test Space', 
         $description = 'Key Capture test Space',
         $contexts = table[$flying = true],
+        $category = 'Test Space Keys',
         ]"/>
 
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
@@ -38,6 +39,7 @@ Relies on named pipe library; server side is written in python.
         $name = 'Test Walk', 
         $description = 'Key Capture test Walk',
         $contexts = table[$walking = true],
+        $category = 'Test Walk Keys',
         ]"/>
 
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
@@ -46,6 +48,7 @@ Relies on named pipe library; server side is written in python.
         $name = 'Test Menu', 
         $description = 'Key Capture test Menu',
         $contexts = table[$menus = true],
+        $category = 'Test Menu Keys',
         ]"/>
 
       <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
@@ -54,6 +57,7 @@ Relies on named pipe library; server side is written in python.
         $name = 'Test Simple Menu', 
         $description = 'Key Capture test Simple Menu API',
         $contexts = table[$menu_names = ['SimpleMenu']],
+        $category = 'Test Menu Keys',
         ]"/>
 
       <!-- Set up some default keys.  -->

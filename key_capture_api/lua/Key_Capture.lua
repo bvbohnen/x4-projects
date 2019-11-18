@@ -13,11 +13,21 @@ to reduce file sizes.
 local ffi = require("ffi")
 local C = ffi.C
 ffi.cdef[[
+    typedef uint64_t UniverseID;
+    UniverseID GetPlayerID(void);
+]]
+-- Unused functions for now.
+--[[
+    void ActivateDirectInput(void);
     uint32_t GetMouseHUDModeOption(void);
+    void DisableAutoMouseEmulation(void);
+    void EnableAutoMouseEmulation(void);
 ]]
 
--- Imports. TODO: maybe pull from other helper extensions.
+-- Imports.
 local Lib = require("extensions.key_capture_api.lua.Library")
+local Tables = require("extensions.key_capture_api.lua.Tables")
+local config = Tables.config
 
 -- Local functions and data.
 local debug = {
@@ -39,61 +49,6 @@ local L = {
 
 -- Proxy for the gameoptions menu, linked further below.
 local menu = nil
-
-
--- Ego style config. Copying over needed consts.
-local config = {
-    optionsLayer = 3,
-    topLevelLayer = 4,
-
-    backarrow = "table_arrow_inv_left",
-    backarrowOffsetX = 3,
-
-    sliderCellValueColor = { r = 71, g = 136, b = 184, a = 100 },
-    greySliderCellValueColor = { r = 55, g = 55, b = 55, a = 100 },
-
-    font = "Zekton outlined",
-    fontBold = "Zekton bold outlined",
-
-    headerFontSize = 13,
-    infoFontSize = 9,
-    standardFontSize = 10,
-
-    headerTextHeight = 34,
-    subHeaderTextHeight = 22,
-    standardTextHeight = 19,
-    infoTextHeight = 16,
-
-    headerTextOffsetX = 5,
-    standardTextOffsetX = 5,
-    infoTextOffsetX = 5,
-
-    vrIntroDelay = 32,
-    vrIntroFadeOutTime = 2,
-}
-config.headerTextProperties = {
-    font = config.fontBold,
-    fontsize = config.headerFontSize,
-    x = config.headerTextOffsetX,
-    y = 6,
-    minRowHeight = config.headerTextHeight,
-    titleColor = Helper.defaultSimpleBackgroundColor,
-}
-config.subHeaderTextProperties = {
-    font = config.font,
-    fontsize = config.standardFontSize,
-    x = config.standardTextOffsetX,
-    y = 2,
-    minRowHeight = config.subHeaderTextHeight,
-    halign = "center",
-    titleColor = Helper.defaultSimpleBackgroundColor,
-}
-config.standardTextProperties = {
-    font = config.font,
-    fontsize = config.standardFontSize,
-    x = config.standardTextOffsetX,
-    y = 2,
-}
 
 
 local function Init()
@@ -379,68 +334,31 @@ function L.displayControls (optionParameter)
     if ftable == nil then
         error("Failed to find gameoptions menu main ftable")
     end
-        
-    -- Add a nice title.
-    local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
-    row[2]:setColSpan(3):createText("Extensions", config.subHeaderTextProperties)
-
-    --[[ 
-    Notes on displayControlRow indirect inputs:
-
-    This will look up various data from menu.controls, which was
-    set in menu.getControlsData(). This is a table of control types,
-    with most being pulled from C code except for "functions"
-    which is pulled from config.input.controlFunctions.
-
-    displayControlRow will reference:
-    menu.controls[controltype][code]
-        .name
-        .contexts
-        .definingcontrol
-
-    'controltype' needs to be "functions" else displayControlRow will
-    try to read the name from config, where it isn't available.
-
-    Each "functions" entry defines a "definingcontrol" field, which
-    is a reference to another controls subtable and key.
-    Eg. {"states", 22} will get redirected to menu.controls["states"][22].
-    This in turn is a list of "inputs" (up to 2), where each input
-    is a list of {source, code, signum}, the current input for
-    that control.
-
-    Custom controls need to be added to "functions" to be able to
-    give their name, as well as to 
-    ]]
-    --Lib.Print_Table(menu.controls, "menu.controls")
-
-    -- Prune out old custom keys.
-    for _, field in ipairs({"actions","functions"}) do
-        -- Use reverse iteration, to delete entries from the back.
-        for i = #menu.controls[field], 1, -1 do
-            -- Note: unlike normal lua tables, there appear to be gaps
-            --  in ego's tables, though the # arg still gives a high
-            --  number (perhaps explicit 'n' field filled in).
-            -- Skip nil entries.
-            if menu.controls[field][i] and menu.controls[field][i].from_key_capture then
-                menu.controls[field][i] = nil
-            end
-        end
-    end
 
     -- Error check.
     if not L.shortcut_registry then
         DebugError("shortcut_registry is nil")
         return
     end
-        
-    -- Set up the custom shortcuts.
-    -- TODO: ordering.
-    for id, shortcut in pairs(L.shortcut_registry) do
 
-        -- If there is no entry for player keys yet, make one.
+    -- Add some space.
+    row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+    row[2]:setColSpan(3):createText(" ", { 
+        fontsize = 1, 
+        height = config.infoTextHeight, 
+        cellBGColor = Helper.color.transparent60 })
+        
+    -- Add a nice title.
+    -- Make this a larger than normal font.
+    local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+    row[2]:setColSpan(3):createText("Extensions", config.subHeaderTextProperties_2)
+    
+    -- Make sure all shortcuts have an entry in the player keys table.
+    for _, shortcut in pairs(L.shortcut_registry) do
         if not L.player_shortcut_keys[shortcut.id] then
             L.player_shortcut_keys[shortcut.id] = {
                 -- Repetition of id, in case it is ever useful.
+                -- (This will not get a $ prefix went sent to md.)
                 id = shortcut.id,
                 -- List of inputs.
                 -- Note: unused entries are elsewhere {-1,-1,0}, though that
@@ -451,70 +369,49 @@ function L.displayControls (optionParameter)
                 }
             }
         end
-
-        -- Hand off to custom function.
-        L.displayControlRow(ftable, shortcut.id)
-
-        --[[ Removed; below used ego's displayControlRow and made a mess.
-
-        -- Note: ego uses a "code" or "controlcode" to track which key is
-        -- which. These match up to an index in the menu.controls[] tables.
-        -- But this can be replaced with the shortcut id for the custom
-        -- handling.
-        local code = shortcut.id
-
-
-        menu.controls["functions"][code] = {
-            ["name"] = shortcut.name, 
-            -- This redirects to one of the other subtables of menu.controls.
-            ["definingcontrol"] = {"actions", code}, 
-            -- Maybe just have "actions" match the above keycode.
-            ["actions"] = { code }, 
-            ["states"] = {}, 
-            ["ranges"] = {},
-            -- Custom context.
-            ["contexts"] = "key_capture",
-            -- Extra field to identify added keys.
-            ["from_key_capture"] = true,
-            }
-
-        -- Add a new "action" to define the current keys.
-        menu.controls["actions"][code] = {["from_key_capture"] = true}
-        -- Fill with stored player keys, in menu column order.
-        for i = 1,2 do
-            local info = L.player_shortcut_keys[shortcut.id].inputs[i]
-            menu.controls["actions"][code][i] = {info.source, info.code, info.signum}
-        end
-            
-        -- Call the function to add the new key.
-        local isdoubleclickmode = C.GetMouseHUDModeOption() == 2
-        menu.displayControlRow(
-            -- ftable
-            ftable,
-            -- controlsgroup; matches index of controls subtable, but unused.
-            -- 11+ is free for space; just pick something.
-            20,
-            -- controltype; "actions" "functions" or "state".
-            -- Needs to be "functions" for name lookup to work.
-            "functions",
-            -- code; int, these appear meant to match up to the c++ side.
-            -- Stock codes go up to 300ish.
-            -- In practice, all the ego code that assumes this is an int should
-            -- be bypassed, so can use the shortcut id instead.
-            code,
-            -- context; nil/int/table, not used anyway since this is read
-            -- from ego_controls[].contexts.
-            "key_capture",
-            -- mouseovertext
-            shortcut.description,
-            -- mapable
-            true,
-            -- isdoubleclickmode; looked up in C function.
-            isdoubleclickmode,
-            -- allowmouseaxis; don't support this for now.
-            false )
-            ]]
     end
+        
+
+    -- Set up the custom shortcuts.
+    -- These will be sorted into their categories, with uncategorized
+    -- lumped together at the top of the menu.
+    -- Start by sorting shortcuts into categories.
+    local cat_shortcut_dict = {}
+    for _, shortcut in pairs(L.shortcut_registry) do
+        local cat = shortcut.category
+        -- Set default category.
+        if not cat then cat = "" end
+        -- Set up a new sublist if needed.
+        if not cat_shortcut_dict[cat] then cat_shortcut_dict[cat] = {} end
+        -- Add it in.
+        table.insert(cat_shortcut_dict[cat], shortcut)
+    end
+
+    -- Convert the cat table to a list, to enable lua sorting.
+    local cats_sorted = {}
+    for cat, sublist in pairs(cat_shortcut_dict) do 
+        table.insert(cats_sorted, cat)
+        -- Also sort the shortcuts by name while here.
+        -- This lambda function returns True if the left arg goes first.
+        table.sort(sublist, function (a,b) return (a.name < b.name) end)
+    end
+    -- Sort the cat names.
+    table.sort(cats_sorted)
+
+    -- Loop over cat names.
+    for _, cat in ipairs(cats_sorted) do
+        -- Make a header if this is a named category.
+        if cat ~= "" then
+            local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+            row[2]:setColSpan(3):createText(cat, config.subHeaderTextProperties)
+        end
+        -- Loop over the sorted shortcut list.
+        for _, shortcut in ipairs(cat_shortcut_dict[cat]) do
+            -- Hand off to custom function.
+            L.displayControlRow(ftable, shortcut.id)
+        end
+    end
+
             
     -- Need to re-display.
     -- TODO: stress test for problems.
@@ -771,37 +668,35 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
 end
 
 
--- Patch registration.
--- Unused currently.
-function L.registerDirectInput(ego_registerDirectInput)
-    -- Check for this being a custom key.
-    if menu.remapControl.controlcontext == 1000 then
-        C.DisableAutoMouseEmulation()
-        for event, func in pairs(L.input_event_handlers) do
-            RegisterEvent(event, func)
-        end
-        ListenForInput(true)
-    else
-        ego_registerDirectInput()
-    end
-end
-    
--- Patch unregistration.
--- Unused currently.
-function L.unregisterDirectInput(ego_unregisterDirectInput)
-    -- Check for this being a custom key.
-    if menu.remapControl.controlcontext == 1000 then
-        ListenForInput(false)
-        for event, func in pairs(L.input_event_handlers) do
-            UnregisterEvent(event, func)
-        end
-        C.EnableAutoMouseEmulation()
-    else
-        ego_unregisterDirectInput()
-    end
-end
-
-
+---- Patch registration.
+---- Unused currently.
+--function L.registerDirectInput(ego_registerDirectInput)
+--    -- Check for this being a custom key.
+--    if menu.remapControl.controlcontext == 1000 then
+--        C.DisableAutoMouseEmulation()
+--        for event, func in pairs(L.input_event_handlers) do
+--            RegisterEvent(event, func)
+--        end
+--        ListenForInput(true)
+--    else
+--        ego_registerDirectInput()
+--    end
+--end
+--    
+---- Patch unregistration.
+---- Unused currently.
+--function L.unregisterDirectInput(ego_unregisterDirectInput)
+--    -- Check for this being a custom key.
+--    if menu.remapControl.controlcontext == 1000 then
+--        ListenForInput(false)
+--        for event, func in pairs(L.input_event_handlers) do
+--            UnregisterEvent(event, func)
+--        end
+--        C.EnableAutoMouseEmulation()
+--    else
+--        ego_unregisterDirectInput()
+--    end
+--end
 
 
 Init()

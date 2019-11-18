@@ -16,19 +16,22 @@
     <cue name="Register_Keys" instantiate="true">
       <conditions>
         <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-        <!-- Uncomment to disable this cue.
-        <check_value value="false"/> -->
       </conditions>
       <actions>
-        <!--<show_notification text="'Registering KC_Extra_Commands keys'" 
-                           sound="notification_warning" priority="2" />-->
         
-        <!-- Register a shortcut with a callback. -->
+        <!-- Register shortcuts. -->
         <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
           $id = 'kc_target_follow', 
           $onPress = Target_Follow,
           $name = 'Follow Target', 
           $description = 'Turns on autopilot to follow the target'
+          ]"/>
+
+        <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+          $id = 'kc_eject_illegals', 
+          $onPress = Eject_Illegals,
+          $name = 'Eject Illegal Wares', 
+          $description = 'Eject any player inventory or piloted ship cargo that is illegal in the player zone'
           ]"/>
         
       </actions>
@@ -46,16 +49,42 @@
       </conditions>
       <actions>
         <!-- Debug message. -->
-        <!-- <raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Starting Target_Follow'"/> -->
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Starting Target_Follow'"/>--> 
                 
         <!-- Cancel autopilot if the target is already the current dest.-->
         <do_if value="player.target == player.autopilottarget">
           <stop_player_autopilot />
+          <show_notification text="{10002, 921}" comment="Autopilot Disengaged"/>
         </do_if>
         <!-- Start autopiloting to target. Should continuously follow. -->
         <do_else>
-          <start_player_autopilot destination="player.target"/>          
+          <start_player_autopilot destination="player.target"/>
+          <!-- This already puts up a notification on its own. -->
         </do_else>
+      </actions>
+    </cue>
+
+    <!-- Drop illegal wares. -->
+    <cue name="Eject_Illegals" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <!-- Verify the player is piloting a ship.-->
+        <check_value value="player.occupiedship"/>
+      </conditions>
+      <actions>
+        <!-- Debug message. -->
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ejecting_Illegals'"/>-->
+
+        <set_value name="$faction" exact="player.zone.policefaction"/>
+        <drop_illegal_cargo groupname="$boxes" object="player.occupiedship" faction="$faction"/>
+        <drop_illegal_inventory groupname="$boxes" object="player.entity" faction="$faction"/>
+        <do_if value="$boxes.count != 0">
+          <show_notification text="'Ejected Illegal Wares'"/>
+        </do_if>
+        <do_else>
+          <show_notification text="'No Illegal Wares'"/>          
+        </do_else>
+        
       </actions>
     </cue>
 

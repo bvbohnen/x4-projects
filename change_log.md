@@ -23,5 +23,8 @@ Change Log
 * 0.14
   - Replaced $cue with $onPress, $onRelease, $onRepeat key events.
   - Callbacks receive a more detailed table with capture event properties.
+* 0.15
+  - Added Eject_Illegal_Wares shortcut.
+  - Sorted shortcuts in the menu, and support grouping by category names.
 
 

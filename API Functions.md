@@ -18,6 +18,9 @@
     - If not given, defaults to the id.
   * description = ""
     - String, mouseover text use for the key in the menu.
+  * category = null
+    - String, optional category heading to use in the menu.
+    - Hotkeys are displayed by sorted categories first, then sorted names.
   * onPress = null
     - Callback cue when the combo final key is pressed.
   * onRelease = null
@@ -35,11 +38,14 @@
         - Bool, if the shortcut is valid while the player is on foot.
       * menu
         - Bool, if the shortcut is valid while the player is in any menu.
+        - The OptionsMenu will be protected, with shortcuts always disabled.
       * menu_names
         - List of names of menus where the shortcut is valid.
         - 'menu' is ignored if this is given.
         
   Keypress events will return a table with these fields:
+  * key
+    - String, identifier of the key combination matched.
   * id
     - Matching id of the shortcut. May be useful if one callback cue handles multiple shortcuts.
   * context

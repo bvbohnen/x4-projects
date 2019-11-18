@@ -29,6 +29,7 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="key_capture_api\lua\Library.lua" />
+    <Content Include="key_capture_api\lua\Tables.lua" />
     <Content Include="key_capture_api\md\KC_Extra_Commands.xml" />
     <Content Include="key_capture_api\md\Key_Capture.xml" />
     <Content Include="key_capture_api_test\content.xml" />

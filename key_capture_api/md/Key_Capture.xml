@@ -88,8 +88,9 @@ TODO:
     - Table of tables, with each subtable describing a shortcut.
     - Keys are the shortcut ids.
     - See Register_Shortcut for description of fields.
-      
+           
   * key_event_shortcut_registry
+    - TODO: switch to subtable with shortcut, key combo, event split out.
     - Table, indexed by key/event descriptor (string), holding a list of
       shortcut ids attached to it.
     - Descriptors are made up of the key combo string, followed by the
@@ -148,6 +149,11 @@ TODO:
     - Bool, true if the player has a menu open.
     - Updated whenever menu_states is changed, primarily to speedup checks
       during key handling.
+  * in_protected_menu
+    - Bool, true if the player is in a protected menu where shortcuts
+      are disabled globally.
+    - Currently used for OptionsMenu, to menu-enabled shortcuts causing
+      problems when remapping keys.
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -180,26 +186,15 @@ TODO:
       <set_value name="$key_event_to_event" exact="table[]"/>      
       <set_value name="$menu_states" exact="table[]"/>
       <set_value name="$in_menu" exact="false"/>
-      
+      <set_value name="$in_protected_menu" exact="false"/>      
+
       <!-- TODO: somehow bounce this over to Server_Reader reliably.-->
-      <set_value name="$DebugChance" exact="100" />
+      <set_value name="$DebugChance" exact="0" />
 
       <!-- Init the $player_shortcut_keys if it doesn't exist. -->
-      <set_value name="$player_shortcut_keys" exact="table[]"/>
       <do_if value="not $player_shortcut_keys?">
         <set_value name="$player_shortcut_keys" exact="table[]"/>
       </do_if>
-        
-      <!-- Otherwise re-register saved keys. -->
-      <do_else>
-        <do_all exact="$player_shortcut_keys.keys.list.count" counter="$i">
-          <set_value name="$key" exact="$player_shortcut_keys.keys.list.{$i}"/>
-          <signal_cue_instantly cue="Register_Key" param="table[
-                                $key = $player_shortcut_keys.{$key}.$combo, 
-                                $id  = $player_shortcut_keys.{$key}.$id,
-                                ]"/>
-        </do_all>
-      </do_else>
         
       <!-- Init the lua with the stored list of player keys. -->
       <set_value name="player.entity.$key_capture_player_keys_from_md" exact="$player_shortcut_keys" />
@@ -234,7 +229,7 @@ TODO:
     <actions>
       <!--TODO: how to get debugchance from Globals safely on first mod load.-->
       <set_value name="$Pipe_Name" exact="'x4_keys'" />
-      <set_value name="$DebugChance" exact="100" />
+      <set_value name="$DebugChance" exact="0" />
       
       
     </actions>
@@ -320,75 +315,82 @@ TODO:
     </actions>
   </cue>
 
-  <!--TODO: 'category name' for organizing keys better in the menu.-->
+  
   <!--@doc-cue
-  User function to register a shortcut. These shortcuts will be displayed
-  in the api options menu for use assignment of a hotkey.
-  This should be re-sent each time Reloaded is signalled.
+    User function to register a shortcut. These shortcuts will be displayed
+    in the api options menu for use assignment of a hotkey.
+    This should be re-sent each time Reloaded is signalled.
     
-  Param : Table with the following items:
-  * id
-    - String, unique identifier of this shortcut.
-    - Saved keys will map to ids; other fields may be changed.
-  * name = id
-    - String, name to use for the key in the menu.
-    - If not given, defaults to the id.
-  * description = ""
-    - String, mouseover text use for the key in the menu.
-  * onPress = null
-    - Callback cue when the combo final key is pressed.
-  * onRelease = null
-    - Callback cue when the combo final key is released.
-  * onRepeat = null
-    - Callback cue when the combo final key is repeated while held.
-    - Repeat delay and rate depend on OS settings.
-  * contexts
-    - Table holding the player contexts where the shortcut is valid.
-    - If not given, defaults to "table{$flying = true}".
-    - Fields:
-      * flying
-        - Bool, if the shortcut is valid while the player is piloting a ship.
-      * walking
-        - Bool, if the shortcut is valid while the player is on foot.
-      * menu
-        - Bool, if the shortcut is valid while the player is in any menu.
-      * menu_names
-        - List of names of menus where the shortcut is valid.
-        - 'menu' is ignored if this is given.
+    Param : Table with the following items:
+    * id
+      - String, unique identifier of this shortcut.
+      - Saved keys will map to ids; other fields may be changed.
+    * name = id
+      - String, name to use for the key in the menu.
+      - If not given, defaults to the id.
+    * description = ""
+      - String, mouseover text use for the key in the menu.
+    * category = null
+      - String, optional category heading to use in the menu.
+      - Hotkeys are displayed by sorted categories first, then sorted
+        names.
+    * onPress = null
+      - Callback cue when the combo final key is pressed.
+    * onRelease = null
+      - Callback cue when the combo final key is released.
+    * onRepeat = null
+      - Callback cue when the combo final key is repeated while held.
+      - Repeat delay and rate depend on OS settings.
+    * contexts
+      - Table holding the player contexts where the shortcut is valid.
+      - If not given, defaults to "table{$flying = true}".
+      - Fields:
+        * flying
+          - Bool, if the shortcut is valid while the player is piloting a ship.
+        * walking
+          - Bool, if the shortcut is valid while the player is on foot.
+        * menu
+          - Bool, if the shortcut is valid while the player is in any menu.
+          - The OptionsMenu will be protected, with shortcuts always disabled.
+        * menu_names
+          - List of names of menus where the shortcut is valid.
+          - 'menu' is ignored if this is given.
       
-  Keypress events will return a table with these fields:
-  * id
-    - Matching id of the shortcut. May be useful if one callback cue handles
-      multiple shortcuts.
-  * context
-    - String, the player context when this shortcut was triggered.
-    - Either one of ["flying", "walking", "menu"], or the name of the
-      open menu matching an entry in menu_names.
-  * event
-    - String, name of the event that occured.
-    - One of ["onPress", "onRelease", "onRepeat"].
+    Keypress events will return a table with these fields:
+    * key
+      - String, identifier of the key combination matched.
+    * id
+      - Matching id of the shortcut. May be useful if one callback cue handles
+        multiple shortcuts.
+    * context
+      - String, the player context when this shortcut was triggered.
+      - Either one of ["flying", "walking", "menu"], or the name of the
+        open menu matching an entry in menu_names.
+    * event
+      - String, name of the event that occured.
+      - One of ["onPress", "onRelease", "onRepeat"].
     
-  Usage example:
-    ```xml
-    <code>
-      <cue name="Register_Shortcut" instantiate="true">
-        <conditions>
-          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-        </conditions>
-        <actions>
-          <signal_cue_instantly 
-            cue = "md.Key_Capture.Register_Key" 
-            param="table[
-              $id          = 'my_key',
-              $onPress     = OnKeyPress,
-              $name        = 'Test Key',
-              $description = 'This key is just testing',
-              $contexts    = table[ $flying = true, $walking = true ],
-              ]"/>
-        </actions>
-      </cue>
-    </code>
-    ```
+    Usage example:
+      ```xml
+      <code>
+        <cue name="Register_Shortcut" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+          </conditions>
+          <actions>
+            <signal_cue_instantly 
+              cue = "md.Key_Capture.Register_Key" 
+              param="table[
+                $id          = 'my_key',
+                $onPress     = OnKeyPress,
+                $name        = 'Test Key',
+                $description = 'This key is just testing',
+                $contexts    = table[ $flying = true, $walking = true ],
+                ]"/>
+          </actions>
+        </cue>
+      </code>
+      ```
   -->
   <cue name="Register_Shortcut" instantiate="true" namespace="this">
     <conditions>
@@ -421,8 +423,24 @@ TODO:
       <do_elseif value="$args.$contexts.$menu_names? and ($args.$contexts.$menu_names.count == 0)">
         <remove_value name="$args.$contexts.$menu_names"/>
       </do_elseif>
-            
+      
+      <!-- Record it. -->
       <set_value name="Globals.$shortcut_registry.{'$'+$args.$id}" exact="$args"/>
+      
+      <!-- If any player keys were saved for this shortcut, apply them now. -->
+      <do_if value="Globals.$player_shortcut_keys.{'$'+$args.$id}?">
+        <set_value name="$info" exact="Globals.$player_shortcut_keys.{'$'+$args.$id}"/>
+        <!-- Loop over the input list; up to 2 combos. -->
+        <do_for_each name="$input" in="$info.$inputs">
+          <!-- Skip if the combo is blank. -->
+          <do_if value="$input.$combo != ''">
+            <signal_cue_instantly cue="Register_Key" param="table[
+                                  $id  = $info.$id,
+                                  $key = $input.$combo, 
+                                  ]"/>
+          </do_if>
+        </do_for_each>
+      </do_if>
         
       <!-- Keep the lua updated. -->
       <!-- Passes it on a player blackboard var, which lua clears. -->
@@ -727,10 +745,20 @@ TODO:
     <actions>
       <!--Set the flag false initially, back to true on any menu open.-->
       <set_value name="Globals.$in_menu" exact="false"/>
+      <set_value name="Globals.$in_protected_menu" exact="false"/>
+      
       <do_all exact="Globals.$menu_states.keys.list.count" counter="$i">
         <set_value name="$key" exact="Globals.$menu_states.keys.list.{$i}"/>
+        
+        <!-- Check if this menu is open. -->
         <do_if value="Globals.$menu_states.{$key}">
           <set_value name="Globals.$in_menu" exact="true"/>
+          
+          <!-- Check if the protected options menu is open. -->
+          <do_if value="$key == 'OptionsMenu'">
+            <set_value name="Globals.$in_protected_menu" exact="true"/>
+          </do_if>
+          
         </do_if>
       </do_all>
       <!--<debug_text text="'Globals.$in_menu = %1'.[Globals.$in_menu]"
@@ -777,12 +805,18 @@ TODO:
       <!-- TODO: support multiple keys returned, with some separator. -->
 
       <!-- Start by prefixing the key combo with a '$' for table lookups. -->
-      <set_value name="$key" exact="'$' + event.param"/>
-      <debug_text text="'Received key %s.'.[$key]"
+      <set_value name="$key_event" exact="'$' + event.param"/>
+      <debug_text text="'Received key event %s.'.[$key_event]"
                   chance="Globals.$DebugChance" filter="general"/>
+      
+      <!-- Ignore if currently in a protected menu. -->
+      <do_if value="Globals.$in_protected_menu">
+        <debug_text text="'Ignoring key; protected menu open.'"
+                    chance="Globals.$DebugChance" filter="general"/>
+      </do_if>
 
       <!-- Is the key returned actually registered? -->
-      <do_if value="Globals.$key_event_shortcut_registry.{$key}?">
+      <do_elseif value="Globals.$key_event_shortcut_registry.{$key_event}?">
         
         <!-- Determine the current player context. -->
         <!-- TODO: maybe pack into chained if/then/else expression. -->
@@ -801,10 +835,10 @@ TODO:
 
         
         <!-- Get the event associated with this key/event, matching its suffix. -->
-        <set_value name="$event" exact ="Globals.$key_event_to_event.{$key}"/>
+        <set_value name="$event" exact ="Globals.$key_event_to_event.{$key_event}"/>
         
         <!-- Convenience renaming of shortcut ids. -->
-        <set_value name="$id_list" exact="Globals.$key_event_shortcut_registry.{$key}"/>
+        <set_value name="$id_list" exact="Globals.$key_event_shortcut_registry.{$key_event}"/>
         <!-- Loop over the shortcut ids. -->
         <do_all exact="$id_list.count" counter="$i">
           
@@ -848,7 +882,9 @@ TODO:
           <!-- Call it if it still exists. -->
           <do_if value="$cue.exists">            
             <!-- Call the cue, with return values. -->
+            <!--TODO: clean up $key return to not have event suffixed.-->
             <signal_cue_instantly cue="$cue" param="table[
+                                  $key = $key_event,
                                   $id = $id_list.{$i},
                                   $context = $context,
                                   $event = $event,
@@ -858,7 +894,7 @@ TODO:
           <!--Could do this by removing the $event from the shortcut, 
               unregistering, and reregistering.-->          
         </do_all>
-      </do_if>
+      </do_elseif>
 
       <do_else>
         <!-- Key not registered. TODO: error message. -->

@@ -292,7 +292,7 @@ class Key_Event:
         return
     
     def __repr__(self):
-        return self.name + ' down' if self.pressed else ' up'
+        return self.name + (' down' if self.pressed else ' up')
     def __str__(self):
         return repr(self)
 
