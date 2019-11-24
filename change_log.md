@@ -49,4 +49,7 @@ Change Log
   - Add_Submenu_Link documentation typo fixed for arg "id".
 * 0.13
   - Dropdown options changed to no longer use an "id" field, and callback now returns "option_index" and "option" instead of "option_id".
+* 0.14
+  - Add Refresh_Menu command for options menus.
+  - Added in-game toggle to turn on api debug logging.
  

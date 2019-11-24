@@ -20,7 +20,7 @@
           param="table[
             $id = 'simple_menu_test', 
             $onPress = Open_Menu,
-            $contexts = table[$flying = true, $walking = true, $menu_names = ['SimpleMenu']],
+            $contexts = ['flying', 'walking', 'SimpleMenu'],
             ]"/>
         <signal_cue_instantly
           cue="md.Key_Capture.Register_Key"
@@ -56,6 +56,7 @@
         $offsetX = null,
         $offsetY = null,
         $button_presses = 0,
+        $refresh_presses = 0,
         $openings = 0,
       ]" />
         <!-- Specs for widgets to edit these vars. -->
@@ -447,6 +448,29 @@
         <!-- Fill in some default widgets. -->
         <include_actions ref="Fill_Menu"/>
 
+        <!-- Button that refreshes the menu, with counter. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $text = 'Refresh test', 
+          $cellBGColor = 'Helper.color.transparent60',
+          ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Button"
+          param = "table[
+          $col = 2, 
+          $id = 'refresh_button',
+          $text = table[
+            $text   = '' + Globals.$vars.{'$refresh_presses'}, 
+            $color  = 'Helper.color.brightyellow',
+            $halign = 'center',
+            ],
+          $onClick = Handle_Menu_Action,
+          ]"/>
+
+
         <!-- Spam with dummy lines to test scroll bar. -->
         <do_all exact="30" counter="$i">
           <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
@@ -517,6 +541,14 @@
               ]"/>
 
         </do_if>
+
+        <!-- Testing menu refresh. -->
+        <do_if value="event.param.$id == 'refresh_button'">
+          <set_value name="Globals.$vars.{'$refresh_presses'}" operation="add"/>
+          <!-- Don't need to update the button text; refresh handles that. -->
+          <signal_cue_instantly cue="md.Simple_Menu_API.Refresh_Menu"/>
+        </do_if>
+        
       </actions>
     </cue>
 

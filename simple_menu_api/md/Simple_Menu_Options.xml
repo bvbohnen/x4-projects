@@ -64,6 +64,7 @@
         <include_actions ref="Reset_Globals"/>
       </actions>
       <cues>
+        <!-- Listen from the menu api reloading. -->
         <cue name="Reset_On_Lua_Reload" instantiate="true">
           <conditions>
             <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
@@ -80,7 +81,7 @@
         
         <!-- Define the options; these can be tweaked between lua reloads. -->
         <set_value name="Globals.$options" exact="[
-                   
+
           table[
             $id         = '$disable_animations',
             $name       = 'Disable menu animations',
@@ -117,29 +118,72 @@
               $hideMaxValue = true,
               ],
             ],
+            
+          table[
+            $id         = '$debug_menu_api',
+            $name       = 'Enable menu api debug logs',
+            $mouseover  = 'Prints extra api status info to the debug log, general category',
+            $default    = 0,
+            $type       = 'button',
+            ],
+             
           ]" />
         
         <!--Autofill defaults for missing storage entries.-->
-        <do_all exact="Globals.$options.count" counter="$i">          
+        <do_for_each name="$option" in="Globals.$options">
           <!--Check that it doesn't exist yet.-->
-          <do_if  value="not Globals.$storage.{Globals.$options.{$i}.$id}?">
-            <set_value name="Globals.$storage.{Globals.$options.{$i}.$id}"
-                       exact="Globals.$options.{$i}.$default"/>
+          <do_if  value="not Globals.$storage.{$option.$id}?">
+            <set_value name="Globals.$storage.{$option.$id}"
+                       exact="$option.$default"/>
           </do_if>
-        </do_all>
-        
-        <!-- Transmit current values to the lua, to restore after reload. -->
-        <!-- TODO: loop over options for this, and check $disabled. -->
-        <raise_lua_event
-          name="'Simple_Menu_Options.disable_animations'"
-          param="Globals.$storage.$disable_animations"/>
-        <raise_lua_event
-          name="'Simple_Menu_Options.tooltip_fontsize'"
-          param="Globals.$storage.$tooltip_fontsize"/>
-        <!--<raise_lua_event
-          name="'Simple_Menu_Options.adjust_fov'"
-          param="Globals.$storage.$adjust_fov"/>-->
           
+          <!-- Apply all current values, restoring after a reload. -->
+          <do_if value="not ($option.$disabled? and $option.$disabled)">
+            <set_value name="$id" exact="$option.$id"/>
+            <include_actions ref="Apply_Value"/>
+          </do_if>
+        </do_for_each>
+        
+      </actions>
+    </library>
+
+    <!--
+      Library to call to apply a new value for a given option.
+      May be used at startup or when values change.
+      
+      Input:
+          $id   - string, name of value stored in globals.
+    -->
+    <library name="Apply_Value">
+      <actions>
+        
+        <do_if value="$id == '$debug_menu_api'">
+          <!-- Change the debug chance in the main md file. -->
+          <set_value name="md.Simple_Menu_API.Globals.$DebugChance"
+                     exact ="if (Globals.$storage.{$id}) then 100 else 0"/>
+        </do_if>
+
+        <do_if value="$id == '$disable_animations'">
+          <!-- Signal the lua, sending 0 or 1. -->
+          <raise_lua_event
+            name="'Simple_Menu_Options.disable_animations'"
+            param="Globals.$storage.{$id}"/>
+        </do_if>
+
+        <do_if value="$id == '$tooltip_fontsize'">
+          <!-- Signal the lua, sending new font size. -->
+          <raise_lua_event
+            name="'Simple_Menu_Options.tooltip_fontsize'"
+            param="Globals.$storage.{$id}"/>
+        </do_if>
+
+        <do_if value="$id == '$adjust_fov'">
+          <!-- Signal the lua, sending new fov. -->
+          <raise_lua_event
+            name="'Simple_Menu_Options.adjust_fov'"
+            param="Globals.$storage.{$id}"/>
+        </do_if>
+
       </actions>
     </library>
 
@@ -181,7 +225,8 @@
             $id      = 'simple_menu_options',
             $columns = 2, 
             $title   = 'Simple Menu Options',
-            $onOpen  = Build_Options_Menu
+            $onOpen  = Build_Options_Menu,
+            $onSelectElement = Handle_SelectElement,
             ]"/>
       </actions>
     </cue>
@@ -204,7 +249,7 @@
           </do_if>
           
           <!-- Prepare a row -->
-          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row" param="table[$echo = $option]"/>
         
           <!-- Generic label -->
           <signal_cue_instantly
@@ -224,7 +269,7 @@
               $id      = $option.$id,
               $text    = table[$halign='left'],
               $col     = 2,
-              $echo    = $option.$id,
+              $echo    = $option,
               $onClick = Handle_Var_Change,
               ]"/>
           </do_if>
@@ -234,7 +279,7 @@
               $type    = 'slidercell',
               $id      = $option.$id,
               $col     = 2,
-              $echo    = $option.$id,
+              $echo    = $option,
               $onSliderCellConfirm = Handle_Var_Change,
               ]"/>
           </do_elseif>
@@ -258,6 +303,27 @@
       </actions>
     </cue>
 
+    <!--
+    Handle element selection, mainly aimed at button rows.
+    -->
+    <cue name="Handle_SelectElement" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!-- Ignore if no option (eg. some placeholder row or similar). -->
+        <do_if value="event.param.$row_echo?">
+          <set_value name="$option" exact="event.param.$row_echo"/>
+          <!-- Rename the echo to match normal widgets. -->
+          <set_value name="event.param.$echo" exact="event.param.$row_echo"/>
+          <!-- If this was a button, pass off to Handle_Var_Change. -->
+          <do_if value="$option.$type == 'button'">
+            <signal_cue_instantly cue="Handle_Var_Change" param="event.param"/>
+          </do_if>
+        </do_if>
+      </actions>      
+    </cue>
+    
     
     <!--
     Handle changes to global vars from menu.
@@ -276,20 +342,15 @@
           TODO; might be okay to put all update stuff in the lua, and just
           use the md for menu setup and value storage.
         -->
-        <set_value name="$id" exact="event.param.$id"/>
+        <set_value name="$id" exact="event.param.$echo.$id"/>
         <debug_text text="'Handling: %s'.[$id]"
                 chance="100" filter="general"/>
         
-        <!--TODO: make generic on/off button handler.-->
-        <do_if value="$id == '$disable_animations'">
+        <!-- Generic on/off button handler. -->
+        <do_if value="event.param.$echo.$type == 'button'">
           
           <!-- Toggle current option. -->
           <set_value name="Globals.$storage.{$id}" exact="if (Globals.$storage.{$id} == 0) then 1 else 0"/>
-
-          <!-- Signal the lua, sending 0 or 1. -->
-          <raise_lua_event
-            name="'Simple_Menu_Options.disable_animations'"
-            param="Globals.$storage.{$id}"/>
 
           <!-- Update the button. -->
           <set_value name="$args" exact="table[
@@ -299,34 +360,15 @@
               ]"/>
           <include_actions ref="Fill_Widget_Value"/>
           <signal_cue_instantly cue="md.Simple_Menu_API.Update_Widget" param = "$args"/>
-
         </do_if>
 
-        <!--TODO: make generic slider handler.-->
-        <do_elseif value="$id == '$tooltip_fontsize'">
-          <do_if value="event.param.$valuechanged">
-            <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
-            
-            <!-- Signal the lua, sending new font size. -->
-            <raise_lua_event
-              name="'Simple_Menu_Options.tooltip_fontsize'"
-              param="Globals.$storage.{$id}"/>
-
-          </do_if>
-        </do_elseif>
-
-        <do_elseif value="$id == '$adjust_fov'">
-          <do_if value="event.param.$valuechanged">
-            <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
-
-            <!-- Signal the lua, sending new fov. -->
-            <raise_lua_event
-              name="'Simple_Menu_Options.adjust_fov'"
-              param="Globals.$storage.{$id}"/>
-
-          </do_if>
-        </do_elseif>
-
+        <!-- Handle slider changes. -->
+        <do_if value="event.param.$echo.$type == 'slidercell'">
+          <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+        </do_if>
+        
+        <!-- Generic option update, applying the new value for $id. -->
+        <include_actions ref="Apply_Value"/>
       </actions>
     </cue>
 

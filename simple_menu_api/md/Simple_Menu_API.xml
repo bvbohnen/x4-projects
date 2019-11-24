@@ -251,6 +251,7 @@ Complex properties:
   <library name="Reset_Globals">
     <actions>
       <!-- Debug printout chance; generally 0 or 100; ego style naming. -->
+      <!-- Note: Simple_Menu_Options can/will overwrite this. -->
       <set_value name="Globals.$DebugChance" exact="0" />
       <set_value name="Globals.$current" exact="1" />
       <set_value name="Globals.$next"    exact="1" />
@@ -745,6 +746,26 @@ Complex properties:
       <set_value name="$args" exact="event.param"/>
       <include_actions ref="Init_Args_Table"/>
       <set_value name="$args.$command" exact="'Add_Submenu_Link'" />
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+
+  <!--@doc-cue
+    Refresh the current options menu by clearing its contents and
+    calling the onOpen callback cue.  Does not change the depth of
+    the options menu (eg. the back button is unaltered).
+    
+    For options menus only; standalone menus can refresh using
+    a new call to Create_Menu.
+    -->
+  <cue name="Refresh_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Init_Args_Table"/>
+      <set_value name="$args.$command" exact="'Refresh_Menu'" />
       <signal_cue_instantly cue="Send_Command" param="$args"/>
     </actions>
   </cue>
@@ -1532,10 +1553,12 @@ Complex properties:
             <signal_cue_instantly cue="$cue" param="$response" />
           </do_if>
         
-          <!-- Print warning if no callback valid. TODO: maybe too spammy.-->
+          <!-- Print warning if no callback valid, if one was given.-->
           <do_else>
-            <debug_text text="'Found no callback for menu event: ' + $response.$event"
-                  chance="Globals.$DebugChance" filter="general"/>
+            <do_if value="Globals.$menu_properties.{Globals.$current}.{'$' + $response.$event}?">
+              <debug_text text="'Invalid callback for menu event: ' + $response.$event"
+                    chance="Globals.$DebugChance" filter="general"/>
+            </do_if>
           </do_else>
         </do_else>
         
@@ -1546,7 +1569,7 @@ Complex properties:
       <do_else>
         <!-- Look up the callback cue for this row/col and event. -->
         <!-- Use @, so if a cue isn't found this yields null. -->
-        <set_value name="$args_table" exact="@Globals.$widget_properties.{Globals.$current}.{$response.$row}.{$response.$col}" />
+        <set_value name="$args_table" exact="Globals.$widget_properties.{Globals.$current}.{$response.$row}.{$response.$col}" />
         <set_value name="$cue" exact="@$args_table.{'$' + $response.$event}" />
       
         <!-- Handle the callback, if found and still existing. -->
@@ -1570,10 +1593,16 @@ Complex properties:
           <signal_cue_instantly cue="$cue" param="$response"/>
         </do_if>
       
-        <!-- Print warning if no callback valid. -->
+        <!-- Print warning if no callback valid, but one was given. -->
         <do_else>
-          <debug_text text="'Found no callback for row,col: (%s,%s)'.[$response.$row, $response.$col]" 
-                chance="Globals.$DebugChance" filter="general"/>
+          <do_if value="$args_table.{'$' + $response.$event}?">
+            <debug_text text="'Invalid callback for row,col: (%s,%s)'.[$response.$row, $response.$col]"
+                  chance="Globals.$DebugChance" filter="general"/>
+          </do_if>
+          <!--<do_else>
+            <debug_text text="'No callback for row,col: (%s,%s) in %s'.[$response.$row, $response.$col, $args_table]"
+                  chance="Globals.$DebugChance" filter="general"/>
+          </do_else>-->
         </do_else>
       </do_else>
       

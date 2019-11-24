@@ -361,6 +361,12 @@ Complex properties:
     * id
       - String, unique id of the submenu to be opened, as set at registration.
       
+* **Refresh_Menu**
+  
+  Refresh the current options menu by clearing its contents and calling the onOpen callback cue.  Does not change the depth of the options menu (eg. the back button is unaltered).
+      
+  For options menus only; standalone menus can refresh using a new call to Create_Menu.
+      
 
 
 

@@ -237,6 +237,7 @@ local function Init_Gameoptions_Link()
             -- Repeat the layer check, to be safe.
             if layer == config.optionsLayer then
                 -- Will have two tables.
+                -- Note: optionTable gets used by calls to refresh().
                 gameoptions_menu.titleTable, gameoptions_menu.optionTable = ...
             end
         else
@@ -322,6 +323,19 @@ function menu.Add_Submenu_Link(args)
         name    = args.text,
         submenu = args.id,
     }, menu_data.columns + 1)
+end
+
+-- Refresh the menu by clearing its contents and rebuilding it, but
+-- with no change in options menu depth.
+function menu.Refresh()
+    -- Store the selected row/col.
+    -- (Ego code does something slightly different, with rowdata.)
+    -- The Helper functions require the integer table id, which was
+    -- recorded into optionTable.
+    menu_data.currentTableRow = Helper.currentTableRow[gameoptions_menu.optionTable]
+    menu_data.currentTableCol = Helper.currentTableCol[gameoptions_menu.optionTable]
+    -- Use the existing refresh method.
+    gameoptions_menu.refresh()
 end
 
 
@@ -478,7 +492,8 @@ function menu.Display_Custom_Menu(menu_spec)
     menu_data.delay_commands = false
     
     -- Signal md api with a general event for a menu opening; this is to
-    -- match standalone menu behavior.
+    -- match standalone menu behavior, and switches the menu page (does
+    -- not call the user onOpen cue).
     Lib.Raise_Signal("Event", {type='menu', event='onOpen'})
     
     -- Signal md api so it can call the user cue which fills the menu.
@@ -520,9 +535,27 @@ function menu.Handle_Delayed_Display()
         
     -- A couple options menu cleanup steps, related to support
     -- for going back a level and reselecting the prior row.
+    -- Guess: this sets the vertical scroll point when scrolled down.
+    -- In testing, preselectTopRow is nil and scrolling is still retained,
+    -- so unclear what this is doing.
     menu_data.ftable:setTopRow(gameoptions_menu.preselectTopRow)
     gameoptions_menu.preselectTopRow = nil
+    -- TODO: maybe do something with this, from ego code holding rowdata.
     gameoptions_menu.preselectOption = nil
+
+    -- For refreshes, restore the row/col selection.
+    -- (Ego code defaults to 0 for these calls.)
+    -- DebugError("currentTableRow: "..tostring(currentTableRow))
+    -- DebugError("currentTableCol: "..tostring(currentTableCol))
+    if menu_data.currentTableRow then
+        menu_data.ftable:setSelectedRow(menu_data.currentTableRow)
+        menu_data.currentTableRow = nil
+    end
+    if menu_data.currentTableCol then
+        menu_data.ftable:setSelectedCol(menu_data.currentTableCol)
+        menu_data.currentTableCol = nil
+    end
+        
     
     -- Do the final display call.
     -- For safety, clean old scripts, though this shouldn't be needed

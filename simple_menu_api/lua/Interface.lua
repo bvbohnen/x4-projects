@@ -218,13 +218,11 @@ function L._Process_Command(args)
         -- Hand off to the standalone menu.
         Standalone_Menu.Open(args)
     
-
     -- Close the menu if open.
     elseif args.command == "Close_Menu" then
         -- Hand off to the standalone menu.
         Standalone_Menu.Close()
         
-
     elseif args.command == "Register_Options_Menu" then
         -- Validate all needed args are present.
         Lib.Validate_Args(args, {
@@ -235,7 +233,14 @@ function L._Process_Command(args)
         })
         -- Hand off.
         Options_Menu.Register_Options_Menu(args)
-                
+        
+    elseif args.command == "Refresh_Menu" then
+        -- Just skip for now if in wrong mode.
+        if menu_data.mode ~= "options" then
+            error("Refresh_Menu only supported for options menus")
+        end
+        Options_Menu.Refresh(args)
+
 
     -- Adjust table aspects.
     elseif args.command == "Call_Table_Method" then
