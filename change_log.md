@@ -44,3 +44,5 @@ Change Log
 * 0.13
   - Fixed x4 crash when using /reloadui that showed up in 3.0 beta.
   - Reduced reliance on onUpdate events for pipe reading, due to dropouts.
+* 0.14
+  - dll file moved inside the extension, and no longer needs to be in ui/core/lualibs.
