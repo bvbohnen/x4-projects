@@ -25,8 +25,7 @@ There are three components to this API:
 
 ### Installation
 
-* Place the named_pipes_api folder in extensions, as with normal mods.
-* Place winpipe64.dll in ui\core\lualibs.
+* Place the named_pipes_api folder in extensions.
 * Place the X4_Python_Pipe_Server (exe or py) anywhere convenient.
   - Run this pipe server alongside X4.
 

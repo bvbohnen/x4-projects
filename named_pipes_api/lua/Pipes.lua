@@ -38,7 +38,7 @@ ffi.cdef[[
 
 -- Load in the winpipe dll, which has been set up with the necessary
 -- Windows functions for working with pipes.
-local winpipe = require("winpipe")
+local winpipe = require("extensions.named_pipes_api.lualibs.winpipe")
 
 local Lib = require("extensions.named_pipes_api.lua.Library")
 FIFO = Lib.FIFO

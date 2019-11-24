@@ -24,25 +24,25 @@
   <ItemGroup>
     <Content Include="API Functions.md" />
     <Content Include="change_log.md" />
-    <Content Include="X4_Files\extensions\named_pipes_api\content.xml" />
-    <Content Include="X4_Files\extensions\named_pipes_api\lua\Interface.lua" />
-    <Content Include="X4_Files\extensions\named_pipes_api\lua\Library.lua" />
-    <Content Include="X4_Files\extensions\named_pipes_api\lua\Pipes.lua" />
-    <Content Include="X4_Files\extensions\named_pipes_api\md\Named_Pipes.xml" />
-    <Content Include="X4_Files\extensions\named_pipes_api\md\Pipe_Server_Host.xml" />
-    <Content Include="X4_Files\extensions\named_pipes_api\md\Pipe_Server_Lib.xml" />
-    <Content Include="X4_Files\extensions\named_pipes_api_test\content.xml" />
-    <Content Include="X4_Files\extensions\named_pipes_api_test\md\Test_Named_Pipe.xml" />
+    <Content Include="named_pipes_api\content.xml" />
+    <Content Include="named_pipes_api\lualibs\winpipe.lua" />
+    <Content Include="named_pipes_api\lua\Interface.lua" />
+    <Content Include="named_pipes_api\lua\Library.lua" />
+    <Content Include="named_pipes_api\lua\Pipes.lua" />
+    <Content Include="named_pipes_api\md\Named_Pipes.xml" />
+    <Content Include="named_pipes_api\md\Pipe_Server_Host.xml" />
+    <Content Include="named_pipes_api\md\Pipe_Server_Lib.xml" />
+    <Content Include="named_pipes_api_test\content.xml" />
+    <Content Include="named_pipes_api_test\md\Test_Named_Pipe.xml" />
     <Content Include="Readme.md" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="X4_Files\" />
-    <Folder Include="X4_Files\extensions\" />
-    <Folder Include="X4_Files\extensions\named_pipes_api\" />
-    <Folder Include="X4_Files\extensions\named_pipes_api\md\" />
-    <Folder Include="X4_Files\extensions\named_pipes_api\lua\" />
-    <Folder Include="X4_Files\extensions\named_pipes_api_test\" />
-    <Folder Include="X4_Files\extensions\named_pipes_api_test\md\" />
+    <Folder Include="named_pipes_api\" />
+    <Folder Include="named_pipes_api\lualibs\" />
+    <Folder Include="named_pipes_api\md\" />
+    <Folder Include="named_pipes_api\lua\" />
+    <Folder Include="named_pipes_api_test\" />
+    <Folder Include="named_pipes_api_test\md\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
