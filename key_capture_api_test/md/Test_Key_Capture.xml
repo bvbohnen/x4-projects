@@ -29,7 +29,7 @@ Relies on named pipe library; server side is written in python.
         $onRepeat  = OnKeyEvent,
         $name = 'Test Space', 
         $description = 'Key Capture test Space',
-        $contexts = table[$flying = true],
+        $contexts = ['flying'],
         $category = 'Test Space Keys',
         ]"/>
 
@@ -38,7 +38,7 @@ Relies on named pipe library; server side is written in python.
         $onPress = OnKeyEvent,
         $name = 'Test Walk', 
         $description = 'Key Capture test Walk',
-        $contexts = table[$walking = true],
+        $contexts = ['walking'],
         $category = 'Test Walk Keys',
         ]"/>
 
@@ -47,7 +47,7 @@ Relies on named pipe library; server side is written in python.
         $onPress = OnKeyEvent,
         $name = 'Test Menu', 
         $description = 'Key Capture test Menu',
-        $contexts = table[$menus = true],
+        $contexts = ['menus'],
         $category = 'Test Menu Keys',
         ]"/>
 
@@ -56,7 +56,7 @@ Relies on named pipe library; server side is written in python.
         $onPress = OnKeyEvent,
         $name = 'Test Simple Menu', 
         $description = 'Key Capture test Simple Menu API',
-        $contexts = table[$menu_names = ['SimpleMenu']],
+        $contexts = ['SimpleMenu'],
         $category = 'Test Menu Keys',
         ]"/>
 
@@ -79,9 +79,12 @@ Relies on named pipe library; server side is written in python.
     <actions>
       <!-- Log it. -->
       <raise_lua_event name="'directChatMessageReceived'" 
-                       param="'key;%s (%s %s)'.[event.param.$id, 
-                                                event.param.$context, 
-                                                event.param.$event]"/>
+                       param="'key;%s (%s %s)'.[
+                            event.param.$id, 
+                            event.param.$key, 
+                            event.param.$event,
+                            event.param.$context, 
+                            ]"/>
     </actions>
   </cue>
       

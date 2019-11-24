@@ -29,20 +29,19 @@
     - Callback cue when the combo final key is repeated while held.
     - Repeat delay and rate depend on OS settings.
   * contexts
-    - Table holding the player contexts where the shortcut is valid.
-    - If not given, defaults to "table{$flying = true}".
-    - Fields:
-      * flying
-        - Bool, if the shortcut is valid while the player is piloting a ship.
-      * walking
-        - Bool, if the shortcut is valid while the player is on foot.
-      * menu
-        - Bool, if the shortcut is valid while the player is in any menu.
+    - List of strings, names of player contexts where the shortcut is valid.
+    - If not given, defaults to "['flying']".
+    - Valid contexts:
+      * 'flying'
+        - While the player is piloting a ship.
+      * 'walking'
+        - While the player is on foot.
+      * 'menus'
+        - While the player is in any menu.
         - The OptionsMenu will be protected, with shortcuts always disabled.
-      * menu_names
-        - List of names of menus where the shortcut is valid.
-        - 'menu' is ignored if this is given.
-        
+      * ...
+        - Other entries are names of individual menus, as registered by the egosoft backend.
+                  
   Keypress events will return a table with these fields:
   * key
     - String, identifier of the key combination matched.
@@ -70,7 +69,7 @@
               $onPress     = OnKeyPress,
               $name        = 'Test Key',
               $description = 'This key is just testing',
-              $contexts    = table[ $flying = true, $walking = true ],
+              $contexts    = ['flying','walking'],
               ]"/>
         </actions>
       </cue>

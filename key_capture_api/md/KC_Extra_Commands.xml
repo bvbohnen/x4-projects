@@ -24,14 +24,16 @@
           $id = 'kc_target_follow', 
           $onPress = Target_Follow,
           $name = 'Follow Target', 
-          $description = 'Turns on autopilot to follow the target'
+          $description = 'Turns on autopilot to follow the target',
+          $contexts = ['flying'],
           ]"/>
 
         <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
           $id = 'kc_eject_illegals', 
           $onPress = Eject_Illegals,
           $name = 'Eject Illegal Wares', 
-          $description = 'Eject any player inventory or piloted ship cargo that is illegal in the player zone'
+          $description = 'Eject any player inventory or piloted ship cargo that is illegal in the player zone',
+          $contexts = ['flying'],
           ]"/>
         
       </actions>

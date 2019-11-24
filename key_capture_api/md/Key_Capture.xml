@@ -16,29 +16,8 @@ Goals:
 -->
   <!--
 TODO:
-  Test unregistering.
-  
-  Turn off server if all keys unregistered.
-
-  Add an option to suppress further key matching when a key is held down,
-  eg. ignore the extra 'press' events sent by the keyboard without a 'release'
-  event.
-  
-  Add key context support, which situtions it is active:
-    menu (test: hard to do, need to track signals from lua)
-    space (test: not menu, player.occupiedship != null)
-    firstperson (test: not menu, player.occupiedship == null)
-  How to know when a menu is open (and not minimized)?
-  - Listen to events for all possible menu names (as screen)
-    Blank page: menu was opened (helper.lua line 872)
-    'menu_closed' page: menu was closed (helper.lua line 1261)
-  - Look up all registered menu names dynamically to be robust.
-  - Lua side can give the menu names, but md has no apparent good way
-    to read them in and set up cues (maybe spawn a listener cue instance
-    for each lua message, one message per menu name?).
-  - Alternatively, have lua patch into Helper to directly catch when
-    a menu opens/closes (cleaner if robust).
-    
+  - Turn off server if all keys unregistered (can do this server side).
+  - Option to hide a shortcut (make private) from the menu.
 -->
 <cues>
 
@@ -90,7 +69,6 @@ TODO:
     - See Register_Shortcut for description of fields.
            
   * key_event_shortcut_registry
-    - TODO: switch to subtable with shortcut, key combo, event split out.
     - Table, indexed by key/event descriptor (string), holding a list of
       shortcut ids attached to it.
     - Descriptors are made up of the key combo string, followed by the
@@ -106,9 +84,10 @@ TODO:
     - Note: this may be filled during init prior to shortcuts being
       registered, which is okay.
       
-  * key_event_to_event
+  * key_event_substrings
     - Table, keyed the same as key_event_shortcut_registry, simply holding
-      the event name.
+      a two item list of [key_name, event_name], the key_event name
+      components.
     - Purely for convenience, as an alternative to overcomplicating
       the above registry with table or list entries.
     - Will be allowed to grow beyond keys currently in use.
@@ -183,7 +162,7 @@ TODO:
     <actions>
       <set_value name="$shortcut_registry" exact="table[]"/>
       <set_value name="$key_event_shortcut_registry" exact="table[]"/>
-      <set_value name="$key_event_to_event" exact="table[]"/>      
+      <set_value name="$key_event_substrings" exact="table[]"/>      
       <set_value name="$menu_states" exact="table[]"/>
       <set_value name="$in_menu" exact="false"/>
       <set_value name="$in_protected_menu" exact="false"/>      
@@ -243,6 +222,8 @@ TODO:
       <do_if value="md.Key_Capture.Globals.$key_event_shortcut_registry.keys.list.count != 0">
         <signal_cue cue="$Start_Reading" />
       </do_if>
+      <!-- Disable the menu plugin. -->
+      <raise_lua_event name="'Key_Capture.Update_Connection_Status'" param="0"/>
     </actions>
   </library>
   
@@ -250,6 +231,8 @@ TODO:
     <actions>
       <!-- Announce the wanted keys to the server. -->
       <signal_cue_instantly cue="md.Key_Capture.Register_Keys_With_Server_2"/>
+      <!-- Enable the menu plugin. -->
+      <raise_lua_event name="'Key_Capture.Update_Connection_Status'" param="1"/>      
     </actions>
   </library>
 
@@ -315,7 +298,6 @@ TODO:
     </actions>
   </cue>
 
-  
   <!--@doc-cue
     User function to register a shortcut. These shortcuts will be displayed
     in the api options menu for use assignment of a hotkey.
@@ -342,20 +324,20 @@ TODO:
       - Callback cue when the combo final key is repeated while held.
       - Repeat delay and rate depend on OS settings.
     * contexts
-      - Table holding the player contexts where the shortcut is valid.
-      - If not given, defaults to "table{$flying = true}".
-      - Fields:
-        * flying
-          - Bool, if the shortcut is valid while the player is piloting a ship.
-        * walking
-          - Bool, if the shortcut is valid while the player is on foot.
-        * menu
-          - Bool, if the shortcut is valid while the player is in any menu.
+      - List of strings, names of player contexts where the shortcut is valid.
+      - If not given, defaults to "['flying']".
+      - Valid contexts:
+        * 'flying'
+          - While the player is piloting a ship.
+        * 'walking'
+          - While the player is on foot.
+        * 'menus'
+          - While the player is in any menu.
           - The OptionsMenu will be protected, with shortcuts always disabled.
-        * menu_names
-          - List of names of menus where the shortcut is valid.
-          - 'menu' is ignored if this is given.
-      
+        * ...
+          - Other entries are names of individual menus, as registered by
+            the egosoft backend.
+                
     Keypress events will return a table with these fields:
     * key
       - String, identifier of the key combination matched.
@@ -385,7 +367,7 @@ TODO:
                 $onPress     = OnKeyPress,
                 $name        = 'Test Key',
                 $description = 'This key is just testing',
-                $contexts    = table[ $flying = true, $walking = true ],
+                $contexts    = ['flying','walking'],
                 ]"/>
           </actions>
         </cue>
@@ -404,7 +386,7 @@ TODO:
       <do_for_each name="$key" valuename="$default" 
                    in="table[
                     $description   = '',
-                    $contexts      = table[$flying=true],
+                    $contexts      = ['flying'],
                    ]">
         <set_value name="$args.{$key}" exact="if ($args.{$key}?) then $args.{$key} else $default"/>
       </do_for_each> -->
@@ -417,15 +399,41 @@ TODO:
         <set_value name="$args.$name" exact="$args.$id"/>
       </do_if>
       <do_if value="not $args.$contexts?">
-        <set_value name="$args.$contexts" exact="table[$flying=true]"/>
+        <set_value name="$args.$contexts" exact="['flying']"/>
       </do_if>
-      <!-- In case menu_names was given as an empty list, remove it. -->
-      <do_elseif value="$args.$contexts.$menu_names? and ($args.$contexts.$menu_names.count == 0)">
-        <remove_value name="$args.$contexts.$menu_names"/>
-      </do_elseif>
+
+      <!-- For easier usage, split standard and menu contexts. -->
+      <!-- Any misc menu names are collected into a separate list. 
+          This is done so at usage time, menu name checks can be more
+          easily ignored if no names were given. -->
+      <set_value name="$contexts" exact="[]"/>
+      <set_value name="$menu_names" exact="[]"/>
+      <!-- Convenience table keyed with standard context names to check. -->
+      <set_value name="$std_contexts" exact="['flying','walking','menus']"/>
+
+      <!-- Loop over the given list. -->
+      <do_for_each name="$name" in="$args.$contexts">
+        <!-- Check for standard names. -->
+        <do_if value="$std_contexts.indexof.{$name} != 0">
+          <append_to_list name="$contexts" exact="$name"/>
+        </do_if>
+        <!-- Otherwise this should be a menu name. -->
+        <do_else>
+          <append_to_list name="$menu_names" exact="$name"/>
+        </do_else>
+      </do_for_each>
+      
+      <!-- Store the new data format. -->
+      <set_value name="$args.$contexts"   exact="$contexts"/>
+      <!-- If menu_names is an empty list, ignore it. -->
+      <do_if value="$menu_names.count ge 0">
+        <set_value name="$args.$menu_names" exact="$menu_names"/>
+      </do_if>
       
       <!-- Record it. -->
       <set_value name="Globals.$shortcut_registry.{'$'+$args.$id}" exact="$args"/>
+      <debug_text text="'Shortcut %s registered with args: %s'.[$args.$id, $args]"
+                  chance="Globals.$DebugChance" filter="general"/>
       
       <!-- If any player keys were saved for this shortcut, apply them now. -->
       <do_if value="Globals.$player_shortcut_keys.{'$'+$args.$id}?">
@@ -558,7 +566,7 @@ TODO:
       </do_if> -->
        
       <!-- Adjust the key to prefix with a $ for x4 tables. -->
-      <set_value name="$key_prefix" exact="'$' + event.param.$key"/>
+      <set_value name="$key" exact="'$' + event.param.$key"/>
       <set_value name="$id" exact="event.param.$id"/>
       
       <!-- Look up the shortcut; error if not found. -->
@@ -571,25 +579,25 @@ TODO:
           <continue/>
         </do_if>
         <!-- Create the full key, by suffixing with event type. -->
-        <set_value name="$key" exact="$key_prefix +' '+ $event"/>
+        <set_value name="$key_event" exact="$key +' '+ $event"/>
               
         <!-- Make sure there is a table entry for the key. -->
-        <do_if value="not Globals.$key_event_shortcut_registry.{$key}?">
-          <set_value name="Globals.$key_event_shortcut_registry.{$key}" exact="[]"/>
-          <!-- Record the event name for later lookup. -->
-          <set_value name="Globals.$key_event_to_event.{$key}" exact="$event"/>
+        <do_if value="not Globals.$key_event_shortcut_registry.{$key_event}?">
+          <set_value name="Globals.$key_event_shortcut_registry.{$key_event}" exact="[]"/>
+          <!-- Record the key (no $) and event name for later lookup. -->
+          <set_value name="Globals.$key_event_substrings.{$key_event}" exact="[event.param.$key, $event]"/>
         </do_if>
 
         <!-- Check if the id is already recorded for this key. -->
-        <do_if value="Globals.$key_event_shortcut_registry.{$key}.indexof.{$id} != 0">
+        <do_if value="Globals.$key_event_shortcut_registry.{$key_event}.indexof.{$id} != 0">
           <!-- Print some warning. -->
-          <debug_text text="'Warning, shortcut %s already registered to key %s.'.[$id, $key]"
+          <debug_text text="'Warning, shortcut %s already registered to key %s.'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_if>
         <do_else>
           <!-- It isn't recorded, so add it in. -->
-          <append_to_list name="Globals.$key_event_shortcut_registry.{$key}" exact="$id" />
-          <debug_text text="'Shortcut %s registered to key %s.'.[$id, $key]"
+          <append_to_list name="Globals.$key_event_shortcut_registry.{$key_event}" exact="$id" />
+          <debug_text text="'Shortcut %s registered to key %s.'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_else>
         
@@ -626,7 +634,6 @@ TODO:
     </conditions>
 
     <actions>
-      <set_value name="$key_prefix" exact="'$' + event.param.$key"/>
       <set_value name="$id" exact="event.param.$id"/>
 
       <!-- Look up the shortcut; error if not found. -->
@@ -639,34 +646,34 @@ TODO:
           <continue/>
         </do_if>
         <!-- Create the full key, by suffixing with event type. -->
-        <set_value name="$key" exact="$key_prefix + $event"/>
+        <set_value name="$key_event" exact="'$' + event.param.$key + $event"/>
 
         <!-- Check if there is no table entry for the key. -->
-        <do_if value="not Globals.$key_event_shortcut_registry.{$key}?">
+        <do_if value="not Globals.$key_event_shortcut_registry.{$key_event}?">
           <!-- Print some warning. -->
-          <debug_text text="'Warning, key %s has no registered shortcuts.'.[$key]"
+          <debug_text text="'Warning, key %s has no registered shortcuts.'.[$key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
           <continue/>
         </do_if>
       
         <!-- Check if the id is recorded for this key. -->
-        <set_value name="$id_index" exact="Globals.$key_event_shortcut_registry.{$key}.indexof.{$id}"/>
+        <set_value name="$id_index" exact="Globals.$key_event_shortcut_registry.{$key_event}.indexof.{$id}"/>
         <do_if value="$id_index == 0">
           <!-- It isn't recorded, so print a warning. -->
-          <debug_text text="'Warning, shortcut %s is not registered to key %s.'.[$id, $key]"
+          <debug_text text="'Warning, shortcut %s is not registered to key %s.'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
           <continue/>
         </do_if>
 
         <!-- Proceed with removal. -->
-        <remove_value name="Globals.$key_event_shortcut_registry.{$key}.{$id_index}" />
-        <debug_text text="'Removed shortcut %s from key %s.'.[$id, $key]"
+        <remove_value name="Globals.$key_event_shortcut_registry.{$key_event}.{$id_index}" />
+        <debug_text text="'Removed shortcut %s from key %s.'.[$id, $key_event]"
                     chance="Globals.$DebugChance" filter="general"/>
 
         <!-- If the key's cue list is empty, and remove it if so. -->
-        <do_if value="Globals.$key_event_shortcut_registry.{$key}.count == 0">
-          <remove_value name="Globals.$key_event_shortcut_registry.{$key}" />
-          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key]"
+        <do_if value="Globals.$key_event_shortcut_registry.{$key_event}.count == 0">
+          <remove_value name="Globals.$key_event_shortcut_registry.{$key_event}" />
+          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_if>
       </do_for_each>
@@ -822,52 +829,49 @@ TODO:
         <!-- TODO: maybe pack into chained if/then/else expression. -->
         <!-- If any menu is open, then in a menu. -->
         <do_if value="Globals.$in_menu">
-          <set_value name="$context" exact="'$menus'"/>
+          <set_value name="$context" exact="'menus'"/>
         </do_if>
         <!-- Otherwise if piloting a ship, then flying. -->
         <do_elseif value="player.occupiedship">
-          <set_value name="$context" exact="'$flying'"/>
+          <set_value name="$context" exact="'flying'"/>
         </do_elseif>
         <!-- Otherwise walking around. -->
         <do_else>
-          <set_value name="$context" exact="'$walking'"/>
+          <set_value name="$context" exact="'walking'"/>
         </do_else>
 
         
         <!-- Get the event associated with this key/event, matching its suffix. -->
-        <set_value name="$event" exact ="Globals.$key_event_to_event.{$key_event}"/>
+        <set_value name="$key" exact ="Globals.$key_event_substrings.{$key_event}.{1}"/>
+        <set_value name="$event" exact ="Globals.$key_event_substrings.{$key_event}.{2}"/>
         
-        <!-- Convenience renaming of shortcut ids. -->
-        <set_value name="$id_list" exact="Globals.$key_event_shortcut_registry.{$key_event}"/>
         <!-- Loop over the shortcut ids. -->
-        <do_all exact="$id_list.count" counter="$i">
+        <do_for_each name="$id" in="Globals.$key_event_shortcut_registry.{$key_event}">
           
           <!-- Get the actual shortcut info. -->
-          <set_value name="$shortcut" exact="Globals.$shortcut_registry.{'$'+$id_list.{$i}}"/>
+          <set_value name="$shortcut" exact="Globals.$shortcut_registry.{'$' + $id}"/>
           
           <!-- Determine if this shortcut is valid at this time. -->
           <set_value name="$valid" exact="false"/>
           
-          <!-- If in menu and a menu_list was given, check specific menu names. -->
-          <do_if value="Globals.$in_menu and ($shortcut.$contexts.$menu_names?)">
+          <!-- General context check. -->
+          <do_if value="$shortcut.$contexts.indexof.{$context} != 0">
+            <set_value name="$valid" exact="true"/>
+          </do_if>
+          
+          <!-- If in menu and menu names were given, check specific them. -->
+          <do_elseif value="Globals.$in_menu and ($shortcut.$menu_names?)">
             <!-- Go through all menu names and see if any are open. -->
-            <do_all exact="$shortcut.$contexts.$menu_names.count" counter="$j">
-              <!--Convenience renaming. TODO: prefix with $ at registration.-->
-              <set_value name="$menu_name" exact="'$'+$shortcut.$contexts.$menu_names.{$j}"/>
+            <do_for_each name="$menu_name" in="$shortcut.$menu_names">
               <!--Check this is a tracked menu, and in an open state.-->
               <do_if value="Globals.$menu_states.{$menu_name}? and Globals.$menu_states.{$menu_name}">
                 <!-- This menu is open, so flag as valid. -->
                 <set_value name="$valid" exact="true"/>
                 <!-- Update the context for cue callback. -->
                 <set_value name="$context" exact="$menu_name"/>
+                <break/>
               </do_if>
-            </do_all>
-          </do_if>
-          
-          <!-- Otherwise general context check. User may not have specified all contexts. -->
-          <do_elseif value="$shortcut.$contexts.{$context}? and $shortcut.$contexts.{$context}">
-            <!-- If here, got a context match. -->
-            <set_value name="$valid" exact="true"/>
+            </do_for_each>
           </do_elseif>
           
           <!-- Skip if not a valid context. -->
@@ -882,10 +886,9 @@ TODO:
           <!-- Call it if it still exists. -->
           <do_if value="$cue.exists">            
             <!-- Call the cue, with return values. -->
-            <!--TODO: clean up $key return to not have event suffixed.-->
             <signal_cue_instantly cue="$cue" param="table[
-                                  $key = $key_event,
-                                  $id = $id_list.{$i},
+                                  $key = $key,
+                                  $id = $id,
                                   $context = $context,
                                   $event = $event,
                                   ]"/>
@@ -893,7 +896,7 @@ TODO:
           <!-- TODO: delink keys from non-existent shortcuts/cues. -->
           <!--Could do this by removing the $event from the shortcut, 
               unregistering, and reregistering.-->          
-        </do_all>
+        </do_for_each>
       </do_elseif>
 
       <do_else>

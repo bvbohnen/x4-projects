@@ -44,18 +44,21 @@ local L = {
 
     -- Wrapper functions on remapInput to be used in registering for input events.
     input_event_handlers = {},
+
+    -- Status of the pipe connection, updated from md.
+    pipe_connected = false,
     }
 
 
 -- Proxy for the gameoptions menu, linked further below.
 local menu = nil
 
-
 local function Init()
 
     -- MD triggered events.
     RegisterEvent("Key_Capture.Update_Shortcuts", L.Update_Shortcuts)
     RegisterEvent("Key_Capture.Update_Player_Keys", L.Read_Player_Keys)
+    RegisterEvent("Key_Capture.Update_Connection_Status", L.Update_Connection_Status)
     
     -- Cache the player component id.
     L.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
@@ -258,6 +261,16 @@ end
 L.Input_Listener()
 ]]
 
+-- Handle md pipe connection status update. Param is 0 or 1.
+function L.Update_Connection_Status(_, connected)
+    -- Translate the 0 or 1 to false/true.
+    if connected == 0 then 
+        L.pipe_connected = false 
+    else 
+        L.pipe_connected = true 
+    end
+end
+
 -- Handle md requests to update the shortcut registry.
 -- Reads data from a player blackboard var.
 function L.Update_Shortcuts()
@@ -309,6 +322,13 @@ end
 function L.displayControls (optionParameter)
     --DebugError("GameOptions.displayControls() called")
 
+    -- Skip if the pipe is not connected, to avoid clutter for users that
+    -- have this api installed but aren't using the server.
+    if not L.pipe_connected then return end
+
+    -- TODO: skip if there are no shortcuts available. For now, the
+    -- stock example shortcuts should always be present, so can skip this
+    -- check.
 
     -- For now, stick keys on the keyboard/space submenu.
     -- Skip others.

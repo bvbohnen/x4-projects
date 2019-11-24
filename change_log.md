@@ -26,5 +26,7 @@ Change Log
 * 0.15
   - Added Eject_Illegal_Wares shortcut.
   - Sorted shortcuts in the menu, and support grouping by category names.
+* 0.16
+  - Changed the contexts are to be a list instead of table.
 
 
