@@ -36,18 +36,19 @@ from X4_Python_Pipe_Server import Make_Executable
 # files.
 release_files_specs = {
     'Named_Pipes_API':{ 
-        'root_path': project_dir / 'X4_Named_Pipes_API' / 'X4_Files',
-        'doc_path' : '..',
+        'root_path': project_dir / 'X4_Named_Pipes_API',
+        'doc_path' : '',
         'files':[
-            '../Readme.md',
-            'ui/core/lualibs/winpipe_64.dll',
-            'extensions/named_pipes_api/content.xml',
-            'extensions/named_pipes_api/md/Named_Pipes.xml',
-            'extensions/named_pipes_api/md/Pipe_Server_Host.xml',
-            'extensions/named_pipes_api/md/Pipe_Server_Lib.xml',
-            'extensions/named_pipes_api/lua/Interface.lua',
-            'extensions/named_pipes_api/lua/Library.lua',
-            'extensions/named_pipes_api/lua/Pipes.lua',
+            'Readme.md',
+            'named_pipes_api/content.xml',
+            'named_pipes_api/md/Named_Pipes.xml',
+            'named_pipes_api/md/Pipe_Server_Host.xml',
+            'named_pipes_api/md/Pipe_Server_Lib.xml',
+            'named_pipes_api/lua/Interface.lua',
+            'named_pipes_api/lua/Library.lua',
+            'named_pipes_api/lua/Pipes.lua',
+            'named_pipes_api/lualibs/winpipe.lua',
+            'named_pipes_api/lualibs/winpipe_64.dll',
         ]},
     # Python style of pipe server.
     'X4_Python_Pipe_Server_py':{ 
@@ -67,18 +68,18 @@ release_files_specs = {
         'files':[
             '../bin/X4_Python_Pipe_Server.exe',
         ]},
-    'Key_Capture_API':{ 
-        'root_path':project_dir / 'X4_Key_Capture_API', 
+    'Hotkey_API':{ 
+        'root_path':project_dir / 'X4_Hotkey_API', 
         'doc_path' : '',
         'files':[
             'Readme.md',
-            'key_capture_api/content.xml',
-            'key_capture_api/Send_Keys.py',
-            'key_capture_api/md/Key_Capture.xml',
-            'key_capture_api/md/KC_Extra_Commands.xml',
-            'key_capture_api/lua/Key_Capture.lua',
-            'key_capture_api/lua/Library.lua',
-            'key_capture_api/lua/Tables.lua',
+            'hotkey_api/content.xml',
+            'hotkey_api/Send_Keys.py',
+            'hotkey_api/md/Hotkey_API.xml',
+            'hotkey_api/md/HK_Stock_Actions.xml',
+            'hotkey_api/lua/Interface.lua',
+            'hotkey_api/lua/Library.lua',
+            'hotkey_api/lua/Tables.lua',
         ]},
     'Lua_Loader_API':{ 
         'root_path':project_dir / 'X4_Lua_Loader_API', 

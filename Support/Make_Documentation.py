@@ -18,28 +18,6 @@ x4_customizer_dir = project_dir.parent / 'X4_Customizer'
 sys.path.append(str(x4_customizer_dir))
 from Framework.Make_Documentation import Merge_Lines, Get_BB_Text
 
-extension_dirs = {
-    'named_pipes_api':{
-        'src': project_dir / 'X4_Named_Pipes_API/X4_Files/extensions/named_pipes_api',
-        'doc': project_dir / 'X4_Named_Pipes_API',
-        },
-    'key_capture_api': {
-        'src': project_dir / 'X4_Key_Capture_API/key_capture_api',
-        'doc': project_dir / 'X4_Key_Capture_API',
-        },
-    'lua_loader_api': {
-        'src': project_dir / 'X4_Lua_Loader_API/lua_loader_api',
-        'doc': project_dir / 'X4_Lua_Loader_API',
-        },
-    'simple_menu_api': {
-        'src': project_dir / 'X4_Simple_Menu_API/simple_menu_api',
-        'doc': project_dir / 'X4_Simple_Menu_API',
-        },
-    'time_api': {
-        'src': project_dir / 'X4_Time_API/time_api',
-        'doc': project_dir / 'X4_Time_API',
-        },
-    }
 
 # Name to use for the generated doc file.
 gen_doc_name = "API Functions.md"
@@ -47,7 +25,7 @@ gen_doc_name = "API Functions.md"
 
 def Make():
     Make_Lua_Loader_Doc()
-    Make_Key_Capture_Doc()
+    Make_Hotkey_Doc()
     Make_Named_Pipes_Doc()
     Make_Simple_Menu_Doc()
     Make_Time_Doc()
@@ -58,8 +36,8 @@ def Make_Lua_Loader_Doc():
     '''
     Document lua_loader_api.
     '''
-    ext_dir = extension_dirs['lua_loader_api']['src']
-    doc_dir = extension_dirs['lua_loader_api']['doc']
+    doc_dir = project_dir / 'X4_Lua_Loader_API'
+    ext_dir = doc_dir     / 'lua_loader_api'
     
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
@@ -79,8 +57,8 @@ def Make_Time_Doc():
     '''
     Document time_api.
     '''
-    ext_dir = extension_dirs['time_api']['src']
-    doc_dir = extension_dirs['time_api']['doc']
+    doc_dir = project_dir / 'X4_Time_API'
+    ext_dir = doc_dir     / 'time_api'
     
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
@@ -100,24 +78,17 @@ def Make_Named_Pipes_Doc():
     '''
     Document named_pipes_api.
     '''
-    ext_dir = extension_dirs['named_pipes_api']['src']
-    doc_dir = extension_dirs['named_pipes_api']['doc']
+    doc_dir = project_dir / 'X4_Named_Pipes_API'
+    ext_dir = doc_dir     / 'named_pipes_api'
     doc_lines = []
         
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
-
-    # Grab the manually written part of the readme to append to.
-    #doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
-    # TODO: insert version number into title
-
-    doc_lines = []
-
+    
     # The MD pipe api.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Named_Pipes.xml')
-    
-    # The MD server api.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Pipe_Server_Host.xml')
+    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Pipe_Server_Lib.xml')
 
     # The Lua pipe api.
     doc_lines += Get_Lua_Text(ext_dir / 'lua' / 'Interface.lua')
@@ -134,19 +105,13 @@ def Make_Simple_Menu_Doc():
     '''
     Document simple_menu_api.
     '''
-    ext_dir = extension_dirs['simple_menu_api']['src']
-    doc_dir = extension_dirs['simple_menu_api']['doc']
+    doc_dir = project_dir / 'X4_Simple_Menu_API'
+    ext_dir = doc_dir     / 'simple_menu_api'
     doc_lines = []
     
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
-
-    # Grab the manually written part of the readme to append to.
-    # doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
-    # TODO: insert version number into title
-
-    doc_lines = []
-    
+        
     # Add the api cues.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_API.xml')
 
@@ -158,25 +123,19 @@ def Make_Simple_Menu_Doc():
     return
 
 
-def Make_Key_Capture_Doc():
+def Make_Hotkey_Doc():
     '''
-    Document key_capture_api.
+    Document hotkey_api.
     '''
-    ext_dir = extension_dirs['key_capture_api']['src']
-    doc_dir = extension_dirs['key_capture_api']['doc']
+    doc_dir = project_dir / 'X4_Hotkey_API'
+    ext_dir = doc_dir     / 'hotkey_api'
     doc_lines = []
     
     # Run the update function on the content.xml.
     Version.Update_Content_Version(doc_dir, ext_dir)
-
-    # Grab the manually written part of the readme to append to.
-    #doc_lines = (doc_dir / 'readme_intro.md').read_text().splitlines()
-    # TODO: insert version number into title
     
-    doc_lines = []
-
     # Add the api cues.
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Key_Capture.xml')
+    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Hotkey_API.xml')
 
     with open(doc_dir / gen_doc_name, 'w') as file:
         file.write('\n'.join(doc_lines))

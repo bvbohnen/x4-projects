@@ -1,8 +1,8 @@
 [submodule "X4_Lua_Loader_API"]
 	path = X4_Lua_Loader_API
 	url = https://github.com/bvbohnen/x4-lua-loader-api.git
-[submodule "X4_Key_Capture_API"]
-	path = X4_Key_Capture_API
+[submodule "X4_Hotkey_API"]
+	path = X4_Hotkey_API
 	url = https://github.com/bvbohnen/x4-key-capture-api.git
 [submodule "X4_Simple_Menu_API"]
 	path = X4_Simple_Menu_API
