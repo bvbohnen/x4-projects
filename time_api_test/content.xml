@@ -12,5 +12,5 @@
   <langugage description="" language="82"/>
   <langugage description="" language="86"/>
   <langugage description="" language="88"/>
-  <dependency id="time_api" version="001" optional="false"/>
+  <dependency id="time_api" version="004" optional="false"/>
 </content>

@@ -8,17 +8,17 @@ Tests for the time api.
 
 <cues>
 
-  <!-- Register default test key with the key capture api. -->
+  <!-- Register default test key with the hotkey api. -->
   <cue name="Register_Keys" instantiate="true">
     <conditions>
-      <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+      <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
     </conditions>
     <actions>
       <signal_cue_instantly
-        cue="md.Key_Capture.Register_Shortcut"
+        cue="md.Hotkey_API.Register_Action"
         param="table[$id = 'time_test', $onPress = Run_Test]"/>
       <signal_cue_instantly
-        cue="md.Key_Capture.Register_Key"
+        cue="md.Hotkey_API.Register_Key"
         param="table[$key='ctrl b', $id = 'time_test']"/>
     </actions>
   </cue>
