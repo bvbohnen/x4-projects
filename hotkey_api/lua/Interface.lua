@@ -35,12 +35,12 @@ local debug = {
     print_keynames = false,
 }
 local L = {
-    -- Shadow copy of the md's shortcut registry.
-    shortcut_registry = {},
+    -- Shadow copy of the md's action registry.
+    action_registry = {},
 
-    -- Table of assigned keys and their shortcuts, keyed by id.
+    -- Table of assigned keys and their actions, keyed by id.
     -- This is mirrored in a player blackboard var whenever it changes.
-    player_shortcut_keys = {},
+    player_action_keys = {},
 
     -- Wrapper functions on remapInput to be used in registering for input events.
     input_event_handlers = {},
@@ -56,7 +56,7 @@ local menu = nil
 local function Init()
 
     -- MD triggered events.
-    RegisterEvent("Hotkey.Update_Shortcuts", L.Update_Shortcuts)
+    RegisterEvent("Hotkey.Update_Actions", L.Update_Actions)
     RegisterEvent("Hotkey.Update_Player_Keys", L.Read_Player_Keys)
     RegisterEvent("Hotkey.Update_Connection_Status", L.Update_Connection_Status)
     
@@ -271,26 +271,26 @@ function L.Update_Connection_Status(_, connected)
     end
 end
 
--- Handle md requests to update the shortcut registry.
+-- Handle md requests to update the action registry.
 -- Reads data from a player blackboard var.
-function L.Update_Shortcuts()
+function L.Update_Actions()
     -- Args are attached to the player component object.
-    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_shortcuts")
+    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_actions")
 
     -- Note: md may have sent several of these events on the same frame,
     -- in which case the blackboard var has just the args for the latest
     -- event, and later events processed will get nil.
     -- Skip those nil cases.
     if not md_table then return end
-    L.shortcut_registry = md_table
+    L.action_registry = md_table
 
     -- Clear the md var by writing nil.
-    SetNPCBlackboard(L.player_id, "$hotkey_api_shortcuts", nil)
+    SetNPCBlackboard(L.player_id, "$hotkey_api_actions", nil)
     
-    --Lib.Print_Table(L.shortcut_registry, "Update_Shortcuts shortcut_registry")
+    --Lib.Print_Table(L.action_registry, "Update_Actions action_registry")
 end
 
--- Read in the stored list of player shortcut keys.
+-- Read in the stored list of player action keys.
 -- Generally md will send this on init.
 function L.Read_Player_Keys()
     -- Args are attached to the player component object.
@@ -298,22 +298,22 @@ function L.Read_Player_Keys()
     -- This shouldn't get getting nil values since the md init is
     -- sent just once, but play it safe.
     if not md_table then return end
-    L.player_shortcut_keys = md_table
+    L.player_action_keys = md_table
 
     -- Clear the md var by writing nil.
     SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md", nil)
     
-    --Lib.Print_Table(L.player_shortcut_keys, "Read_Player_Keys player_shortcut_keys")
+    --Lib.Print_Table(L.player_action_keys, "Read_Player_Keys player_action_keys")
 end
 
--- Write to the list of player shortcut keys to be stored in md.
+-- Write to the list of player action keys to be stored in md.
 -- This could be integrated into remapInput, but kept separate for now.
 function L.Write_Player_Keys()
     -- Args are attached to the player component object.
-    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_lua", L.player_shortcut_keys)
+    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_lua", L.player_action_keys)
     Lib.Raise_Signal("Store_Player_Keys")
     
-    --Lib.Print_Table(L.player_shortcut_keys, "Write_Player_Keys player_shortcut_keys")
+    --Lib.Print_Table(L.player_action_keys, "Write_Player_Keys player_action_keys")
 end
 
 
@@ -326,8 +326,8 @@ function L.displayControls (optionParameter)
     -- have this api installed but aren't using the server.
     if not L.pipe_connected then return end
 
-    -- TODO: skip if there are no shortcuts available. For now, the
-    -- stock example shortcuts should always be present, so can skip this
+    -- TODO: skip if there are no actions available. For now, the
+    -- stock example actions should always be present, so can skip this
     -- check.
 
     -- For now, stick keys on the keyboard/space submenu.
@@ -356,8 +356,8 @@ function L.displayControls (optionParameter)
     end
 
     -- Error check.
-    if not L.shortcut_registry then
-        DebugError("shortcut_registry is nil")
+    if not L.action_registry then
+        DebugError("action_registry is nil")
         return
     end
 
@@ -373,13 +373,13 @@ function L.displayControls (optionParameter)
     local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
     row[2]:setColSpan(3):createText("Extensions", config.subHeaderTextProperties_2)
     
-    -- Make sure all shortcuts have an entry in the player keys table.
-    for _, shortcut in pairs(L.shortcut_registry) do
-        if not L.player_shortcut_keys[shortcut.id] then
-            L.player_shortcut_keys[shortcut.id] = {
+    -- Make sure all actions have an entry in the player keys table.
+    for _, action in pairs(L.action_registry) do
+        if not L.player_action_keys[action.id] then
+            L.player_action_keys[action.id] = {
                 -- Repetition of id, in case it is ever useful.
                 -- (This will not get a $ prefix went sent to md.)
-                id = shortcut.id,
+                id = action.id,
                 -- List of inputs.
                 -- Note: unused entries are elsewhere {-1,-1,0}, though that
                 -- led to problems when tried.  All nil works okay.
@@ -392,26 +392,26 @@ function L.displayControls (optionParameter)
     end
         
 
-    -- Set up the custom shortcuts.
+    -- Set up the custom actions.
     -- These will be sorted into their categories, with uncategorized
     -- lumped together at the top of the menu.
-    -- Start by sorting shortcuts into categories.
-    local cat_shortcut_dict = {}
-    for _, shortcut in pairs(L.shortcut_registry) do
-        local cat = shortcut.category
+    -- Start by sorting actions into categories.
+    local cat_action_dict = {}
+    for _, action in pairs(L.action_registry) do
+        local cat = action.category
         -- Set default category.
         if not cat then cat = "" end
         -- Set up a new sublist if needed.
-        if not cat_shortcut_dict[cat] then cat_shortcut_dict[cat] = {} end
+        if not cat_action_dict[cat] then cat_action_dict[cat] = {} end
         -- Add it in.
-        table.insert(cat_shortcut_dict[cat], shortcut)
+        table.insert(cat_action_dict[cat], action)
     end
 
     -- Convert the cat table to a list, to enable lua sorting.
     local cats_sorted = {}
-    for cat, sublist in pairs(cat_shortcut_dict) do 
+    for cat, sublist in pairs(cat_action_dict) do 
         table.insert(cats_sorted, cat)
-        -- Also sort the shortcuts by name while here.
+        -- Also sort the actions by name while here.
         -- This lambda function returns True if the left arg goes first.
         table.sort(sublist, function (a,b) return (a.name < b.name) end)
     end
@@ -425,10 +425,10 @@ function L.displayControls (optionParameter)
             local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
             row[2]:setColSpan(3):createText(cat, config.subHeaderTextProperties)
         end
-        -- Loop over the sorted shortcut list.
-        for _, shortcut in ipairs(cat_shortcut_dict[cat]) do
+        -- Loop over the sorted action list.
+        for _, action in ipairs(cat_action_dict[cat]) do
             -- Hand off to custom function.
-            L.displayControlRow(ftable, shortcut.id)
+            L.displayControlRow(ftable, action.id)
         end
     end
 
@@ -449,10 +449,10 @@ end
 -- Copy/edit of ego's function for displaying a control row of text
 -- and two buttons.
 -- Attempts to reuse ego's function were a mess.
-function L.displayControlRow(ftable, shortcut_id)
+function L.displayControlRow(ftable, action_id)
 
-    local shortcut    = L.shortcut_registry[shortcut_id]
-    local player_keys = L.player_shortcut_keys[shortcut_id]
+    local action    = L.action_registry[action_id]
+    local player_keys = L.player_action_keys[action_id]
     
     local row = ftable:addRow(true, { bgColor = Helper.color.transparent })
     
@@ -465,11 +465,11 @@ function L.displayControlRow(ftable, shortcut_id)
         end
     end
 
-    -- Set the shortcut title.
+    -- Set the action title.
     -- This is column 2, since 1 is under the back arrow.
-    row[2]:createText(shortcut.name, config.standardTextProperties)
-    if shortcut.description then
-        row[2].properties.mouseOverText = shortcut.description
+    row[2]:createText(action.name, config.standardTextProperties)
+    if action.description then
+        row[2].properties.mouseOverText = action.description
     end
     
     -- Create the two buttons.
@@ -487,7 +487,7 @@ function L.displayControlRow(ftable, shortcut_id)
         
         -- Buttons start at column 3, so offset i.
         local col = i+2
-        local button = row[col]:createButton({ mouseOverText = shortcut.description or "" })
+        local button = row[col]:createButton({ mouseOverText = action.description or "" })
         -- Set up the text label; this applies even without a keyname since
         -- it handles blinking _.
         button:setText(
@@ -506,8 +506,8 @@ function L.displayControlRow(ftable, shortcut_id)
             row.index, {
                 -- controltype; go with whatever.
                 "functions", 
-                -- controlcode; go with the shortcut id.
-                shortcut_id,
+                -- controlcode; go with the action id.
+                action_id,
                 -- oldinputtype
                 info.source,
                 -- oldinputcode
@@ -596,11 +596,11 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
     end
 
 
-    -- Look up the matching shortcut.
-    local shortcut_keys = L.player_shortcut_keys[menu.remapControl.controlcode]
+    -- Look up the matching action.
+    local action_keys = L.player_action_keys[menu.remapControl.controlcode]
     -- Error if not found.
-    if not shortcut_keys then
-        error("Found no shortcut_keys matching id: "..tostring(menu.remapControl.controlcode))
+    if not action_keys then
+        error("Found no action_keys matching id: "..tostring(menu.remapControl.controlcode))
     end
 
             
@@ -627,7 +627,7 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
     end
     
     -- Note the prior key combo.
-    local old_combo = shortcut_keys.inputs[input_index].combo
+    local old_combo = action_keys.inputs[input_index].combo
     local new_combo
 
     -- Check for "delete" on a key that was mapped.
@@ -659,7 +659,7 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
 
     -- If the new_combo is already recorded as either of the existing inputs,
     -- do nothing.
-    if shortcut_keys.inputs[1].combo == new_combo or shortcut_keys.inputs[2].combo == new_combo then
+    if action_keys.inputs[1].combo == new_combo or action_keys.inputs[2].combo == new_combo then
         if debug.print_keynames then
             DebugError("Ignoring already recorded key combo: "..new_combo)
         end
@@ -667,7 +667,7 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
     end
 
     -- Overwrite stored key.
-    shortcut_keys.inputs[input_index] = {
+    action_keys.inputs[input_index] = {
         combo  = new_combo, 
         code   = newinputcode, 
         source = newinputtype, 
@@ -675,7 +675,7 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
         
     -- Signal lua to update if the combo changed.
     Lib.Raise_Signal("Update_Key", {
-        id      = shortcut_keys.id,
+        id      = action_keys.id,
         new_key = new_combo,
         old_key = old_combo,
         })

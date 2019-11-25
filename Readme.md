@@ -15,12 +15,12 @@ An external Python server is used for the key capture and combo recognition, and
 
 ### Usage
 
-Extensions may define custom hotkeys by registering a new shortcut with the api. Shortcuts will appear in the standard options controls menu for the player. Each shortcut may specify in which contexts it will be valid: when flying, when walking, in any menu, or in specifically named menus.
+Extensions may define custom hotkeys by registering a new action with the api. Actions will appear in the standard options controls menu for the player. Each action may specify in which contexts it will be valid: when flying, when walking, in any menu, or in specifically named menus.
 
-Example shortcut registration:
+Example action registration:
   ```xml
   <signal_cue_instantly 
-    cue="md.Hotkey_API.Register_Shortcut" 
+    cue="md.Hotkey_API.Register_Action" 
     param="table[
       $id = 'kc_target_follow', 
       $cue = Target_Follow,
@@ -29,7 +29,7 @@ Example shortcut registration:
     ]"/>
   ```
 
-Optionally, a key or key combination may be directly assigned to the shortcut from md script. When done this way, a wider variety of combinations are supported than possible through the standard options menu.
+Optionally, a key or key combination may be directly assigned to the action from md script. When done this way, a wider variety of combinations are supported than possible through the standard options menu.
 
 Example direct key mapping:
   ```xml

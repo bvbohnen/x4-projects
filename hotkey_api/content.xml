@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="hotkey_api" name="Hotkey API" description="Adds API support for capturing key presses." author="SirNukes" version="016" date="2019-07-23" save="false" sync="false">
+<content id="hotkey_api" name="Hotkey API" description="Adds API support for capturing key presses." author="SirNukes" version="100" date="2019-07-23" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>

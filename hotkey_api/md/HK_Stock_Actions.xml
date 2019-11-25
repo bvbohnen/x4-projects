@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<mdscript name="HK_Hotkeys" 
+<mdscript name="HK_Stock_Actions" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!--
@@ -9,6 +9,7 @@
   
   Ideas:
   disable_collisions_between : turn on/off collision with player and target
+  zoom: zoom in using fov adjustment (needs care to avoid fov getting stuck)
   -->
 
   <cues>
@@ -19,8 +20,8 @@
       </conditions>
       <actions>
         
-        <!-- Register shortcuts. -->
-        <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+        <!-- Register actions. -->
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
           $id = 'kc_target_follow', 
           $onPress = Target_Follow,
           $name = 'Follow Target', 
@@ -28,7 +29,7 @@
           $contexts = ['flying'],
           ]"/>
 
-        <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
           $id = 'kc_eject_illegals', 
           $onPress = Eject_Illegals,
           $name = 'Eject Illegal Wares', 

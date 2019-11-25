@@ -21,8 +21,8 @@ Relies on named pipe library; server side is written in python.
     <actions>
       <show_notification text="'Registering keys'" sound="notification_warning" priority="2" />
       
-      <!-- Register some shortcuts. -->
-      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+      <!-- Register some actions. -->
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
         $id = 'hotkey_api_test_space', 
         $onPress   = OnKeyEvent,
         $onRelease = OnKeyEvent,
@@ -33,7 +33,7 @@ Relies on named pipe library; server side is written in python.
         $category = 'Test Space Keys',
         ]"/>
 
-      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
         $id = 'hotkey_api_test_walk', 
         $onPress = OnKeyEvent,
         $name = 'Test Walk', 
@@ -42,7 +42,7 @@ Relies on named pipe library; server side is written in python.
         $category = 'Test Walk Keys',
         ]"/>
 
-      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
         $id = 'hotkey_api_test_menu', 
         $onPress = OnKeyEvent,
         $name = 'Test Menu', 
@@ -51,7 +51,7 @@ Relies on named pipe library; server side is written in python.
         $category = 'Test Menu Keys',
         ]"/>
 
-      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
         $id = 'hotkey_api_test_api_menu', 
         $onPress = OnKeyEvent,
         $name = 'Test Simple Menu', 

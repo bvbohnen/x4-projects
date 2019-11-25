@@ -13,7 +13,7 @@ which in turn handles callbacks to user specified cues.
   <!--
 TODO:
   - Turn off server if all keys unregistered (can do this server side).
-  - Option to hide a shortcut (make private) from the menu.
+  - Option to hide an action (make private) from the menu.
 -->
 <cues>
 
@@ -59,48 +59,48 @@ TODO:
   * DebugChance
     - 0 or 100
     
-  * shortcut_registry
-    - Table of tables, with each subtable describing a shortcut.
-    - Keys are the shortcut ids.
-    - See Register_Shortcut for description of fields.
+  * action_registry
+    - Table of tables, with each subtable describing an action.
+    - Keys are the action ids.
+    - See Register_Action for description of fields.
            
-  * key_event_shortcut_registry
+  * key_event_action_registry
     - Table, indexed by key/event descriptor (string), holding a list of
-      shortcut ids attached to it.
+      action ids attached to it.
     - Descriptors are made up of the key combo string, followed by the
       name of an event type (onPress, etc.).
     - Key descriptors have an extra '$' prefixed, due to x4 quirkiness.
-    - A shortcut may be used in multiple entries if it is enabled for
+    - A action may be used in multiple entries if it is enabled for
       multiple events.
-    - Normally expect only one shortcut to be registered per key, but it
+    - Normally expect only one action to be registered per key, but it
       might be higher.
     - May have a mix of player-assigned and mod-assigned links.
     - Keys with no registered cues should be removed.
     - If table is empty, no keys are being listened to.
-    - Note: this may be filled during init prior to shortcuts being
+    - Note: this may be filled during init prior to actions being
       registered, which is okay.
       
   * key_event_substrings
-    - Table, keyed the same as key_event_shortcut_registry, simply holding
+    - Table, keyed the same as key_event_action_registry, simply holding
       a two item list of [key_name, event_name], the key_event name
       components.
     - Purely for convenience, as an alternative to overcomplicating
       the above registry with table or list entries.
     - Will be allowed to grow beyond keys currently in use.
         
-  * player_shortcut_keys
-    - Table of player assigned key descriptors, keyed by shortcut id.
+  * player_action_keys
+    - Table of player assigned key descriptors, keyed by action id.
     - Saved across reloads.
     - Lua will have a mirrored copy of this, and is primarily responsible
       for changing it or initializing entries.
-    - Note: a single shortcut may have multiple keys (2 through ui).
+    - Note: a single action may have multiple keys (2 through ui).
     - Each entry is a subtable with:
       * id
-        - String, shortcut id.
+        - String, action id.
       * inputs
         - List with two entries, subtables describing the key.
         - Indices match up to the menu columns (left/right), supporting two
-          player keys per shortcut.
+          player keys per action.
         - Fields per subtable:
           * combo
             - String, pipe server understood key combo.
@@ -125,9 +125,9 @@ TODO:
     - Updated whenever menu_states is changed, primarily to speedup checks
       during key handling.
   * in_protected_menu
-    - Bool, true if the player is in a protected menu where shortcuts
+    - Bool, true if the player is in a protected menu where actions
       are disabled globally.
-    - Currently used for OptionsMenu, to menu-enabled shortcuts causing
+    - Currently used for OptionsMenu, to menu-enabled actions causing
       problems when remapping keys.
   -->
   <cue name="Globals">
@@ -156,8 +156,8 @@ TODO:
   <!-- TODO: can this lib be put into the cues list above? -->
   <library name="Reset_Globals">
     <actions>
-      <set_value name="$shortcut_registry" exact="table[]"/>
-      <set_value name="$key_event_shortcut_registry" exact="table[]"/>
+      <set_value name="$action_registry" exact="table[]"/>
+      <set_value name="$key_event_action_registry" exact="table[]"/>
       <set_value name="$key_event_substrings" exact="table[]"/>      
       <set_value name="$menu_states" exact="table[]"/>
       <set_value name="$in_menu" exact="false"/>
@@ -166,13 +166,13 @@ TODO:
       <!-- TODO: somehow bounce this over to Server_Reader reliably.-->
       <set_value name="$DebugChance" exact="0" />
 
-      <!-- Init the $player_shortcut_keys if it doesn't exist. -->
-      <do_if value="not $player_shortcut_keys?">
-        <set_value name="$player_shortcut_keys" exact="table[]"/>
+      <!-- Init the $player_action_keys if it doesn't exist. -->
+      <do_if value="not $player_action_keys?">
+        <set_value name="$player_action_keys" exact="table[]"/>
       </do_if>
         
       <!-- Init the lua with the stored list of player keys. -->
-      <set_value name="player.entity.$hotkey_api_player_keys_from_md" exact="$player_shortcut_keys" />
+      <set_value name="player.entity.$hotkey_api_player_keys_from_md" exact="$player_action_keys" />
       <raise_lua_event name="'Hotkey.Update_Player_Keys'"/>        
         
     </actions>
@@ -215,7 +215,7 @@ TODO:
       <include_actions ref="$Actions_On_Init"/>
 
       <!-- Make sure the read loop is started if there are keys tracked. -->
-      <do_if value="md.Hotkey_API.Globals.$key_event_shortcut_registry.keys.list.count != 0">
+      <do_if value="md.Hotkey_API.Globals.$key_event_action_registry.keys.list.count != 0">
         <signal_cue cue="$Start_Reading" />
       </do_if>
       <!-- Disable the menu plugin. -->
@@ -260,9 +260,9 @@ TODO:
 
         <!--Start by merging the keys together, semicolon separated. -->
         <set_value name="$joined_keys" exact="''" />
-        <do_all exact="Globals.$key_event_shortcut_registry.keys.list.count" counter="$i">
+        <do_all exact="Globals.$key_event_action_registry.keys.list.count" counter="$i">
           <set_value name="$joined_keys"
-            exact="$joined_keys + Globals.$key_event_shortcut_registry.keys.list.{$i} + ';'"/>
+            exact="$joined_keys + Globals.$key_event_action_registry.keys.list.{$i} + ';'"/>
         </do_all>
 
         <!-- Send this to the server. -->
@@ -282,7 +282,7 @@ TODO:
 
   <!--@doc-cue
   Dummy cue used for signalling that the api reloaded.
-  Users that are registering shortcuts should listen to this
+  Users that are registering actions should listen to this
   cue being signalled.
   -->
   <cue name="Reloaded" instantiate="true">
@@ -294,13 +294,13 @@ TODO:
   </cue>
 
   <!--@doc-cue
-    Function to register a shortcut. These shortcuts will be displayed
+    Function to register an action. These actions will be displayed
     in the api options menu for user assignment of a hotkey.
     This should be re-sent each time Reloaded is signalled.
     
     Param : Table with the following items:
     * id
-      - String, unique identifier of this shortcut.
+      - String, unique identifier of this action.
       - Saved keys will map to ids; other fields may be changed.
     * name = id
       - String, name to use for the key in the menu.
@@ -319,7 +319,7 @@ TODO:
       - Callback cue when the combo final key is repeated while held.
       - Repeat delay and rate depend on OS settings.
     * contexts
-      - List of strings, names of player contexts where the shortcut is valid.
+      - List of strings, names of player contexts where the action is valid.
       - If not given, defaults to "['flying']".
       - Valid contexts:
         * 'flying'
@@ -328,7 +328,7 @@ TODO:
           - While the player is on foot.
         * 'menus'
           - While the player is in any menu.
-          - The OptionsMenu will be protected, with shortcuts always disabled.
+          - The OptionsMenu will be protected, with actions always disabled.
         * ...
           - Other entries are names of individual menus, as registered by
             the egosoft backend.
@@ -337,10 +337,10 @@ TODO:
     * key
       - String, identifier of the key combination matched.
     * id
-      - Matching id of the shortcut. May be useful if one callback cue handles
-        multiple shortcuts.
+      - Matching id of the action. May be useful if one callback cue handles
+        multiple actions.
     * context
-      - String, the player context when this shortcut was triggered.
+      - String, the player context when this action was triggered.
       - Either one of ["flying", "walking", "menu"], or the name of the
         open menu matching an entry in menu_names.
     * event
@@ -349,7 +349,7 @@ TODO:
     
     Usage example:
       ```xml
-      <cue name="Register_Shortcut" instantiate="true">
+      <cue name="Register_Action" instantiate="true">
         <conditions>
           <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
         </conditions>
@@ -367,7 +367,7 @@ TODO:
       </cue>
       ```
   -->
-  <cue name="Register_Shortcut" instantiate="true" namespace="this">
+  <cue name="Register_Action" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -424,13 +424,13 @@ TODO:
       </do_if>
       
       <!-- Record it. -->
-      <set_value name="Globals.$shortcut_registry.{'$'+$args.$id}" exact="$args"/>
-      <debug_text text="'Shortcut %s registered with args: %s'.[$args.$id, $args]"
+      <set_value name="Globals.$action_registry.{'$'+$args.$id}" exact="$args"/>
+      <debug_text text="'Action %s registered with args: %s'.[$args.$id, $args]"
                   chance="Globals.$DebugChance" filter="general"/>
       
-      <!-- If any player keys were saved for this shortcut, apply them now. -->
-      <do_if value="Globals.$player_shortcut_keys.{'$'+$args.$id}?">
-        <set_value name="$info" exact="Globals.$player_shortcut_keys.{'$'+$args.$id}"/>
+      <!-- If any player keys were saved for this action, apply them now. -->
+      <do_if value="Globals.$player_action_keys.{'$'+$args.$id}?">
+        <set_value name="$info" exact="Globals.$player_action_keys.{'$'+$args.$id}"/>
         <!-- Loop over the input list; up to 2 combos. -->
         <do_for_each name="$input" in="$info.$inputs">
           <!-- Skip if the combo is blank. -->
@@ -445,30 +445,30 @@ TODO:
         
       <!-- Keep the lua updated. -->
       <!-- Passes it on a player blackboard var, which lua clears. -->
-      <set_value name="player.entity.$hotkey_api_shortcuts" exact="Globals.$shortcut_registry" />
-      <raise_lua_event name="'Hotkey.Update_Shortcuts'"/>
+      <set_value name="player.entity.$hotkey_api_actions" exact="Globals.$action_registry" />
+      <raise_lua_event name="'Hotkey.Update_Actions'"/>
     </actions>
   </cue>
 
 
   <!--@doc-cue
   
-    Function to register a key with a shortcut.
+    Function to register a key with an action.
     
     If this is the first key registered, it will start the key listening loop.
     This is used by the menu system to set up player custom keys, but may
-    also be called by a user to directly assign a key to a shortcut.
+    also be called by a user to directly assign a key to an action.
     Keys added by direct user calls will not be visible in the menu, and have
     fewer restrictions than the menu enforces.
     This should be re-sent each time Reloaded is signalled, and should follow
-    the shortcut's registration.
+    the action's registration.
     
     Param  : Table with the following items:
     * key
       - String specifying the key/combo to capture.
     * id
-      - String, id of the matching shortcut sent to Register_Shortcut.
-      - The shortcut should already exist.
+      - String, id of the matching action sent to Register_Action.
+      - The action should already exist.
       
     Usage example:
       ```xml
@@ -564,35 +564,35 @@ TODO:
       <set_value name="$key" exact="'$' + event.param.$key"/>
       <set_value name="$id" exact="event.param.$id"/>
       
-      <!-- Look up the shortcut; error if not found. -->
-      <set_value name="$shortcut" exact="Globals.$shortcut_registry.{'$' + $id}"/>
+      <!-- Look up the action; error if not found. -->
+      <set_value name="$action" exact="Globals.$action_registry.{'$' + $id}"/>
 
       <!-- Loop over possible event types; each gets its own entry. -->
       <do_for_each name="$event" in="['onPress','onRelease','onRepeat']">
-        <!-- Skip if the shortcut doesn't use this event. -->
-        <do_if value="not $shortcut.{'$' + $event}?">
+        <!-- Skip if the action doesn't use this event. -->
+        <do_if value="not $action.{'$' + $event}?">
           <continue/>
         </do_if>
         <!-- Create the full key, by suffixing with event type. -->
         <set_value name="$key_event" exact="$key +' '+ $event"/>
               
         <!-- Make sure there is a table entry for the key. -->
-        <do_if value="not Globals.$key_event_shortcut_registry.{$key_event}?">
-          <set_value name="Globals.$key_event_shortcut_registry.{$key_event}" exact="[]"/>
+        <do_if value="not Globals.$key_event_action_registry.{$key_event}?">
+          <set_value name="Globals.$key_event_action_registry.{$key_event}" exact="[]"/>
           <!-- Record the key (no $) and event name for later lookup. -->
           <set_value name="Globals.$key_event_substrings.{$key_event}" exact="[event.param.$key, $event]"/>
         </do_if>
 
         <!-- Check if the id is already recorded for this key. -->
-        <do_if value="Globals.$key_event_shortcut_registry.{$key_event}.indexof.{$id} != 0">
+        <do_if value="Globals.$key_event_action_registry.{$key_event}.indexof.{$id} != 0">
           <!-- Print some warning. -->
-          <debug_text text="'Warning, shortcut %s already registered to key %s.'.[$id, $key_event]"
+          <debug_text text="'Warning, action %s already registered to key %s.'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_if>
         <do_else>
           <!-- It isn't recorded, so add it in. -->
-          <append_to_list name="Globals.$key_event_shortcut_registry.{$key_event}" exact="$id" />
-          <debug_text text="'Shortcut %s registered to key %s.'.[$id, $key_event]"
+          <append_to_list name="Globals.$key_event_action_registry.{$key_event}" exact="$id" />
+          <debug_text text="'Action %s registered to key %s.'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_else>
         
@@ -608,7 +608,7 @@ TODO:
 
 
   <!--@doc-cue  
-    Function to unregister a key from a shortcut.     
+    Function to unregister a key from an action.     
     Params are the same as for Register_Key.
         
     Usage example:
@@ -626,43 +626,43 @@ TODO:
     <actions>
       <set_value name="$id" exact="event.param.$id"/>
 
-      <!-- Look up the shortcut; error if not found. -->
-      <set_value name="$shortcut" exact="Globals.$shortcut_registry.{'$' + $id}"/>
+      <!-- Look up the action; error if not found. -->
+      <set_value name="$action" exact="Globals.$action_registry.{'$' + $id}"/>
 
       <!-- Loop over possible event types; each gets its own entry. -->
       <do_for_each name="$event" in="['onPress','onRelease','onRepeat']">
-        <!-- Skip if the shortcut doesn't use this event. -->
-        <do_if value="not $shortcut.{$event}?">
+        <!-- Skip if the action doesn't use this event. -->
+        <do_if value="not $action.{$event}?">
           <continue/>
         </do_if>
         <!-- Create the full key, by suffixing with event type. -->
         <set_value name="$key_event" exact="'$' + event.param.$key + $event"/>
 
         <!-- Check if there is no table entry for the key. -->
-        <do_if value="not Globals.$key_event_shortcut_registry.{$key_event}?">
+        <do_if value="not Globals.$key_event_action_registry.{$key_event}?">
           <!-- Print some warning. -->
-          <debug_text text="'Warning, key %s has no registered shortcuts.'.[$key_event]"
+          <debug_text text="'Warning, key %s has no registered actions.'.[$key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
           <continue/>
         </do_if>
       
         <!-- Check if the id is recorded for this key. -->
-        <set_value name="$id_index" exact="Globals.$key_event_shortcut_registry.{$key_event}.indexof.{$id}"/>
+        <set_value name="$id_index" exact="Globals.$key_event_action_registry.{$key_event}.indexof.{$id}"/>
         <do_if value="$id_index == 0">
           <!-- It isn't recorded, so print a warning. -->
-          <debug_text text="'Warning, shortcut %s is not registered to key %s.'.[$id, $key_event]"
+          <debug_text text="'Warning, action %s is not registered to key %s.'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
           <continue/>
         </do_if>
 
         <!-- Proceed with removal. -->
-        <remove_value name="Globals.$key_event_shortcut_registry.{$key_event}.{$id_index}" />
-        <debug_text text="'Removed shortcut %s from key %s.'.[$id, $key_event]"
+        <remove_value name="Globals.$key_event_action_registry.{$key_event}.{$id_index}" />
+        <debug_text text="'Removed action %s from key %s.'.[$id, $key_event]"
                     chance="Globals.$DebugChance" filter="general"/>
 
         <!-- If the key's cue list is empty, and remove it if so. -->
-        <do_if value="Globals.$key_event_shortcut_registry.{$key_event}.count == 0">
-          <remove_value name="Globals.$key_event_shortcut_registry.{$key_event}" />
+        <do_if value="Globals.$key_event_action_registry.{$key_event}.count == 0">
+          <remove_value name="Globals.$key_event_action_registry.{$key_event}" />
           <debug_text text="'No remaining listeners to key %s; removing it.'.[$key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_if>
@@ -689,7 +689,7 @@ TODO:
     * old_key
       - Prior key combo, or blank string.
     * id
-      - Shortcut id
+      - Action id
   -->
   <cue name="Capture_Lua_Key_Update" instantiate="true" namespace="this">
     <conditions>
@@ -728,7 +728,7 @@ TODO:
       <event_ui_triggered screen="'Hotkey'" control="'Store_Player_Keys'" />
     </conditions>
     <actions>
-      <set_value name="Globals.$player_shortcut_keys" 
+      <set_value name="Globals.$player_action_keys" 
                  exact="player.entity.$hotkey_api_player_keys_from_lua"/>
       <remove_value name="player.entity.$hotkey_api_player_keys_from_lua"/>
     </actions>
@@ -813,7 +813,7 @@ TODO:
       </do_if>
 
       <!-- Is the key returned actually registered? -->
-      <do_elseif value="Globals.$key_event_shortcut_registry.{$key_event}?">
+      <do_elseif value="Globals.$key_event_action_registry.{$key_event}?">
         
         <!-- Determine the current player context. -->
         <!-- TODO: maybe pack into chained if/then/else expression. -->
@@ -835,24 +835,24 @@ TODO:
         <set_value name="$key" exact ="Globals.$key_event_substrings.{$key_event}.{1}"/>
         <set_value name="$event" exact ="Globals.$key_event_substrings.{$key_event}.{2}"/>
         
-        <!-- Loop over the shortcut ids. -->
-        <do_for_each name="$id" in="Globals.$key_event_shortcut_registry.{$key_event}">
+        <!-- Loop over the action ids. -->
+        <do_for_each name="$id" in="Globals.$key_event_action_registry.{$key_event}">
           
-          <!-- Get the actual shortcut info. -->
-          <set_value name="$shortcut" exact="Globals.$shortcut_registry.{'$' + $id}"/>
+          <!-- Get the actual action info. -->
+          <set_value name="$action" exact="Globals.$action_registry.{'$' + $id}"/>
           
-          <!-- Determine if this shortcut is valid at this time. -->
+          <!-- Determine if this action is valid at this time. -->
           <set_value name="$valid" exact="false"/>
           
           <!-- General context check. -->
-          <do_if value="$shortcut.$contexts.indexof.{$context} != 0">
+          <do_if value="$action.$contexts.indexof.{$context} != 0">
             <set_value name="$valid" exact="true"/>
           </do_if>
           
           <!-- If in menu and menu names were given, check specific them. -->
-          <do_elseif value="Globals.$in_menu and ($shortcut.$menu_names?)">
+          <do_elseif value="Globals.$in_menu and ($action.$menu_names?)">
             <!-- Go through all menu names and see if any are open. -->
-            <do_for_each name="$menu_name" in="$shortcut.$menu_names">
+            <do_for_each name="$menu_name" in="$action.$menu_names">
               <!--Check this is a tracked menu, and in an open state.-->
               <do_if value="Globals.$menu_states.{$menu_name}? and Globals.$menu_states.{$menu_name}">
                 <!-- This menu is open, so flag as valid. -->
@@ -871,7 +871,7 @@ TODO:
           
           <!-- Look up the cue to callback to. -->
           <!-- (In the current setup, the cue should always be found.) -->
-          <set_value name="$cue" exact="@$shortcut.{'$'+$event}"/>
+          <set_value name="$cue" exact="@$action.{'$'+$event}"/>
           
           <!-- Call it if it still exists. -->
           <do_if value="$cue.exists">            
@@ -883,8 +883,8 @@ TODO:
                                   $event = $event,
                                   ]"/>
           </do_if>
-          <!-- TODO: delink keys from non-existent shortcuts/cues. -->
-          <!--Could do this by removing the $event from the shortcut, 
+          <!-- TODO: delink keys from non-existent actions/cues. -->
+          <!--Could do this by removing the $event from the action, 
               unregistering, and reregistering.-->          
         </do_for_each>
       </do_elseif>

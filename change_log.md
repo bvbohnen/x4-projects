@@ -15,18 +15,22 @@ Change Log
   - Key listener thread will completely stop when X4 loses focus.
 * 0.11
   - Integrated into the ego input selection menu.
-  - Switched from direct key/cue pairings to setting up shortcut definitions that can set keys through md or player menu input.
+  - Switched from direct key/cue pairings to setting up action definitions that can set keys through md or player menu input.
 * 0.12
-  - Added support for shortcut contexts (flying, walking, menus, or specific menu) where is is valid.
+  - Added support for action contexts (flying, walking, menus, or specific menu) where is is valid.
 * 0.13
   - Improved general keycode support, particularly for numpad keys.
 * 0.14
   - Replaced $cue with $onPress, $onRelease, $onRepeat key events.
   - Callbacks receive a more detailed table with capture event properties.
 * 0.15
-  - Added Eject_Illegal_Wares shortcut.
-  - Sorted shortcuts in the menu, and support grouping by category names.
+  - Added Eject_Illegal_Wares action.
+  - Sorted actions in the menu, and support grouping by category names.
 * 0.16
   - Changed the contexts are to be a list instead of table.
+* 1.0
+  - General release.
+  - Renamed to Hotkey_API.
+  - "Shorcuts" renamed to "actions".
 
 

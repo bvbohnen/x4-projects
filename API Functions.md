@@ -3,15 +3,15 @@
 
 * **Reloaded**
   
-  Dummy cue used for signalling that the api reloaded. Users that are registering shortcuts should listen to this cue being signalled.
+  Dummy cue used for signalling that the api reloaded. Users that are registering actions should listen to this cue being signalled.
     
-* **Register_Shortcut**
+* **Register_Action**
   
-  User function to register a shortcut. These shortcuts will be displayed in the api options menu for user assignment of a hotkey. This should be re-sent each time Reloaded is signalled.
+  Function to register an action. These actions will be displayed in the api options menu for user assignment of a hotkey. This should be re-sent each time Reloaded is signalled.
       
   Param : Table with the following items:
   * id
-    - String, unique identifier of this shortcut.
+    - String, unique identifier of this action.
     - Saved keys will map to ids; other fields may be changed.
   * name = id
     - String, name to use for the key in the menu.
@@ -29,7 +29,7 @@
     - Callback cue when the combo final key is repeated while held.
     - Repeat delay and rate depend on OS settings.
   * contexts
-    - List of strings, names of player contexts where the shortcut is valid.
+    - List of strings, names of player contexts where the action is valid.
     - If not given, defaults to "['flying']".
     - Valid contexts:
       * 'flying'
@@ -38,7 +38,7 @@
         - While the player is on foot.
       * 'menus'
         - While the player is in any menu.
-        - The OptionsMenu will be protected, with shortcuts always disabled.
+        - The OptionsMenu will be protected, with actions always disabled.
       * ...
         - Other entries are names of individual menus, as registered by the egosoft backend.
                   
@@ -46,9 +46,9 @@
   * key
     - String, identifier of the key combination matched.
   * id
-    - Matching id of the shortcut. May be useful if one callback cue handles multiple shortcuts.
+    - Matching id of the action. May be useful if one callback cue handles multiple actions.
   * context
-    - String, the player context when this shortcut was triggered.
+    - String, the player context when this action was triggered.
     - Either one of ["flying", "walking", "menu"], or the name of the open menu matching an entry in menu_names.
   * event
     - String, name of the event that occured.
@@ -56,7 +56,7 @@
       
   Usage example:
     ```xml
-    <cue name="Register_Shortcut" instantiate="true">
+    <cue name="Register_Action" instantiate="true">
       <conditions>
         <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
       </conditions>
@@ -77,16 +77,16 @@
 * **Register_Key**
   
     
-  Function to register a key with a shortcut.
+  Function to register a key with an action.
       
-  If this is the first key registered, it will start the key listening loop. This is used by the menu system to set up player custom keys, but may also be called by a user to directly assign a key to a shortcut. Keys added by direct user calls will not be visible in the menu, and have fewer restrictions than the menu enforces. This should be re-sent each time Reloaded is signalled, and should follow the shortcut's registration.
+  If this is the first key registered, it will start the key listening loop. This is used by the menu system to set up player custom keys, but may also be called by a user to directly assign a key to an action. Keys added by direct user calls will not be visible in the menu, and have fewer restrictions than the menu enforces. This should be re-sent each time Reloaded is signalled, and should follow the action's registration.
       
   Param  : Table with the following items:
   * key
     - String specifying the key/combo to capture.
   * id
-    - String, id of the matching shortcut sent to Register_Shortcut.
-    - The shortcut should already exist.
+    - String, id of the matching action sent to Register_Action.
+    - The action should already exist.
         
   Usage example:
     ```xml
@@ -164,16 +164,13 @@
   
     
 * **Unregister_Key**
-  
     
-  Function to unregister a key from a shortcut. Params are the same as for Register_Key. If this was the only cue registered (across all keys), the key listerner loop will stop itself.
-      
-  Note: in development, untested.
-      
+  Function to unregister a key from an action. Params are the same as for Register_Key.
+          
   Usage example:
     ```xml
       <signal_cue_instantly 
         cue="md.Hotkey_API.Unregister_Key" 
-        param="table[$key='w', $id='my_registered_key']"/>
+        param="table[$key='shift w', $id='my_registered_key']"/>
     ```
     
