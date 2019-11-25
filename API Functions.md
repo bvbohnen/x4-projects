@@ -32,44 +32,39 @@ Note on timeouts:
 
 ### MD Named Pipe API Cues
 
-* **Register_Menu_Entry**
+* **Reloaded**
   
-      
-  User function to register a pipe handling cue to the overall menu. Menu will display pipe connection status and name.    
-      
-  Param: Top level cue.
-      
-  The provided cue should have these member variables:
-  * Pipe_Name
-    - String, name of the OS level pipe.
-    - TODO: support lowercase.
-  * server_connected
-    - Bool, true when the pipe is connected to a server.
+  Dummy cue used for signalling.
     
 * **Write**
   
       
-  User function to write a pipe. Called through signal_cue_instantly.
+  User function to write a pipe.
       
   Param: Table with the following items:
-    - pipe : Name of the pipe being written, without OS path prefix.
-    - msg  : Message string to write to the pipe.
-    - cue  : Callback, optional, the cue to call when the write completes.
-    - time : Timeout, optional, the time until an unsent read is cancelled. Currently not meaningful, as write stalling on a full pipe is not supported at the lua level.
+  * pipe
+    - Name of the pipe being written, without OS path prefix.
+  * msg
+    - Message string to write to the pipe.
+  * cue
+    - Callback, optional, the cue to call when the write completes.
+  * time
+    - Timeout, optional, the time until an unsent read is cancelled.
+    - Currently not meaningful, as write stalling on a full pipe is not supported at the lua level.
         
   Returns:
   - Result is sent as event.param to the callback cue.
   - Writes receive 'SUCCESS' or 'ERROR'.
       
   Usage example:
-  
-      <signal_cue_instantly 
-        name="md.Named_Pipes.Write" 
-        param="table[
-          $pipe='mypipe', 
-          $msg='hello', 
-          $cue=Write_Callback]">
-  
+  ```xml
+    <signal_cue_instantly 
+      name="md.Named_Pipes.Write" 
+      param="table[
+        $pipe='mypipe', 
+        $msg='hello', 
+        $cue=Write_Callback]">
+  ```
     
 * **Write_Special**
   
@@ -77,24 +72,28 @@ Note on timeouts:
   As Write, but sends a special command in the message to the lua, which determines the actual message to send.  The only currently supported command is "package.path", which sends the current lua package import path list.
       
   Usage example:
-  
-      <signal_cue_instantly 
-        name="md.Named_Pipes.Write_Special" 
-        param="table[
-          $pipe='mypipe', 
-          $msg='package.path', 
-          $cue=Write_Callback, 
-          $time=5s]">
-  
+  ```xml
+    <signal_cue_instantly 
+      name="md.Named_Pipes.Write_Special" 
+      param="table[
+        $pipe='mypipe', 
+        $msg='package.path', 
+        $cue=Write_Callback, 
+        $time=5s]">
+  ```
     
 * **Read**
   
-  User function to read a pipe. Called through signal_cue_instantly.
+  User function to read a pipe.
       
   Param: Table with the following items:
-    - pipe : Name of the pipe being written, without OS path prefix.
-    - cue  : Callback, optional, the cue to call when the read completes.
-    - time : Timeout, optional, the time until a pending read is cancelled.
+  * pipe
+    - Name of the pipe being written, without OS path prefix.
+  * cue
+    - Callback, optional, the cue to call when the read completes.
+  * time
+    - Timeout, optional, the time until a pending read is cancelled.
+    - Defaults to 10 seconds.
         
   Returns:
   - Whatever is read from the pipe in event.param to the callback cue.
@@ -102,60 +101,66 @@ Note on timeouts:
   - If the read times out, returns 'TIMEOUT'.
   - If the read is cancelled on game or ui reload, returns 'CANCELLED'.
       
-  Usage example:
-  
-      <signal_cue_instantly 
-        name="md.Named_Pipes.Read" 
-        param="table[
-          $pipe = 'mypipe', 
-          $cue = Read_Callback, 
-          $time = 5s]">
-            
-      ...
-      <cue name="Read_Callback" instantiate="true">
-        <conditions>
-          <event_cue_signalled/>
-        </conditions>
-        <actions>
-          <set_value name="$read_result" exact="event.param"/>
-          <do_if value="$read_result == 'ERROR'">
-            <stuff to do on pipe error>
-          </do_if>
-          <do_elseif value="$read_result == 'CANCELLED'">
-            <stuff to do on cancelled request>
-          </do_elseif>
-          <do_elseif value="$read_result == 'TIMEOUT'">
-            <stuff to do on pipe timeout>
-          </do_elseif>
-          <do_else>
-            <stuff to do on read success>
-          </do_else>
-        </actions>
-      </cue>
-  
+  Usage example, initial read:
+  ```xml
+    <signal_cue_instantly 
+      name="md.Named_Pipes.Read" 
+      param="table[
+        $pipe = 'mypipe', 
+        $cue = Read_Callback, 
+        $time = 5s]">
+  ```
+      
+  Usage example, capture response:
+  ```xml
+    <cue name="Read_Callback" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$read_result" exact="event.param"/>
+        <do_if value="$read_result == 'ERROR'">
+          <stuff to do on pipe error/>
+        </do_if>
+        <do_elseif value="$read_result == 'CANCELLED'">
+          <stuff to do on cancelled request/>
+        </do_elseif>
+        <do_elseif value="$read_result == 'TIMEOUT'">
+          <stuff to do on pipe timeout/>
+        </do_elseif>
+        <do_else>
+          <stuff to do on read success/>
+        </do_else>
+      </actions>
+    </cue>
+  ```
     
 * **Check**
   
-  User function to check if a pipe is connected to a server, making the connection if needed. Note: if a pipe was connected in the past but the server has since closed, and no other operations have been attempted in the meantime, this function will report the pipe as still connected. Note: this may return prior to following writes or reads. Called through signal_cue_instantly.
+  User function to check if a pipe is connected to a server, making the connection if needed.
+      
+  Note: if a pipe was connected in the past but the server has since closed, and no other operations have been attempted in the meantime, this function will report the pipe as still connected.
       
   Param: Table with the following items:
-    - pipe : Name of the pipe being checked, without OS path prefix.
-    - cue  : Callback, the cue to call when the check completes.
+  * pipe
+    - Name of the pipe being checked, without OS path prefix.
+  * cue
+    - Callback, the cue to call when the check completes.
         
   Returns:
   - Value is is sent as event.param to the callback cue.
   - Checks receive 'SUCCESS' or 'ERROR'.
       
   Usage example:
-  
-      <signal_cue_instantly 
-        name="md.Named_Pipes.Write" 
-        param="table[
-          $pipe='mypipe', 
-          $msg='hello', 
-          $cue=Write_Callback, 
-          $time=5s]">
-  
+  ```xml
+    <signal_cue_instantly 
+      name="md.Named_Pipes.Write" 
+      param="table[
+        $pipe='mypipe', 
+        $msg='hello', 
+        $cue=Write_Callback, 
+        $time=5s]">
+  ```
     
 * **Close**
   
@@ -164,14 +169,14 @@ Note on timeouts:
   Param: Name of the pipe being opened.
             
   Usage example:
-  
-      <signal_cue_instantly 
-        name="md.Named_Pipes.Close" 
-        param="'mypipe'">
-  
+  ```xml
+    <signal_cue_instantly 
+      name="md.Named_Pipes.Close" 
+      param="'mypipe'">
+  ```
     
 
-### MD Pipe Server API Overview
+### MD Pipe Python Host Overview
 
  
 MD API for interfacing with an external Python based pipe server. This allows user MD code to register a python module with the host server. The host (if running) will dynamically import the custom module. Such modules are distributed with extensions. Builds on top of the Named Pipes API.
@@ -196,19 +201,19 @@ Operation notes:
 Usage:  
  - From MD code, call Register_Module to tell the host to import a python module from your extension.   
  - Write the corresponding python server module. This requires a "main" function to act as the entry point, and should preferably import the Pipe_Server class from X4_Python_Pipe_Server.   
- - Simple example, echo messages sent from x4 back to it:
-
-       from X4_Python_Pipe_Server import Pipe_Server
-       def main():
-           pipe = Pipe_Server('x4_echo')
-           while 1:
-               message = pipe.Read()
-               pipe.Write(message)
-           return
-
+ - Simple python example, echo messages sent from x4 back to it:
+    ```python
+    from X4_Python_Pipe_Server import Pipe_Server
+    def main():
+        pipe = Pipe_Server('x4_echo')
+        pipe.Connect()
+        while 1:
+            message = pipe.Read()
+            pipe.Write(message)
+    ```
     
 
-### MD Pipe Server API Cues
+### MD Pipe Python Host Cues
 
 * **Register_Module**
    
@@ -217,21 +222,103 @@ Usage:
   Param: String, relative path to the python file from the x4 base dir. Use forward slashes between folders.
       
   Usage example:
-  
-      <cue name="Register_Pipe_Server" instantiate="true">
-        <conditions>
-          <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
-        </conditions>
-        <actions>
-          <signal_cue_instantly 
-            cue="md.Pipe_Server_Host.Register_Module" 
-            param="'extensions/key_capture_api/Send_Keys.py'"/>
-        </actions>
-      </cue>
-  
+  ```xml
+    <cue name="Register_Pipe_Server" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly 
+          cue="md.Pipe_Server_Host.Register_Module" 
+          param="'extensions/hotkey_api/Send_Keys.py'"/>
+      </actions>
+    </cue>
+  ```
     
 
-### Lua Pipe API Overview
+### MD Pipe Connection Helper Cues
+
+* **Server_Reader**
+  
+  Library package of cues used to simplify handling server connections by supporting the following behaviors:
+  * Ping server until succesfully connecting,
+  * Listen for server messages,
+  * Detect disconnections and recover.
+      
+  Note: the parameters of this library will all be references to other libraries containing action blocks to execute here.  Such action blocks will use the namespace of the Server_Reader instance, and their scope for md cue lookups will be from the Pipe_Server_Lib file.
+          
+  Parameters:
+  * Actions_On_Reload
+    - Library of actions to take when reloading after a pipe disconnect, savegame reload, ui reload, as well as initial creation.
+    - Should set attributes: Pipe_Name, and optionally DebugChance.
+    - May add other variables to the library instance, if desired.
+  * Actions_On_Connect
+    - Optional library of actions to take upon connecting to the server.
+    - May signal $Start_Reading to begin passive reading of the pipe.
+  * Actions_On_Read
+    - Optional library of actions to take when reading a message from the server.
+    - The message will be in event.param.
+        
+  Attributes (write these in Actions_On_Reload):
+  * $Pipe_Name
+    - Name of the pipe used to communicate with the python host.
+  * $DebugChance
+    - Optional, 0 or 100.
+        
+  Interface variables:
+  * $Start_Reading
+    - Internal cue, made available as a variable.
+    - Must be signalled to start the server connection routine.
+    - If the connection is ever broken, which will occur on a Reload or possibly through param actions, this needs to be signalled again to reconnect.
+    
+  Local variables:
+  * $server_access_loop_cue
+    - Cue or null, the currently active Server_Access_Loop cue instance.
+    - Starts as null. If an active instance dies, the "exists" property will return false.
+  * $server_connected
+    - Flag, 1 when the server has been pinged succesfully and appears to have a valid connection. 0 before connection is set up, or after an error/disconnect. Used to suppress some writes before a connection is made, though shouldn't be critical to functionality.
+  * $ping_count
+    - Int, how many failed pings have occurred.
+    - Used to increase ping delay after failures.
+    - Not an exactly count; only goes up to the highest delay, eg. 10.
+          
+  Note: x4 has problems when a cue using this library is created alongside the action-libraries to be given as parameters.  While other cues can be passed in this way, libraries cannot. As a workaround, a dummy cue can be wrapped around the cue that refs this library.
+        
+  Example usage:
+  ```xml
+    <cue name="Server_Reader_Wrapper">
+      <cues>
+        <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
+          <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
+          <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
+          <param name="Actions_On_Read"     value="Actions_On_Read"/>
+        </cue>
+      </cues>
+    </cue>
+        
+    <library name="Actions_On_Reload">
+      <actions>
+        <set_value name="$Pipe_Name" exact="'my_x4_pipe'" />
+      </actions>
+    </library>
+        
+    <library name="Actions_On_Connect">
+      <actions>
+        <signal_cue cue="$Start_Reading" />
+      </actions>
+    </library>
+        
+    <library name="Actions_On_Read">
+      <actions>
+        <debug_text text="'received mesage: %s.'.[event.param]"
+                  chance="$DebugChance" filter="general"/>
+      </actions>
+    </library>
+  
+      ```
+          
+
+### MD to Lua Pipe API Overview
 
  
 
@@ -239,62 +326,56 @@ Lua support for communicating through windows named pipes with an external proce
 
 The external process will be responsible for serving pipes. X4 will act purely as a client.
 
-Behavior:
- - MD triggers lua functions using raise_lua_event.
- - Lua responds to MD by signalling the galaxy object with specific names.
- - When loaded, sends the signal "lua_named_pipe_api_loaded".
- 
- - Requested reads and writes will be tagged with a unique <id> string, used to uniquify the signal raised when the request has completed.
- 
- - Requests are queued, and will be served as the pipe becomes available.
- - Multiple requests may be serviced within the same frame.
- 
- - Pipe access is non-blocking; reading an empty pipe will not error, but instead kicks off a polling loop that will retry the pipe each frame until the request succeeds or the pipe goes bad (eg. server disconnect).
- 
- - If the write buffer to the server fills up and doesn't have room for a new message, or the new message is larger than the entire buffer, the pipe will be treated as bad and closed. (This is due to windows not properly distinguishing these cases from broken pipes in its error codes.)
- 
- - Pipe file handles are opened automatically when handling requests.
- - If a prior opened file handle goes bad when processing a request, one attempt will be made to reopen the file before the request will error out.
- 
- - Whenever the UI is reloaded, all queued requests and open pipes will be destroyed, with no signals to MD.  The MD is responsible for cancelling out such requests on its end, and the external server is responsible for resetting its provided pipe in this case.
- 
- - The pipe file handle will (should) be closed properly on UI/game reload, triggering a closed pipe error on the server, which the server should deal with reasonably (eg. restarting the server side pipe).
+Note: if you are using the higher level MD API, you don't need to worry about these lua details.
 
-### Lua Pipe API Functions
+Behavior:
+- MD triggers lua functions using raise_lua_event.
+- Lua responds to MD by signalling the galaxy object with specific names.
+- When loaded, sends the signal "lua_named_pipe_api_loaded".
+- Requested reads and writes will be tagged with a unique <id> string, used to uniquify the signal raised when the request has completed.
+- Requests are queued, and will be served as the pipe becomes available.
+- Multiple requests may be serviced within the same frame.
+- Pipe access is non-blocking; reading an empty pipe will not error, but instead kicks off a polling loop that will retry the pipe each frame until the request succeeds or the pipe goes bad (eg. server disconnect).
+- If the write buffer to the server fills up and doesn't have room for a new message, or the new message is larger than the entire buffer, the pipe will be treated as bad and closed. (This is due to windows not properly distinguishing these cases from broken pipes in its error codes.)
+- Pipe file handles are opened automatically when handling requests.
+- If a prior opened file handle goes bad when processing a request, one attempt will be made to reopen the file before the request will error out.
+- Whenever the UI is reloaded, all queued requests and open pipes will be destroyed, with no signals to MD.  The MD is responsible for cancelling out such requests on its end, and the external server is responsible for resetting its provided pipe in this case.
+- The pipe file handle will (should) be closed properly on UI/game reload, triggering a closed pipe error on the server, which the server should deal with reasonably (eg. restarting the server side pipe).
+
+### MD to Lua Pipe API Functions
 
  
 * Reading a pipe from MD:
 
   Start with a trigger:
-
-      <raise_lua_event 
-          name="'pipeRead'" 
-          param="'<pipe_name>;<id>'"/>
-
-  Example:
-
-      <raise_lua_event 
-          name="'pipeRead'" 
-          param="'myX4pipe;1234'"/>
-
+  ```xml
+    <raise_lua_event 
+        name="'pipeRead'" 
+        param="'<pipe_name>;<id>'"/>
+  ``` Example:
+  ```xml
+    <raise_lua_event 
+        name="'pipeRead'" 
+        param="'myX4pipe;1234'"/>
+  ```
       
   Capture completion with a new subcue (don't instantiate if already inside an instance), conditioned on response signal:
-
-      <event_ui_triggered 
-          screen="'Named_Pipes'" 
-          control="'pipeRead_complete_<id>'" />
-
+  ```xml
+    <event_ui_triggered 
+        screen="'Named_Pipes'" 
+        control="'pipeRead_complete_<id>'" />
+  ```
       
   The returned value will be in "event.param3":
-
-      <set_value 
-          name="$pipe_read_value" 
-          exact="event.param3" />
-
+  ```xml
+    <set_value 
+        name="$pipe_read_value" 
+        exact="event.param3" />
+  ```
       
-  <pipe_name> should be the unique name of the pipe being connected to. Locally, this name is prefixed with "\\.\pipe\".
+  `<pipe_name>` should be the unique name of the pipe being connected to. Locally, this name is prefixed with `\\.\pipe\`.
 
-  <id> is a string that uniquely identifies this read from other accesses that may be pending in the same time frame.
+  `<id>` is a string that uniquely identifies this read from other accesses that may be pending in the same time frame.
   
   If the read fails due to a closed pipe, a return signal will still be sent, but param2 will contain "ERROR".
     
@@ -302,30 +383,30 @@ Behavior:
 * Writing a pipe from MD:
 
   The message to be sent will be suffixed to the pipe_name and id, separated by semicolons.
-
-      <raise_lua_event 
+  ```xml
+    <raise_lua_event 
         name="'pipeWrite'" 
         param="'<pipe_name>;<id>;<message>'"/>
-
+  ```
             
   Example:
-
-      <raise_lua_event 
+  ```xml
+    <raise_lua_event 
         name="'pipeWrite'" 
         param="'myX4pipe;1234;hello'"/>
-
+  ```
         
   Optionally capture the response signal, indicating success or failure.
-
-      <event_ui_triggered 
+  ```xml
+    <event_ui_triggered 
         screen="'Named_Pipes'" 
         control="'pipeWrite_complete_<id>'" />
-
+  ```
     
   The returned status is "ERROR" on an error, else "SUCCESS".
-
-      <set_value name="$status" exact="event.param3" />
-
+  ```xml
+    <set_value name="$status" exact="event.param3" />
+  ```
         
         
 * Special writes:
@@ -334,60 +415,89 @@ Behavior:
   
   Currently, the only such command is "package.path", sending the current value in lua for that.
   
-
-      <raise_lua_event 
-          name="'pipeWriteSpecial'" 
-          param="'myX4pipe;1234;package.path'"/>
-
+  ```xml
+    <raise_lua_event 
+        name="'pipeWriteSpecial'" 
+        param="'myX4pipe;1234;package.path'"/>
+  ```
         
     
 * Checking pipe status:
 
   Test if the pipe is connected in a similar way to reading:
-
-      <raise_lua_event 
+  ```xml
+    <raise_lua_event 
         name="'pipeCheck'" 
         param="'<pipe_name>;<id>'" />
-
-
-      <event_ui_triggered 
+  ```
+  ```xml
+    <event_ui_triggered 
         screen="'Named_Pipes'" 
         control="'pipeCheck_complete_<id>'" />
-
+  ```
           
   In this case, event.param2 holds SUCCESS if the pipe appears to be succesfully opened, ERROR if not. Note that this does not robustly test the pipe, only if the File is open, so it will report success even if the server has disconnected if no operations have been performed since that disconnect.
     
     
 * Close pipe:
-
-      <raise_lua_event 
-          name="'pipeClose'" 
-          param="'<pipe_name>'" />
-
+  ```xml
+    <raise_lua_event 
+        name="'pipeClose'" 
+        param="'<pipe_name>'" />
+  ```
     
   Closing out a pipe has no callback. This will close the File handle, and will force all pending reads and writes to signal errors.
         
       
 * Set a pipe to throw away reads during a pause:
-
-      <raise_lua_event 
+  ```xml
+    <raise_lua_event 
         name="'pipeSuppressPausedReads'" 
         param="'<pipe_name>'" />
-
+  ```
     
 * Undo this with:
-
-      <raise_lua_event 
+  ```xml
+    <raise_lua_event 
         name="'pipeUnsuppressPausedReads'" 
         param="'<pipe_name>'" />
-
+  ```
         
 
 * Detect a pipe closed:
 
   When there is a pipe error, this api will make one attempt to reconnect before returning an ERROR. Since the user may need to know about these disconnect events, a signal will be raised when they happen. The signal name is tied to the pipe name.
   
-
-      <event_ui_triggered 
+  ```xml
+    <event_ui_triggered 
         screen="'Named_Pipes'" 
         control="'<pipe_name>_disconnected'" />
+  ```
+
+### Lua to Lua Pipe API Overview
+
+ 
+
+Other lua modules may use this api to access pipes as well. Behavior is largely the same as for the MD interface, except that results will be returned to lua callback functions instead of being signalled to MD. It may be imported using a require statement:
+```lua
+  local pipes_api = require('extensions.named_pipes_api.lua.Interface')
+```
+
+### Lua to Lua Pipe API Functions
+
+ 
+See named_pipes_api/lua/Pipes.lua for everything available. Basic writing and reading functions are shown here.
+
+* Schedule_Write(pipe_name, callback, message)
+  - pipe_name
+    - String, name of the pipe.
+  - callback
+    - Optional, lua function to call, taking one argument.
+  - message
+    - String, message to write.
+
+* Schedule_Read(pipe_name, callback)
+  - pipe_name
+    - String, name of the pipe.
+  - callback
+    - Optional, lua function to call, taking one argument.

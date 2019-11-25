@@ -46,3 +46,5 @@ Change Log
   - Reduced reliance on onUpdate events for pipe reading, due to dropouts.
 * 0.14
   - dll file moved inside the extension, and no longer needs to be in ui/core/lualibs.
+* 1.0
+  - General release.

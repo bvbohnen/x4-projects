@@ -343,7 +343,7 @@ def Pipe_Client_Test():
     # Announce module relative paths.
     # TODO: make it easy to specify an extension being tested.
     modules = [
-        "extensions/key_capture_api/Send_Keys.py",
+        "extensions/hotkey_api/Send_Keys.py",
         #"extensions/time_api/Time_API.py",
         ]
     # Separated with ';', end with a ';'.

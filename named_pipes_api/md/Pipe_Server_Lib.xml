@@ -2,6 +2,8 @@
 <mdscript name="Pipe_Server_Lib" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
+<!-- @doc-title MD Pipe Connection Helper -->
+  
 <!--
 Library of functions to aid in writing MD interfaces to external servers.
 
@@ -37,52 +39,57 @@ Notes on server access looping cues:
 <cues>
 
 
-  <!--
-    Library package of cues which connect to a server and read from it
-    in a loop.
+  <!--@doc-cue
+    Library package of cues used to simplify handling server connections
+    by supporting the following behaviors:
+    * Ping server until succesfully connecting,
+    * Listen for server messages,
+    * Detect disconnections and recover.
+    
+    Note: the parameters of this library will all be references to other
+    libraries containing action blocks to execute here.  Such action blocks
+    will use the namespace of the Server_Reader instance, and their
+    scope for md cue lookups will be from the Pipe_Server_Lib file.
         
     Parameters:
-    * Pipe_Name
-      - Name of the pipe used to communicate with the python host.
-      - Optional, though if not given then it should be set in Actions_On_Init.
-    * DebugChance
-      - Optional, 0 or 100.
-    * Actions_On_Init
-      - Optional library of actions to take when initializing.
-      - May be used to add variables to the library, which are in turn
-        used in other actions.
-      - May be used to init Pipe_Name instead of giving it as a param.
-      - TODO: get rid of init, just use reload, and reload once on init.
     * Actions_On_Reload
-      - Optional library of actions to take when reloading after a pipe
-        disconnect, savegame reload, or ui reload.
-      - May be used to update params like DebugChance somewhat dynamically.
+      - Library of actions to take when reloading after a pipe
+        disconnect, savegame reload, ui reload, as well as initial creation.
+      - Should set attributes: Pipe_Name, and optionally DebugChance.
+      - May add other variables to the library instance, if desired.
     * Actions_On_Connect
       - Optional library of actions to take upon connecting to the server.
+      - May signal $Start_Reading to begin passive reading of the pipe.
     * Actions_On_Read
       - Optional library of actions to take when reading a message from 
         the server.
       - The message will be in event.param.
       
+    Attributes (write these in Actions_On_Reload):
+    * $Pipe_Name
+      - Name of the pipe used to communicate with the python host.
+    * $DebugChance
+      - Optional, 0 or 100.
+      
     Interface variables:
-    * Start_Reading
-      - Internal cue.
+    * $Start_Reading
+      - Internal cue, made available as a variable.
       - Must be signalled to start the server connection routine.
       - If the connection is ever broken, which will occur on a Reload
         or possibly through param actions, this needs to be signalled
         again to reconnect.
   
     Local variables:
-    * server_access_loop_cue
+    * $server_access_loop_cue
       - Cue or null, the currently active Server_Access_Loop cue instance.
       - Starts as null. If an active instance dies, the "exists" property
         will return false.
-    * server_connected
+    * $server_connected
       - Flag, 1 when the server has been pinged succesfully and appears to
         have a valid connection. 0 before connection is set up, or after
         an error/disconnect. Used to suppress some writes before a
         connection is made, though shouldn't be critical to functionality.
-    * ping_count
+    * $ping_count
       - Int, how many failed pings have occurred.
       - Used to increase ping delay after failures.
       - Not an exactly count; only goes up to the highest delay, eg. 10.
@@ -90,43 +97,55 @@ Notes on server access looping cues:
     Note: 
       x4 has problems when a cue using this library is created alongside
       the action-libraries to be given as parameters.  While other cues can
-      be passed in this way, libraries cannot (assume md bug).
-      
-      As a workaround, a dummy wrapper cue can be wrapped around the cue
+      be passed in this way, libraries cannot.      
+      As a workaround, a dummy cue can be wrapped around the cue
       that refs this library.
       
-      Example:
-        <cue name="Server_Reader_Wrapper">
-          <cues>
-            <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
-              <param name="Actions_On_Init"     value="Actions_On_Init"/>
-              <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
-              <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
-              <param name="Actions_On_Read"     value="Actions_On_Read"/>
-            </cue>
-          </cues>
-        </cue>
-    
-  -->
-  <library name="Server_Reader">
+    Example usage:
+    ```xml
+      <cue name="Server_Reader_Wrapper">
+        <cues>
+          <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
+            <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
+            <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
+            <param name="Actions_On_Read"     value="Actions_On_Read"/>
+          </cue>
+        </cues>
+      </cue>
+      
+      <library name="Actions_On_Reload">
+        <actions>
+          <set_value name="$Pipe_Name" exact="'my_x4_pipe'" />
+        </actions>
+      </library>
+      
+      <library name="Actions_On_Connect">
+        <actions>
+          <signal_cue cue="$Start_Reading" />
+        </actions>
+      </library>
+      
+      <library name="Actions_On_Read">
+        <actions>
+          <debug_text text="'received mesage: %s.'.[event.param]"
+                    chance="$DebugChance" filter="general"/>
+        </actions>
+      </library>
+
+        ```
+        -->
+        <library name="Server_Reader">
     <params>
-      <!-- Put whatever generic name for the default pipe. -->
-      <param name="Pipe_Name"          default="'x4_default_pipe'"/>
-      <param name="DebugChance"        default="0"/>
       <param name="Actions_On_Init"    default="null"/>
       <param name="Actions_On_Reload"  default="null"/>
       <param name="Actions_On_Connect" default="null"/>
       <param name="Actions_On_Read"    default="null"/>
     </params>
-        
+
     <actions>
-      <!-- When first created, set up private globals. -->
+      <!-- Initial global var setup; done incase user code immediately checks 
+            stuff like server_connected before Reset_On_Lua_Reload fires. -->
       <include_actions ref="Reset_Globals"/>
-      
-      <!-- Run any user supplied actions. -->
-      <do_if value="$Actions_On_Init.exists">
-        <include_actions ref="$Actions_On_Init"/>
-      </do_if>          
     </actions>
   
     <cues>
@@ -134,14 +153,17 @@ Notes on server access looping cues:
       <!-- Delayed setup that references cues. -->
       <cue name="Delayed_Init">
         <actions>
-          <!-- Startup can be done by signalling Server_Access_Loop. -->
+          <!-- Set a link to the Server_Access_Loop cue, visible externally. -->
           <set_value name="$Start_Reading" exact="Server_Access_Loop"/>
+          <!-- TODO: Stop_Reading, Reset, Disconnect, or similar style commands. -->
         </actions>
       </cue>
       
       <!-- Reused setup of global vars. -->
       <library name="Reset_Globals">
         <actions>
+          <!-- Note: don't make a default pipe name; let it error if user forgets. -->
+          <set_value name="$DebugChance" exact="0"/>
           <!-- Assume no access loop active; any old one should self-kill. -->
           <set_value name="$server_access_loop_cue" exact="null"/>
           <!-- Server is never connected at reset. -->
@@ -174,6 +196,7 @@ Notes on server access looping cues:
       <cue name="Reset_On_Lua_Reload" instantiate="true">
         <conditions>
           <check_any>
+            <event_cue_signalled/>
             <event_cue_signalled cue="md.Named_Pipes.Reloaded" />
             <event_ui_triggered screen="'Named_Pipes'" 
                                 control="'%s_disconnected'.[$Pipe_Name]" />

@@ -21,7 +21,7 @@ def Launch_Game():
     # Possible workaround:
     #exe_path = Path('C:\Steam\steamapps\common\X4 Foundations\X4.exe')
     #exe_path = Path(r'C:\Steam\Steam.exe')
-    # This is the launcher used by generated shortcuts.
+    # This is the launcher used by generated actions.
     #exe_path = 'steam://rungameid/392160'
 
     # List of command line args to include.

@@ -3,7 +3,7 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
           xsi:noNamespaceSchemaLocation="md.xsd">
 
-<!-- @doc-title MD Pipe Server API -->
+<!-- @doc-title MD Pipe Python Host -->
   
 <!-- @doc-overview
 MD API for interfacing with an external Python based pipe server.
@@ -43,16 +43,16 @@ Usage:
  - Write the corresponding python server module. This requires a "main"
    function to act as the entry point, and should preferably import
    the Pipe_Server class from X4_Python_Pipe_Server.   
- - Simple example, echo messages sent from x4 back to it:
-     <code>
-       from X4_Python_Pipe_Server import Pipe_Server
-       def main():
-           pipe = Pipe_Server('x4_echo')
-           while 1:
-               message = pipe.Read()
-               pipe.Write(message)
-           return
-     </code>
+ - Simple python example, echo messages sent from x4 back to it:
+    ```python
+    from X4_Python_Pipe_Server import Pipe_Server
+    def main():
+        pipe = Pipe_Server('x4_echo')
+        pipe.Connect()
+        while 1:
+            message = pipe.Read()
+            pipe.Write(message)
+    ```
     
 -->
 <cues>
@@ -63,7 +63,6 @@ Usage:
   <cue name="Server_Reader_Wrapper">
     <cues>
       <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
-        <param name="Actions_On_Init"     value="Actions_On_Init"/>
         <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
         <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
         <param name="Actions_On_Read"     value="Actions_On_Read"/>
@@ -71,23 +70,14 @@ Usage:
     </cues>
   </cue>
   
-
-  <library name="Actions_On_Init">
-    <actions>
-      <!-- Empty list of server paths. -->
-      <set_value name="$registered_modules" exact="[]"/>
-      <!-- Name of the pipe. -->
-      <set_value name="$Pipe_Name" exact="'x4_python_host'" />
-
-      <set_value name="$DebugChance" exact="0" />
-    </actions>
-  </library>
-  
   
   <library name="Actions_On_Reload">
     <actions>
-      <include_actions ref="$Actions_On_Init"/>
-      
+      <set_value name="$DebugChance" exact="0" />
+      <!-- Name of the pipe. -->
+      <set_value name="$Pipe_Name" exact="'x4_python_host'" />
+      <!-- Empty list of server paths. -->
+      <set_value name="$registered_modules" exact="[]"/>      
       <!-- Send a signal that all users listen to. -->
       <signal_cue_instantly cue="md.Pipe_Server_Host.Reloaded"/>
     </actions>
@@ -143,18 +133,18 @@ Usage:
       Use forward slashes between folders.
     
     Usage example:
-      <code>
-        <cue name="Register_Pipe_Server" instantiate="true">
-          <conditions>
-            <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
-          </conditions>
-          <actions>
-            <signal_cue_instantly 
-              cue="md.Pipe_Server_Host.Register_Module" 
-              param="'extensions/key_capture_api/Send_Keys.py'"/>
-          </actions>
-        </cue>
-      </code>
+    ```xml
+      <cue name="Register_Pipe_Server" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+        </conditions>
+        <actions>
+          <signal_cue_instantly 
+            cue="md.Pipe_Server_Host.Register_Module" 
+            param="'extensions/hotkey_api/Send_Keys.py'"/>
+        </actions>
+      </cue>
+    ```
   -->
   <cue name="Register_Module" instantiate="true" namespace="this">
     <conditions>
