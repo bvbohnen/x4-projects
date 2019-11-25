@@ -9,21 +9,21 @@
 
   <cues>
 
-    <!-- Register default menu-open key with the key capture api. -->
+    <!-- Register default menu-open key with the hotkey api. -->
     <cue name="Register_Keys" instantiate="true">
       <conditions>
-        <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+        <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
       </conditions>
       <actions>
         <signal_cue_instantly 
-          cue="md.Key_Capture.Register_Shortcut" 
+          cue="md.Hotkey_API.Register_Action" 
           param="table[
             $id = 'simple_menu_test', 
             $onPress = Open_Menu,
             $contexts = ['flying', 'walking', 'SimpleMenu'],
             ]"/>
         <signal_cue_instantly
-          cue="md.Key_Capture.Register_Key"
+          cue="md.Hotkey_API.Register_Key"
           param="table[$key='shift b', $id='simple_menu_test']"/>
       </actions>
     </cue>

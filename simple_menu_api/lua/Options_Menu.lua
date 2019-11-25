@@ -7,7 +7,7 @@ that have registered their menu definition cues with this api, from which
 the player can pick a specific mod and edit its settings.
 
 This solves the question of how mod users will make their menus easily
-accessible to the player (without relying on the key capture api or similar).
+accessible to the player (without relying on the hotkey api or similar).
 
 TODO: hooks to modify stock menu parameters of interest.
     - menu.valueGameUIScale, menu.callbackGameUIScaleReset()

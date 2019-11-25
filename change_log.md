@@ -52,4 +52,5 @@ Change Log
 * 0.14
   - Add Refresh_Menu command for options menus.
   - Added in-game toggle to turn on api debug logging.
- 
+* 1.0
+  - General release.
