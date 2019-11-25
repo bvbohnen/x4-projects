@@ -12,6 +12,6 @@
   <langugage description="" language="82"/>
   <langugage description="" language="86"/>
   <langugage description="" language="88"/>
-  <dependency id="named_pipes_api" version="006" optional="false"/>
-  <dependency id="simple_menu_api" version="001" optional="false"/>
+  <dependency id="named_pipes_api" version="100" optional="false"/>
+  <dependency id="simple_menu_api" version="014" optional="false"/>
 </content>
