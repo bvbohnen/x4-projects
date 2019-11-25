@@ -14,5 +14,5 @@
   <langugage description="" language="88"/>
   <!-- Need this for the lua to load.-->
   <dependency id="lua_loader_api" version="011" optional="false"/>
-  <dependency id="time_api" version="002" optional="false"/>
+  <dependency id="time_api" version="004" optional="false"/>
 </content>

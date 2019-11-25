@@ -10,3 +10,5 @@ Change Log
   - More graceful shutdown if a pipe server is already running.
 * 0.10
   - Servers restart on receiving 'garbage_collected' pipe client messages.
+* 1.0
+  - General release.
