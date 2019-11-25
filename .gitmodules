@@ -3,7 +3,7 @@
 	url = https://github.com/bvbohnen/x4-lua-loader-api.git
 [submodule "X4_Hotkey_API"]
 	path = X4_Hotkey_API
-	url = https://github.com/bvbohnen/x4-key-capture-api.git
+	url = https://github.com/bvbohnen/x4-hotkey-api.git
 [submodule "X4_Simple_Menu_API"]
 	path = X4_Simple_Menu_API
 	url = https://github.com/bvbohnen/x4-simple-menu-api.git
