@@ -10,8 +10,8 @@
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
-    <Name>X4_Key_Capture_API</Name>
-    <RootNamespace>X4_Key_Capture_API</RootNamespace>
+    <Name>X4_Hotkey_API</Name>
+    <RootNamespace>X4_Hotkey_API</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -24,27 +24,27 @@
   <ItemGroup>
     <Content Include="API Functions.md" />
     <Content Include="change_log.md" />
-    <Content Include="key_capture_api\content.xml" />
-    <Content Include="key_capture_api\lua\Key_Capture.lua">
+    <Content Include="hotkey_api\content.xml" />
+    <Content Include="hotkey_api\lua\Hotkey.lua">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="key_capture_api\lua\Library.lua" />
-    <Content Include="key_capture_api\lua\Tables.lua" />
-    <Content Include="key_capture_api\md\KC_Extra_Commands.xml" />
-    <Content Include="key_capture_api\md\Key_Capture.xml" />
-    <Content Include="key_capture_api_test\content.xml" />
-    <Content Include="key_capture_api_test\md\Test_Key_Capture.xml" />
+    <Content Include="hotkey_api\lua\Library.lua" />
+    <Content Include="hotkey_api\lua\Tables.lua" />
+    <Content Include="hotkey_api\md\KC_Extra_Commands.xml" />
+    <Content Include="hotkey_api\md\Hotkey.xml" />
+    <Content Include="hotkey_api_test\content.xml" />
+    <Content Include="hotkey_api_test\md\Test_Hotkey.xml" />
     <Content Include="Readme.md" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="key_capture_api\" />
-    <Folder Include="key_capture_api\md\" />
-    <Folder Include="key_capture_api\lua\" />
-    <Folder Include="key_capture_api_test\" />
-    <Folder Include="key_capture_api_test\md\" />
+    <Folder Include="hotkey_api\" />
+    <Folder Include="hotkey_api\md\" />
+    <Folder Include="hotkey_api\lua\" />
+    <Folder Include="hotkey_api_test\" />
+    <Folder Include="hotkey_api_test\md\" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="key_capture_api\Send_Keys.py" />
+    <Compile Include="hotkey_api\Send_Keys.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

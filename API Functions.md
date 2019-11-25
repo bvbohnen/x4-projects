@@ -1,5 +1,5 @@
 
-### Key Capture API Cues
+### Hotkey API Cues
 
 * **Reloaded**
   
@@ -7,7 +7,7 @@
     
 * **Register_Shortcut**
   
-  User function to register a shortcut. These shortcuts will be displayed in the api options menu for use assignment of a hotkey. This should be re-sent each time Reloaded is signalled.
+  User function to register a shortcut. These shortcuts will be displayed in the api options menu for user assignment of a hotkey. This should be re-sent each time Reloaded is signalled.
       
   Param : Table with the following items:
   * id
@@ -56,30 +56,30 @@
       
   Usage example:
     ```xml
-  
-      <cue name="Register_Shortcut" instantiate="true">
-        <conditions>
-          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-        </conditions>
-        <actions>
-          <signal_cue_instantly 
-            cue = "md.Key_Capture.Register_Key" 
-            param="table[
-              $id          = 'my_key',
-              $onPress     = OnKeyPress,
-              $name        = 'Test Key',
-              $description = 'This key is just testing',
-              $contexts    = ['flying','walking'],
-              ]"/>
-        </actions>
-      </cue>
-  
+    <cue name="Register_Shortcut" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly 
+          cue = "md.Hotkey_API.Register_Key" 
+          param="table[
+            $id          = 'my_key',
+            $onPress     = OnKeyPress,
+            $name        = 'Test Key',
+            $description = 'This key is just testing',
+            $contexts    = ['flying','walking'],
+            ]"/>
+      </actions>
+    </cue>
     ```
     
 * **Register_Key**
   
     
-  Function to register a key with a shortcut. If this is the first key registered, it will start the key listening loop. This is used by the menu system to set up player custom keys, but may also be called by a user to directly assign a key to a shortcut. Keys added by direct user calls will not be visible in the menu, and have fewer restrictions than the menu enforces. This should be re-sent each time Reloaded is signalled.
+  Function to register a key with a shortcut.
+      
+  If this is the first key registered, it will start the key listening loop. This is used by the menu system to set up player custom keys, but may also be called by a user to directly assign a key to a shortcut. Keys added by direct user calls will not be visible in the menu, and have fewer restrictions than the menu enforces. This should be re-sent each time Reloaded is signalled, and should follow the shortcut's registration.
       
   Param  : Table with the following items:
   * key
@@ -89,18 +89,18 @@
     - The shortcut should already exist.
         
   Usage example:
-  
-      <cue name="Register_Keys" instantiate="true">
-        <conditions>
-          <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-        </conditions>
-        <actions>
-          <signal_cue_instantly 
-            cue="md.Key_Capture.Register_Key" 
-            param="table[$key='shift w', $id='my_registered_key']"/>
-        </actions>
-      </cue>
-  
+    ```xml
+    <cue name="Register_Keys" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly 
+          cue="md.Hotkey_API.Register_Key" 
+          param="table[$key='shift w', $id='my_registered_key']"/>
+      </actions>
+    </cue>
+    ```
       
   Key syntax:
   - Keys may be given singular or as a combination.
@@ -171,9 +171,9 @@
   Note: in development, untested.
       
   Usage example:
-  
+    ```xml
       <signal_cue_instantly 
-        cue="md.Key_Capture.Unregister_Key" 
-        param="table[$key='w', $id='my_registered_key']">
-  
+        cue="md.Hotkey_API.Unregister_Key" 
+        param="table[$key='w', $id='my_registered_key']"/>
+    ```
     

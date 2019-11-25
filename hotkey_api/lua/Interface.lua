@@ -1,5 +1,5 @@
 --[[
-Lua side of the key capture api.
+Lua side of the hotkey api.
 This primarily aims to interface tightly with the egosoft menu system,
 to leverage existing code for allowing players to customize hotkeys.
 
@@ -25,8 +25,8 @@ ffi.cdef[[
 ]]
 
 -- Imports.
-local Lib = require("extensions.key_capture_api.lua.Library")
-local Tables = require("extensions.key_capture_api.lua.Tables")
+local Lib = require("extensions.hotkey_api.lua.Library")
+local Tables = require("extensions.hotkey_api.lua.Tables")
 local config = Tables.config
 
 -- Local functions and data.
@@ -56,9 +56,9 @@ local menu = nil
 local function Init()
 
     -- MD triggered events.
-    RegisterEvent("Key_Capture.Update_Shortcuts", L.Update_Shortcuts)
-    RegisterEvent("Key_Capture.Update_Player_Keys", L.Read_Player_Keys)
-    RegisterEvent("Key_Capture.Update_Connection_Status", L.Update_Connection_Status)
+    RegisterEvent("Hotkey.Update_Shortcuts", L.Update_Shortcuts)
+    RegisterEvent("Hotkey.Update_Player_Keys", L.Read_Player_Keys)
+    RegisterEvent("Hotkey.Update_Connection_Status", L.Update_Connection_Status)
     
     -- Cache the player component id.
     L.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
@@ -104,7 +104,7 @@ local function Init()
     local ego_remapInput = menu.remapInput
     menu.remapInput = function(...)
         -- Hand off to ego function if this isn't a custom key.
-        if menu.remapControl.controlcontext ~= "key_capture" then
+        if menu.remapControl.controlcontext ~= "hotkey_api" then
             ego_remapInput(...)
             return
         end        
@@ -117,7 +117,7 @@ local function Init()
     
     -- TODO: replace the event registration functions which select which
     -- input types to capture.  Just want keyboard for custom controls.
-    -- TODO: also need to suppress key_capture from triggering cues while
+    -- TODO: also need to suppress hotkey_api from triggering cues while
     -- this is going on.
     --L.input_event_handlers = {
     --    -- Args patterned off of config.input.directInputHookDefinitions.
@@ -275,7 +275,7 @@ end
 -- Reads data from a player blackboard var.
 function L.Update_Shortcuts()
     -- Args are attached to the player component object.
-    local md_table = GetNPCBlackboard(L.player_id, "$key_capture_shortcuts")
+    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_shortcuts")
 
     -- Note: md may have sent several of these events on the same frame,
     -- in which case the blackboard var has just the args for the latest
@@ -285,7 +285,7 @@ function L.Update_Shortcuts()
     L.shortcut_registry = md_table
 
     -- Clear the md var by writing nil.
-    SetNPCBlackboard(L.player_id, "$key_capture_shortcuts", nil)
+    SetNPCBlackboard(L.player_id, "$hotkey_api_shortcuts", nil)
     
     --Lib.Print_Table(L.shortcut_registry, "Update_Shortcuts shortcut_registry")
 end
@@ -294,14 +294,14 @@ end
 -- Generally md will send this on init.
 function L.Read_Player_Keys()
     -- Args are attached to the player component object.
-    local md_table = GetNPCBlackboard(L.player_id, "$key_capture_player_keys_from_md")
+    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md")
     -- This shouldn't get getting nil values since the md init is
     -- sent just once, but play it safe.
     if not md_table then return end
     L.player_shortcut_keys = md_table
 
     -- Clear the md var by writing nil.
-    SetNPCBlackboard(L.player_id, "$key_capture_player_keys_from_md", nil)
+    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md", nil)
     
     --Lib.Print_Table(L.player_shortcut_keys, "Read_Player_Keys player_shortcut_keys")
 end
@@ -310,7 +310,7 @@ end
 -- This could be integrated into remapInput, but kept separate for now.
 function L.Write_Player_Keys()
     -- Args are attached to the player component object.
-    SetNPCBlackboard(L.player_id, "$key_capture_player_keys_from_lua", L.player_shortcut_keys)
+    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_lua", L.player_shortcut_keys)
     Lib.Raise_Signal("Store_Player_Keys")
     
     --Lib.Print_Table(L.player_shortcut_keys, "Write_Player_Keys player_shortcut_keys")
@@ -519,7 +519,7 @@ function L.displayControlRow(ftable, shortcut_id)
                 -- not_mapable/nokeyboard
                 false,
                 -- control_context; put whatever.
-                "key_capture",
+                "hotkey_api",
                 -- allowmouseaxis
                 false,
             }) end
@@ -608,7 +608,7 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
     -- Since only keyboard is wanted for now, restart listening if something
     -- else arrived.
     if newinputtype ~= 1 then
-        -- DebugError("Key Capture: Non-keyboard input not supported.")
+        -- DebugError("Hotkey: Non-keyboard input not supported.")
         menu.registerDirectInput()
         -- Normal return; keep listener going.
         return

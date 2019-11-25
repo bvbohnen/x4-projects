@@ -11,7 +11,7 @@ local L = {}
 -- for that widget.
 -- TODO: think about this more.
 function L.Raise_Signal(name, value)
-    AddUITriggeredEvent("Key_Capture", name, value)
+    AddUITriggeredEvent("Hotkey", name, value)
 end
 
 -- Print a table's contents to the log.

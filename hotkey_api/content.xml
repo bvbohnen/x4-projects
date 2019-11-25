@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="key_capture_api_test" name="Key Capture API Test" author="SirNukes" version="006" date="2019-07-23" save="false" sync="false">
+<content id="hotkey_api" name="Hotkey API" description="Adds API support for capturing key presses." author="SirNukes" version="016" date="2019-07-23" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>
   <langugage description="" language="37"/>
   <langugage description="" language="39"/>
-  <langugage description="Test for key capture api." language="44"/>
+  <langugage description="Adds API support for capturing key presses. Requires Named Pipe API and a running server." language="44"/>
   <langugage description="" language="49"/>
   <langugage description="" language="55"/>
   <langugage description="" language="81"/>
   <langugage description="" language="82"/>
   <langugage description="" language="86"/>
   <langugage description="" language="88"/>
-  <dependency id="key_capture_api" version="006" optional="false"/>
+  <dependency id="named_pipes_api" version="006" optional="false"/>
+  <dependency id="simple_menu_api" version="001" optional="false"/>
 </content>

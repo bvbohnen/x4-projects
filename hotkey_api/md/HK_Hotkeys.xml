@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<mdscript name="KC_Extra_Commands" 
+<mdscript name="HK_Hotkeys" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
   <!--
   Create some extra key-press activated commands.
-  Acts as an example of using the key capture api, as well as hopefully
+  Acts as an example of using the hotkey api, as well as hopefully
   being useful.
   
   Ideas:
@@ -12,15 +12,15 @@
   -->
 
   <cues>
-    <!-- Register keys with the key capture api. -->
+    <!-- Register keys with the hotkey api. -->
     <cue name="Register_Keys" instantiate="true">
       <conditions>
-        <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+        <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
       </conditions>
       <actions>
         
         <!-- Register shortcuts. -->
-        <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
           $id = 'kc_target_follow', 
           $onPress = Target_Follow,
           $name = 'Follow Target', 
@@ -28,7 +28,7 @@
           $contexts = ['flying'],
           ]"/>
 
-        <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
           $id = 'kc_eject_illegals', 
           $onPress = Eject_Illegals,
           $name = 'Eject Illegal Wares', 
@@ -46,7 +46,7 @@
         <!-- Verify the player has a target selected. -->
         <check_value value="player.target"/>
         <!-- Verify the player is piloting a ship.-->
-        <!-- TODO: check this in key capture api instead (space/flying context).-->
+        <!-- TODO: check this in hotkey api instead (space/flying context).-->
         <check_value value="player.occupiedship"/>
       </conditions>
       <actions>

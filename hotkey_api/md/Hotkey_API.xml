@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="Key_Capture"
+<mdscript name="Hotkey_API"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-  <!--@doc-title Key Capture API -->
-  <!--
-MD API support for capturing key presses.
+<!--@doc-title Hotkey API -->
+<!--
+MD API support for making custom hotkeys.
 This makes use of the Named Pipe API and an external python server.
 Python will handle keypress detection, and will transmit to this MD script
 which in turn handles callbacks to user specified cues.
 
-Goals:
- - Allow user to register a key with a cue.
- - When key pressed, call the user cue.
-  
 -->
   <!--
 TODO:
@@ -33,7 +29,7 @@ TODO:
     </conditions>
     <actions>
       <raise_lua_event name="'Lua_Loader.Load'"
-                        param="'extensions.key_capture_api.lua.Key_Capture'"/>
+                        param="'extensions.hotkey_api.lua.Interface'"/>
     </actions>
   </cue>
 
@@ -48,7 +44,7 @@ TODO:
     <actions>
       <signal_cue_instantly
         cue="md.Pipe_Server_Host.Register_Module"
-        param="'extensions/key_capture_api/Send_Keys.py'"/>
+        param="'extensions/hotkey_api/Send_Keys.py'"/>
     </actions>
   </cue>
 
@@ -146,7 +142,7 @@ TODO:
     -->
       <cue name="Reset_On_Lua_Reload" instantiate="true">
         <conditions>
-          <event_ui_triggered screen="'Key_Capture'" control="'reloaded'" />
+          <event_ui_triggered screen="'Hotkey'" control="'reloaded'" />
         </conditions>
         <actions>
           <include_actions ref="Reset_Globals"/>
@@ -176,8 +172,8 @@ TODO:
       </do_if>
         
       <!-- Init the lua with the stored list of player keys. -->
-      <set_value name="player.entity.$key_capture_player_keys_from_md" exact="$player_shortcut_keys" />
-      <raise_lua_event name="'Key_Capture.Update_Player_Keys'"/>        
+      <set_value name="player.entity.$hotkey_api_player_keys_from_md" exact="$player_shortcut_keys" />
+      <raise_lua_event name="'Hotkey.Update_Player_Keys'"/>        
         
     </actions>
   </library>
@@ -219,28 +215,28 @@ TODO:
       <include_actions ref="$Actions_On_Init"/>
 
       <!-- Make sure the read loop is started if there are keys tracked. -->
-      <do_if value="md.Key_Capture.Globals.$key_event_shortcut_registry.keys.list.count != 0">
+      <do_if value="md.Hotkey_API.Globals.$key_event_shortcut_registry.keys.list.count != 0">
         <signal_cue cue="$Start_Reading" />
       </do_if>
       <!-- Disable the menu plugin. -->
-      <raise_lua_event name="'Key_Capture.Update_Connection_Status'" param="0"/>
+      <raise_lua_event name="'Hotkey.Update_Connection_Status'" param="0"/>
     </actions>
   </library>
   
   <library name="Actions_On_Connect">
     <actions>
       <!-- Announce the wanted keys to the server. -->
-      <signal_cue_instantly cue="md.Key_Capture.Register_Keys_With_Server_2"/>
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Keys_With_Server"/>
       <!-- Enable the menu plugin. -->
-      <raise_lua_event name="'Key_Capture.Update_Connection_Status'" param="1"/>      
+      <raise_lua_event name="'Hotkey.Update_Connection_Status'" param="1"/>      
     </actions>
   </library>
 
   <!--TODO: break out the key handling from the pipe cue.-->
   <library name="Actions_On_Read">
     <actions>
-      <!-- Hand off to key_capture module cue. -->
-      <signal_cue_instantly cue="md.Key_Capture.Handle_Key" param="event.param"/>
+      <!-- Hand off to hotkey_api module cue. -->
+      <signal_cue_instantly cue="md.Hotkey_API.Handle_Key" param="event.param"/>
 
       <!--Acknowledge this key was read.
         Note: this will not bother to check for errors. If the pipe dies,
@@ -253,8 +249,7 @@ TODO:
 
 
   <!-- Function to update the server list of registered keys. -->
-  <!-- Note: _2 in name is from switching this from lib to cue TODO: prune _2. -->
-  <cue name="Register_Keys_With_Server_2" instantiate="true" namespace="this">
+  <cue name="Register_Keys_With_Server" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled/>
     </conditions>
@@ -299,8 +294,8 @@ TODO:
   </cue>
 
   <!--@doc-cue
-    User function to register a shortcut. These shortcuts will be displayed
-    in the api options menu for use assignment of a hotkey.
+    Function to register a shortcut. These shortcuts will be displayed
+    in the api options menu for user assignment of a hotkey.
     This should be re-sent each time Reloaded is signalled.
     
     Param : Table with the following items:
@@ -354,24 +349,22 @@ TODO:
     
     Usage example:
       ```xml
-      <code>
-        <cue name="Register_Shortcut" instantiate="true">
-          <conditions>
-            <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-          </conditions>
-          <actions>
-            <signal_cue_instantly 
-              cue = "md.Key_Capture.Register_Key" 
-              param="table[
-                $id          = 'my_key',
-                $onPress     = OnKeyPress,
-                $name        = 'Test Key',
-                $description = 'This key is just testing',
-                $contexts    = ['flying','walking'],
-                ]"/>
-          </actions>
-        </cue>
-      </code>
+      <cue name="Register_Shortcut" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
+        </conditions>
+        <actions>
+          <signal_cue_instantly 
+            cue = "md.Hotkey_API.Register_Key" 
+            param="table[
+              $id          = 'my_key',
+              $onPress     = OnKeyPress,
+              $name        = 'Test Key',
+              $description = 'This key is just testing',
+              $contexts    = ['flying','walking'],
+              ]"/>
+        </actions>
+      </cue>
       ```
   -->
   <cue name="Register_Shortcut" instantiate="true" namespace="this">
@@ -452,8 +445,8 @@ TODO:
         
       <!-- Keep the lua updated. -->
       <!-- Passes it on a player blackboard var, which lua clears. -->
-      <set_value name="player.entity.$key_capture_shortcuts" exact="Globals.$shortcut_registry" />
-      <raise_lua_event name="'Key_Capture.Update_Shortcuts'"/>
+      <set_value name="player.entity.$hotkey_api_shortcuts" exact="Globals.$shortcut_registry" />
+      <raise_lua_event name="'Hotkey.Update_Shortcuts'"/>
     </actions>
   </cue>
 
@@ -461,12 +454,14 @@ TODO:
   <!--@doc-cue
   
     Function to register a key with a shortcut.
+    
     If this is the first key registered, it will start the key listening loop.
     This is used by the menu system to set up player custom keys, but may
     also be called by a user to directly assign a key to a shortcut.
     Keys added by direct user calls will not be visible in the menu, and have
     fewer restrictions than the menu enforces.
-    This should be re-sent each time Reloaded is signalled.
+    This should be re-sent each time Reloaded is signalled, and should follow
+    the shortcut's registration.
     
     Param  : Table with the following items:
     * key
@@ -476,18 +471,18 @@ TODO:
       - The shortcut should already exist.
       
     Usage example:
-      <code>
-        <cue name="Register_Keys" instantiate="true">
-          <conditions>
-            <event_cue_signalled cue="md.Key_Capture.Reloaded" />
-          </conditions>
-          <actions>
-            <signal_cue_instantly 
-              cue="md.Key_Capture.Register_Key" 
-              param="table[$key='shift w', $id='my_registered_key']"/>
-          </actions>
-        </cue>
-      </code>
+      ```xml
+      <cue name="Register_Keys" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
+        </conditions>
+        <actions>
+          <signal_cue_instantly 
+            cue="md.Hotkey_API.Register_Key" 
+            param="table[$key='shift w', $id='my_registered_key']"/>
+        </actions>
+      </cue>
+      ```
     
     Key syntax:
     - Keys may be given singular or as a combination.
@@ -604,7 +599,7 @@ TODO:
       </do_for_each>
 
       <!-- Update the server. If it isn't connected, ignore any error. -->
-      <signal_cue_instantly cue="Register_Keys_With_Server_2"/>
+      <signal_cue_instantly cue="Register_Keys_With_Server"/>
 
       <!-- Make sure the read loop is started, if it wasn't already. -->
       <signal_cue cue="Server_Reader.$Start_Reading" />
@@ -612,21 +607,16 @@ TODO:
   </cue>
 
 
-  <!--@doc-cue
-  
-    Function to unregister a key from a shortcut. 
+  <!--@doc-cue  
+    Function to unregister a key from a shortcut.     
     Params are the same as for Register_Key.
-    If this was the only cue registered (across all keys), the key listerner
-    loop will stop itself.
-    
-    Note: in development, untested.
-    
+        
     Usage example:
-      <code>
+      ```xml
         <signal_cue_instantly 
-          cue="md.Key_Capture.Unregister_Key" 
-          param="table[$key='w', $id='my_registered_key']">
-      </code>
+          cue="md.Hotkey_API.Unregister_Key" 
+          param="table[$key='shift w', $id='my_registered_key']"/>
+      ```
   -->
   <cue name="Unregister_Key" instantiate="true" namespace="this">
     <conditions>
@@ -679,7 +669,7 @@ TODO:
       </do_for_each>
 
       <!-- Update the server. If it isn't connected, ignore any error. -->
-      <signal_cue_instantly cue="Register_Keys_With_Server_2"/>
+      <signal_cue_instantly cue="Register_Keys_With_Server"/>
       
     </actions>
   </cue>
@@ -703,7 +693,7 @@ TODO:
   -->
   <cue name="Capture_Lua_Key_Update" instantiate="true" namespace="this">
     <conditions>
-      <event_ui_triggered screen="'Key_Capture'" control="'Update_Key'" />
+      <event_ui_triggered screen="'Hotkey'" control="'Update_Key'" />
     </conditions>
 
     <actions>
@@ -735,12 +725,12 @@ TODO:
   -->
   <cue name="Capture_Lua_Store_Player_Keys" instantiate="true" namespace="this">
     <conditions>
-      <event_ui_triggered screen="'Key_Capture'" control="'Store_Player_Keys'" />
+      <event_ui_triggered screen="'Hotkey'" control="'Store_Player_Keys'" />
     </conditions>
     <actions>
       <set_value name="Globals.$player_shortcut_keys" 
-                 exact="player.entity.$key_capture_player_keys_from_lua"/>
-      <remove_value name="player.entity.$key_capture_player_keys_from_lua"/>
+                 exact="player.entity.$hotkey_api_player_keys_from_lua"/>
+      <remove_value name="player.entity.$hotkey_api_player_keys_from_lua"/>
     </actions>
   </cue>
 
@@ -775,7 +765,7 @@ TODO:
   
   <cue name="Capture_Lua_Menu_Opened" instantiate="true" namespace="this">
     <conditions>
-      <event_ui_triggered screen="'Key_Capture'" control="'Menu_Opened'" />
+      <event_ui_triggered screen="'Hotkey'" control="'Menu_Opened'" />
     </conditions>
     <actions>
       <set_value name="Globals.$menu_states.{'$'+event.param3}" exact="true"/>
@@ -785,7 +775,7 @@ TODO:
   
   <cue name="Capture_Lua_Menu_Closed" instantiate="true" namespace="this">
     <conditions>
-      <event_ui_triggered screen="'Key_Capture'" control="'Menu_Closed'" />
+      <event_ui_triggered screen="'Hotkey'" control="'Menu_Closed'" />
     </conditions>
     <actions>
       <set_value name="Globals.$menu_states.{'$'+event.param3}" exact="false"/>

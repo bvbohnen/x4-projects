@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="Test_Key_Capture" 
+<mdscript name="Hotkey_API_Test" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 <!--
@@ -10,11 +10,11 @@ Relies on named pipe library; server side is written in python.
 <cues>
 
   <!--
-    Register keys with the key capture api.
+    Register keys with the hotkey api.
   -->  
   <cue name="Register_Keys" instantiate="true">
     <conditions>
-      <event_cue_signalled cue="md.Key_Capture.Reloaded" />
+      <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
       <!-- Uncomment to disable this cue.
       <check_value value="false"/> -->
     </conditions>
@@ -22,52 +22,52 @@ Relies on named pipe library; server side is written in python.
       <show_notification text="'Registering keys'" sound="notification_warning" priority="2" />
       
       <!-- Register some shortcuts. -->
-      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
-        $id = 'key_capture_test_space', 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+        $id = 'hotkey_api_test_space', 
         $onPress   = OnKeyEvent,
         $onRelease = OnKeyEvent,
         $onRepeat  = OnKeyEvent,
         $name = 'Test Space', 
-        $description = 'Key Capture test Space',
+        $description = 'Hotkey test Space',
         $contexts = ['flying'],
         $category = 'Test Space Keys',
         ]"/>
 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
-        $id = 'key_capture_test_walk', 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+        $id = 'hotkey_api_test_walk', 
         $onPress = OnKeyEvent,
         $name = 'Test Walk', 
-        $description = 'Key Capture test Walk',
+        $description = 'Hotkey test Walk',
         $contexts = ['walking'],
         $category = 'Test Walk Keys',
         ]"/>
 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
-        $id = 'key_capture_test_menu', 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+        $id = 'hotkey_api_test_menu', 
         $onPress = OnKeyEvent,
         $name = 'Test Menu', 
-        $description = 'Key Capture test Menu',
+        $description = 'Hotkey test Menu',
         $contexts = ['menus'],
         $category = 'Test Menu Keys',
         ]"/>
 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Shortcut" param="table[
-        $id = 'key_capture_test_api_menu', 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Shortcut" param="table[
+        $id = 'hotkey_api_test_api_menu', 
         $onPress = OnKeyEvent,
         $name = 'Test Simple Menu', 
-        $description = 'Key Capture test Simple Menu API',
+        $description = 'Hotkey test Simple Menu API',
         $contexts = ['SimpleMenu'],
         $category = 'Test Menu Keys',
         ]"/>
 
       <!-- Set up some default keys.  -->
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='a',       $id = 'key_capture_test_space']" /> 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='s',       $id = 'key_capture_test_space']" /> 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='d',       $id = 'key_capture_test_space']" /> 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='f',       $id = 'key_capture_test_space']" /> 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='shift s', $id = 'key_capture_test_walk']" /> 
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='ctrl_l d',$id = 'key_capture_test_menu']" />
-      <signal_cue_instantly cue="md.Key_Capture.Register_Key" param="table[$key='alt_r f', $id = 'key_capture_test_api_menu']" />
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='a',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='s',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='d',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='f',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='shift s', $id = 'hotkey_api_test_walk']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='ctrl_l d',$id = 'hotkey_api_test_menu']" />
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='alt_r f', $id = 'hotkey_api_test_api_menu']" />
     </actions>
   </cue>
         
