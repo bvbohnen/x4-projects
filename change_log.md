@@ -9,3 +9,5 @@ Change Log
   - Added support for loading txt files.
 * 0.11
   - Added loading confirmation ui signal.
+* 1.0
+  - General release.
