@@ -18,7 +18,7 @@ New comments (not part of winapi) start with "//--".
 
 #define WINDOWS_LEAN_AND_MEAN
 #include <windows.h>
-#include <string.h>
+//#include <string.h>
 #ifdef __GNUC__
 #include <winable.h> /* GNU GCC specific */
 #endif
