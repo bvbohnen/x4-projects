@@ -82,8 +82,9 @@ end
 
 -- General config, copied from ego code; may not all be used.
 T.config = {
-    optionsLayer = 3,
-    topLevelLayer = 4,
+    contextLayer = 3,
+    optionsLayer = 4,
+    topLevelLayer = 5,
 
     backarrow = "table_arrow_inv_left",
     backarrowOffsetX = 3,

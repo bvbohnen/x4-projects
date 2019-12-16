@@ -54,3 +54,5 @@ Change Log
   - Added in-game toggle to turn on api debug logging.
 * 1.0
   - General release.
+* 1.0.1
+  - Update for x4 3.0 beta 4.

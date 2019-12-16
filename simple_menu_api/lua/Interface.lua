@@ -112,7 +112,7 @@ Behavior:
 
     GetNPCBlackboard is capable of retrieving a copy of this list, as a lua
     table. However, lua cannot write back an edited table with one set of
-    args removed, since SetNPCBlackboard will only write a table.
+    args removed, since SetNPCBlackboard will only write a table (not list).
     
     So, this function will store the list of args locally, and overwrite
     the blackboard with nil, deleting the var. MD will recreate a list when

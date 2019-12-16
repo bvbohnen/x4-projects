@@ -270,6 +270,23 @@
           $height = 20,
           $width  = 20,
           ]"/>
+        <!-- Fancier icon; maybe make a bit bigger to see it.. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $text = 'Icon test 2',
+          $cellBGColor = 'Helper.color.transparent60',
+          ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Icon"
+          param = "table[
+          $col = 2, 
+          $icon = 'enc_cluster01',
+          $height = 60,
+          $width  = 60,
+          ]"/>
 
         <!-- Start section for changing global test vars. -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
