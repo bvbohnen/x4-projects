@@ -1,6 +1,11 @@
 
--- Table holding lib functions to be returned.
-local L = {}
+-- Table holding lib functions to be returned, or lib params that can
+-- be modified.
+local L = {
+    debug = {
+        print_to_log = false,
+    },
+}
 
 
 -- Shared function to raise a named galaxy signal with an optional
@@ -15,6 +20,13 @@ function L.Raise_Signal(name, return_value)
     -- This will give the return_value in event.param3
     -- Use <event_ui_triggered screen="'Named_Pipes'" control="'<name>'" />
     AddUITriggeredEvent("Named_Pipes", name, return_value)
+    
+    if L.debug.print_to_log then
+        if return_value == nil then
+            return_value = "nil"
+        end
+        DebugError("UI Event: Named_Pipes, "..name.." ; value: "..return_value)
+    end
 end
 
 

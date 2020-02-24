@@ -141,7 +141,7 @@ TODO:
   <!--
     Support lib function to update the access_counter, and use it
     to generate an ID string for the next access.
-    Count rolls over every 10000 to  limit the string size to 4 characters,
+    Count rolls over every 10000 to limit the string size to 4 characters,
     and should be enough that an ID will not be reused until well after the
     prior access of that ID completed.
     
@@ -244,7 +244,14 @@ TODO:
       - Callback, optional, the cue to call when the read completes.
     * time
       - Timeout, optional, the time until a pending read is cancelled.
-      - Defaults to 10 seconds.
+      - After a timeout, the pipe will still listen for the message and
+        throw it away when it arrives. This behavior can be changed with
+        the next arg.
+    * cancel_on_timeout
+      - Bool, if a timeout event should also cancel all pending
+        reads to the pipe (triggers errors for requests other than
+        this one).
+      - Defaults false.
       
     Returns:
     - Whatever is read from the pipe in event.param to the callback cue.
@@ -413,33 +420,39 @@ TODO:
   </cue>
 
 
-  <!--
+  <!--@doc-cue
     Start a new pipe access.
-    Primarily for internal use.
-    Shared by Read and Write operations.
-    Also used by Check, mainly for the callback handling, though checks
-    don't use timeout meaningfully.
+    Several other access cues (Read, Write, etc.) redirect to here.
     
     Param:
       Table with the following items:
-      * pipe
+      * $pipe
         - String, name of the pipe being accessed, without path prefix.
-      * command
-        - String, either 'Read' or 'Write'.
-      * msg
+      * $command
+        - String, one of ['Read','Write','WriteSpecial','Check'].
+      * $msg
         - String, message to send for writes.
         - Unused for non-writes.
-      * cue
+      * $cue
         - Cue to call with the result when operation completes.
         - Optional for writes.
-      * time
+      * $time
         - Time, how long to allow for access before cancelling it.
-        - A timeout will trigger an 'TIMEOUT' return value to the callback cue.
+        - A timeout will trigger a 'TIMEOUT' return value to the callback cue.
         - Optional.
-        - Defaults to 10s.
+        - Defaults to 1000000s (~270 hours), to basically be disabled.
         - Note: timeout kills this access cue, but does not prevent the lua
           from continuing the operation.  The lua op complete signal
-          will be ignored, if/when it arrives.           
+          will be ignored, if/when it arrives.  See option below to change
+          this behavior.
+      * $cancel_on_timeout
+        - Bool or int, if a timeout event should also cancel all pending
+          accesses to the pipe (either reads or writes).
+        - Defaults false.
+        - This will trigger error responses on all cancelled accesses
+          except for this one that timed out.
+        - Intended for use with reads when the timed-out access is not
+          expecting any response, eg. was passively reading.
       
     Returns:
       Value is is sent as event.param to the callback cue.
@@ -468,14 +481,24 @@ TODO:
       <do_else>
         <set_value name="$callback_cue"      exact="null" />
       </do_else>
-      
+
+      <!-- Timeout cancellation defaults to false for now.-->
+      <do_if value="event.param.{'$cancel_on_timeout'}?">
+        <set_value name="$cancel_on_timeout"      exact="event.param.{'$cancel_on_timeout'}" />
+      </do_if>
+      <do_else>
+        <set_value name="$cancel_on_timeout"      exact="false" />
+      </do_else>
+
       <!-- Calculate the real time of the timeout, by adding to current age. -->
       <!-- TODO: switch to using realtime api. -->
       <do_if value="event.param.{'$time'}?">
         <set_value name="$scheduled_timeout"  exact="player.age + event.param.{'$time'}" />
       </do_if>
       <do_else>
-        <set_value name="$scheduled_timeout"  exact="player.age + 10s" />
+        <!--Set something super large; don't want this triggering since 
+            it can leave stale requests in the lua fifo.-->
+        <set_value name="$scheduled_timeout"  exact="player.age + 1000000s" />
       </do_else>
             
       <!-- Get a new access id to use. Adds $access_id -->
@@ -492,8 +515,8 @@ TODO:
         <!-- Debug announcement. -->
         <debug_text text="'%s %s started: %s'.[$pipe_name, $command, $message]" chance="Globals.$DebugChance" filter="general"/>
         <!--Trigger the lua handler.
-            Awakwardly, this only accepts one param, so the pipename, id, and message
-            need to be squished together.
+            Awakwardly, this only accepts one param, so the pipename, id,
+            and message need to be squished together.
             TODO: maybe code reuse on the first part of string construction. -->
         <raise_lua_event name="'pipe'+$command" param="$pipe_name + ';' + $access_id + ';' + $message"/>
       </do_if>
@@ -603,6 +626,18 @@ TODO:
           <!-- Debug announcement. -->
           <debug_text text="'%s %s timed out'.[@$pipe_name, @$command]" chance="Globals.$DebugChance" filter="general"/>
                     
+          <!--If requested, signal the lua to remove queued accesses.
+              Note: this will trigger the access to return an error, which
+              should be ignored safely if other logic works right. -->
+          <do_if value="$cancel_on_timeout">
+            <do_if value="$command == 'Write' or $command == 'WriteSpecial'">
+              <raise_lua_event name="'pipeCancelWrites'" param="$pipe_name"/>
+            </do_if>
+            <do_elseif value="$command == 'Read'">
+              <raise_lua_event name="'pipeCancelReads'"  param="$pipe_name"/>
+            </do_elseif>
+          </do_if>
+          
           <!-- Set the return value as TIMEOUT. -->
           <set_value name="$response" exact="'TIMEOUT'" />
           

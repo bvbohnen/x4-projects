@@ -42,6 +42,8 @@ local winpipe = require("extensions.named_pipes_api.lualibs.winpipe")
 
 local Lib = require("extensions.named_pipes_api.lua.Library")
 FIFO = Lib.FIFO
+-- Pass along any debug params.
+Lib.debug.print_to_log = debug.print_to_log
 
 local Time = require("extensions.time_api.lua.Interface")
 
@@ -64,7 +66,7 @@ Keys are the pipe names sent from the MD side, without path extension.
     
 Each entry is a subtable with these fields:
 * name
-  - Name of the pipe.
+  - Name of the pipe (same as the key).
 * file
   - File object to read/write/close.
 * retry_allowed
@@ -178,6 +180,40 @@ function L.Schedule_Write(pipe_name, callback, message)
     end
 end
 
+-- Deschedule pending pipe reads, triggering error callbacks.
+function L.Deschedule_Reads(pipe_name)
+    local read_fifo  = pipes[pipe_name].read_fifo
+
+    while not FIFO.Is_Empty(read_fifo) do
+        -- Grab the callback out of the fifo.
+        local callback = FIFO.Read(read_fifo)
+        
+        -- Send back to md or lua with an error.
+        if type(callback) == "string" then
+            Lib.Raise_Signal('pipeRead_complete_'..callback, "ERROR")
+        elseif type(callback) == "function" then
+            callback("ERROR")
+        end
+    end
+end
+
+-- Deschedule pending pipe writes, triggering error callbacks.
+function L.Deschedule_Writes(pipe_name)
+    local write_fifo  = pipes[pipe_name].write_fifo
+    
+    while not FIFO.Is_Empty(write_fifo) do    
+        -- Grab the callback out of the fifo; throw away message.
+        -- (Have to pull out list fields for this; base-1 indexing.)
+        local callback = FIFO.Read(write_fifo)[1]
+
+        -- Send back to md or lua with an error.
+        if type(callback) == "string" then
+            Lib.Raise_Signal('pipeWrite_complete_'..callback, "ERROR")
+        elseif type(callback) == "function" then
+            callback("ERROR")
+        end
+    end
+end
 -------------------------------------------------------------------------------
 -- Pipe management.
 
@@ -396,7 +432,7 @@ function L.Close_Pipe(pipe_name)
         end
     end
     
-    while not FIFO.Is_Empty(read_fifo) do    
+    while not FIFO.Is_Empty(read_fifo) do
         -- Grab the callback out of the fifo.
         local callback = FIFO.Read(read_fifo)
         

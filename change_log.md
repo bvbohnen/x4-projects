@@ -50,3 +50,6 @@ Change Log
   - General release.
 * 1.0.1
   - Removed unnecessary dependencies from the winpipe dll.
+* 1.1
+  - Added $cancel_on_timeout arg to the Access_Handler.
+  - Changed default timeout to essentially be disabled.

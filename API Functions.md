@@ -93,7 +93,10 @@ Note on timeouts:
     - Callback, optional, the cue to call when the read completes.
   * time
     - Timeout, optional, the time until a pending read is cancelled.
-    - Defaults to 10 seconds.
+    - After a timeout, the pipe will still listen for the message and throw it away when it arrives. This behavior can be changed with the next arg.
+  * cancel_on_timeout
+    - Bool, if a timeout event should also cancel all pending reads to the pipe (triggers errors for requests other than this one).
+    - Defaults false.
         
   Returns:
   - Whatever is read from the pipe in event.param to the callback cue.
@@ -174,6 +177,35 @@ Note on timeouts:
       name="md.Named_Pipes.Close" 
       param="'mypipe'">
   ```
+    
+* **Access_Handler**
+  
+  Start a new pipe access. Several other access cues (Read, Write, etc.) redirect to here.
+      
+  Param: Table with the following items:
+    * $pipe
+      - String, name of the pipe being accessed, without path prefix.
+    * $command
+      - String, one of ['Read','Write','WriteSpecial','Check'].
+    * $msg
+      - String, message to send for writes.
+      - Unused for non-writes.
+    * $cue
+      - Cue to call with the result when operation completes.
+      - Optional for writes.
+    * $time
+      - Time, how long to allow for access before cancelling it.
+      - A timeout will trigger a 'TIMEOUT' return value to the callback cue.
+      - Optional.
+      - Defaults to 1000000s (~270 hours), to basically be disabled.
+      - Note: timeout kills this access cue, but does not prevent the lua from continuing the operation.  The lua op complete signal will be ignored, if/when it arrives.  See option below to change this behavior.
+    * $cancel_on_timeout
+      - Bool or int, if a timeout event should also cancel all pending accesses to the pipe (either reads or writes).
+      - Defaults false.
+      - This will trigger error responses on all cancelled accesses except for this one that timed out.
+      - Intended for use with reads when the timed-out access is not expecting any response, eg. was passively reading.
+        
+  Returns: Value is is sent as event.param to the callback cue. Writes and Checks receive 'SUCCESS' or 'ERROR'. Reads receive pipe response or 'ERROR' or 'TIMEOUT' or 'CANCELLED'.
     
 
 ### MD Pipe Python Host Overview

@@ -410,10 +410,9 @@ Notes on server access looping cues:
               <event_cue_signalled/>
             </conditions>
             <actions>
-              <!-- Timeout is used to occasionally check if the loop should stop. -->
               <signal_cue_instantly 
                 cue="md.Named_Pipes.Read" 
-                param="table[$pipe=$Pipe_Name, $cue=Read_Callback, $to='1s']"/>
+                param="table[$pipe=$Pipe_Name, $cue=Read_Callback]"/>
             </actions>
           </cue>
           

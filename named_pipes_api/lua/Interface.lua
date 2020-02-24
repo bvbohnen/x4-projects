@@ -239,6 +239,8 @@ local function Init()
     RegisterEvent("pipeWriteSpecial",          L.Handle_pipeWrite)    
     RegisterEvent("pipeCheck",                 L.Handle_pipeCheck)
     RegisterEvent("pipeClose",                 L.Handle_pipeClose)
+    RegisterEvent("pipeCancelReads",           L.Handle_pipeCancelReads)
+    RegisterEvent("pipeCancelWrites",          L.Handle_pipeCancelWrites)
     RegisterEvent("pipeSuppressPausedReads",   L.Handle_pipeSuppressPausedReads)
     RegisterEvent("pipeUnsuppressPausedReads", L.Handle_pipeUnsuppressPausedReads)
                 
@@ -283,6 +285,18 @@ function L.Handle_pipeWrite(signal_name, pipe_name_id_message)
         
     -- Pass to the scheduler.
     Pipes.Schedule_Write(pipe_name, callback, message) 
+end
+
+
+-- Cancel a read or write requests on the pipe.
+function L.Handle_pipeCancelReads(_, pipe_name)
+    -- Pass to the descheduler.
+    Pipes.Deschedule_Reads(pipe_name)
+end
+
+function L.Handle_pipeCancelWrites(_, pipe_name)
+    -- Pass to the descheduler.
+    Pipes.Deschedule_Writes(pipe_name)
 end
 
 
