@@ -16,7 +16,7 @@
       </conditions>
       <actions>
         <raise_lua_event name="'Lua_Loader.Load'"
-                         param="'extensions.sn_better_target_monitor.lua.Target_Monitor'"/>
+                         param="'extensions.better_target_monitor.lua.Target_Monitor'"/>
       </actions>
     </cue>
 

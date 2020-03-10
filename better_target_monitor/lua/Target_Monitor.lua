@@ -110,7 +110,8 @@ local L = {
     
     -- How far away player can be from a target and be considered to
     -- have arrived; eg. 1000 for 1 km.
-    arrival_tolerance = 2000,
+    -- TODO: make ship size specific.
+    arrival_tolerance = 1000,
 
     -- When brightening colors, how much to reduce the range from the color
     -- current value to max 255.
@@ -288,7 +289,7 @@ function L.Handle_Event(signal, value)
     elseif signal == "Target_Monitor.Set_Value" then
 
         -- The field name should exist, and have a current value.
-        if L.md_field and L.settings[L.md_field] then
+        if L.md_field ~= nil and L.settings[L.md_field] ~= nil then
 
             -- Lua is stupid and treats 0 as true; fix it here.
             if type(L.settings[L.md_field]) == "boolean" then
@@ -304,6 +305,9 @@ function L.Handle_Event(signal, value)
         end
     end
 end
+
+------------------------------------------------------------------------------
+-- Generic text support functions.
 
 -- Given a color table, brightens and returns it. Alpha is unchanged.
 function L.Brighten_Color(color, color_brightening_factor)
@@ -852,7 +856,7 @@ function L.Patch_GetTargetMonitorDetails()
         -- TODO: maybe play around with colors dynamically.
         -- TODO: detect if a custom color was used, and skip if so.
         -- TODO: apply brightening, particularly if not replacing colors.
-        if L.brighten_text then
+        if L.settings.brighten_text then
             for i, row in ipairs(full_spec.text) do
                 for side, spec in pairs(row) do
                     spec.color    = L.new_defaults.textcolor
@@ -1054,12 +1058,12 @@ function L.Get_ETA(targetdata)
     if remaining_distance <= 0 then
         return "--"
     end
-    local eta = remaining_distance / L.last_rel_speed
+    -- Relative speed is negative for closing, so flip the sign.
+    local eta = 0 - (remaining_distance / L.last_rel_speed)
 
     -- If negative or 0, then infinite.
-    -- If really really large, also treat as infinite.
-    -- (Go with ~100 hour cuttoff).
-    if eta <= 0 or eta >= 360000 then
+    -- TODO: maybe also infinite if really really large.
+    if eta <= 0 then
         return "∞"
     end
 
