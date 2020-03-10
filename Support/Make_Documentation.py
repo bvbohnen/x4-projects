@@ -28,6 +28,7 @@ def Make():
     Make_Hotkey_Doc()
     Make_Named_Pipes_Doc()
     Make_Simple_Menu_Doc()
+    Make_Better_Target_Doc()
     Make_Time_Doc()
     return
 
@@ -120,6 +121,14 @@ def Make_Simple_Menu_Doc():
 
     # Set up the bbcode version.
     Make_BB_Code(doc_dir)
+    return
+
+
+# TODO: better automate simple calls like this.
+def Make_Better_Target_Doc():
+    doc_dir = project_dir / 'X4_Simple_Menu_API' / 'better_target_monitor'
+    ext_dir = doc_dir
+    Version.Update_Content_Version(doc_dir, ext_dir)        
     return
 
 
