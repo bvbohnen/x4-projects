@@ -160,11 +160,23 @@ local L = {
     -- Copy of targetdata from targetmonitor GetTargetMonitorDetails.
     targetdata = nil,
 
+    -- Note: objects at a far distance, eg. borderline low-attention, get
+    -- very janky speed values (rapidly fluctuating, even every frame
+    -- while paused), causing distracting menu flutter for ETA calculations
+    -- and similar.  Can fix it somewhat with a smoothing filter on the
+    -- speed and distance values, and maybe eta.
+    filters = {
+        -- Objects created later.
+        speed = nil,
+        distance = nil,
+        eta = nil,
+        rel_speed = nil,
+    },
+
     -- Stored values for calculating relative speeds.
     last_component64 = nil,
     last_distance    = nil,
     last_update_time = nil,
-    last_rel_speed   = nil,
 
     -- Note: next two are not currently used.
     -- Copy of messageID sent to SetSofttarget.
@@ -252,6 +264,67 @@ local T = {
 }
 
 ------------------------------------------------------------------------------
+-- Support object for data smoothing.
+
+local Filter = {}
+
+function Filter.New ()
+  return {
+    -- List of samples.
+    -- This will fill up on first pass, then has static size afterwards
+    -- and just overwrites old samples.
+    samples = {},
+    -- Index of the next location to store. (1-based indexing.)
+    next = 1,
+    -- Max depth.
+    -- Assuming speed flutter alternates every frame, make this even
+    -- to balance the flutter.
+    depth = 4,
+    -- Running sum of values.
+    sum = 0,
+    -- Current smoothed value. Note: float.
+    current = nil,
+    }
+end
+
+-- Add a new sample, and return the current smoothed value.
+-- Stores returned value in "current".
+function Filter.Smooth(filter, sample)
+
+    -- If at max depth, overwrite oldest.
+    if #filter.samples == filter.depth then
+        -- Subtract the to-be-replaced point.
+        filter.sum = filter.sum - filter.samples[filter.next]
+    end
+
+    -- Add the new sample.
+    filter.sum = filter.sum + sample
+    filter.samples[filter.next] = sample
+
+    -- Increment next, with rollover.
+    -- Note: 1-based indexing, so next goes from 1 to depth then rolls over.
+    filter.next = filter.next + 1
+    if filter.next > filter.depth then
+        filter.next = 1
+    end
+
+    -- TODO: this summation might not be entirely stable over time,
+    -- so every so many samples recompute the total sum.
+
+    -- Calculate the average.
+    filter.current = filter.sum / #filter.samples
+    return filter.current
+end
+
+-- Clear samples.
+function Filter.Clear(filter)
+    filter.samples = {}
+    filter.next    = 1
+    filter.sum     = 0
+    filter.current = nil
+end
+
+------------------------------------------------------------------------------
 -- Setup functions, or helpers.
 
 function L.Init_TargetMonitor()
@@ -270,6 +343,12 @@ function L.Init_TargetMonitor()
 
     -- Init some extra units.
     T.units["km/s"] = T.units["km"].."/"..T.units["s"]
+
+    -- Init data objects.
+    L.filters.speed     = Filter.New()
+    L.filters.distance  = Filter.New()
+    L.filters.eta       = Filter.New()
+    L.filters.rel_speed = Filter.New()
 
     -- Unused; this approach to distance capture didn't work out
     -- (patches never trigger).
@@ -655,17 +734,23 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
     local rows = row_specs
     local cols = col_specs
 
+    local has_shields = GetComponentData(component, "shieldmax") ~= 0
+    -- Term for shields or blank if unshielded.
+    local col_left_shield_blank = has_shields and cols.left.shield or ""
+
     local new_rows = nil
 
-    if IsComponentClass(component, "ship") then
+    -- Ships, and mines since they are similar.
+    if     IsComponentClass(component, "ship")
+    then
         new_rows = {
             -- TODO: does this get too busy with player ship commanders?
             Make_Row(cols.type, orig.reveal and cols.reveal or cols.commander),
             -- Shield/hull in top left, distance/speed top right.
-            Make_Row(cols.left.shield, cols.distance_delta),
-            Make_Row(cols.left.hull, cols.speed),
+            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(cols.left.hull,        cols.speed),
             -- Pack in crew on the left, eta right.
-            Make_Row(cols.left.crew, cols.right.eta),
+            Make_Row(cols.left.crew,        cols.right.eta),
             -- TODO: pack in crew, maybe storage (though that is trickier
             -- to put together, and may be too long).
             -- Continue with normal stuff.
@@ -676,19 +761,50 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
             orig.building,
         }
     
-    elseif IsComponentClass(component, "mine") then
-        new_rows = {
-            Make_Row(cols.left.shield, cols.distance_delta),
-            Make_Row(cols.left.hull,   cols.speed),
-        }
-
     elseif IsComponentClass(component, "station") then
         new_rows = {
-            Make_Row(cols.left.shield, cols.distance_delta),
-            Make_Row(cols.left.hull,   cols.speed),
-            Make_Row("",               cols.right.eta),
+            orig.reveal,
+            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(cols.left.hull,        cols.speed),
+            Make_Row("",                    cols.right.eta),
+            orig.command_0,
+            orig.command_1,
+            orig.building,
+        }
+        
+    elseif IsComponentClass(component, "mine")
+    then
+        new_rows = {
+            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(cols.left.hull,        cols.speed),
+            Make_Row("",                    cols.right.eta),
         }
 
+    -- TODO: maybe split off objects that can't move to hide speed.
+    -- TODO: check if object has shields, and maybe hide shield readout if not.
+    elseif IsComponentClass(component, "collectable")
+    or     IsComponentClass(component, "crate")
+    or     IsComponentClass(component, "lockbox")
+    or     IsComponentClass(component, "navbeacon")
+    or     IsComponentClass(component, "resourceprobe")    
+    or     IsComponentClass(component, "satellite")
+    then
+        new_rows = {
+            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(cols.left.hull,        ""),
+            Make_Row("",                    cols.right.eta),
+        }
+                
+    -- Static objects without hull/shield.
+    elseif IsComponentClass(component, "asteroid")
+    or     IsComponentClass(component, "gate")
+    then
+        new_rows = {
+            Make_Row("",               cols.distance_delta),
+            Make_Row("",               cols.right.eta),
+        }
+        
+        
     end
 
     if new_rows ~= nil then
@@ -897,6 +1013,19 @@ function L.Patch_GetLiveData()
         -- Update component, just to be safe, though the connection name
         -- will be the one stored before.
         targetdata.component64 = ConvertIDTo64Bit(component)
+        
+        -- If the target changed, clear old cached data.
+        if L.last_component64 ~= targetdata.component64 then
+            -- Record fresh values.
+            L.last_component64 = targetdata.component64
+            L.last_distance    = nil
+            L.last_update_time = nil
+
+            Filter.Clear(L.filters.speed)
+            Filter.Clear(L.filters.rel_speed)
+            Filter.Clear(L.filters.distance)
+            Filter.Clear(L.filters.eta)
+        end
 
         if placeholder == "speed" then
             return L.Get_Speed(targetdata)
@@ -919,17 +1048,19 @@ function L.Patch_GetLiveData()
     end
 end
 
+
+
 ------------------------------------------------------------------------------
 -- Get target ship's speed.
+-- Run it through the smoothing filter before returning.
 
 function L.Get_Speed(targetdata)
     local componentDetails = C.GetComponentDetails(
                                     targetdata.component64, 
                                     targetdata.triggeredConnectionName)
-    if componentDetails then
-        return componentDetails.speed.." "..T.units["m/s"]
-    end
-    return "Many Fasts"
+    -- Get speed, with smoothing.
+    local speed = Filter.Smooth(L.filters.speed, componentDetails.speed)
+    return math.floor(speed).." "..T.units["m/s"]
 end
 
 ------------------------------------------------------------------------------
@@ -976,6 +1107,10 @@ function L.Get_Distance(targetdata)
         -- Hand off to the update function for deltas.
         L.Update_Relative_Speed(targetdata, distance)
 
+        -- Smooth it (after the above handoff, to not mess with time
+        -- increments; eta smooths on its own).
+        distance = Filter.Smooth(L.filters.distance, distance)
+
         -- Suffix it.
         return L.Value_To_Rounded_Text(distance, T.units["m"], T.units["km"])
     end
@@ -988,15 +1123,6 @@ function L.Update_Relative_Speed(targetdata, new_distance)
     -- TODO: is C.GetCurrentGameTime() better?
     local now = GetCurTime()
 
-    -- If the target changed, clear old distance data.
-    if L.last_component64 ~= targetdata.component64 then
-        -- Record fresh values.
-        L.last_component64 = targetdata.component64
-        L.last_distance    = nil
-        L.last_update_time = nil
-        L.last_rel_speed  = nil
-    end
-
     -- Stored values could be clear due to target change or first call
     -- after loading.
     -- Can compute if a distance is known, and the time has changed
@@ -1005,7 +1131,8 @@ function L.Update_Relative_Speed(targetdata, new_distance)
         local time_delta = now - L.last_update_time
         -- Orient so closing is negative.
         local distance_delta = new_distance - L.last_distance
-        L.last_rel_speed  = distance_delta / time_delta
+        -- Smooth the relative speed, in case distance is janky.
+        Filter.Smooth(L.filters.rel_speed, distance_delta / time_delta)
     end
 
     -- Store values for next iteration.
@@ -1018,9 +1145,10 @@ end
 -- "suffix" is bool, true if this is a suffix to distance (always include
 --  sign, and round if large).
 function L.Get_Relative_Speed(targetdata, suffix)
-    -- Skip if target changed, or unknown.
-    if (L.last_component64 ~= targetdata.component64
-    or  L.last_rel_speed == nil) then 
+    local rel_speed = L.filters.rel_speed.current
+
+    -- Skip if unknown.
+    if rel_speed == nil then 
         return "+...".." "..T.units["m/s"]
     end
 
@@ -1028,13 +1156,13 @@ function L.Get_Relative_Speed(targetdata, suffix)
     -- To avoid distance lines getting too long, maybe compress it to km/s.
     local ret_str
     if suffix then
-        ret_str = L.Value_To_Rounded_Text(L.last_rel_speed, T.units["m/s"], T.units["km/s"])
+        ret_str = L.Value_To_Rounded_Text(rel_speed, T.units["m/s"], T.units["km/s"])
     else 
-        ret_str = tostring(math.floor(L.last_rel_speed + 0.5)).." "..T.units["m/s"]
+        ret_str = tostring(math.floor(rel_speed + 0.5)).." "..T.units["m/s"]
     end
 
     -- Prefix with + if needed.
-    if suffix and L.last_rel_speed >= 0 then
+    if suffix and rel_speed >= 0 then
         ret_str = "+"..ret_str
     end
     return ret_str
@@ -1043,10 +1171,9 @@ end
 -- Returns a string for the ETA.
 -- Ideally runs after Get_Distance.
 function L.Get_ETA(targetdata)
-    -- Skip if target changed, or distance and/or relative speed unknown.
-    if (L.last_component64 ~= targetdata.component64
-    or  L.last_rel_speed == nil
-    or  L.last_distance  == nil) then 
+    -- Skip if distance and/or relative speed unknown.
+    if (L.filters.rel_speed.current == nil
+    or  L.filters.distance.current  == nil) then 
         return "--" 
     end
 
@@ -1054,16 +1181,20 @@ function L.Get_ETA(targetdata)
     -- Discount the arrival_tolerance from the distance; may already be
     -- considered arrived if close.
     -- TODO: tune this based on ship sizing.
-    local remaining_distance = L.last_distance - L.arrival_tolerance
+    local remaining_distance = L.filters.distance.current - L.arrival_tolerance
     if remaining_distance <= 0 then
         return "--"
     end
     -- Relative speed is negative for closing, so flip the sign.
-    local eta = 0 - (remaining_distance / L.last_rel_speed)
+    local eta = 0 - (remaining_distance / L.filters.rel_speed.current)
+
+    -- TODO: filter if needed, though distance and rel_speed filters
+    -- should hopefully cover things.
 
     -- If negative or 0, then infinite.
-    -- TODO: maybe also infinite if really really large.
-    if eta <= 0 then
+    -- Also cuttoff large values (else being stopped will display some
+    -- crazy high number).  1 million seconds ~= 300 hours.
+    if eta <= 0 or eta > 1000000 then
         return "∞"
     end
 
