@@ -45,6 +45,8 @@ ffi.cdef[[
     void SetButtonTextColor(const int buttonid, Color color);
     void SetButtonText2(const int buttonid, const char* text);
     void SetButtonText2Color(const int buttonid, Color color);
+    void SetButtonIconID(const int buttonid, const char* iconid);
+    void SetButtonIcon2ID(const int buttonid, const char* iconid);
     void SetCheckBoxChecked(const int checkboxid, bool checked);
     void SetDropDownCurOption(const int dropdownid, const char* id);
     void SetEditBoxText(const int editboxid, const char* text);
@@ -525,6 +527,18 @@ function L.Make_Widget(args)
         L.Widget_Event_Script_Factory(row[col], "onDropDownRemoved", 
             row_index, args.col, {"option_index"}, {["option_index"] = "number"})
 
+
+    elseif args.type == "shieldhullbar" then
+        -- This could be using a fixed shield/hull percentage, or be
+        -- linked to an object target.
+        -- The builder function to call depends on which mode is used.
+        if args.object then
+            row[col]:createObjectShieldHullBar(args.object, properties)
+        else
+            -- TODO: Ensure the shield/hull values in 0-100 range.
+            row[col]:createShieldHullBar(args.shield, args.hull, properties)
+        end
+
     else
         -- Shouldn't be here.
         error("Widget type not recognized: "..tostring(args.type))
@@ -695,6 +709,9 @@ function L.Update_Widget(args)
         if args.highlightColor then
             C.SetButtonHighlightColor(cell.id, Helper.ffiColor(args.highlightColor))
         end
+        -- TODO: add support for changing icon id, added in 3.0beta7.
+        -- C.SetButtonIconID (cell.id, args.icon)
+        -- C.SetButtonIcon2ID(cell.id, args.icon)
         
     elseif cell.type == "shieldhullbar" then
         if args.shield then
@@ -702,6 +719,16 @@ function L.Update_Widget(args)
         end
         if args.hull then
             C.SetShieldHullBarHullPercent(cell.id, args.hull)
+        end
+        if args.object then
+            -- TODO: rewrap the shield/hull functions of the widget.
+            -- Need to mimic code in createObjectShieldHullBar.
+            local object64 = ConvertStringTo64Bit(tostring(args.object))
+            shield = function() return IsComponentOperational(object64) and GetComponentData(object64, "shieldpercent") or 0 end
+            hull   = function() return IsComponentOperational(object64) and GetComponentData(object64, "hullpercent") or 0 end
+            -- TODO: is this the right way to update the cell?
+            cell.properties.shield = shield
+            cell.properties.hull   = hull
         end
         
     elseif cell.type == "statusbar" then

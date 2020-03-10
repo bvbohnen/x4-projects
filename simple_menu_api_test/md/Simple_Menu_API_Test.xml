@@ -288,6 +288,29 @@
           $width  = 60,
           ]"/>
 
+        <!-- Shield/hull bar, attaching to player ship. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $colSpan = 2,
+          $text = 'Shield/Hull bar test', 
+          $halign = 'center',
+          $cellBGColor = 'Helper.color.transparent60',
+          ]"/>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <!--Note: attempts to increase height have been unsuccessful,
+            leading to too-tall and too-wide errors well beyond the 
+            height/width requested. Width alone works okay.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_ShieldHullBar"
+          param = "table[
+          $col = 1,
+          $colSpan = 2,
+          $object = player.ship,
+          ]"/>
+        
         <!-- Start section for changing global test vars. -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
                               param ="table[$selectable = false]"/>

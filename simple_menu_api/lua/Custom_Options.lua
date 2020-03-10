@@ -38,7 +38,9 @@ local ffi = require("ffi")
 local C = ffi.C
 ffi.cdef[[
     void SkipNextStartAnimation(void);
+    bool IsGameModified(void);
 ]]
+--DebugError(tostring(ffi))
 
 -- Import config and widget_properties tables.
 local Tables = require("extensions.simple_menu_api.lua.Tables")
@@ -69,6 +71,7 @@ function L.Init()
     -- through blackboard var.
     RegisterEvent("Simple_Menu_Options.disable_animations", L.Handle_Disable_Animations)
     RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , L.Handle_Tooltip_Font)
+    RegisterEvent("Simple_Menu_Options.map_menu_alpha"    , L.Handle_Map_alpha)
     RegisterEvent("Simple_Menu_Options.adjust_fov"        , L.Handle_FOV)
     
 
@@ -79,8 +82,95 @@ function L.Init()
     --Lib.Print_Table(DebugConfig, "DebugConfig")
     --Lib.Print_Table(Color, "Color")
     
+    -- Egosoft packages are not directly accessible through the
+    -- normal library mechanism.
+    --Lib.Print_Table(package.loaded, "packages_loaded")
 end
 
+------------------------------------------------------------------------------
+-- Testing edits to map menu opacity.
+--[[
+    The relevant code is in menu_map.lua, createMainFrame function.
+    Here, alpha is hardcoded to 98.
+    While the whole function could be replaced with just the one edit,
+    perhaps there is a cleaner solution to updating the alpha live?
+]]
+-- State for this option.
+L.menu_alpha = {
+    -- Selected alpha level, up to 100 (higher level decides the min).
+    alpha = 98,
+    }
+function L.Init_Menu_Alpha()
+
+    -- Stop if something went wrong.
+    if Menus == nil then
+        error("Menus global not yet initialized")
+    end
+    
+    local map_menu = nil
+    for i, ego_menu in ipairs(Menus) do
+        if ego_menu.name == "MapMenu" then
+            map_menu = ego_menu
+        end
+    end
+    
+    -- Stop if something went wrong.
+    if map_menu == nil then
+        error("Failed to find egosoft's MapMenu")
+    end
+    
+            
+    -- Pick out the menu creation function.
+    local original_createMainFrame = map_menu.createMainFrame
+    -- Wrapper.
+    map_menu.createMainFrame = function (...)
+        local retval = original_createMainFrame(...)
+        
+        -- Look for the rendertarget member of the mainFrame.
+        local rendertarget = nil
+        for i=1,#map_menu.mainFrame.content do
+            if map_menu.mainFrame.content[i].type == "rendertarget" then
+                rendertarget = map_menu.mainFrame.content[i]
+            end
+        end
+        if rendertarget == nil then
+            DebugError("Failed to find map_menu rendertarget")
+            return retval
+        else
+            -- Try to directly overwrite the alpha.
+            --DebugError("alpha: "..tostring(rendertarget.properties.alpha))
+            rendertarget.properties.alpha = L.menu_alpha.alpha
+        end
+
+        -- Try a full frame background if alpha doesn't work.
+        -- (Alpha seems to work fine; don't need this.)
+        --map_menu.mainFrame.backgroundID = "solid"
+
+        --DebugError("Trying to make map solid")
+        
+        -- Redisplay the menu to refresh it.
+        -- (Clear existing scripts before the refresh.)
+        -- Layer taken from config of menu_map.lua.
+        local mainFrameLayer = 5
+        Helper.removeAllWidgetScripts(map_menu, mainFrameLayer)
+        map_menu.mainFrame:display()
+        return retval
+    end    
+end
+L.Init_Menu_Alpha()
+
+function L.Handle_Map_alpha(_, new_alpha)
+    -- Validate within reasonable limits.
+    if new_alpha < 50 or new_alpha > 100 then
+        error("Handle_Map_alpha received unsupported value: "..tostring(new_alpha))
+    end
+    if debugger.verbose then
+        DebugError("Handle_Map_alpha called with " .. tostring(new_alpha))
+    end
+
+    -- Adjust the % to center around 10.
+    L.menu_alpha.alpha = new_alpha
+end
 
 ------------------------------------------------------------------------------
 -- Support for enabling/disabling default menu opening animations.
@@ -209,6 +299,7 @@ end
 
     For now, this is disabled in the options menu pending further development
     to work around issues.
+    (Would GetFOVOption be helpful at all?)
 ]]
 -- This will take the multiplier as a %.
 function L.Handle_FOV(_, new_mult)
@@ -224,6 +315,115 @@ function L.Handle_FOV(_, new_mult)
     SetFOVOption(new_mult / 10)
 end
 
+------------------------------------------------------------------------------
+-- Testing sound disables.
+--[[
+    Can record and replace the global PlaySound function with a
+    custom filtering one. By rebinding the global, other ego code will
+    use the customized function.
 
+    In practice, this only affects a small number of sounds, those
+    called directly in Lua.  As such, it is not very powerful unless
+    there is a particular menu sound that is bothersome.  Some menu
+    sounds are bound to widgets, and may be handled outside PlaySound
+    calls.
+
+    Testing results: works fine.
+    Comment out if not used for anything yet.
+
+    TODO: try out blocking these (but not hopeful):
+    "ui_weapon_out_range"
+    "ui_weapon_in_range"
+]]
+--[[
+local global_PlaySound = PlaySound
+PlaySound = function(name)
+    CallEventScripts("directChatMessageReceived", "Event;PlaySound: "..name)
+    global_PlaySound(name)
+end
+]]
+
+------------------------------------------------------------------------------
+-- Testing text disables.
+--[[
+    Like above, intercept the ReadText calls and do whatever.
+    Can maybe do alternating color codes or other wackiness, based on
+    a timer.
+
+    Note: this works fine for ReadText itself, though isn't so powerful
+    when it comes to strings built from ReadTexts and hardcoded bits.
+
+    Disable for now until a nice use is found.
+]]
+--[[
+local global_ReadText = ReadText
+ReadText = function(page, key)
+    -- "modified" string suppression.
+    if page == 1001 and key == 8901 then
+        -- Don't really want to print anything, since this gets called a lot.
+        --CallEventScripts("directChatMessageReceived", "ReadText;("..page..", "..key..")")
+        return ""
+    else
+        return global_ReadText(page, key)
+    end
+end
+]]
+
+------------------------------------------------------------------------------
+-- Testing patching the ffi library.
+--[[
+    This might be a little dangerous.
+    When doing `require("ffi")`, it presumably returns a table with
+    its internal values. One of these is "C", itself a table of
+    the ffi functions.
+
+    Note: when testing "DebugError(tostring(ffi))" on different modules,
+    the log indicates all ffi modules are the same returned from require("ffi").
+
+    However, testing below indicates that the egosoft ffi modules may be
+    separate from those loaded by modded-in (eg. not jitted?) lua code.
+    Possibly, every base module loaded from ui.xml gets its own ffi, but
+    all of these custom modules are loaded through Lua_Loader_API.
+
+    Overall result:  skip this, not too promising.
+]]
+--local function Return_False() return false end
+
+-- Try direct rebinding.
+--C.IsGameModified = function()
+--    return false
+--end
+-- Test result: Error, "attempt to write to constant location"
+-- Maybe related to http://lua-users.org/wiki/ReadOnlyTables
+
+-- Try forced rebinding.
+--rawset(C, "IsGameModified", function() return false end)
+-- Test result: Error, bad argument #1 to 'rawset' (table expected, got userdata)
+
+-- Try an intermediate metatable, which captures lookups and pipes all but
+--  select names to the original C userdata.
+-- '__index' is called when the table is missing a key, which is always here.
+--[[
+local original_C = ffi.C
+ffi.C = setmetatable({}, {
+    __index = function (table, key)
+        CallEventScripts("directChatMessageReceived", "ffi;Calling "..key)
+        if key == "IsGameModified" then
+            return Return_False
+        else
+            return original_C[key]
+        end
+    end})
+]]
+-- Test result: no error, but not much impact;
+-- Catches "GetPlayerID" and maybe other calls from dynamically loaded modules,
+--  but catches nothing from egosoft code.
+-- Extra testing indicates all require("ffi") calls return the same object,
+--  but maybe egosoft stuff gets their own copies (perhaps since they load
+--  from separate ui.xml files, while these dynamic loads are all from the
+--  same Lua_Loader_API parent).
+
+
+------------------------------------------------------------------------------
 -- Final init.
 L.Init()

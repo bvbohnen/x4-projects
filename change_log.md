@@ -56,3 +56,8 @@ Change Log
   - General release.
 * 1.0.1
   - Update for x4 3.0 beta 4.
+* 1.1
+  - Polished top options menu item selection.
+  - Added option to adjust the standard map menu's opacity.
+  - Added Simple Options API.
+  - Added support for shieldhullbar widgets.

@@ -44,7 +44,7 @@ API args (all widgets, partially for rows and menus)
     - String, unique identifier for the widget.
     - Optional, but needed for Update_Widget calls.
   * echo = none
-    - May be any data type.
+    - Optional, May be any data type.
     - This is returned in the table sent to signalled callback cues,
       for user convenience.
     
@@ -59,7 +59,7 @@ Widget properties (all widgets)
     - String, text to display on mouseover.
         
 Cell properties (all widgets)
-  * cellBGColor = Helper.defaultSimpleBackgroundColor
+  * cellBGColor = 'Helper.defaultSimpleBackgroundColor'
     - Color, cell background color.
   * uiTriggerID = none
     - String, if present then this is the control field for ui
@@ -110,12 +110,12 @@ Complex properties:
       a TextProperty table.
     - Fields:
       * text = ""
-      * halign = Helper.standardHalignment
+      * halign = 'Helper.standardHalignment'
       * x = 0
       * y = 0
-      * color = Helper.standardColor
-      * font = Helper.standardFont
-      * fontsize = Helper.standardFontSize
+      * color = 'Helper.standardColor'
+      * font = 'Helper.standardFont'
+      * fontsize = 'Helper.standardFontSize'
       * scaling = true
   * IconProperty
     - Table describing an icon.
@@ -128,7 +128,7 @@ Complex properties:
       * height = 0
       * x = 0
       * y = 0
-      * color = Helper.standardColor
+      * color = 'Helper.standardColor'
       * scaling = true
   * HotkeyProperty
     - Table describing an activation hotkey.
@@ -507,17 +507,17 @@ Complex properties:
         - Set to a blank string to disable the background.
         - Solid by default, though encyclopedia system pictures can
           make for pretty backgrounds.
-      * backgroundColor = Helper.color.semitransparent
+      * backgroundColor = 'Helper.color.semitransparent'
         - Color of the background texture.
-        - Use Helper.color.white when displaying pictures to retain
+        - Use 'Helper.color.white' when displaying pictures to retain
           their original coloring.
       * overlayID = ""
         - String, name of an icon to use as an overlay effect.
         - As of x4 2.6, this is bugged to use backgroundColor.
-      * overlayColor = Helper.color.white
+      * overlayColor = 'Helper.color.white'
         - Intended color of the overlay texture.
         - No effect currently.
-      * standardButtons = Helper.standardButtons_CloseBack
+      * standardButtons = 'Helper.standardButtons_CloseBack'
         - StandardButtonProperty
         - Which standard buttons will be included, eg. back/minimize/close.
         - These are generally placed in the top right.
@@ -564,7 +564,7 @@ Complex properties:
         - String, name of an icon to use as the background texture.
         - Works similar to that for frame, except doesn't cover the
           title bar.
-      * backgroundColor = Helper.color.white
+      * backgroundColor = 'Helper.color.white'
         - Color of the background texture.
           
     onCloseElement event event returns:
@@ -799,7 +799,7 @@ Complex properties:
       - Requires prior rows also be fixed.
     * borderBelow = true
       - Shows a border gap before the next row, if present.
-    * bgColor = Helper.color.transparent
+    * bgColor = 'Helper.color.transparent'
       - Color, default background of the row's cells.
     * multiSelected = false
       - Bool, row is preselected for multiselect menu tables.
@@ -909,14 +909,15 @@ Complex properties:
     * color
       - Updateable
     * titleColor
-      - If given, puts the widget in title mode.
+      - If given, puts the widget in title mode, which includes an
+        automatic cell underline.
     * font
     * fontsize
     * wordwrap
     * minRowHeight
     
     
-    Hint: egosoft menus make horizontal gaps using wide, empty text cells.
+    Hint: egosoft menus make vertical space using wide, empty text cells.
     Example, assuming 2 table columns:
     ```xml      
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
@@ -1009,10 +1010,10 @@ Complex properties:
     * active = true
       - Bool, if the button is active.
       - Updateable
-    * bgColor = Helper.defaultButtonBackgroundColor
+    * bgColor = 'Helper.defaultButtonBackgroundColor'
       - Color of background.
       - Updateable
-    * highlightColor = Helper.defaultButtonHighlightColor
+    * highlightColor = 'Helper.defaultButtonHighlightColor'
       - Color when highlighted.
       - Updateable
     * icon
@@ -1066,7 +1067,7 @@ Complex properties:
       - Deselection may occur when selecting another element, pressing enter,
         or pressing escape.
       - Does not trigger if the menu is closed.
-    * bgColor = Helper.defaultEditBoxBackgroundColor
+    * bgColor = 'Helper.defaultEditBoxBackgroundColor'
       - Color of background.
     * closeMenuOnBack = false
       - Bool, if the menu is closed when the 'back' button is pressed while
@@ -1135,38 +1136,38 @@ Complex properties:
       - Cue to call when the player deactivates the slider.
       - Triggers less often than onSliderCellChanged.
       - Recommended to use this over other events.
-    * bgColor = Helper.defaultSliderCellBackgroundColor
+    * bgColor = 'Helper.defaultSliderCellBackgroundColor'
       - Color of background.
-    * valueColor = Helper.defaultSliderCellValueColor
+    * valueColor = 'Helper.defaultSliderCellValueColor'
       - Color of value.
-    * posValueColor = Helper.defaultSliderCellPositiveValueColor
+    * posValueColor = 'Helper.defaultSliderCellPositiveValueColor'
       - Color, positive value if fromCenter is true
-    * negValueColor = Helper.defaultSliderCellNegativeValueColor
+    * negValueColor = 'Helper.defaultSliderCellNegativeValueColor'
       - Color, negative value if fromCenter is true
     * min = 0
       - Min value the bar is sized for
     * max = 0
       - Max value the bar is sized for
       - Updateable
+    * exceedMaxValue = false
+      - Bool, if the player can go over the max value.
+      - Requires min >= 0.
     * minSelect = none
-      - Min value the player may select.
+      - Optional, Min value the player may select.
       - Defaults to min
-      - Do not use maxSelect if exceedMaxValue is true
     * maxSelect
       - Max value the player may select.
       - Defaults to max
       - Updateable
+      - Do not use maxSelect if exceedMaxValue is true
+    * hideMaxValue = false
+      - Bool, hides the max value.
     * start = 0
       - Initial value
     * step = 1
       - Step size between slider points
     * suffix = ""
       - String, suffix on the displayed current value.
-    * exceedMaxValue = false
-      - Bool, if the player can go over the max value.
-      - Requires min >= 0.
-    * hideMaxValue = false
-      - Bool, hides the max value.
     * rightToLeft = false
       - Bool, enables a right/left mirrored bar.
     * fromCenter = false
@@ -1255,11 +1256,11 @@ Complex properties:
       - Updateable
     * active = true
      - Bool, if the widget is active.
-    * bgColor = Helper.defaultButtonBackgroundColor
+    * bgColor = 'Helper.defaultButtonBackgroundColor'
      - Color of background.
-    * highlightColor = Helper.defaultButtonHighlightColor
+    * highlightColor = 'Helper.defaultButtonHighlightColor'
      - Color when highlighted.
-    * optionColor = Helper.color.black
+    * optionColor = 'Helper.color.black'
       - Color of the options.
     * optionWidth, optionHeight = 0
       - Dimensions of the options.
@@ -1324,7 +1325,7 @@ Complex properties:
     * icon = ""
       - String, icon id
       - Updateable
-    * color = Helper.standardColor
+    * color = 'Helper.standardColor'
       - Color
       - Updateable
     * text
@@ -1363,7 +1364,7 @@ Complex properties:
     * checked = false
       - Bool or int, if checked initially.
       - Updateable
-    * bgColor = Helper.defaultCheckBoxBackgroundColor
+    * bgColor = 'Helper.defaultCheckBoxBackgroundColor'
      - Color of background.
     * active = true
      - Bool, if the widget is active.
@@ -1411,13 +1412,13 @@ Complex properties:
       - Int, max value of the bar, used for graphic scaling.
       - Min value of the bar is always pinned at 0.
       - Updateable
-    * valueColor = Helper.defaultStatusBarValueColor
+    * valueColor = 'Helper.defaultStatusBarValueColor'
       - Color
-    * posChangeColor = Helper.defaultStatusBarPosChangeColor
+    * posChangeColor = 'Helper.defaultStatusBarPosChangeColor'
       - Color
-    * negChangeColor = Helper.defaultStatusBarNegChangeColor
+    * negChangeColor = 'Helper.defaultStatusBarNegChangeColor'
       - Color
-    * markerColor = Helper.defaultStatusBarMarkerColor
+    * markerColor = 'Helper.defaultStatusBarMarkerColor'
       - Color
     -->
   <cue name="Make_StatusBar" instantiate="true" namespace="this">
@@ -1433,7 +1434,40 @@ Complex properties:
   </cue>
 
 
+  <!-- In development.
+    Make a "shieldhullbar" cell, similar to that used on the map.
+    May be linked to an object for a dynamic bar, or use fixed 
+    percentages for a static var.
+    
+    Param: Table with the following items
+    * col, colspan, id, echo
+      - Standard api args
+    * scaling, width, height, x, y, mouseOverText
+      - Standard widget properties
+      - Note: "height" behaves oddly and has not been fully figured out.
+    * cellBGColor, uiTriggerID
+      - Standard cell properties
+    * object = none
+      - Optional, object to reference for dynamic shields and hull.
+      - Updateable
+    * shield = 0, hull = 0
+      - Int, percentages 0 to 100, fixed shield or hull bar fullness when not
+        giving a target.
+      - Updateable
+    -->
+  <cue name="Make_ShieldHullBar" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$args" exact="event.param"/>
+      <set_value name="$args.$type" exact="'shieldhullbar'"/>
+      <set_value name="$args.$command" exact="'Make_Widget'"/>
+      <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
   
+
   <!--@doc-cue
     Update a widget's state after creation.
     
@@ -1669,7 +1703,7 @@ Complex properties:
   In the egosoft backend, there is a "Helper" module which defines many
   constants used in the standard menus such as colors, fonts, etc.
   Arguments may optionally be given as a string matching a Helper const,
-  eg. "Helper.color.brightyellow". A selected list of possibly useful
+  eg. 'Helper.color.brightyellow'. A selected list of possibly useful
   helper consts follows.  
   
   * Font related

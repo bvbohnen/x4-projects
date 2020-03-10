@@ -33,7 +33,7 @@ local Lib = require("extensions.simple_menu_api.lua.Library")
 -- Container for local functions that will be exported.
 local menu = {}
 
--- Custom defaults, generally patterened off code in gameoptions.
+-- Custom defaults, generally patterned off code in gameoptions.
 menu.custom_widget_defaults = {
     ["table"] = {        
         -- 1 sets the table as interactive.
@@ -115,7 +115,16 @@ local function Init_Gameoptions_Link()
     local original_displayOptions = gameoptions_menu.displayOptions
     gameoptions_menu.displayOptions = function (optionParameter)
     
-        -- Start with the original function.
+    
+        -- Record the last selected row.
+        -- The ego function overwrites this, so need to presave
+        -- to if wanting to restore it later.
+        local preselectTopRow = gameoptions_menu.preselectTopRow
+        local preselectOption = gameoptions_menu.preselectOption
+        --DebugError(tostring(preselectTopRow))
+        --DebugError(tostring(preselectOption))
+        
+        -- Call the standard function.
         original_displayOptions(optionParameter)
         
         -- If this is the main menu, add an extra option row.
@@ -168,6 +177,7 @@ local function Init_Gameoptions_Link()
                     break
                 end
             end
+
             -- Pick out the new options row and move it.
             local custom_row = table.remove(ftable.rows, last_index)
             table.insert(ftable.rows, target_index, custom_row)
@@ -176,6 +186,31 @@ local function Init_Gameoptions_Link()
                 ftable.rows[i].index = i
             end
 
+            -- Fix the row selection.
+            -- The preselectOption should match the id of the desired row.
+            for i = 1, #ftable.rows do
+                if ftable.rows[i].rowdata and ftable.rows[i].rowdata.id == preselectOption then
+                    ftable:setSelectedRow(ftable.rows[i].index)
+                    break
+                end
+            end
+
+
+            -- Do an adjustment here
+            local menu_selected_row = ftable.selectedrow
+
+            -- Call preselectTopRow again, since the ego code originally
+            -- called this just after it added all table rows.
+            -- (In pracice, this might not matter much if it just deals with
+            -- scroll bar position, as the main menu isn't big enough to
+            -- scroll.)
+            ftable:setTopRow(preselectTopRow)
+
+            -- Default to selecting row 1 if no preselectOption is available.
+            -- (May not have much effect if preselectOption is reliable.)
+            if preselectOption == nil then
+                ftable:setSelectedRow(1)
+            end
             
             -- Display needs to be called again to get an updated frame drawn.
             -- Clear scripts for safety, though got no warnings when
@@ -401,7 +436,7 @@ function menu.Make_Menu_Shell(menu_spec)
 
     -- Fill local defaults.
     Lib.Fill_Defaults(properties, custom_menu.custom_widget_defaults["table"])
-        
+            
     -- Apply local overrides.
     Lib.Table_Update(properties, {
         x = menu.table.x, 
@@ -430,25 +465,39 @@ end
 -- Builds the menu to display when showing the extension options submenu.
 -- This will in turn list each user registered mod options menu.
 -- Patterned off of code in gameoptions, specifically menu.displayExtensions().
+-- TODO: replace this with a standard md-declared menu for code reuse
+-- and to enable more features (eg. row select callbacks).
 function menu.Display_Extension_Options()
     
     -- Clean out old menu_data.
     menu_data:reset()
     
     -- Set up the shell menu, get the fillable table.
+    local num_cols = 2
     local frame, ftable = menu.Make_Menu_Shell({
         id = "simple_menu_extension_options", 
         -- TODO: readtext
         title = "Extension Options", 
-        -- Set to 3, so total is 4, which matches main menu.
-        columns = 3 })
-    
+        -- Set to 2, to sync with the extra options that will get
+        -- appended after the submenu list.
+        columns = num_cols })
+
+    -- Sort the submenus by title.
+    -- Do this by building a new table of them keyed by their titles,
+    -- then use lua sort.
+    local title_menu_specs = {}
+    for menu_id, spec in pairs(custom_menu_specs) do
+        title_menu_specs[spec.title] = spec
+    end
+    -- Sort it.
+    table.sort(title_menu_specs)
+        
     -- Fill in all listings.
     -- Note: lua is horrible about getting the size of a table; set a flag
     -- to indicate if there were any registered menus.
     -- (The # operator only works on contiguous lists.)
     local menu_found = false
-    for menu_id, spec in pairs(custom_menu_specs) do
+    for title, spec in pairs(title_menu_specs) do
         --DebugError("spec '"..spec.id.."' private: "..spec.private)
         -- Only display non-private menus.
         if not spec.private then
@@ -458,17 +507,22 @@ function menu.Display_Extension_Options()
                 id      = spec.id,
                 name    = spec.title,
                 submenu = spec.id,
-            })
+            }, num_cols + 1)
         end
     end
     
-    -- If there are no menus, note this.
-    if not menu_found then
-        local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
-        row[2]:setColSpan(3):createText("No menus registered", config.warningTextProperties)
+    -- Merge the simple options into this layer, if available.
+    local menu_spec = custom_menu_specs["simple_menu_options"]
+    if menu_spec ~= nil then
+        menu.Display_Custom_Menu_PostShell(menu_spec, frame, ftable)
+    else
+        -- If there are no menus, note this.
+        if not menu_found then
+            local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+            row[2]:setColSpan(num_cols):createText("No menus registered", config.warningTextProperties)
+        end
+        frame:display()
     end
-    
-    frame:display()
 end
 
 
@@ -480,7 +534,13 @@ function menu.Display_Custom_Menu(menu_spec)
     
     -- Set up the shell menu, get the fillable table.
     local frame, ftable = menu.Make_Menu_Shell(menu_spec)
-    
+
+    -- Hand off to the rest of the logic for filling.
+    menu.Display_Custom_Menu_PostShell(menu_spec, frame, ftable)
+end
+
+-- Shared logic between the top level menu and custom submenus.
+function menu.Display_Custom_Menu_PostShell(menu_spec, frame, ftable)
     -- Update local menu data for user functions.
     menu_data.frame = frame
     menu_data.ftable = ftable
