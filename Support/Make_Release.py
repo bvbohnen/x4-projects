@@ -108,6 +108,14 @@ release_files_specs = {
             'simple_menu_api/lua/Standalone_Menu.lua',
             'simple_menu_api/lua/Tables.lua',
         ]},
+    'Better_Target_Monitor':{ 
+        'root_path':project_dir / 'X4_Simple_Menu_API', 
+        'doc_path' :project_dir / 'X4_Simple_Menu_API' / 'better_target_monitor',
+        'files':[
+            'better_target_monitor/content.xml',
+            'better_target_monitor/md/Better_Target_Monitor.xml',
+            'better_target_monitor/lua/Target_Monitor.lua',
+        ]},
     'Time_API':{ 
         'root_path':project_dir / 'X4_Time_API', 
         'doc_path' : '',
