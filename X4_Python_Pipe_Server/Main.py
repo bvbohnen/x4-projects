@@ -71,7 +71,7 @@ import traceback
 from importlib import machinery
 
 # Flag to use during development, for extra exception throws.
-developer = True
+developer = False
 
 # Use a python test client, instead of needing x4 open.
 # Note: putting breakpoints on tested modules requires opening them from
