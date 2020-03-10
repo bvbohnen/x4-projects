@@ -173,7 +173,7 @@ TODO:
         
       <!-- Init the lua with the stored list of player keys. -->
       <set_value name="player.entity.$hotkey_api_player_keys_from_md" exact="$player_action_keys" />
-      <raise_lua_event name="'Hotkey.Update_Player_Keys'"/>        
+      <raise_lua_event name="'Hotkey.Update_Player_Keys'"/> 
         
     </actions>
   </library>
@@ -191,7 +191,6 @@ TODO:
   <cue name="Server_Reader_Wrapper">
     <cues>
       <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
-        <param name="Actions_On_Init"     value="Actions_On_Init"/>
         <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
         <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
         <param name="Actions_On_Read"     value="Actions_On_Read"/>
@@ -199,20 +198,11 @@ TODO:
     </cues>
   </cue>
 
-  <!--TODO: get rid of init, just use reload.-->
-  <library name="Actions_On_Init">
+  <library name="Actions_On_Reload">
     <actions>
       <!--TODO: how to get debugchance from Globals safely on first mod load.-->
       <set_value name="$Pipe_Name" exact="'x4_keys'" />
       <set_value name="$DebugChance" exact="0" />
-      
-      
-    </actions>
-  </library>
-
-  <library name="Actions_On_Reload">
-    <actions>
-      <include_actions ref="$Actions_On_Init"/>
 
       <!-- Make sure the read loop is started if there are keys tracked. -->
       <do_if value="md.Hotkey_API.Globals.$key_event_action_registry.keys.list.count != 0">
@@ -586,13 +576,13 @@ TODO:
         <!-- Check if the id is already recorded for this key. -->
         <do_if value="Globals.$key_event_action_registry.{$key_event}.indexof.{$id} != 0">
           <!-- Print some warning. -->
-          <debug_text text="'Warning, action %s already registered to key %s.'.[$id, $key_event]"
+          <debug_text text="'Warning, action %s already registered to key %s'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_if>
         <do_else>
           <!-- It isn't recorded, so add it in. -->
           <append_to_list name="Globals.$key_event_action_registry.{$key_event}" exact="$id" />
-          <debug_text text="'Action %s registered to key %s.'.[$id, $key_event]"
+          <debug_text text="'Action %s registered to key %s'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_else>
         
@@ -641,7 +631,7 @@ TODO:
         <!-- Check if there is no table entry for the key. -->
         <do_if value="not Globals.$key_event_action_registry.{$key_event}?">
           <!-- Print some warning. -->
-          <debug_text text="'Warning, key %s has no registered actions.'.[$key_event]"
+          <debug_text text="'Warning, key %s has no registered actions'.[$key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
           <continue/>
         </do_if>
@@ -650,20 +640,20 @@ TODO:
         <set_value name="$id_index" exact="Globals.$key_event_action_registry.{$key_event}.indexof.{$id}"/>
         <do_if value="$id_index == 0">
           <!-- It isn't recorded, so print a warning. -->
-          <debug_text text="'Warning, action %s is not registered to key %s.'.[$id, $key_event]"
+          <debug_text text="'Warning, action %s is not registered to key %s'.[$id, $key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
           <continue/>
         </do_if>
 
         <!-- Proceed with removal. -->
         <remove_value name="Globals.$key_event_action_registry.{$key_event}.{$id_index}" />
-        <debug_text text="'Removed action %s from key %s.'.[$id, $key_event]"
+        <debug_text text="'Removed action %s from key %s'.[$id, $key_event]"
                     chance="Globals.$DebugChance" filter="general"/>
 
         <!-- If the key's cue list is empty, and remove it if so. -->
         <do_if value="Globals.$key_event_action_registry.{$key_event}.count == 0">
           <remove_value name="Globals.$key_event_action_registry.{$key_event}" />
-          <debug_text text="'No remaining listeners to key %s; removing it.'.[$key_event]"
+          <debug_text text="'No remaining listeners to key %s; removing it'.[$key_event]"
                       chance="Globals.$DebugChance" filter="general"/>
         </do_if>
       </do_for_each>
@@ -751,6 +741,8 @@ TODO:
         <do_if value="Globals.$menu_states.{$key}">
           <set_value name="Globals.$in_menu" exact="true"/>
           
+          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Menu open: %s'.[$key]"/>-->
+          
           <!-- Check if the protected options menu is open. -->
           <do_if value="$key == 'OptionsMenu'">
             <set_value name="Globals.$in_protected_menu" exact="true"/>
@@ -803,13 +795,15 @@ TODO:
 
       <!-- Start by prefixing the key combo with a '$' for table lookups. -->
       <set_value name="$key_event" exact="'$' + event.param"/>
-      <debug_text text="'Received key event %s.'.[$key_event]"
+      <debug_text text="'Received key event %s'.[$key_event]"
                   chance="Globals.$DebugChance" filter="general"/>
+      <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Received key event %s'.[$key_event]"/>-->
       
       <!-- Ignore if currently in a protected menu. -->
       <do_if value="Globals.$in_protected_menu">
-        <debug_text text="'Ignoring key; protected menu open.'"
+        <debug_text text="'Ignoring key; protected menu open'"
                     chance="Globals.$DebugChance" filter="general"/>
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ignoring key; protected menu open'"/>-->
       </do_if>
 
       <!-- Is the key returned actually registered? -->
@@ -830,6 +824,9 @@ TODO:
           <set_value name="$context" exact="'walking'"/>
         </do_else>
 
+        <debug_text text="'Context of key: %s'.[$context]"
+                    chance="Globals.$DebugChance" filter="general"/>
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Context of key: %s'.[$context]"/>-->
         
         <!-- Get the event associated with this key/event, matching its suffix. -->
         <set_value name="$key" exact ="Globals.$key_event_substrings.{$key_event}.{1}"/>
@@ -849,7 +846,7 @@ TODO:
             <set_value name="$valid" exact="true"/>
           </do_if>
           
-          <!-- If in menu and menu names were given, check specific them. -->
+          <!-- If in menu and menu names were given, check specific name. -->
           <do_elseif value="Globals.$in_menu and ($action.$menu_names?)">
             <!-- Go through all menu names and see if any are open. -->
             <do_for_each name="$menu_name" in="$action.$menu_names">
@@ -866,6 +863,8 @@ TODO:
           
           <!-- Skip if not a valid context. -->
           <do_if value="not $valid">
+            <debug_text text="'Skipping due to context mismatch'"
+                        chance="Globals.$DebugChance" filter="general"/>
             <continue/>
           </do_if>
           
@@ -874,7 +873,10 @@ TODO:
           <set_value name="$cue" exact="@$action.{'$'+$event}"/>
           
           <!-- Call it if it still exists. -->
-          <do_if value="$cue.exists">            
+          <do_if value="$cue.exists">
+            <debug_text text="'Signalling cue: %s'.[$cue]"
+                        chance="Globals.$DebugChance" filter="general"/>
+            <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Signalling cue: %s'.[$cue]"/>-->
             <!-- Call the cue, with return values. -->
             <signal_cue_instantly cue="$cue" param="table[
                                   $key = $key,
@@ -891,6 +893,8 @@ TODO:
 
       <do_else>
         <!-- Key not registered. TODO: error message. -->
+        <debug_text text="'Ignoring key; no registered events'"
+                    chance="Globals.$DebugChance" filter="general"/>
       </do_else>
     </actions>
   </cue>

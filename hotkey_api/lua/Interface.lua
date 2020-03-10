@@ -144,12 +144,42 @@ local function Init()
     -- (Alternatively, can check this live by scanning all menus for
     -- the menu.shown flag being set and menu.minimized being false.)
 
+    --[[
+        Closing raises a ui signal of the menu name, but that is awkward
+        to catch for all menus, and not reasonable to account for
+        modded menus (outside of known mods).
+
+        However, any menu closing should eventually call Helper's
+        local closeMenu() function, which ends by calling
+        Helper.clearMenu(...), so in theory wrapping clearMenu should
+        be sufficient to capturing all menu closings.
+
+        However, UserQuestionMenu doesn't get caught like others, even though
+        it has a clear path by which it calls the Helper close function,
+        even if the menu is set to auto-confirm (eg. when ejecting into
+        a spacesuit).  From a glance at the code, it is unclear why
+        this particular menu would be difficult.
+
+        TODO: maybe revisit this to figure it out.
+        For now, just ignore the menu.
+    ]]
+
     -- Patch into Helper.clearMenu for closings.
     local ego_helper_clearMenu = Helper.clearMenu
     Helper.clearMenu = function(menu, ...)
         ego_helper_clearMenu(menu, ...)
         L.Menu_Closed(menu)
         end
+    -- Unnecessary.
+    --local function patch_onCloseElement(menu)
+    --    local ego_onCloseElement = menu.onCloseElement
+    --    if ego_onCloseElement ~= nil then
+    --        menu.onCloseElement = function(...)
+    --            ego_onCloseElement(...)
+    --            L.Menu_Closed(menu)
+    --            end
+    --    end
+    --end
 
     -- Patch into all menu.showMenuCallback functions to catch when
     -- they open.  Two steps: patch existing menus, and patch helper
@@ -166,9 +196,11 @@ local function Init()
         UnregisterEvent("show"..menu.name, ego_showMenuCallback)
         RegisterEvent("show"..menu.name, menu.showMenuCallback)
     end
+
     -- Patch exiting menus.
     for _, menu in ipairs(Menus) do
         patch_showMenuCallback(menu)
+        --patch_onCloseElement(menu)
     end
     -- Patch future menus.
     local ego_registerMenu = Helper.registerMenu
@@ -177,6 +209,7 @@ local function Init()
         ego_registerMenu(menu, ...)
         -- Can now patch it.
         patch_showMenuCallback(menu)
+        --patch_onCloseElement(menu)
         end
 
     -- Also want to catch minimized menus.
@@ -202,11 +235,17 @@ function L.Menu_Closed(menu)
     if menu.name == "TopLevelMenu" then return end
     --DebugError("Menu closed: "..tostring(menu.name))
     Lib.Raise_Signal("Menu_Closed", menu.name)
+    -- TODO: in practice, some menu closures might get missed.
+    --  Can maybe check all menu open states, and indicate if they
+    --  are all closed at the time (to recover from bad information).
+    -- Can scan all menus for .shown and not .minimized to see if
+    --  any are open.
 end
 
 -- This is called when menus are opened in Helper.
 function L.Menu_Opened(menu)
     if menu.name == "TopLevelMenu" then return end
+    if menu.name == "UserQuestionMenu" then return end
     --DebugError("Menu opened: "..tostring(menu.name))
     Lib.Raise_Signal("Menu_Opened", menu.name)
 end

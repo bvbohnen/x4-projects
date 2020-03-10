@@ -65,6 +65,9 @@ pipe_name = 'x4_keys'
 # exits, but ctrl-pause/break will work.
 test_python_client = 0
 
+# Verbosity level of console window messages.
+verbosity = 1
+
 # Expected window title, for when this captures keys.
 # Normally x4, but changes for python testing.
 # For python, there may be a path prefix, so this will just check the
@@ -178,7 +181,8 @@ def main():
             # If anything is in the key_buffer, process into key combos.
             key_buffer = keyboard_listener.Retrieve_Key_Buffer()
             if key_buffer:
-                print('Processing: {}'.format(key_buffer))
+                if verbosity >= 2:
+                    print('Processing: {}'.format(key_buffer))
 
                 # Process the keys, updating what is pressed and getting any
                 # matched combos.
@@ -189,7 +193,8 @@ def main():
                     # Transmit to x4.
                     # Note: this doesn't put the '$' back for now, since that
                     # is easier to add in x4 than remove afterwards.
-                    print('Sending: ' + combo)
+                    if verbosity >= 1:
+                        print('Sending: ' + combo)
                     pipe.Write(combo)
 
 
@@ -630,7 +635,8 @@ class Key_Combo_Processor:
                 self.keys_down.add(key)
             elif key in self.keys_down:
                 self.keys_down.remove(key)
-            print('Keys down: {}'.format(self.keys_down))
+            if verbosity >= 3:
+                print('Keys down: {}'.format(self.keys_down))
 
 
             # The first pass logic will group combos into those

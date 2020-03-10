@@ -21,6 +21,7 @@
       <actions>
         
         <!-- Register actions. -->
+        <!--TODO: maybe allow autopilot from the map menu somehow.-->
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
           $id = 'kc_target_follow', 
           $onPress = Target_Follow,
@@ -52,7 +53,8 @@
       </conditions>
       <actions>
         <!-- Debug message. -->
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Starting Target_Follow'"/>--> 
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Starting Target_Follow'"/>-->
+        <!--<debug_text text="'KeyCapture Triggered Target_Follow'" filter="general"/>-->
                 
         <!-- Cancel autopilot if the target is already the current dest.-->
         <do_if value="player.target == player.autopilottarget">
@@ -77,6 +79,7 @@
       <actions>
         <!-- Debug message. -->
         <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ejecting_Illegals'"/>-->
+        <!--<debug_text text="'KeyCapture Triggered Ejecting_Illegals'" filter="general"/>-->
 
         <set_value name="$faction" exact="player.zone.policefaction"/>
         <drop_illegal_cargo groupname="$boxes" object="player.occupiedship" faction="$faction"/>
@@ -90,7 +93,6 @@
         
       </actions>
     </cue>
-
 
   </cues>
 

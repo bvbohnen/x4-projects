@@ -33,7 +33,7 @@
     <Content Include="hotkey_api\md\HK_Stock_Actions.xml" />
     <Content Include="hotkey_api\md\Hotkey_API.xml" />
     <Content Include="hotkey_api_test\content.xml" />
-    <Content Include="hotkey_api_test\md\Test_Hotkey.xml" />
+    <Content Include="hotkey_api_test\md\Hotkey_API_Test.xml" />
     <Content Include="Readme.md" />
   </ItemGroup>
   <ItemGroup>

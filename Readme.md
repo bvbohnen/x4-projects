@@ -45,7 +45,9 @@ Example direct key mapping:
   </cue>
   ```
 
-Note: the windows backend confuses numpad enter and numpad / with their non-numpad counterparts.  If one of these keys is used, both the numpad and normal key will trigger the hotkey callback.
+Limitations:
+* The windows backend confuses numpad enter and numpad / with their non-numpad counterparts.  If one of these keys is used, both the numpad and normal key will trigger the hotkey callback.
+* Currently only supports keyboard inputs.
 
 See "API Functions.md" for full details.
 

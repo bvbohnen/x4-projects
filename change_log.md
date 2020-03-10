@@ -32,5 +32,7 @@ Change Log
   - General release.
   - Renamed to Hotkey_API.
   - "Shorcuts" renamed to "actions".
+* 1.0.1
+  - Ignore UserQuestionMenu context, due to difficulty detecting its closure.
 
 
