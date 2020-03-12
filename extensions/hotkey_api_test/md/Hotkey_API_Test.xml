@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Hotkey_API_Test" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+<!--
+Test cue that excercises the key capture library.
+Relies on named pipe library; server side is written in python.
+-->
+
+<cues>
+
+  <!--
+    Register keys with the hotkey api.
+  -->  
+  <cue name="Register_Keys" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
+      <!-- Uncomment to disable this cue.
+      <check_value value="false"/> -->
+    </conditions>
+    <actions>
+      <show_notification text="'Registering keys'" sound="notification_warning" priority="2" />
+      
+      <!-- Register some actions. -->
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+        $id = 'hotkey_api_test_space', 
+        $onPress   = OnKeyEvent,
+        $onRelease = OnKeyEvent,
+        $onRepeat  = OnKeyEvent,
+        $name = 'Test Space', 
+        $description = 'Hotkey test Space',
+        $contexts = ['flying'],
+        $category = 'Test Space Keys',
+        ]"/>
+
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+        $id = 'hotkey_api_test_walk', 
+        $onPress = OnKeyEvent,
+        $name = 'Test Walk', 
+        $description = 'Hotkey test Walk',
+        $contexts = ['walking'],
+        $category = 'Test Walk Keys',
+        ]"/>
+
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+        $id = 'hotkey_api_test_menu', 
+        $onPress = OnKeyEvent,
+        $name = 'Test Menu', 
+        $description = 'Hotkey test Menu',
+        $contexts = ['menus'],
+        $category = 'Test Menu Keys',
+        ]"/>
+
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+        $id = 'hotkey_api_test_api_menu', 
+        $onPress = OnKeyEvent,
+        $name = 'Test Simple Menu', 
+        $description = 'Hotkey test Simple Menu API',
+        $contexts = ['SimpleMenu'],
+        $category = 'Test Menu Keys',
+        ]"/>
+
+      <!-- Set up some default keys.  -->
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='a',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='s',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='d',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='f',       $id = 'hotkey_api_test_space']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='shift s', $id = 'hotkey_api_test_walk']" /> 
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='ctrl_l d',$id = 'hotkey_api_test_menu']" />
+      <signal_cue_instantly cue="md.Hotkey_API.Register_Key" param="table[$key='alt_r f', $id = 'hotkey_api_test_api_menu']" />
+    </actions>
+  </cue>
+        
+  <!-- Handle press/repeat/release events. -->
+  <cue name="OnKeyEvent" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>    
+    <actions>
+      <!-- Log it. -->
+      <raise_lua_event name="'directChatMessageReceived'" 
+                       param="'key;%s (%s %s)'.[
+                            event.param.$id, 
+                            event.param.$key, 
+                            event.param.$event,
+                            event.param.$context, 
+                            ]"/>
+    </actions>
+  </cue>
+      
+</cues>
+
+</mdscript>
