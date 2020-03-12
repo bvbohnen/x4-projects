@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Pipe_Server_Host" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xsi:noNamespaceSchemaLocation="md.xsd">
+
+<!-- @doc-title MD Pipe Python Host -->
+  
+<!-- @doc-overview
+MD API for interfacing with an external Python based pipe server.
+This allows user MD code to register a python module with the host server.
+The host (if running) will dynamically import the custom module.
+Such modules are distributed with extensions.
+Builds on top of the Named Pipes API.
+
+
+Goals:
+ - Connect to the running python host server process.
+ - Allows user to specify the relative path to a python server plugin.
+ - Extract the absolute path of x4 and transmit it to the server, for
+   the currently running x4 installation (assume multiple on a computer).
+ - Transmit user file paths to the host server, to be dynamically imported
+   and started.
+ - Detect host server errors, and re-announce user files upon
+   reconnection.
+    
+Operation notes:
+ - Requires the Python host server be set up and started. This is done by
+   the player outside of the game, though can be started before or after
+   x4.
+ - Pings the server pipe until getting a connection.
+ - Failed pings will wait some time before the next ping.
+ - Transfers the lua package.paths to the server, where python code parses
+   out the x4 absolute path. (Should be adaptable to multiple x4 installations
+   without requiring extra player setup.)
+ - Reloads on any error, as well as on game or ui reloads.
+ - When reloading, signals the Reloaded cue, telling users to register
+   their server plugin paths.
+ - Passively reads the host server, watching for disconnect errors.
+  
+Usage:  
+ - From MD code, call Register_Module to tell the host to import a
+   python module from your extension.   
+ - Write the corresponding python server module. This requires a "main"
+   function to act as the entry point, and should preferably import
+   the Pipe_Server class from X4_Python_Pipe_Server.   
+ - Simple python example, echo messages sent from x4 back to it:
+    ```python
+    from X4_Python_Pipe_Server import Pipe_Server
+    def main():
+        pipe = Pipe_Server('x4_echo')
+        pipe.Connect()
+        while 1:
+            message = pipe.Read()
+            pipe.Write(message)
+    ```
+    
+-->
+<cues>
+
+      
+  <!-- Use the generic server reader library.
+      Needs a cue wrapping it, else get property errors on the library refs. -->
+  <cue name="Server_Reader_Wrapper">
+    <cues>
+      <cue name="Server_Reader" ref="md.Pipe_Server_Lib.Server_Reader">
+        <param name="Actions_On_Reload"   value="Actions_On_Reload"/>
+        <param name="Actions_On_Connect"  value="Actions_On_Connect"/>
+        <param name="Actions_On_Read"     value="Actions_On_Read"/>
+      </cue>
+    </cues>
+  </cue>
+  
+  
+  <library name="Actions_On_Reload">
+    <actions>
+      <set_value name="$DebugChance" exact="0" />
+      <!-- Name of the pipe. -->
+      <set_value name="$Pipe_Name" exact="'x4_python_host'" />
+      <!-- Empty list of server paths. -->
+      <set_value name="$registered_modules" exact="[]"/>      
+      <!-- Send a signal that all users listen to. -->
+      <signal_cue_instantly cue="md.Pipe_Server_Host.Reloaded"/>
+    </actions>
+  </library>
+
+  
+  <library name="Actions_On_Connect">
+    <actions>
+      <!--Send the lua side package.path string to the server, 
+          containing the path to this x4 installation. -->
+      <signal_cue_instantly 
+        cue="md.Named_Pipes.Write_Special" 
+        param="table[
+          $pipe = $Pipe_Name, 
+          $msg = 'package.path' ]"/>
+      
+      <!-- Announce the modules to start up. -->
+      <include_actions ref="md.Pipe_Server_Host.Register_Modules_With_Server"/>                    
+    </actions>
+  </library>
+  
+  
+  <library name="Actions_On_Read">
+    <actions>
+      <!-- Nothing expected for now. -->
+      <debug_text text="'received mesage: %s.'.[event.param]" 
+                  chance="$DebugChance" filter="general"/>
+    </actions>
+  </library>
+  
+  
+  <!--
+    Dummy cue used for signalling.
+    When the api wants users to register their servers, it will signal
+    this cue. Users can then listen to this cue being signalled.
+    This is also used to kill off an older server access loop.
+  -->  
+  <cue name="Reloaded" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+    </actions>
+  </cue>
+    
+  
+  <!-- @doc-cue
+    User function to register a python server module.
+    This should be resent each time Reloaded is signalled.
+    
+    Param:
+      String, relative path to the python file from the x4 base dir.
+      Use forward slashes between folders.
+    
+    Usage example:
+    ```xml
+      <cue name="Register_Pipe_Server" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+        </conditions>
+        <actions>
+          <signal_cue_instantly 
+            cue="md.Pipe_Server_Host.Register_Module" 
+            param="'extensions/hotkey_api/Send_Keys.py'"/>
+        </actions>
+      </cue>
+    ```
+  -->
+  <cue name="Register_Module" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    
+    <actions>
+      <set_value name="$path" exact="event.param"/>
+      
+      <!-- Check if this path is not yet known. -->
+      <do_if value="Server_Reader.$registered_modules.indexof.{$path} == 0">
+        <!-- Add to the list. -->
+        <append_to_list name="Server_Reader.$registered_modules" exact="$path" />
+        <debug_text text="'registered server path: %s.'.[$path]" 
+                    chance="Server_Reader.$DebugChance" filter="general"/>
+        
+        <!-- Update the server. If it isn't connected, ignore any error. -->
+        <include_actions ref="Register_Modules_With_Server"/>
+        
+        <!-- Make sure the read loop is started, if it wasn't already. -->
+        <signal_cue cue="Server_Reader.$Start_Reading" />
+        
+      </do_if>
+    </actions>    
+  </cue>
+        
+    
+  <!-- Lib function to update the server list of registered modules. -->
+  <library name="Register_Modules_With_Server">
+    <actions>
+      <!-- Suppress if not connected to server, to reduce log spam. -->
+      <do_if value="Server_Reader.$server_connected == 1">
+      
+        <!-- Start by merging the entries together, semicolon separated. -->
+        <set_value name="$joined_modules" exact="''" />
+        <do_all exact="Server_Reader.$registered_modules.count" counter="$i">
+          <set_value 
+            name="$joined_modules" 
+            exact="$joined_modules + Server_Reader.$registered_modules.{$i} + ';'"/>
+        </do_all>
+        
+        <!-- Send this to the server. -->
+        <signal_cue_instantly 
+          cue="md.Named_Pipes.Write" 
+          param="table[
+            $pipe = Server_Reader.$Pipe_Name, 
+            $msg = 'modules:'+$joined_modules ]"/>
+        
+      </do_if>
+    </actions>
+  </library>
+  
+  
+</cues>
+
+</mdscript>
