@@ -4,29 +4,29 @@ This extension implements a generic method of loading custom lua files into X4, 
 ### How to use
 
 In an MD script, add a cue that follows this template code:
-
-    <cue name="Load_Lua_Files" instantiate="true">
-      <conditions>
-        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-      </conditions>
-      <actions>
-        <raise_lua_event 
-          name="'Lua_Loader.Load'" 
-          param="'extensions.your_ext_name.your_lua_file_name'"/>
-      </actions>
-    </cue>
-
+```xml
+<cue name="Load_Lua_Files" instantiate="true">
+  <conditions>
+  <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+  </conditions>
+  <actions>
+  <raise_lua_event 
+    name="'Lua_Loader.Load'" 
+    param="'extensions.your_ext_name.your_lua_file_name'"/>
+  </actions>
+</cue>
+```
 The cue name may be anything. Replace "your_ext_name.your_lua_file_name" with the appropriate path to your lua file, without file extension. The lua file needs to be loose, not packed in a cat/dat. The file extension may be ".lua" or ".txt", where the latter may be needed if distributing through steam workshop. If editing the lua code, it can be updated in-game using "/reloadui" in the chat window.
 
 When a loading is complete, a message is printed to the debuglog, and a ui signal is raised. The signal "control" field will be "Loaded " followed by the original param file path. This can be used to set up loading dependencies, so that one lua file only loads after a prior one.
 
 Example dependency condition code:
-
-    <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" 
-        control="'Loaded extensions.other_ext_name.other_lua_file_name'" />
-    </conditions>
-
+```xml
+<conditions>
+  <event_ui_triggered screen="'Lua_Loader'" 
+    control="'Loaded extensions.other_ext_name.other_lua_file_name'" />
+</conditions>
+```
 ### How it works
 
 A small lua program is provided with two functions: to signal when it is loaded, and to receive file paths from MD scripts. These files are loaded using lua's "require". This api's lua file is itself loaded into x4 by replacing ui/addons/ego_debug/ui.xml file.
