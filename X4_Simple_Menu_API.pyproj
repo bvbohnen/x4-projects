@@ -23,8 +23,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="API Functions.md" />
-    <Content Include="better_target_monitor\change_log.md" />
-    <Content Include="better_target_monitor\content.xml" />
     <Content Include="change_log.md" />
     <Content Include="Readme.md" />
     <Content Include="simple_menu_api\content.xml" />
@@ -33,23 +31,18 @@
     <Content Include="simple_menu_api\lua\Library.lua" />
     <Content Include="simple_menu_api\lua\Options_Menu.lua" />
     <Content Include="simple_menu_api\lua\Standalone_Menu.lua" />
-    <Content Include="better_target_monitor\lua\Target_Monitor.lua" />
     <Content Include="simple_menu_api\md\Simple_Menu_API.xml" />
     <Content Include="simple_menu_api\lua\Tables.lua" />
     <Content Include="simple_menu_api\md\Simple_Menu_Options.xml" />
-    <Content Include="better_target_monitor\md\Better_Target_Monitor.xml" />
     <Content Include="simple_menu_api_test\content.xml" />
     <Content Include="simple_menu_api_test\md\Simple_Menu_API_Test.xml" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="better_target_monitor\" />
-    <Folder Include="better_target_monitor\md\" />
     <Folder Include="simple_menu_api\" />
     <Folder Include="simple_menu_api\md\" />
     <Folder Include="simple_menu_api\lua\" />
     <Folder Include="simple_menu_api_test\" />
     <Folder Include="simple_menu_api_test\md\" />
-    <Folder Include="better_target_monitor\lua\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

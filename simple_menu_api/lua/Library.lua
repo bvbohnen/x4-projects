@@ -28,6 +28,9 @@ local lua_pattern_special_chars = {
 -- Returns two substrings, left and right of the sep.
 function L.Split_String(this_string, separator)
 
+    -- TODO: look into syntax like:
+    -- left, right = string.match(this_string, "(.+)"..separator.."(.+)")
+
     -- Get the position of the separator.
     -- Warning: lua is kinda dumb and has its own patterning rules, which
     -- came up with '.' matched anything.

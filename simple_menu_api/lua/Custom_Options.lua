@@ -6,6 +6,9 @@ An md script will build an options submenu and handle callbacks.
 Based on what changes, the MD will raise lua events to trigger functions
 found here.
 
+Note:   Only addons and widget_fullscreen appear to be available in
+        the general lua system.  Stuff in ui/core seem hidden.
+
 TODO: consider switching to reading md settings state directly from a
 blackboard table instead of using signal params (limited to string/int/nil).
 
@@ -30,6 +33,15 @@ TODO: possible future options
     GetCharacterDensityOption
     ClearLogbook
 
+- Look through the global config table to see if anything interesting is there.
+    Note: most interesting stuff is in ui/core, but those don't see to be
+    exported despite being globals.
+
+- Edit helptext.lua to suppress display of help messages. Should be simple
+    to intercept onShowHelp and onShowHelpMulti calls with doing nothing.
+    Main problem is that testing the edit would be annoying; need to find
+    a situation that consistently pops up the text. Probably will be
+    correct on first try, though.
 
 ]]
 
@@ -73,6 +85,7 @@ function L.Init()
     RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , L.Handle_Tooltip_Font)
     RegisterEvent("Simple_Menu_Options.map_menu_alpha"    , L.Handle_Map_alpha)
     RegisterEvent("Simple_Menu_Options.adjust_fov"        , L.Handle_FOV)
+    RegisterEvent("Simple_Menu_Options.disable_helptext"  , L.Handle_Hide_Helptext)
     
 
     -- Testing.
@@ -83,8 +96,12 @@ function L.Init()
     --Lib.Print_Table(Color, "Color")
     
     -- Egosoft packages are not directly accessible through the
-    -- normal library mechanism.
+    -- normal library mechanism; this only returns mostly normal packages
+    -- like "string" and "math".
     --Lib.Print_Table(package.loaded, "packages_loaded")
+    
+    -- Global config table.
+    --Lib.Print_Table(config, "global_config")
 end
 
 ------------------------------------------------------------------------------
@@ -122,39 +139,69 @@ function L.Init_Menu_Alpha()
             
     -- Pick out the menu creation function.
     local original_createMainFrame = map_menu.createMainFrame
-    -- Wrapper.
     map_menu.createMainFrame = function (...)
-        local retval = original_createMainFrame(...)
-        
-        -- Look for the rendertarget member of the mainFrame.
-        local rendertarget = nil
-        for i=1,#map_menu.mainFrame.content do
-            if map_menu.mainFrame.content[i].type == "rendertarget" then
-                rendertarget = map_menu.mainFrame.content[i]
+
+        -- This normally calls frame:display() before returning.
+        -- Suppress the call by intercepting the frame object, returned
+        -- from Helper.
+        local ego_createFrameHandle = Helper.createFrameHandle
+        -- Store the frame and its display function.
+        local frame
+        local frame_display
+        Helper.createFrameHandle = function(...)
+            -- Build the frame.
+            frame = ego_createFrameHandle(...)
+            -- Record its display function.
+            frame_display = frame.display
+            -- Replace it with a dummy.
+            frame.display = function() return end
+            -- Return the edited frame to displayControls.
+            return frame
             end
-        end
-        if rendertarget == nil then
-            DebugError("Failed to find map_menu rendertarget")
-            return retval
-        else
-            -- Try to directly overwrite the alpha.
-            --DebugError("alpha: "..tostring(rendertarget.properties.alpha))
-            rendertarget.properties.alpha = L.menu_alpha.alpha
+
+        -- Build the menu.
+        original_createMainFrame(...)
+        
+        -- Reconnect the createFrameHandle function, to avoid impacting
+        -- other menu pages.
+        Helper.createFrameHandle = ego_createFrameHandle
+
+        if L.menu_alpha.alpha ~= nil then
+            -- Look for the rendertarget member of the mainFrame.
+            local rendertarget = nil
+            for i=1,#map_menu.mainFrame.content do
+                if map_menu.mainFrame.content[i].type == "rendertarget" then
+                    rendertarget = map_menu.mainFrame.content[i]
+                end
+            end
+            if rendertarget == nil then
+                DebugError("Failed to find map_menu rendertarget")
+                return retval
+            else
+                -- Try to directly overwrite the alpha.
+                --DebugError("alpha: "..tostring(rendertarget.properties.alpha))
+                rendertarget.properties.alpha = L.menu_alpha.alpha
+            end
         end
 
         -- Try a full frame background if alpha doesn't work.
         -- (Alpha seems to work fine; don't need this.)
         --map_menu.mainFrame.backgroundID = "solid"
 
-        --DebugError("Trying to make map solid")
-        
+        -- -Removed; display done smarter.
         -- Redisplay the menu to refresh it.
         -- (Clear existing scripts before the refresh.)
         -- Layer taken from config of menu_map.lua.
-        local mainFrameLayer = 5
-        Helper.removeAllWidgetScripts(map_menu, mainFrameLayer)
-        map_menu.mainFrame:display()
-        return retval
+        -- TODO: replace this with the new method that suppresses the
+        -- original frame:display temporarily.
+        --local mainFrameLayer = 5
+        --Helper.removeAllWidgetScripts(map_menu, mainFrameLayer)
+        --map_menu.mainFrame:display()
+        
+        -- Re-attach the original frame display, and call it.
+        frame.display = frame_display
+        frame:display()
+
     end    
 end
 L.Init_Menu_Alpha()
@@ -316,6 +363,193 @@ function L.Handle_FOV(_, new_mult)
 end
 
 ------------------------------------------------------------------------------
+-- Support for disabling tips
+--[[
+    Tips are handled in helptext.lua, which listens to "helptext" and
+    "multihelptext" events to call onShowHelp and onShowHelpMulti.
+
+    Both of those functions return early if the gamesave data indicates
+    the tip was already shown before.
+    Can wrap those to also return early when the custom option is set.
+
+    However, the HelpTextMenu is not registers in the normal way.
+    Instead of being set up during its init, it only registers its
+    event listeners.
+    Menu registration is only performed upon a displayHelp() call, and is
+    unregistered in cleanup(). In neither case is it added to the
+    global list of Menus.
+
+    The only place to intercept the menu as a whole would be in its call
+    to Helper.setMenuScript(menu, ...), but that only occurs if "allowclose"
+    is enabled for the tip, so wouldn't be a reliable way to capture the
+    menu object before display.
+
+    Another option is to intercept the View.registerMenu() call, which
+    allows for swapping out the menu.viewCreated and menu.cleanup links
+    to instead clear the menu when it attempts to be created, and clear
+    out the standard cleanup to do nothing.
+    In the above case, following registerMenu() is a registration of
+    the menu's update function using SetScript, which does not get
+    cleared out by the normal clearCallback.  Intercepting that and
+    suppressing it may be needed as well.
+    For a little safety, only clear the next onUpdate SetScript, and don't
+    try to clear if something else is seen first, to protect slightly
+    against source code changes.
+
+    
+    New approach:
+    Above is clumsy.  Maybe an alternative would be to listen for
+    the helptext or multihelptext events, then fire a clearhelptext event
+    right afterward (same frame?).
+
+    Initial attempt spammed the log with GoToSlide errors. Adding a 1-frame
+    delay works okay, though.
+
+]]
+-- State for helptext edit.
+L.helptext = {
+    disable = false,
+    -- Temp flag when the next onUpdate script should be suppressed.
+    --suppress_update_script = false,
+    -- Time clearhelptext was scheduled.
+    start_time = nil,
+}
+-- Note: this should slot in after the helptext event script, so
+-- the menu will be set up already and ready to be cleared.
+-- Note: this works, but get 30 GotoSlide errors following a
+-- clear; uncertain why. Maybe try a delay.
+L.helptext.clear_text_func = function()
+    if L.helptext.disable then
+        -- Second arg is a string, "all" should clear all helptexts queued.
+        CallEventScripts("clearhelptext", "all")          
+        --DebugError("Sending clearhelptext")
+    end
+    -- Clear the polling function.
+    RemoveScript("onUpdate", L.helptext.delay_func)
+end
+
+-- This gets checked on each onUpdate, looking for a time change.
+L.helptext.delay_func = function()
+    if L.helptext.start_time ~= GetCurTime() then
+        L.helptext.clear_text_func()
+    end
+end
+
+-- Set up the onUpdate script, and record the start time.
+L.helptext.setup_func = function()
+    L.helptext.start_time = GetCurTime()
+    SetScript("onUpdate", L.helptext.delay_func)
+end
+
+-- Setup wrappers.
+function L.Init_Help_Text()
+
+    RegisterEvent("helptext", L.helptext.setup_func)
+    RegisterEvent("multihelptext", L.helptext.setup_func)
+
+    -- Removed; only semi-functional.
+    --[[
+    -- Intercept menu registration.
+    if View == nil then
+        error("View global not yet initialized")
+    end
+
+    -- Patch it to clear the menu when it tries to be created.
+    local ego_registerMenu = View.registerMenu
+    View.registerMenu = function(id, type, callback, clearCallback, ...)
+
+        -- Check for the helptext menu, with disabling enabled.
+        if L.helptext.disable and id == "helptext" then
+            -- Swap the clear function in for the normal callback.
+            callback = clearCallback
+            clearCallback = nil
+            -- Flag the next onUpdate script registration to be ignored.
+            L.helptext.suppress_update_script = true
+            -- Temp message to see that this thing worked.
+            DebugError("Suppressing help text")
+        end
+
+        -- Continue with the standard call.
+        return ego_registerMenu(id, type, callback, clearCallback, ...)
+    end
+
+    -- Patch SetScript to suppress the onUpdate registration.
+    local ego_SetScript = SetScript
+    SetScript = function(handle, ...)
+
+        -- In practice the first arg could be "widget", and handle as second,
+        -- but the intercepted call has handle as first.
+        if L.helptext.suppress_update_script then
+
+            if handle == "onUpdate" then
+                -- This should be the helptext function to ignore.
+                return
+            else
+                -- Something went wrong; should not have seen a different
+                -- handle type first.
+                -- Note: this has been triggered in testing.
+                DebugError("Expected helptext 'onUpdate' script; saw '"..tostring(handle).."' instead")
+            end
+
+            -- In either case, stop trying to suppress.
+            L.helptext.suppress_update_script = false
+        end
+
+        -- Pass on to the normal call.
+        return ego_SetScript(handle, ...)
+    end
+    ]]
+
+    -- Removed; doesn't work since the menu isn't part of Menus.
+    --[[
+    -- Stop if something went wrong.
+    if Menus == nil then
+        error("Menus global not yet initialized")
+    end
+    
+    local menu
+    for i, ego_menu in ipairs(Menus) do
+        if ego_menu.name == "HelpTextMenu" then
+            menu = ego_menu
+        end
+    end
+    
+    -- Stop if something went wrong.
+    if menu == nil then
+        error("Failed to find egosoft's HelpTextMenu")
+    end
+
+    -- Patch the functions.
+    for i, name in ipairs({"onShowHelp", "onShowHelpMulti"}) do
+        local ego_func = menu[name]
+        menu[name] = function (...)
+            if L.helptext.disable then
+                if debugger.verbose then
+                    DebugError("Suppressing helptext display")
+                end
+            else
+                ego_func(...)
+            end
+        end
+    end
+    ]]
+end
+L.Init_Help_Text()
+
+
+function L.Handle_Hide_Helptext(_, param)
+    if debugger.verbose then
+        DebugError("Handle_Hide_Helptext called with " .. tostring(param))
+    end
+
+    -- Convert param to true/false, since lua confuses 0 with true.
+    if param == 1 then param = true else param = false end
+
+    -- Store it.
+    L.helptext.disable = param
+end
+
+------------------------------------------------------------------------------
 -- Testing sound disables.
 --[[
     Can record and replace the global PlaySound function with a
@@ -328,7 +562,8 @@ end
     sounds are bound to widgets, and may be handled outside PlaySound
     calls.
 
-    Testing results: works fine.
+    Testing results: works fine, but only catches some stuff, and not
+    stuff from the base lua files.
     Comment out if not used for anything yet.
 
     TODO: try out blocking these (but not hopeful):

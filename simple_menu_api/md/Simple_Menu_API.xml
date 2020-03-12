@@ -308,18 +308,6 @@ Complex properties:
     </actions>
   </library>
   
-  <!-- 
-    Helper lib to send a command to lua, using a blackboard var for arg transfer.
-    Adds a table of args to the player.entity '$simple_menu_args' list,
-    creating it if it doesn't exist, so that lua can access it.
-    
-    Input table should be in $args.    
-    -->
-  <library name="Lib_Send_Command">
-    <actions>
-    </actions>
-  </library>
-
   
   <!-- ################################################################### -->
   <!--                             Widgets                                 -->
@@ -425,7 +413,7 @@ Complex properties:
         <set_value name="Globals.$options_submenu_specs.{'$'+event.param.$id}" exact="$args" />
       </do_elseif>      
       
-      <!-- Args are transmitted to lua  using a blackboard var. -->
+      <!-- Args are transmitted to lua using a blackboard var. -->
       <!-- Create the blackboard list if it doesn't exist. -->
       <do_if value="not player.entity.$simple_menu_args?">
         <set_value name="player.entity.$simple_menu_args" exact="[]" />

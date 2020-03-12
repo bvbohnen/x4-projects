@@ -445,6 +445,17 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
+            $id         = 'disable_helptext',
+            $name       = 'Disable help popups',
+            $mouseover  = 'Stops the one-time help text popups from displaying',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+        
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
             $id         = 'tooltip_fontsize',
             $name       = 'Adjust tooltip font size',
             $mouseover  = 'Globally increases the font size of tooltips (originally 9 pt)',
@@ -536,7 +547,6 @@
 
       </actions>
     </cue>
-
 
   </cues>
 

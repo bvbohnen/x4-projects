@@ -124,18 +124,42 @@ local function Init_Gameoptions_Link()
         --DebugError(tostring(preselectTopRow))
         --DebugError(tostring(preselectOption))
         
+        -- Intercept the frame creation to suppress its frame:display
+        -- temporarily.
+        -- See the hotkey api for further comments on why.
+        local ego_createOptionsFrame = gameoptions_menu.createOptionsFrame
+        -- Store the frame and its display function.
+        local frame
+        local frame_display
+        gameoptions_menu.createOptionsFrame = function(...)
+            -- Build the frame.
+            frame = ego_createOptionsFrame(...)
+            -- Record its display function.
+            frame_display = frame.display
+            -- Replace it with a dummy.
+            frame.display = function() return end
+            -- Return the edited frame to displayControls.
+            return frame
+            end
+
+        
         -- Call the standard function.
         original_displayOptions(optionParameter)
         
+        -- Reconnect the createOptionsFrame function, to avoid impacting
+        -- other menu pages.
+        gameoptions_menu.createOptionsFrame = ego_createOptionsFrame
+
         -- If this is the main menu, add an extra option row.
         if optionParameter == "main" then
         
-            -- Look up the frame with the table.
-            -- This should be in layer 3, matching config.optionsLayer.
-            local frame = gameoptions_menu.optionsFrame
-            if frame == nil then
-                error("Failed to find gameoptions menu main frame")
-            end
+            -- -Removed; frame captured above.
+            ---- Look up the frame with the table.
+            ---- This should be in layer 3, matching config.optionsLayer.
+            --local frame = gameoptions_menu.optionsFrame
+            --if frame == nil then
+            --    error("Failed to find gameoptions menu main frame")
+            --end
             
             -- Look up the table in the frame.
             -- There is probably just the one content entry, but to be safe
@@ -212,13 +236,20 @@ local function Init_Gameoptions_Link()
                 ftable:setSelectedRow(1)
             end
             
+            -- -Removed; display done smarter now.
             -- Display needs to be called again to get an updated frame drawn.
             -- Clear scripts for safety, though got no warnings when
             -- skipping this, likely due to main menu just looking for row
             -- selection and having no active widgets.
-            Helper.removeAllWidgetScripts(menu, config.optionsLayer)
-            frame:display()
+            -- TODO: replace this with the new method that suppresses the
+            -- original frame:display temporarily.
+            --Helper.removeAllWidgetScripts(menu, config.optionsLayer)
+            --frame:display()
         end
+        
+        -- Re-attach the original frame display, and call it.
+        frame.display = frame_display
+        frame:display()
     end
     
     -- Helper function to determine if optionParameter refers to a custom menu.
@@ -559,15 +590,6 @@ function menu.Display_Custom_Menu_PostShell(menu_spec, frame, ftable)
     -- Signal md api so it can call the user cue which fills the menu.
     Lib.Raise_Signal("Display_Custom_Menu", menu_spec.id)
     
-    -- Note: do not do a frame:display here.  One will be needed after the
-    -- user adds widgets to get them to show up, and in practice doing a
-    -- display now and later leads to errors in the log when going "back"
-    -- a menu, apparently due to the back button's scripts not being
-    -- registered properly somehow.
-    -- TODO: try this out again, with removeAllWidgetScripts enabled below.
-    -- Update: not needed with the 1-frame delay style.
-    --frame:display()
-
     -- To allow users to make widgets without having to say when to
     -- display the menu, an automated 1-frame delayed display() can
     -- be used.
@@ -618,10 +640,6 @@ function menu.Handle_Delayed_Display()
         
     
     -- Do the final display call.
-    -- For safety, clean old scripts, though this shouldn't be needed
-    -- with the current setup (eg. no display() calls should have
-    -- occurred before this).
-    --Helper.removeAllWidgetScripts(gameoptions_menu, config.optionsLayer)
     menu_data.frame:display()
 end
 

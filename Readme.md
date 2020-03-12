@@ -4,6 +4,8 @@ This extension adds support for generating menus using mission director scripts 
 
 Two types of menus are supported: options menus that are integrated with the standard x4 options, and standalone menus which will display immediately.
 
+Additionally, a simplified interface is provided for adding options to an extension. These options are simple buttons and sliders that display in the main Extension Options menu.
+
 
 ### Requirements
 
@@ -11,6 +13,10 @@ Two types of menus are supported: options menus that are integrated with the sta
   - https://github.com/bvbohnen/x4-lua-loader-api.git
 
 ### Usage
+
+* Basic extension options
+  - Call Register_Option with a name, default value, widget type, and callback.
+  - Callback will receive the new value whenever the player changes the option.
 
 * Standalone menu
   - Call Create_Menu to open a new menu, closing any others.
@@ -25,6 +31,36 @@ Two types of menus are supported: options menus that are integrated with the sta
   - Access through the "Extension Options" page of the main menu.
 
 ### Examples
+
+* Simple Option with setup and callback, enabling debug logging:
+  ```xml
+  <cue name="Reset_On_Reload" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_Options.Register_Option"
+        param = "table[
+          $id         = 'debug_menu_api',
+          $name       = 'Enable menu api debug logs',
+          $mouseover  = 'Prints extra api status info to the debug log',
+          $default    = 0,
+          $type       = 'button',
+          $callback   = OnChange,
+          ]"/>
+    </actions>
+  </cue>
+  <cue name="OnChange" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+      <set_value name="md.My_Extension.Globals.$DebugChance"
+                  exact ="if (event.param.$value) then 100 else 0"/>
+    </actions>
+  </cue>
+  ```
 
 * Standalone menu:
   ```xml
