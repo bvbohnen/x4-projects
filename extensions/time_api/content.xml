@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="time_api" name="Time API" description="Adds timer api functions." author="SirNukes" version="004" date="2019-10-31" save="false" sync="false">
+  <!-- Maybe fill out individual languages. -->
+  <langugage description="" language="7"/>
+  <langugage description="" language="33"/>
+  <langugage description="" language="37"/>
+  <langugage description="" language="39"/>
+  <langugage description="Adds timer api functions." language="44"/>
+  <langugage description="" language="49"/>
+  <langugage description="" language="55"/>
+  <langugage description="" language="81"/>
+  <langugage description="" language="82"/>
+  <langugage description="" language="86"/>
+  <langugage description="" language="88"/>
+</content>
