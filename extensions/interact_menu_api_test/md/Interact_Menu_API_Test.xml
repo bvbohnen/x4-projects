@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Interact_Menu_API_Test" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+<cues>
+
+  <!-- Listen from the menu api reloading. -->
+  <cue name="Reset_On_Reload" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
+    </conditions>
+    <actions>
+      <!--<signal_cue_instantly
+        cue="md.Interact_Menu_API.Register_Action"
+        param = "table[
+          $id         = 'test',
+          $name       = 'Test',
+          $mouseover  = ' ',
+          $callback   = Test_Callback,
+          $enabled_conditions = ['ship'],
+          ]"/>-->
+
+      <signal_cue_instantly
+        cue="md.Interact_Menu_API.Register_Action"
+        param = "table[
+          $id         = 'target_follow',
+          $section    = 'interaction',
+          $name       = 'Follow',
+          $callback   = Target_Follow,
+          $enabled_conditions = [],
+          ]"/>
+    </actions>
+  </cue>
+
+  <cue name="Test_Callback" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+      <!-- Log it. -->
+      <raise_lua_event name="'directChatMessageReceived'"
+                        param="'action;%s on %s'.[
+                          event.param.$id, 
+                          event.param.$object,
+                          ]"/>
+    </actions>
+  </cue>
+
+  <!-- Auto-follow target ship. -->
+  <cue name="Target_Follow" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+      <!-- Verify the player is piloting a ship.-->
+      <check_value value="player.occupiedship"/>
+    </conditions>
+    <actions>
+      <!-- Debug message. -->
+      <!--<raise_lua_event name="'directChatMessageReceived'" param="'InteractMenu;Starting Target_Follow'"/>-->
+      <!--<debug_text text="'InteractMenu Triggered Target_Follow'" filter="general"/>-->
+
+      <start_player_autopilot destination="event.param.$object"/>
+    </actions>
+  </cue>
+    
+</cues>
+
+</mdscript>
+
+
+
