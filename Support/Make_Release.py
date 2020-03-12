@@ -24,11 +24,11 @@ sys.path.append(str(x4_customizer_dir))
 import Framework as X4_Customizer
 
 # Import the pipe server for its exe maker.
-sys.path.append(str(project_dir / 'X4_Named_Pipes_API'))
+sys.path.append(str(project_dir))
 from X4_Python_Pipe_Server import Make_Executable
 
 # Grab the project specifications.
-from Project_Specs import project_spec_table
+from Project_Specs import *
 
 # TODO: package up pipe server binary into a separate exe for users
 # without python.
@@ -44,6 +44,11 @@ def Make(*args):
         '-refresh', 
         action='store_true',
         help = 'Automatically call Make_Documentation and Make_Executable.')
+    
+    argparser.add_argument(
+        '-catdat', 
+        action='store_true',
+        help = 'Remake cat/dat files (triggers datestamp update even if files unchanged).')
     
 
     # Run the parser on the input args.
@@ -63,24 +68,25 @@ def Make(*args):
     # TODO: consider cat packing the extension files, using x4 customizer.
 
 
-    # Pack up the subst cat/dat for the lua_loader_api.
-    # This relies on x4 customizer, assumed to be in the same
-    # parent directory as this git repo.
-    lua_loader_path = project_spec_table['Lua_Loader_API']['root_path'] / 'lua_loader_api'
+    if args.catdat:
+        # Pack up the subst cat/dat for the lua_loader_api.
+        # This relies on x4 customizer, assumed to be in the same
+        # parent directory as this git repo.
+        lua_loader_path = project_spec_table['Lua_Loader_API']['root_path'] / 'lua_loader_api'
 
-    # Make a copy of the lua to xpl.
-    shutil.copy(lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.lua',
-                lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.xpl')
+        # Make a copy of the lua to xpl.
+        shutil.copy(lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.lua',
+                    lua_loader_path / 'ui/addons/ego_debug/Lua_Loader.xpl')
 
-    # This uses the argparse interface, so args need to be strings.
-    X4_Customizer.Main.Run(
-                '-nogui', 'Cat_Pack', '-argpass', 
-                # Source dir.
-                str(lua_loader_path), 
-                # Dest file.
-                str(lua_loader_path / 'subst_01.cat'), 
-                # Want the ui.xml and the xpl version of the lua.
-                '-include', 'ui/*.xml', 'ui/*.xpl')
+        # This uses the argparse interface, so args need to be strings.
+        X4_Customizer.Main.Run(
+                    '-nogui', 'Cat_Pack', '-argpass', 
+                    # Source dir.
+                    str(lua_loader_path), 
+                    # Dest file.
+                    str(lua_loader_path / 'subst_01.cat'), 
+                    # Want the ui.xml and the xpl version of the lua.
+                    '-include', 'ui/*.xml', 'ui/*.xpl')
     
 
     # Make the release folder, if needed.
@@ -92,12 +98,12 @@ def Make(*args):
     
     for project_name, spec in project_spec_table.items():
         # Look up the version number, and put it into the name.
-        version = Version.Get_Version(spec['doc_path'])
+        version = Version.Get_Version(Get_Changelog_Path(spec))
         # Put zips in a release folder.
         zip_path = release_dir / ('{}_v{}.zip'.format(project_name, version))
 
         # Add all files to the zip.
-        Make_Zip(zip_path, spec['root_path'], file_paths)
+        Make_Zip(zip_path, spec['root_path'], spec['files'])
 
     return
 

@@ -15,10 +15,10 @@ __all__ = [
 #  for other modules to use.
 project_spec_table = {
     'Named_Pipes_API':{ 
-        'root_path': project_dir / 'X4_Named_Pipes_API',
-        'doc_path' : '',
+        'root_path': project_dir / 'extensions',
+        'doc_path' : 'named_pipes_api',
         'files':[
-            'Readme.md',
+            'named_pipes_api/Readme.md',
             'named_pipes_api/content.xml',
             'named_pipes_api/md/Named_Pipes.xml',
             'named_pipes_api/md/Pipe_Server_Host.xml',
@@ -31,7 +31,7 @@ project_spec_table = {
         ]},
     # Python style of pipe server.
     'X4_Python_Pipe_Server_py':{ 
-        'root_path':project_dir / 'X4_Named_Pipes_API', 
+        'root_path':project_dir, 
         'doc_path' : 'X4_Python_Pipe_Server',
         'files':[
             'X4_Python_Pipe_Server/__init__.py',
@@ -42,16 +42,16 @@ project_spec_table = {
         ]},
     # Exe style of pipe server. TODO: just combine with above?
     'X4_Python_Pipe_Server_exe':{ 
-        'root_path':project_dir / 'X4_Named_Pipes_API' / 'X4_Python_Pipe_Server', 
+        'root_path':project_dir / 'X4_Python_Pipe_Server', 
         'doc_path' : '',
         'files':[
             '../bin/X4_Python_Pipe_Server.exe',
         ]},
     'Hotkey_API':{ 
-        'root_path':project_dir / 'X4_Hotkey_API', 
-        'doc_path' : '',
+        'root_path':project_dir / 'extensions', 
+        'doc_path' : 'hotkey_api',
         'files':[
-            'Readme.md',
+            'hotkey_api/Readme.md',
             'hotkey_api/content.xml',
             'hotkey_api/Send_Keys.py',
             'hotkey_api/md/Hotkey_API.xml',
@@ -61,10 +61,10 @@ project_spec_table = {
             'hotkey_api/lua/Tables.lua',
         ]},
     'Lua_Loader_API':{ 
-        'root_path':project_dir / 'X4_Lua_Loader_API', 
-        'doc_path' : '',
+        'root_path':project_dir / 'extensions', 
+        'doc_path' : 'lua_loader_api',
         'files':[
-            'Readme.md',
+            'lua_loader_api/Readme.md',
             'lua_loader_api/content.xml',
             'lua_loader_api/subst_01.cat',
             'lua_loader_api/subst_01.dat',
@@ -73,10 +73,10 @@ project_spec_table = {
             'lua_loader_api/ui/addons/ego_debug/ui.xml',
         ]},
     'Simple_Menu_API':{ 
-        'root_path':project_dir / 'X4_Simple_Menu_API', 
-        'doc_path' : '',
+        'root_path':project_dir / 'extensions', 
+        'doc_path' : 'simple_menu_api',
         'files':[
-            'Readme.md',
+            'simple_menu_api/Readme.md',
             'simple_menu_api/content.xml',
             'simple_menu_api/md/Simple_Menu_API.xml',
             'simple_menu_api/md/Simple_Menu_Options.xml',
@@ -88,26 +88,26 @@ project_spec_table = {
             'simple_menu_api/lua/Tables.lua',
         ]},
     'Better_Target_Monitor':{ 
-        'root_path':project_dir / 'X4_Better_Target_Monitor', 
-        'doc_path' : '',
+        'root_path':project_dir / 'extensions', 
+        'doc_path' : 'better_target_monitor',
         'files':[
             'better_target_monitor/content.xml',
             'better_target_monitor/md/Better_Target_Monitor.xml',
             'better_target_monitor/lua/Target_Monitor.lua',
         ]},
     'Interact_Menu_API':{ 
-        'root_path':project_dir / 'X4_Interact_Menu_API', 
-        'doc_path' : '',
+        'root_path':project_dir / 'extensions', 
+        'doc_path' : 'interact_menu_api',
         'files':[
             'interact_menu_api/content.xml',
             'interact_menu_api/md/Interact_Menu_API.xml',
             'interact_menu_api/lua/Interface.lua',
         ]},
     'Time_API':{ 
-        'root_path':project_dir / 'X4_Time_API', 
-        'doc_path' : '',
+        'root_path':project_dir / 'extensions', 
+        'doc_path' : 'time_api',
         'files':[
-            'Readme.md',
+            'time_api/Readme.md',
             'time_api/content.xml',
             'time_api/md/Time_API.xml',
             'time_api/lua/Interface.lua',

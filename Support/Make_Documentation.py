@@ -44,7 +44,7 @@ def Make_Lua_Loader_Doc():
     '''
     Document lua_loader_api.
     '''
-    doc_dir = project_dir / 'X4_Lua_Loader_API'
+    doc_dir = project_dir / 'extensions' / 'lua_loader_api'
     
     # The readme is all hand written for now.
 
@@ -61,7 +61,7 @@ def Make_Time_Doc():
     '''
     Document time_api.
     '''
-    doc_dir = project_dir / 'X4_Time_API'
+    doc_dir = project_dir / 'extensions' / 'time_api'
     
     # The readme is all hand written for now.
 
@@ -78,8 +78,8 @@ def Make_Named_Pipes_Doc():
     '''
     Document named_pipes_api.
     '''
-    doc_dir = project_dir / 'X4_Named_Pipes_API'
-    ext_dir = doc_dir     / 'named_pipes_api'
+    doc_dir = project_dir / 'extensions' / 'named_pipes_api'
+    ext_dir = doc_dir
     doc_lines = []
         
     # The MD pipe api.
@@ -102,8 +102,8 @@ def Make_Simple_Menu_Doc():
     '''
     Document simple_menu_api.
     '''
-    doc_dir = project_dir / 'X4_Simple_Menu_API'
-    ext_dir = doc_dir     / 'simple_menu_api'
+    doc_dir = project_dir / 'extensions' / 'simple_menu_api'
+    ext_dir = doc_dir
     doc_lines = []
     
     # Add the api cues.
@@ -122,8 +122,8 @@ def Make_Hotkey_Doc():
     '''
     Document hotkey_api.
     '''
-    doc_dir = project_dir / 'X4_Hotkey_API'
-    ext_dir = doc_dir     / 'hotkey_api'
+    doc_dir = project_dir / 'extensions' / 'hotkey_api'
+    ext_dir = doc_dir
     doc_lines = []
         
     # Add the api cues.
