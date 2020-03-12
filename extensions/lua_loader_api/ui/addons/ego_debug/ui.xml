@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon name="ego_debug" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../core/coreaddon.xsd">
+  <environment type="menus">
+  	<file name="debug.lua" />
+    <file name="Lua_Loader.lua" />
+  </environment>
+</addon>
