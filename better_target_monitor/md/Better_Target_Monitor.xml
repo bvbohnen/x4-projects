@@ -5,6 +5,9 @@
   <!--
   MD side of the target monitor customization.
   Handles player options; all actual monitor logic is in lua.
+  
+  Note: depends on the Simple_Menu_API to display options.
+  (For now, a hard dependency.)
   -->
 
   <cues>
@@ -19,8 +22,7 @@
                          param="'extensions.better_target_monitor.lua.Target_Monitor'"/>
       </actions>
     </cue>
-
-
+    
 
     <!-- Listen from the menu api reloading. -->
     <cue name="Reset_OnReload" instantiate="true">

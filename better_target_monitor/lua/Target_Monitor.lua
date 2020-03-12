@@ -88,7 +88,7 @@ ffi.cdef[[
 
 -- TODO: maybe remove dependency on the existing lib, if wanting to
 -- support this without simple meny api installed.
-local Lib = require("extensions.simple_menu_api.lua.Library")
+--local Lib = require("extensions.simple_menu_api.lua.Library")
 
 -- Table of locals.
 local L = {
@@ -674,7 +674,10 @@ function L.Categorize_Original_Rows(text_rows)
     local orig = {unknowns = {}}
     for i, row in ipairs(text_rows) do
 
-        if     row.right.text == "$hullpercent$%" then
+        if row.right == nil then
+            -- Skip.
+
+        elseif row.right.text == "$hullpercent$%" then
             orig.hull = row
 
         elseif row.right.text == "$shieldpercent$%" then
@@ -997,10 +1000,12 @@ function L.Patch_GetTargetMonitorDetails()
         -- Color the title based on target faction.
         if L.settings.faction_color then
             local faction_details = C.GetOwnerDetails(component64)
-            --local faction_color = GetFactionData(faction_details.factionID, "color")
-            local faction_color = GetFactionData(ffi.string(faction_details.factionID), "color")
-            if faction_color then
-                full_spec.header.color = L.Brighten_Color(faction_color, L.faction_color_brightening_factor)
+            -- Sometimes no faction id available; skip to avoid log spam.
+            if faction_details.factionID then
+                local faction_color = GetFactionData(ffi.string(faction_details.factionID), "color")
+                if faction_color then
+                    full_spec.header.color = L.Brighten_Color(faction_color, L.faction_color_brightening_factor)
+                end
             end
         end
         
@@ -1018,38 +1023,44 @@ function L.Patch_GetLiveData()
     GetLiveData = function(placeholder, component)
 
         local targetdata = L.targetdata
-        -- Update component, just to be safe, though the connection name
-        -- will be the one stored before.
-        targetdata.component64 = ConvertIDTo64Bit(component)
+
+        -- Note: in some cases a /reloadui will still keep the current
+        -- object targetted, in which case targetdata isn't known.
+        -- Check for that case here.
+        if targetdata then
+            -- Update component, just to be safe, though the connection name
+            -- will be the one stored before.
+            targetdata.component64 = ConvertIDTo64Bit(component)
         
-        -- If the target changed, clear old cached data.
-        if L.last_component64 ~= targetdata.component64 then
-            -- Record fresh values.
-            L.last_component64 = targetdata.component64
-            L.last_distance    = nil
-            L.last_update_time = nil
+            -- If the target changed, clear old cached data.
+            if L.last_component64 ~= targetdata.component64 then
+                -- Record fresh values.
+                L.last_component64 = targetdata.component64
+                L.last_distance    = nil
+                L.last_update_time = nil
 
-            Filter.Clear(L.filters.speed)
-            Filter.Clear(L.filters.rel_speed)
-            Filter.Clear(L.filters.distance)
-            Filter.Clear(L.filters.eta)
-        end
+                Filter.Clear(L.filters.speed)
+                Filter.Clear(L.filters.rel_speed)
+                Filter.Clear(L.filters.distance)
+                Filter.Clear(L.filters.eta)
+            end
 
-        if placeholder == "speed" then
-            return L.Get_Speed(targetdata)
-        elseif placeholder == "type" then
-            return L.getShipTypeText(targetdata)
-        elseif placeholder == "distance" then
-            return L.Get_Distance(targetdata)
-        elseif placeholder == "rel_speed" then
-            return L.Get_Relative_Speed(targetdata, false)
-        elseif placeholder == "rel_speed_suffix" then
-            return L.Get_Relative_Speed(targetdata, true)
-        elseif placeholder == "eta" then
-            return L.Get_ETA(targetdata)
-        -- TODO: maybe intercept shield/hull readouts and recolor when
-        -- the percentages get lower (eg. green-yellow-red), though thought
-        -- is needed on how this interracts with general coloring (blue/yellow).
+            if placeholder == "speed" then
+                return L.Get_Speed(targetdata)
+            elseif placeholder == "type" then
+                return L.getShipTypeText(targetdata)
+            elseif placeholder == "distance" then
+                return L.Get_Distance(targetdata)
+            elseif placeholder == "rel_speed" then
+                return L.Get_Relative_Speed(targetdata, false)
+            elseif placeholder == "rel_speed_suffix" then
+                return L.Get_Relative_Speed(targetdata, true)
+            elseif placeholder == "eta" then
+                return L.Get_ETA(targetdata)
+            -- TODO: maybe intercept shield/hull readouts and recolor when
+            -- the percentages get lower (eg. green-yellow-red), though thought
+            -- is needed on how this interracts with general coloring (blue/yellow).
+            end
         end
 
         return ego_GetLiveData(placeholder, component)
