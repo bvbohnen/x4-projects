@@ -4,6 +4,9 @@
 
   <!--
   MD side api for registering context menu actions.
+  
+  TODO: export to md documentation.
+  TODO: Move the follow-target command elsewhere.
   -->
 
   <cues>
@@ -15,7 +18,7 @@
       </conditions>
       <actions>
         <raise_lua_event name="'Lua_Loader.Load'"
-                         param="'extensions.simple_menu_api.lua.Interface'"/>
+                         param="'extensions.interact_menu_api.lua.Interface'"/>
       </actions>
     </cue>
     
@@ -74,35 +77,38 @@
 
     
     <!--@doc-cue
-      Register a new context menu action. If the action already exists,
-      it will be updated with the new arguments.
+    
+    Register a new context menu action. If the action already exists,
+    it will be updated with the new arguments.
       
-      Input is a table with the following fields:
-      * $id
-        - String, unique identifier for this action.
-      * $name
-        - String, text to display in the action menu.
-      * $section = 'main'
-        - Optional string, the menu section this action will go under.
-        - Should be one from menu_interactmenu.lua config.sections.
-        - TODO: Document these somewhat.
-        - For now, just use "main".
-      * $enabled_conditions
-        - List of strings, flag names understood by the backend, of which
-          at least one must be True to enable the action.
-      * $disabled_conditions
-        - List of strings, flag names understood by the backend, of which
-          all must be False to enable the action.
-      * $mouseover
-        - String, text to display on menu widget mouseover.
-      * $callback
-        - Cue to call when the player selects the action.
-        - See below for event.param contents.
-      * $echo
-        - Optional, anything (string, value, table, etc.), data to be
-          attached to the callback cue param for convenience.
-      * $disabled = 0
-        - Optional, 0 or 1; if the option will not be displayed in the menu.
+    This should be called whenever the API signals md.Interact_Menu_API.Reloaded
+      
+    Input is a table with the following fields:
+    * $id
+      - String, unique identifier for this action.
+    * $name
+      - String, text to display in the action menu.
+    * $section = 'main'
+      - Optional string, the menu section this action will go under.
+      - Should be one from menu_interactmenu.lua config.sections.
+      - TODO: Document these somewhat.
+      - For now, just use "main" or "interaction".
+    * $enabled_conditions
+      - List of strings, flag names understood by the backend, of which
+        at least one must be True to enable the action.
+    * $disabled_conditions
+      - List of strings, flag names understood by the backend, of which
+        all must be False to enable the action.
+    * $mouseover
+      - String, text to display on menu widget mouseover.
+    * $callback
+      - Cue to call when the player selects the action.
+      - See below for event.param contents.
+    * $echo
+      - Optional, anything (string, value, table, etc.), data to be
+        attached to the callback cue param for convenience.
+    * $disabled = 0
+      - Optional, 0 or 1; if the option will not be displayed in the menu.
         
     The callback cue returns an event.param table with the following:
     * $id
@@ -120,6 +126,27 @@
     - 'playerowned'
     - 'enemy'
         
+    Example:
+    ```xml
+    <cue name="Reset_On_Reload" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
+      </conditions>
+      <actions>
+        <signal_cue_instantly
+          cue="md.Interact_Menu_API.Register_Action"
+          param = "table[
+            $id         = 'some_unique_id',
+            $section    = 'main',
+            $name       = 'My Action',
+            $callback   = My_Callback_Cue,
+            $mouseover  = '',
+            $enabled_conditions  = [],
+            $disabled_conditions = [],
+            ]"/>
+      </actions>
+    </cue>
+    ```
     -->
     <cue name="Register_Action" instantiate="true" namespace="this">
       <conditions>
@@ -212,69 +239,10 @@
         </do_if>
       </actions>
     </cue>
-
-    <!-- ################################################################## -->
-    <!--                      Test Custom Actions                           -->
-    <!-- ################################################################## -->
-
-    <!-- Listen from the menu api reloading. -->
-    <cue name="Reset_On_Reload" instantiate="true">
-      <conditions>
-        <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
-      </conditions>
-      <actions>
-        <!--<signal_cue_instantly
-          cue="md.Interact_Menu_API.Register_Action"
-          param = "table[
-            $id         = 'test',
-            $name       = 'Test',
-            $mouseover  = ' ',
-            $callback   = Test_Callback,
-            $enabled_conditions = ['ship'],
-            ]"/>-->
-
-        <signal_cue_instantly
-          cue="md.Interact_Menu_API.Register_Action"
-          param = "table[
-            $id         = 'target_follow',
-            $section    = 'interaction',
-            $name       = 'Follow',
-            $callback   = Target_Follow,
-            $enabled_conditions = [],
-            ]"/>
-      </actions>
-    </cue>
-
-    <cue name="Test_Callback" instantiate="true">
-      <conditions>
-        <event_cue_signalled />
-      </conditions>
-      <actions>
-        <!-- Log it. -->
-        <raise_lua_event name="'directChatMessageReceived'"
-                         param="'action;%s on %s'.[
-                            event.param.$id, 
-                            event.param.$object,
-                            ]"/>
-      </actions>
-    </cue>
-
-    <!-- Auto-follow target ship. -->
-    <cue name="Target_Follow" instantiate="true" namespace="this">
-      <conditions>
-        <event_cue_signalled/>
-        <!-- Verify the player is piloting a ship.-->
-        <check_value value="player.occupiedship"/>
-      </conditions>
-      <actions>
-        <!-- Debug message. -->
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'InteractMenu;Starting Target_Follow'"/>-->
-        <!--<debug_text text="'InteractMenu Triggered Target_Follow'" filter="general"/>-->
-
-        <start_player_autopilot destination="event.param.$object"/>
-      </actions>
-    </cue>
     
   </cues>
 
 </mdscript>
+
+
+

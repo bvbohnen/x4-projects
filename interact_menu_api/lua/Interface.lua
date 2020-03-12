@@ -61,16 +61,16 @@ local C = ffi.C
 ffi.cdef[[
 ]]
 
--- Import config and widget_properties tables.
-local Tables = require("extensions.simple_menu_api.lua.Tables")
---local debugger = Tables.debugger
 -- Use local debug flags.
+-- Note: rely on the simple_menu_api lib functions.
 local debugger = {
     verbose = false,
 }
 
--- Import library functions for strings and tables.
-local Lib = require("extensions.simple_menu_api.lua.Library")
+if debugger.verbose then
+    -- Import library functions for strings and tables.
+    local Lib = require("extensions.simple_menu_api.lua.Library")
+end
 
 
 
@@ -82,7 +82,7 @@ local L = {
     -- List of queued command args.
     queued_args = {},
 
-    -- List of custom actions.
+    -- Table of custom actions, keyed by id.
     actions = {},
 
     -- Current table of target object flags.
@@ -135,7 +135,7 @@ function L.Handle_Process_Command(_, param)
 
     -- Process command.
     if args.command == "Register_Action" then
-        table.insert(L.actions, args)
+        L.actions[args.id] = args
     else
         DebugError("Unrecognized command: "..tostring(args.command))
     end
@@ -187,7 +187,7 @@ function L.Add_Actions()
     -- Update object flags.
     L.Update_Flags(menu.componentSlot.component)
 
-    for i, action in ipairs(L.actions) do
+    for id, action in pairs(L.actions) do
 
         -- Skip disabled actions.
         if action.disabled == 1 then
