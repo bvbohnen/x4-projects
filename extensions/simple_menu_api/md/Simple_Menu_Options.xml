@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Simple_Menu_Options" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  MD side of a stock options menu for customizing menus.
+  Initial effort will focus on egosoft menus, and not custom ones.
+  
+  This will handle the options submenu setup, and will store prior
+  state to remember player's settings.
+  
+  TODO:
+  Set up on/off widgets/buttons to be interactable by clicking anywhere on
+  their  line, like ego menus. Currently they require clicking the widget itself.
+  
+  TODO:
+  Option to force a value from md, and perhaps dynamically get a current value
+  so the user doesn't have to save it themself if needing it for reference,
+  and hence doesn't necessarily need to use a callback to capture it.
+  (Perhaps give these as library include_actions.)
+  
+  -->
+
+  <cues>
+
+    <!--
+      Static cue for holding general state.
+    
+      * DebugChance
+        - Int, 0 or 100.
+      * storage
+        - Table, keyed by option id, holding its current value.
+        - Preserved across reloads.
+      * options
+        - Table of lists of subtables, outer key being option category,
+          list holding options in registration order, final value being
+          the actual option.
+        - Option subtable contents described in Register_Option.
+    -->
+    <cue name="Globals">
+      <actions>
+        <!-- Create storage table on first load. -->
+        <set_value name="Globals.$storage"   exact="table[]"/>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <!-- Listen from the menu api reloading. -->
+        <cue name="Reset_On_Lua_Reload" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+    <library name="Reset_Globals">
+      <actions>
+        <set_value name="Globals.$DebugChance" exact="0"/>
+        <set_value name="Globals.$options" exact="table[]" />
+        <!-- Send a signal that all users listen to. -->
+        <signal_cue_instantly cue="Reloaded"/>        
+      </actions>
+    </library>
+
+    <!--@doc-cue
+    Dummy cue used for signalling that this api reloaded.
+    Users that are registering options should listen to this
+    cue being signalled.
+    -->
+    <cue name="Reloaded" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+      </actions>
+    </cue>
+
+    
+    <!--@doc-cue
+      User cue for registering a new option.
+      Immediately on registration, the callback cue will be signalled
+      with the currently stored setting (the default if this is a
+      first-time registration, or what the player last selected).
+      
+      Input is a table with the following fields:
+      * $id
+        - String, unique identifier for this option.
+      * $name
+        - String, text to display on the menu widget label.
+      * $category
+        - Optional string, category name under which this option will be
+          placed, along with any others of the same category.
+      * $mouseover
+        - String, text to display on menu widget mouseover.
+      * $type
+        - String, name of the type of widget to create.
+        - "button": an on/off button.
+        - "slidercell": a standard slider.
+      * $default
+        - Initial value of this option, if this $id hasn't been seen before.
+        - "button" supports 0 or 1.
+        - "slidercell" should have a value in the slider's range.
+      * $args
+        - Optional, Table of extra arguments to pass to the widget builder.
+        - Supported fields match those listed in the simple menu api for
+          the matching widget type.
+        - Intended use is for setting slidercell limits.
+      * $echo
+        - Optional, anything (string, value, table, etc.), data to be
+          attached to the callback cue param for convenience.
+      * $callback
+        - Cue to call when the player changes the option.
+        - Event.param will be a table of [$id, $echo, $value], where the
+          value depends on the widget type.
+        - "button" returns 0 (off) or 1 (on).
+        - "slidercell" returns the slider value.
+      * $disabled = 0
+        - Optional, 0 or 1; if the option will not be displayed in the menu.
+    -->
+    <cue name="Register_Option" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$option" exact="event.param.clone" />
+        
+        <!--TODO: variety of goodness checks on input args.-->
+        <do_if value="$option.$id?">          
+          
+          <!--Defaults.-->
+          <do_if value="not $option.$echo?">
+            <set_value name="$option.$echo" exact="null" />
+          </do_if>
+          <do_if value="not $option.$category?">
+            <set_value name="$option.$category" exact="'General'" />
+          </do_if>
+          
+          <!--Save original id, then prefix with $ for use as a key.-->
+          <set_value name="$option.$orig_id" exact="$option.$id" />
+          <set_value name="$option.$id" exact="'$' + $option.$id" />
+          <!--Same for category.-->
+          <set_value name="$option.$orig_category" exact="$option.$category" />
+          <set_value name="$option.$category" exact="'$' + $option.$category" />
+          
+          <!--Record the option. Make a new list if needed.-->
+          <do_if value="not Globals.$options.{$option.$category}?">
+            <set_value name="Globals.$options.{$option.$category}" exact="[]" />
+          </do_if>
+          <append_to_list name="Globals.$options.{$option.$category}" exact="$option" />
+          
+          <!--Record the default if needed.-->
+          <do_if value="not Globals.$storage.{$option.$id}?">
+            <set_value name="Globals.$storage.{$option.$id}"
+                       exact="$option.$default"/>
+          </do_if>
+          
+          <!--Do an initial call with the default or current value.-->
+          <do_if value="$option.$callback? and $option.$callback.exists">
+            <signal_cue_instantly
+              cue="$option.$callback"
+              param="table[
+                  $id = $option.$orig_id,
+                  $value = Globals.$storage.{$option.$id},
+                  $echo  = $option.$echo,
+                  ]"/>
+          </do_if>
+        </do_if>
+        <do_else>
+          <!--TODO: error message if no id given.-->
+        </do_else>
+      </actions>
+    </cue>
+
+    <!--
+      Library to call when setting or updating the value of widget.
+      Inputs:
+        $args   - table of args, with following already filled:
+          $id   - string, name of value stored in globals.
+          $type - type of widget, eg. "button"
+          ...   - Tables for complex properties already created, eg. text.
+      Outputs:
+        $args filled in, depending on widget.
+    -->
+    <library name="Fill_Widget_Value">
+      <actions>
+                
+        <do_if value="$args.$type == 'button'">
+          <!-- Buttons will be on/off labeled toggles. -->
+          <set_value name="$args.$text.$text" exact="if (Globals.$storage.{$args.$id}) then {1001, 2648} else {1001, 2649}"/>          
+        </do_if>
+
+        <do_elseif value="$args.$type == 'slidercell'">          
+          <set_value name="$args.$start" exact="Globals.$storage.{$args.$id}"/>
+        </do_elseif>
+        
+      </actions>
+    </library>
+
+
+    <!-- 
+      Register an options menu. 
+      This will get special treatment by the menu api, and is
+      appended to the general list of sub-menus from the main
+      extension options menu.
+      Eg. all of these loose options share the top level menu.
+      
+      Menu args may be largely ignored currently.
+      TODO: $onSelectElement doesn't work when integrated into the
+      stock menu (since bypassing the simple menu api setup); figure
+      out how to get it working again.
+    -->
+    <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+      </conditions>
+      <actions>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id      = 'simple_menu_options',
+            $columns = 2, 
+            $title   = 'General Options',
+            $onOpen  = Build_Options_Menu,
+            $onSelectElement = Handle_SelectElement,
+            $private = 1,
+            ]"/>
+      </actions>
+    </cue>
+
+    <!-- Callback for building the options menu. -->
+    <cue name="Build_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        
+        <!--Sort the categories, putting General first.-->
+        <set_value name="$categories" exact="Globals.$options.keys.list"/>
+        <sort_list list="$categories"/>
+        <set_value name="$sorted_categories" exact="['$General']" />
+        <do_for_each name="$value" in="$categories">
+          <do_if value="$value == '$General'">
+            <continue/>
+          </do_if>
+          <append_to_list name="$sorted_categories" exact="$value"/>
+        </do_for_each>
+        
+        
+        <!--Loop over the categories.-->
+        <do_for_each name="$category" in="$sorted_categories">
+          
+          <!--Skip if category not used, eg. General.-->
+          <do_if value="not Globals.$options.{$category}?">
+            <continue/>
+          </do_if>
+
+          <!--Make a header.-->
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                                param ="table[$selectable = false]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                $col = 1, 
+                $colSpan = 2,
+                $text = Globals.$options.{$category}.{1}.$orig_category,
+                $halign = 'center',                
+                $font = 'Helper.standardFontBold',
+                $titleColor = 'Helper.defaultSimpleBackgroundColor',  
+                ]"/>
+          
+          <!-- Loop over the options list. -->
+          <do_for_each name="$option" in="Globals.$options.{$category}">
+
+            <!-- Don't list disabled options. -->
+            <do_if value="$option.$disabled? and $option.$disabled">
+              <continue/>
+            </do_if>
+          
+            <!-- Prepare a row -->
+            <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row" param="table[$echo = $option]"/>
+        
+            <!-- Generic label -->
+            <signal_cue_instantly
+              cue="md.Simple_Menu_API.Make_Text"
+              param = "table[
+                $col = 1, 
+                $text = $option.$name, 
+                $mouseOverText = $option.$mouseover,
+                ]"/>
+        
+            <!-- Set up widget args, based on type. -->
+            <do_if value="$option.$type == 'button'">
+              <set_value name="$args" exact="table[
+                $command = 'Make_Widget',
+                $type    = 'button',
+                $id      = $option.$id,
+                $text    = table[$halign='left'],
+                $col     = 2,
+                $echo    = $option,
+                $mouseOverText = $option.$mouseover,
+                $onClick = Handle_Var_Change,
+                ]"/>
+            </do_if>
+            <do_elseif value="$option.$type == 'slidercell'">
+              <set_value name="$args" exact="table[
+                $command = 'Make_Widget',
+                $type    = 'slidercell',
+                $id      = $option.$id,
+                $col     = 2,
+                $echo    = $option,
+                $mouseOverText = $option.$mouseover,
+                $onSliderCellConfirm = Handle_Var_Change,
+                ]"/>
+            </do_elseif>
+          
+            <!-- Merge in any extra specified args. -->
+            <do_if value="$option.$args?">
+              <do_all exact="$option.$args.keys.list.count" counter="$i">
+                <set_value name="$key" exact="$option.$args.keys.list.{$i}"/>
+                <set_value name="$val" exact="$option.$args.{$key}"/>
+                <set_value name="$args.{$key}" exact="$val"/>
+              </do_all>
+            </do_if>
+          
+            <!-- Set initial value. -->
+            <include_actions ref="Fill_Widget_Value"/>
+          
+            <!-- Create the widget. -->
+            <signal_cue_instantly cue="md.Simple_Menu_API.Send_Command" param = "$args"/>
+        
+          </do_for_each>
+        </do_for_each>
+      </actions>
+    </cue>
+
+    <!--
+    Handle element selection, mainly aimed at button rows.
+    -->
+    <cue name="Handle_SelectElement" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!-- Ignore if no option (eg. some placeholder row or similar). -->
+        <do_if value="event.param.$row_echo?">
+          <set_value name="$option" exact="event.param.$row_echo"/>
+          <!-- Rename the echo to match normal widgets. -->
+          <set_value name="event.param.$echo" exact="event.param.$row_echo"/>
+          <!-- If this was a button, pass off to Handle_Var_Change. -->
+          <do_if value="$option.$type == 'button'">
+            <signal_cue_instantly cue="Handle_Var_Change" param="event.param"/>
+          </do_if>
+        </do_if>
+      </actions>      
+    </cue>
+    
+    
+    <!--
+    Handle changes to global vars from menu.
+    -->
+    <cue name="Handle_Var_Change" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!--<debug_text text="'Response: %s'.[event.param]" 
+                chance="100" filter="general"/>-->
+        
+        <set_value name="$id" exact="event.param.$echo.$id"/>
+        <!--<debug_text text="'Handling: %s'.[$id]"
+                chance="100" filter="general"/>-->
+        
+        <!-- Generic on/off button handler. -->
+        <do_if value="event.param.$echo.$type == 'button'">
+          
+          <!-- Toggle current option. -->
+          <set_value name="Globals.$storage.{$id}" exact="if (Globals.$storage.{$id} == 0) then 1 else 0"/>
+
+          <!-- Update the button. -->
+          <set_value name="$args" exact="table[
+              $id      = $id,
+              $type    = 'button',
+              $text    = table[],
+              ]"/>
+          <include_actions ref="Fill_Widget_Value"/>
+          <signal_cue_instantly cue="md.Simple_Menu_API.Update_Widget" param = "$args"/>
+        </do_if>
+
+        <!-- Handle slider changes. -->
+        <do_if value="event.param.$echo.$type == 'slidercell'">
+          <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+        </do_if>
+        
+        <!--Return the value and original option id.-->
+        <do_if value="event.param.$echo.$callback? and event.param.$echo.$callback.exists">
+          <signal_cue_instantly 
+            cue="event.param.$echo.$callback" 
+            param="table[
+                $id = event.param.$echo.$orig_id,
+                $value = Globals.$storage.{$id},
+                $echo  = event.param.$echo.$echo,
+                ]"/>
+        </do_if>
+      </actions>
+    </cue>
+
+
+    <!-- ################################################################## -->
+    <!--                       Custom Options                               -->
+    <!-- ################################################################## -->
+    <!--Any options for the menu api will be set up here, using the option api.-->
+    <!--TODO: split off into separate extension, maybe.-->
+    
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.simple_menu_api.lua.Custom_Options'"/>
+      </actions>
+    </cue>
+
+    <!-- Listen from the menu api reloading. -->
+    <cue name="Reset_On_Reload" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+      </conditions>
+      <actions>
+        
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'disable_animations',
+            $name       = 'Disable menu animations',
+            $mouseover  = 'Removes the animation and associated delay for top menus opening',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'disable_helptext',
+            $name       = 'Disable help popups',
+            $mouseover  = 'Stops the one-time help text popups from displaying',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+        
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'tooltip_fontsize',
+            $name       = 'Adjust tooltip font size',
+            $mouseover  = 'Globally increases the font size of tooltips (originally 9 pt)',
+            $default    = 9,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 9,
+              $max      = 12,
+              $suffix   = 'pt',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'map_menu_alpha',
+            $name       = 'Adjust map opacity',
+            $mouseover  = 'Sets the alpha value of the map menu; egosoft default is 98, set to 100 to remove transparency',
+            $default    = 98,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 90,
+              $max      = 100,
+              $suffix   = '%',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $disabled   = true,
+            $id         = 'adjust_fov',
+            $name       = 'Adjust Field of View',
+            $mouseover  = 'Changes the FoV multiplier; ui will shrink',
+            $default    = 100,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 100,
+              $max      = 130,
+              $suffix   = ' %',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        <!--TODO: maybe hide this unless in developer mode (how to know?)-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'debug_menu_api',
+            $name       = 'Enable menu api debug logs',
+            $mouseover  = 'Prints extra api status info to the debug log, general category',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+
+      </actions>
+    </cue>
+
+    <!--
+      Signal lua with value changes.
+    -->
+    <cue name="OnChange" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$id"    exact="event.param.$id"/>
+        <set_value name="$value" exact="event.param.$value"/>
+        
+        <!--Direct handling of md debug chance.-->
+        <do_if value="$id == 'debug_menu_api'">
+          <!-- Change the debug chance in the main md file. -->
+          <set_value name="md.Simple_Menu_API.Globals.$DebugChance"
+                     exact ="if ($value) then 100 else 0"/>
+        </do_if>
+
+        <!--Others bounce to lua.-->
+        <do_else>
+          <raise_lua_event
+            name="'Simple_Menu_Options.'+$id"
+            param="$value"/>
+        </do_else>
+
+      </actions>
+    </cue>
+
+  </cues>
+
+</mdscript>
