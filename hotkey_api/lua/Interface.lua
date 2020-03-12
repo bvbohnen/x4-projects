@@ -90,14 +90,53 @@ local function Init()
     -- Patch displayOptions.
     local ego_displayControls = menu.displayControls
     menu.displayControls = function(...)
+
         -- Start by building the original manu.
-        -- Note that this calls frame:display().
+
+        -- Note that displayControls calls frame:display(), which would need
+        -- to be called a second time after new rows are added, but leads
+        -- to backend confusion.
+
+        -- Since attempts to re-display after adding new rows lead to many
+        -- debuglog errors when the menu closes (widgets still alive not
+        -- having a table), the original display() can be suppressed by
+        -- intercepting the frame building function, and putting in a
+        -- dummy function for the frame's display member.
+        local ego_createOptionsFrame = menu.createOptionsFrame
+        -- Store the frame and its display function.
+        local frame
+        local frame_display
+        menu.createOptionsFrame = function(...)
+            -- Build the frame.
+            frame = ego_createOptionsFrame(...)
+            -- Record its display function.
+            frame_display = frame.display
+            -- Replace it with a dummy.
+            frame.display = function() return end
+            -- Return the edited frame to displayControls.
+            return frame
+            end
+
+        -- Record the prior selected option, since the below call clears it.
+        local preselectOption = menu.preselectOption
+        -- Build the menu.
         ego_displayControls(...)
-        -- Safety call.
-        local success, error = pcall(L.displayControls, ...)
+
+        -- Reconnect the createOptionsFrame function, to avoid impacting
+        -- other menu pages.
+        menu.createOptionsFrame = ego_createOptionsFrame
+
+        -- Safety call to add in the new rows.
+        local success, error = pcall(L.displayControls, preselectOption, ...)
         if not success then
             DebugError("displayControls error: "..tostring(error))
         end
+
+        -- Re-attach the original frame display, and call it.
+        -- (Note: this method worked out great, much better than attempts
+        -- to re-display after clearing scripts or whatever.)
+        frame.display = frame_display
+        frame:display()
     end
     
     -- Patch remapInput, which catches the player's new keys.
@@ -358,7 +397,7 @@ end
 
 
 -- Patch to add custom keys to the control remap menu.
-function L.displayControls (optionParameter)
+function L.displayControls (preselectOption, optionParameter)
     --DebugError("GameOptions.displayControls() called")
 
     -- Skip if the pipe is not connected, to avoid clutter for users that
@@ -471,7 +510,19 @@ function L.displayControls (optionParameter)
         end
     end
 
+    -- Fix the row selection.
+    -- The preselectOption should match the id of the desired row.
+    -- TODO: maybe fix the preselectCol as well, though not as important;
+    -- see gameoptions around line 2482.
+    for i = 1, #ftable.rows do
+        if ftable.rows[i].index == preselectOption then
+            ftable:setSelectedRow(ftable.rows[i].index)
+            break
+        end
+    end
             
+    -- -Removed; display is handled above.
+    --[[
     -- Need to re-display.
     -- TODO: stress test for problems.
     -- In practice, this causes log warning spam if display() done directly,
@@ -481,7 +532,13 @@ function L.displayControls (optionParameter)
     -- (Unlike clearDataForRefresh, this call just removes scripts,
     -- not existing widget descriptors.)
     Helper.removeAllWidgetScripts(menu, config.optionsLayer)
+    -- TODO: need to revit this all again; when the menu is closed it throws
+    -- ~1600 errors into the log with: "GetCellContent(): invalid table ID
+    --  2336 - table might have been destroyed already." (Where the id
+    -- number changes each time.)
+    -- Suggests something; not sure what.
     frame:display()
+    ]]
 end
 
 
