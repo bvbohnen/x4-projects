@@ -1123,6 +1123,11 @@ function L.Get_Distance(targetdata)
                         + (t_off.y - p_off.y)^2
                         + (t_off.z - p_off.z)^2 ) ^ 0.5
 
+        -- Round it, else a fighter in orbit of a big ship with 0 relative
+        -- speed will tend to have its sign alternating +/- due to
+        -- imprecision.
+        distance = math.floor(distance + 0.5)
+
         -- Hand off to the update function for deltas.
         L.Update_Relative_Speed(targetdata, distance)
 

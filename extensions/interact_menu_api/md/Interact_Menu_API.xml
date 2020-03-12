@@ -84,48 +84,78 @@
     This should be called whenever the API signals md.Interact_Menu_API.Reloaded
       
     Input is a table with the following fields:
-    * $id
-      - String, unique identifier for this action.
-    * $name
-      - String, text to display in the action menu.
-    * $section = 'main'
-      - Optional string, the menu section this action will go under.
-      - Should be one from menu_interactmenu.lua config.sections.
-      - TODO: Document these somewhat.
-      - For now, just use "main" or "interaction".
-    * $enabled_conditions
-      - List of strings, flag names understood by the backend, of which
-        at least one must be True to enable the action.
-    * $disabled_conditions
-      - List of strings, flag names understood by the backend, of which
-        all must be False to enable the action.
-    * $mouseover
-      - String, text to display on menu widget mouseover.
-    * $callback
-      - Cue to call when the player selects the action.
-      - See below for event.param contents.
-    * $echo
-      - Optional, anything (string, value, table, etc.), data to be
-        attached to the callback cue param for convenience.
-    * $disabled = 0
-      - Optional, 0 or 1; if the option will not be displayed in the menu.
+      * $id
+        - String, unique identifier for this action.
+      * $name
+        - String, text to display in the action menu.
+      * $section = 'main'
+        - Optional string, the menu section this action will go under.
+        - Should be one from menu_interactmenu.lua config.sections.
+        - TODO: Document these somewhat.
+        - For now, just use "main" or "interaction".
+      * $enabled_conditions
+        - List of strings, flag names understood by the backend, of which
+          at least one must be True to enable the action.
+      * $disabled_conditions
+        - List of strings, flag names understood by the backend, of which
+          all must be False to enable the action.
+      * $mouseover
+        - String, text to display on menu widget mouseover.
+      * $callback
+        - Cue to call when the player selects the action.
+        - See below for event.param contents.
+      * $echo
+        - Optional, anything (string, value, table, etc.), data to be
+          attached to the callback cue param for convenience.
+      * $disabled = 0
+        - Optional, 0 or 1; if the option will not be displayed in the menu.
+        
         
     The callback cue returns an event.param table with the following:
-    * $id
-      - Same as $id above.
-    * $echo
-      - Same as $echo above.
-    * $object
-      - The object the action was selected for, eg. a ship.
+      * $id
+        - Same as $id above.
+      * $echo
+        - Same as $echo above.
+      * $object
+        - The object the action was selected for, eg. a ship.
     
-    The following strings are supported for enable/disable flags. The negated
-    versions of these flags may be given with a prefixes '~', eg. '~enemy'.
-    - 'ship'
-    - 'gate'
-    - 'station'
-    - 'playerowned'
-    - 'enemy'
-        
+    
+    The flags available for matching include the following. All are strings,
+    and maybe be negated by a prefixed '~', eg. '~isenemy'.
+      * Component class
+        - class_controllable
+        - class_destructible
+        - class_gate
+        - class_ship
+        - class_station
+      * Component data
+        - is_dock
+        - is_deployable
+        - is_enemy
+        - is_playerowned
+      * Menu flags
+        - show_PlayerInteractions
+          - Menu flagged to show player interactions.
+        - has_PlayerShipPilot
+          - Selection is a player ship and has a pilot.
+      * Misc
+        - is_operational
+          - Selection is operational?
+        - is_unit
+          - Selection is a unit?
+        - is_inplayersquad
+          - Selection is in the player's squad.
+        - has_pilot
+          - Selection has a pilot.
+        - have_selectedplayerships
+          - Selection(s) include one or more player ships.
+      * Player related
+        - player_is_piloting
+          - True if the player is piloting a ship.
+        - is_playeroccupiedship
+          - Selection is the player's ship.
+      
+      
     Example:
     ```xml
     <cue name="Reset_On_Reload" instantiate="true">

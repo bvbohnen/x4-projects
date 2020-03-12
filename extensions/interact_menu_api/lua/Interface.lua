@@ -59,6 +59,11 @@ insertInteractionContent(section, entry)
 local ffi = require("ffi")
 local C = ffi.C
 ffi.cdef[[
+    typedef uint64_t UniverseID;
+    bool IsUnit(UniverseID controllableid);
+    UniverseID GetPlayerOccupiedShipID(void);
+    UniverseID GetPlayerControlledShipID(void);
+    UniverseID GetPlayerContainerID(void);    
 ]]
 
 -- Use local debug flags.
@@ -66,10 +71,10 @@ ffi.cdef[[
 local debugger = {
     verbose = false,
 }
-
+local Lib
 if debugger.verbose then
     -- Import library functions for strings and tables.
-    local Lib = require("extensions.simple_menu_api.lua.Library")
+    Lib = require("extensions.simple_menu_api.lua.Library")
 end
 
 
@@ -132,6 +137,10 @@ end
 
 function L.Handle_Process_Command(_, param)
     local args = L.Get_Next_Args()
+    
+    if debugger.verbose then
+        Lib.Print_Table(args, "Command_Args")
+    end
 
     -- Process command.
     if args.command == "Register_Action" then
@@ -200,6 +209,11 @@ function L.Add_Actions()
             local ret_table = {
                 id = action.id,
                 component = convertedComponent,
+                -- Multiple player ships could be selected, presumably
+                -- including the above component.
+                -- This list appears to already be convertedComponents,
+                -- so can return directly.
+                selectedplayerships = menu.selectedplayerships,
             }
 
             -- Do conditional checks.
@@ -226,6 +240,7 @@ end
 
 -- Convert a value to a boolean true/false.
 -- Treats 0 as false.
+-- Ensures nil entries are false (eg. don't get deleted from table).
 local function tobool(value)
     if value and value ~= 0 then 
         return true 
@@ -249,9 +264,11 @@ function L.Update_Flags(component)
 
     -- Component class checks.
     for key, name in pairs({
-        ship    = "ship", 
-        gate    = "gate", 
-        station = "station",
+        class_controllable = "controllable",
+        class_destructible = "destructible",
+        class_gate         = "gate", 
+        class_ship         = "ship", 
+        class_station      = "station",
     }) do
         -- Note: C.IsComponentClass returns 0 for false, so needs cleanup.
         flags[key] = tobool(C.IsComponentClass(component, name))
@@ -261,12 +278,50 @@ function L.Update_Flags(component)
     -- TODO: more complicated logic, eg. shiptype and purpose comparisons
     -- to different possibilities.
     for key, name in pairs({
-        playerowned = "isplayerowned", 
-        enemy       = "isenemy",
+        is_dock        = "isdock",
+        is_deployable  = "isdeployable",
+        is_enemy       = "isenemy",
+        is_playerowned = "isplayerowned", 
     }) do
         flags[key] = tobool(GetComponentData(convertedComponent, name))
     end
-    
+
+    -- Special flags inherited from the menu.
+    for key, name in pairs({
+        show_PlayerInteractions = "showPlayerInteractions", 
+        has_PlayerShipPilot     = "hasPlayerShipPilot",
+    }) do
+        flags[name] = tobool(menu.showPlayerInteractions)
+    end
+
+    -- Misc stuff.
+    flags["is_operational"]         = tobool(IsComponentOperational(convertedComponent))
+    flags["is_unit"]                = tobool(C.IsUnit(convertedComponent))
+    flags["have_selectedplayerships"] = #menu.selectedplayerships > 0
+    flags["has_pilot"]              = GetComponentData(convertedComponent, "assignedpilot") ~= nil
+    flags["in_playersquad"]         = tobool(menu.playerSquad[convertedComponent])
+
+
+    -- Player related flags.
+    local player_occupied_ship = ConvertStringTo64Bit(tostring(C.GetPlayerOccupiedShipID()))
+    local player_piloted_ship  = ConvertStringTo64Bit(tostring(C.GetPlayerControlledShipID()))
+    local playercontainer      = ConvertStringTo64Bit(tostring(C.GetPlayerContainerID()))
+
+    flags["is_playeroccupiedship"]  = player_occupied_ship == convertedComponent
+    flags["player_is_piloting"]     = player_piloted_ship > 0
+
+    -- Do stuff with player component checks.
+    -- Side note: ego code checks playercontainer ~= 0 ahead of the conversion
+    -- to a proper 64Bit value (as done above), and hence might always
+    -- evaluated true (since it is a special C type), based on early
+    -- testing with the player_is_piloting check which used the C type
+    -- as well (ULL). Though something else could have been wrong there.
+    -- TODO: maybe check if this check is useful.
+    if playercontainer ~= 0 then
+        -- TODO: check if player location is dockable, etc.
+    end
+
+
     -- For every flag, also offer the negated version.
     -- Do in two steps; can't modify the original table in the loop without
     -- new entries showing up in the same loop (eg. multiple ~~~flags).

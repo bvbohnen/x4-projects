@@ -27,7 +27,8 @@
           $section    = 'interaction',
           $name       = 'Follow',
           $callback   = Target_Follow,
-          $enabled_conditions = [],
+          $enabled_conditions  = ['player_is_piloting'],
+          $disabled_conditions = ['~show_PlayerInteractions'],
           ]"/>
     </actions>
   </cue>
