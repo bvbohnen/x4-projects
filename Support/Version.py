@@ -1,36 +1,35 @@
 import re
 
-def Get_Version(doc_dir):
+def Get_Version(change_log_path):
     '''
     Returns the last version number in the extension's change log,
     as a string, eg. '3.4.1'.
     Ideally, only "x.yy" versions are present, for easy representation
     in x4.
     '''
-
     # Traverse the log, looking for ' *' lines, and keep recording
     #  strings as they are seen.
     version = ''
-    for line in (doc_dir / 'change_log.md').read_text().splitlines():
+    for line in change_log_path.read_text().splitlines():
         if not line.startswith('*'):
             continue
         version = line.split('*')[1].strip()
     return version
 
 
-def Update_Content_Version(doc_dir, ext_dir):
+def Update_Content_Version(change_log_path, content_xml_path):
     '''
     Update an extension's content.xml file with the current version number,
     adjusted for x4 version coding.
 
-    * doc_dir
-      - Path to the folder with documentation and change_log.md.
-    * ext_dir
-      - Path to the folder with the extension content.xml.
+    * change_log_path
+      - Path to the change_log.md file.
+    * content_xml_path
+      - Path to the content.xml file.
     '''
     # Get the new version to put in here.
     # Code copied from x4 customizer, with slight adjustment.
-    version_raw = Get_Version(doc_dir)
+    version_raw = Get_Version(change_log_path)
     
     # Content version needs to have 3+ digits, with the last
     #  two being sub version. This doesn't mesh well if there are
@@ -50,7 +49,6 @@ def Update_Content_Version(doc_dir, ext_dir):
 
     # Do text editing for this instead of using lxml; don't want
     # to mess up manual layout and such.
-    content_xml_path = ext_dir / 'content.xml'
     text = content_xml_path.read_text()
 
     # Get the text chunk from 'content' to 'version=".?"'.

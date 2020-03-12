@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>4b9f0146-59eb-4815-86f0-3e2a55b01841</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Make_Release.py</StartupFile>
+    <StartupFile>Make_Documentation.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -26,6 +26,9 @@
   <ItemGroup>
     <Compile Include="Make_Documentation.py" />
     <Compile Include="Make_Release.py" />
+    <Compile Include="Project_Specs.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Version.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

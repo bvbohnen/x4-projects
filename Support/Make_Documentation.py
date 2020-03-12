@@ -18,17 +18,24 @@ x4_customizer_dir = project_dir.parent / 'X4_Customizer'
 sys.path.append(str(x4_customizer_dir))
 from Framework.Make_Documentation import Merge_Lines, Get_BB_Text
 
+# Grab the project specifications.
+from Project_Specs import *
 
 # Name to use for the generated doc file.
 gen_doc_name = "API Functions.md"
 
 
 def Make():
+    # Update content.xml for all projects.
+    for project_name, spec in project_spec_table.items():
+        if Get_Content_Path(spec):
+            Version.Update_Content_Version(Get_Changelog_Path(spec), Get_Content_Path(spec))
+
+    # TODO: standardize these somewhat. Maybe move away from bbcode entirely.
     Make_Lua_Loader_Doc()
     Make_Hotkey_Doc()
     Make_Named_Pipes_Doc()
     Make_Simple_Menu_Doc()
-    Make_Better_Target_Doc()
     Make_Time_Doc()
     return
 
@@ -38,11 +45,7 @@ def Make_Lua_Loader_Doc():
     Document lua_loader_api.
     '''
     doc_dir = project_dir / 'X4_Lua_Loader_API'
-    ext_dir = doc_dir     / 'lua_loader_api'
     
-    # Run the update function on the content.xml.
-    Version.Update_Content_Version(doc_dir, ext_dir)
-
     # The readme is all hand written for now.
 
     # Set up the bbcode version.
@@ -59,11 +62,7 @@ def Make_Time_Doc():
     Document time_api.
     '''
     doc_dir = project_dir / 'X4_Time_API'
-    ext_dir = doc_dir     / 'time_api'
     
-    # Run the update function on the content.xml.
-    Version.Update_Content_Version(doc_dir, ext_dir)
-
     # The readme is all hand written for now.
 
     # Set up the bbcode version.
@@ -83,9 +82,6 @@ def Make_Named_Pipes_Doc():
     ext_dir = doc_dir     / 'named_pipes_api'
     doc_lines = []
         
-    # Run the update function on the content.xml.
-    Version.Update_Content_Version(doc_dir, ext_dir)
-    
     # The MD pipe api.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Named_Pipes.xml')
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Pipe_Server_Host.xml')
@@ -110,25 +106,15 @@ def Make_Simple_Menu_Doc():
     ext_dir = doc_dir     / 'simple_menu_api'
     doc_lines = []
     
-    # Run the update function on the content.xml.
-    Version.Update_Content_Version(doc_dir, ext_dir)
-        
     # Add the api cues.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_API.xml')
+    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_Options.xml')
 
     with open(doc_dir / gen_doc_name, 'w') as file:
         file.write('\n'.join(doc_lines))
 
     # Set up the bbcode version.
     Make_BB_Code(doc_dir)
-    return
-
-
-# TODO: better automate simple calls like this.
-def Make_Better_Target_Doc():
-    doc_dir = project_dir / 'X4_Simple_Menu_API' / 'better_target_monitor'
-    ext_dir = doc_dir
-    Version.Update_Content_Version(doc_dir, ext_dir)        
     return
 
 
@@ -139,10 +125,7 @@ def Make_Hotkey_Doc():
     doc_dir = project_dir / 'X4_Hotkey_API'
     ext_dir = doc_dir     / 'hotkey_api'
     doc_lines = []
-    
-    # Run the update function on the content.xml.
-    Version.Update_Content_Version(doc_dir, ext_dir)
-    
+        
     # Add the api cues.
     doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Hotkey_API.xml')
 

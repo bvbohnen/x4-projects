@@ -24,6 +24,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "X4_Time_API", "X4_Time_API\X4_Time_API.pyproj", "{F2299FAA-DF4A-4737-B197-6112BF1938AC}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "X4_Better_Target_Monitor", "X4_Better_Target_Monitor\X4_Better_Target_Monitor.pyproj", "{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "X4_Interact_Menu_API", "X4_Interact_Menu_API\X4_Interact_Menu_API.pyproj", "{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,6 +90,18 @@ Global
 		{F2299FAA-DF4A-4737-B197-6112BF1938AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F2299FAA-DF4A-4737-B197-6112BF1938AC}.Release|x64.ActiveCfg = Release|Any CPU
 		{F2299FAA-DF4A-4737-B197-6112BF1938AC}.Release|x86.ActiveCfg = Release|Any CPU
+		{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}.Release|x64.ActiveCfg = Release|Any CPU
+		{704CAF0F-4A92-46EA-AAF8-8EFA8336169A}.Release|x86.ActiveCfg = Release|Any CPU
+		{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}.Release|x64.ActiveCfg = Release|Any CPU
+		{77F49F1B-1DB4-47DE-8A06-B79E38199C0B}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

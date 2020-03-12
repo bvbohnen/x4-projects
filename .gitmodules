@@ -13,3 +13,9 @@
 [submodule "X4_Time_API"]
 	path = X4_Time_API
 	url = https://github.com/bvbohnen/x4-time-api.git
+[submodule "X4_Interact_Menu_API"]
+	path = X4_Interact_Menu_API
+	url = https://github.com/bvbohnen/x4-interact-menu-api.git
+[submodule "X4_Better_Target_Monitor"]
+	path = X4_Better_Target_Monitor
+	url = https://github.com/bvbohnen/x4-better-target-monitor
