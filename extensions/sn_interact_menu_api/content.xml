@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="interact_menu_api" name="Interact Menu API" author="SirNukes" version="002" date="2020-3-11" save="false" sync="false">
+<content id="interact_menu_api" name="Interact Menu API" author="SirNukes" version="100" date="2020-3-11" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>
