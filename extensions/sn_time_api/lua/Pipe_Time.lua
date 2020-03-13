@@ -6,7 +6,7 @@ an import loop.
 ]]
 
 -- TODO: conditionally include pipes api. For now hardcode.
-local pipes_api = require('extensions.named_pipes_api.lua.Interface')
+local pipes_api = require("extensions.sn_named_pipes_api.lua.Interface")
 
 -- Table of local functions and data.
 local L = {

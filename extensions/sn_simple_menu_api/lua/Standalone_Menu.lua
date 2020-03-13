@@ -3,7 +3,7 @@
 ]]
 
 -- Import config and widget_properties tables.
-local Tables = require("extensions.simple_menu_api.lua.Tables")
+local Tables = require("extensions.sn_simple_menu_api.lua.Tables")
 local widget_properties = Tables.widget_properties
 local widget_defaults   = Tables.widget_defaults
 local config            = Tables.config
@@ -12,7 +12,7 @@ local debugger          = Tables.debugger
 local custom_menu_specs = Tables.custom_menu_specs
 
 -- Import library functions for strings and tables.
-local Lib = require("extensions.simple_menu_api.lua.Library")
+local Lib = require("extensions.sn_simple_menu_api.lua.Library")
 
 
 -- The table holding the standalone menu details.

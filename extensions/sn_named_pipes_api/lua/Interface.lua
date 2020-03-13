@@ -200,7 +200,7 @@ largely the same as for the MD interface, except that results will be
 returned to lua callback functions instead of being signalled to MD.
 It may be imported using a require statement:
 ```lua
-  local pipes_api = require('extensions.named_pipes_api.lua.Interface')
+  local pipes_api = require('extensions.sn_named_pipes_api.lua.Interface')
 ```
 ]]
 --[[ @doc-functions
@@ -223,8 +223,8 @@ writing and reading functions are shown here.
 ]]
 
 -- Import lib functions and pipe management.
-local Lib = require("extensions.named_pipes_api.lua.Library")
-local Pipes = require("extensions.named_pipes_api.lua.Pipes")
+local Lib = require("extensions.sn_named_pipes_api.lua.Library")
+local Pipes = require("extensions.sn_named_pipes_api.lua.Pipes")
 
 
 -- Table of local functions.

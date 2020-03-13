@@ -3,7 +3,7 @@ Container for data tables, shared by other active modules.
 ]]
 
 -- Import library functions, to help with table setup.
-local Lib = require("extensions.simple_menu_api.lua.Library")
+local Lib = require("extensions.sn_simple_menu_api.lua.Library")
 
 local T = {}
 

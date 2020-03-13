@@ -29,7 +29,7 @@ TODO:
     </conditions>
     <actions>
       <raise_lua_event name="'Lua_Loader.Load'"
-                        param="'extensions.hotkey_api.lua.Interface'"/>
+                        param="'extensions.sn_hotkey_api.lua.Interface'"/>
     </actions>
   </cue>
 
@@ -44,7 +44,7 @@ TODO:
     <actions>
       <signal_cue_instantly
         cue="md.Pipe_Server_Host.Register_Module"
-        param="'extensions/hotkey_api/Send_Keys.py'"/>
+        param="'extensions/sn_hotkey_api/Send_Keys.py'"/>
     </actions>
   </cue>
 

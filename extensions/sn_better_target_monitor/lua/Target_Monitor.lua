@@ -89,7 +89,7 @@ ffi.cdef[[
 
 -- TODO: maybe remove dependency on the existing lib, if wanting to
 -- support this without simple meny api installed.
---local Lib = require("extensions.simple_menu_api.lua.Library")
+--local Lib = require("extensions.sn_simple_menu_api.lua.Library")
 
 -- Table of locals.
 local L = {

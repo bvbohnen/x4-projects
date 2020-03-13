@@ -74,7 +74,7 @@ local debugger = {
 local Lib
 if debugger.verbose then
     -- Import library functions for strings and tables.
-    Lib = require("extensions.simple_menu_api.lua.Library")
+    Lib = require("extensions.sn_simple_menu_api.lua.Library")
 end
 
 

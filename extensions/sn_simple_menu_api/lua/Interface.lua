@@ -14,7 +14,7 @@ Handy ego reference code:
 
 
 -- Import config and widget_properties tables.
-local Tables = require("extensions.simple_menu_api.lua.Tables")
+local Tables = require("extensions.sn_simple_menu_api.lua.Tables")
 local widget_properties = Tables.widget_properties
 local widget_defaults   = Tables.widget_defaults
 --local config            = Tables.config
@@ -22,13 +22,13 @@ local menu_data         = Tables.menu_data
 local debugger          = Tables.debugger
 
 -- Import library functions for strings and tables.
-local Lib = require("extensions.simple_menu_api.lua.Library")
+local Lib = require("extensions.sn_simple_menu_api.lua.Library")
 
 -- Import the user options menu handler.
-local Options_Menu = require("extensions.simple_menu_api.lua.Options_Menu")
+local Options_Menu = require("extensions.sn_simple_menu_api.lua.Options_Menu")
 
 -- Import the standalone menu handler.
-local Standalone_Menu = require("extensions.simple_menu_api.lua.Standalone_Menu")
+local Standalone_Menu = require("extensions.sn_simple_menu_api.lua.Standalone_Menu")
 
 
 -- Set up any used ffi functions.

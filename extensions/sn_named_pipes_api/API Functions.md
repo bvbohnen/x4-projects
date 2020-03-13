@@ -262,7 +262,7 @@ Usage:
       <actions>
         <signal_cue_instantly 
           cue="md.Pipe_Server_Host.Register_Module" 
-          param="'extensions/hotkey_api/Send_Keys.py'"/>
+          param="'extensions/sn_hotkey_api/Send_Keys.py'"/>
       </actions>
     </cue>
   ```
@@ -512,7 +512,7 @@ Behavior:
 
 Other lua modules may use this api to access pipes as well. Behavior is largely the same as for the MD interface, except that results will be returned to lua callback functions instead of being signalled to MD. It may be imported using a require statement:
 ```lua
-  local pipes_api = require('extensions.named_pipes_api.lua.Interface')
+  local pipes_api = require('extensions.sn_named_pipes_api.lua.Interface')
 ```
 
 ### Lua to Lua Pipe API Functions

@@ -71,6 +71,7 @@
     <Content Include="sn_hotkey_api\content.xml" />
     <Content Include="sn_hotkey_api\lua\Interface.lua" />
     <Content Include="sn_hotkey_api\md\HK_Stock_Actions.xml" />
+    <Content Include="sn_hotkey_api\md\Hotkey_API.xml" />
     <Content Include="sn_hotkey_api\Readme.md" />
     <Content Include="sn_hotkey_api_test\content.xml" />
     <Content Include="sn_hotkey_api_test\md\Hotkey_API_Test.xml" />

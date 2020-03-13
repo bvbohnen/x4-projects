@@ -25,8 +25,8 @@ ffi.cdef[[
 ]]
 
 -- Imports.
-local Lib = require("extensions.hotkey_api.lua.Library")
-local Tables = require("extensions.hotkey_api.lua.Tables")
+local Lib = require("extensions.sn_hotkey_api.lua.Library")
+local Tables = require("extensions.sn_hotkey_api.lua.Tables")
 local config = Tables.config
 
 -- Local functions and data.
