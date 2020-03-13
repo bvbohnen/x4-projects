@@ -4,18 +4,19 @@ SET "x4_path=C:\Steam\steamapps\common\X4 Foundations\extensions"
 SET "src_path=%~dp0"
 
 for %%F in (
-	better_target_monitor
-	hotkey_api
-	hotkey_api_test
-	interact_menu_api
-	interact_menu_api_test
-	lua_loader_api
-	named_pipes_api
-	named_pipes_api_test
-	simple_menu_api
-	simple_menu_api_test
-	time_api
-	time_api_test
+	sn_better_target_monitor
+	sn_hotkey_api
+	sn_hotkey_api_test
+	sn_interact_menu_api
+	sn_interact_menu_api_test
+	sn_lua_loader_api
+	sn_named_pipes_api
+	sn_named_pipes_api_test
+	sn_simple_menu_api
+	sn_simple_menu_api_test
+	sn_sn_extra_game_options
+	sn_time_api
+	sn_time_api_test
 ) do (
 	mklink /J "%x4_path%\%%F" "%src_path%\%%F"
 )

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Better_Target_Monitor" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  MD side of the target monitor customization.
+  Handles player options; all actual monitor logic is in lua.
+  
+  Note: depends on the Simple_Menu_API to display options.
+  (For now, a hard dependency.)
+  -->
+
+  <cues>
+
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.sn_better_target_monitor.lua.Target_Monitor'"/>
+      </actions>
+    </cue>
+    
+
+    <!-- Listen from the menu api reloading. -->
+    <cue name="Reset_OnReload" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+      </conditions>
+      <actions>
+        <!--List out all options of interest.-->
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_enable',
+            $name       = 'Enable',
+            $mouseover  = 'Enables modification of the target monitor',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'enabled',
+            ]"/>
+
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_layout',
+            $name       = 'Use new layout',
+            $mouseover  = 'Switches the data layout to be denser and include distance, speed, and ETA',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'layout',
+            ]"/>
+        
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_hull_shield_bold',
+            $name       = 'Bold Shields and Hull',
+            $mouseover  = 'Bolds the shield and hull percentages',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'hull_shield_bold',
+            ]"/>
+        
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_hull_shield_colors',
+            $name       = 'Color Shields and Hull',
+            $mouseover  = 'Adds color to shield and hull percentages',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'hull_shield_colors',
+            ]"/>
+
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_faction_color',
+            $name       = 'Color Names',
+            $mouseover  = 'Colors the target name based on faction',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'faction_color',
+            ]"/>
+
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_brighten_text',
+            $name       = 'Lighten Text',
+            $mouseover  = 'Lightens the general text coloring for readability',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'brighten_text',
+            ]"/>
+
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = 'Better Target Monitor',
+            $id         = 'tm_show_x3_class',
+            $name       = 'X3 Ship Class',
+            $mouseover  = 'Appends the equivelent X3 class (eg. m3, tl) to ship types',
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'show_x3_class',
+            ]"/>
+
+
+      </actions>
+    </cue>
+
+    <cue name="OnChange" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!--
+        Need to send name and value back to lua.
+        Could use an actor blackboard (messy), encode into a string
+        and parse in lua (also messy), append field to the signal name
+        and have lua listen to all possible fields, or just send two signals
+        and have lua piece them back together.
+        
+        The latter approach probably makes for the most scalable option
+        while still being relatively simple.
+        -->
+        <raise_lua_event
+          name="'Target_Monitor.Set_Field'"
+          param="event.param.$echo"/>
+        <raise_lua_event
+          name="'Target_Monitor.Set_Value'"
+          param="event.param.$value"/>
+      </actions>
+    </cue>
+    
+
+  </cues>
+
+</mdscript>

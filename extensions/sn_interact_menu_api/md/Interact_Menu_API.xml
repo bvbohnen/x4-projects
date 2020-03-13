@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Interact_Menu_API" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  MD side api for registering context menu actions.
+  
+  TODO: export to md documentation.
+  TODO: Move the follow-target command elsewhere.
+  -->
+
+  <cues>
+
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.sn_interact_menu_api.lua.Interface'"/>
+      </actions>
+    </cue>
+    
+    <!--
+      Static cue for holding general state.
+    
+      * $DebugChance
+        - Int, 0 or 100.
+      * $actions
+        - Table of subtables, actions recorded in registration order.
+        - Keyed by action id.
+        - Action subtable contents described in Register_Action.
+    -->
+    <cue name="Globals">
+      <actions>
+        <!-- Create storage table on first load. -->
+        <set_value name="Globals.$storage"   exact="table[]"/>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <!-- Listen from the menu api reloading. -->
+        <cue name="Reset_On_Lua_Reload" instantiate="true">
+          <conditions>
+            <event_ui_triggered screen="'Interact_Menu_API'" control="'reloaded'" />
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+    <library name="Reset_Globals">
+      <actions>
+        <set_value name="Globals.$DebugChance" exact="0"/>
+        <set_value name="Globals.$actions" exact="table[]" />
+        <!-- Send a signal that all users listen to. -->
+        <signal_cue_instantly cue="Reloaded"/>        
+      </actions>
+    </library>
+
+    <!--@doc-cue
+    Dummy cue used for signalling that this api reloaded.
+    Users that are registering options should listen to this
+    cue being signalled.
+    -->
+    <cue name="Reloaded" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <debug_text text="'Reloaded'"
+                  chance="Globals.$DebugChance" filter="general"/>
+
+      </actions>
+    </cue>
+
+    
+    <!--@doc-cue
+    
+    Register a new context menu action. If the action already exists,
+    it will be updated with the new arguments.
+      
+    This should be called whenever the API signals md.Interact_Menu_API.Reloaded
+      
+    Input is a table with the following fields:
+      * $id
+        - String, unique identifier for this action.
+      * $name
+        - String, text to display in the action menu.
+      * $section = 'main'
+        - Optional string, the menu section this action will go under.
+        - Should be one from menu_interactmenu.lua config.sections.
+        - TODO: Document these somewhat.
+        - For now, just use "main" or "interaction".
+      * $enabled_conditions
+        - List of strings, flag names understood by the backend, of which
+          at least one must be True to enable the action.
+      * $disabled_conditions
+        - List of strings, flag names understood by the backend, of which
+          all must be False to enable the action.
+      * $mouseover
+        - String, text to display on menu widget mouseover.
+      * $callback
+        - Cue to call when the player selects the action.
+        - See below for event.param contents.
+      * $echo
+        - Optional, anything (string, value, table, etc.), data to be
+          attached to the callback cue param for convenience.
+      * $disabled = 0
+        - Optional, 0 or 1; if the option will not be displayed in the menu.
+        
+        
+    The callback cue returns an event.param table with the following:
+      * $id
+        - Same as $id above.
+      * $echo
+        - Same as $echo above.
+      * $object
+        - The object the action was selected for, eg. a ship.
+    
+    
+    The flags available for matching include the following. All are strings,
+    and maybe be negated by a prefixed '~', eg. '~isenemy'.
+      * Component class
+        - class_controllable
+        - class_destructible
+        - class_gate
+        - class_ship
+        - class_station
+      * Component data
+        - is_dock
+        - is_deployable
+        - is_enemy
+        - is_playerowned
+      * Menu flags
+        - show_PlayerInteractions
+          - Menu flagged to show player interactions.
+        - has_PlayerShipPilot
+          - Selection is a player ship and has a pilot.
+      * Misc
+        - is_operational
+          - Selection is operational?
+        - is_inplayersquad
+          - Selection is in the player's squad.
+        - has_pilot
+          - Selection has a pilot.
+        - have_selectedplayerships
+          - Selection(s) include one or more player ships.
+      * Player related
+        - player_is_piloting
+          - True if the player is piloting a ship.
+        - is_playeroccupiedship
+          - Selection is the player's ship.
+      
+      
+    Example:
+    ```xml
+    <cue name="Reset_On_Reload" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
+      </conditions>
+      <actions>
+        <signal_cue_instantly
+          cue="md.Interact_Menu_API.Register_Action"
+          param = "table[
+            $id         = 'some_unique_id',
+            $section    = 'main',
+            $name       = 'My Action',
+            $callback   = My_Callback_Cue,
+            $mouseover  = '',
+            $enabled_conditions  = [],
+            $disabled_conditions = [],
+            ]"/>
+      </actions>
+    </cue>
+    ```
+    -->
+    <cue name="Register_Action" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$action" exact="event.param.clone" />
+
+        <!--Error if no id given.-->
+        <do_if value="not $action.$id?">
+          <debug_text text="'Error: missing $id in Register_Action with args: %s'.[$action]"
+                    chance="100" filter="general"/>
+        </do_if>
+
+        <do_else>
+          <!--Add the lua command.-->
+          <set_value name="$action.$command" exact="'Register_Action'"/>
+
+          <!--Default args.-->
+          <do_if value="not $action.$name?">
+            <set_value name="$action.$name" exact="$action.$id"/>
+          </do_if>
+          <do_if value="not $action.$echo?">
+            <set_value name="$action.$echo" exact="null"/>
+          </do_if>
+          <do_if value="not $action.$section?">
+            <set_value name="$action.$section" exact="'main'"/>
+          </do_if>
+          <do_if value="not $action.$disabled?">
+            <set_value name="$action.$disabled" exact="0"/>
+          </do_if>
+          <do_if value="not $action.$enabled_conditions?">
+            <set_value name="$action.$enabled_conditions" exact="[]"/>
+          </do_if>
+          <do_if value="not $action.$disabled_conditions?">
+            <set_value name="$action.$disabled_conditions" exact="[]"/>
+          </do_if>
+          <do_if value="not $action.$mouseover?">
+            <set_value name="$action.$mouseover" exact="''"/>
+          </do_if>
+        
+
+          <!--Record the args, mainly for callbacks.-->
+          <set_value name="Globals.$actions.{'$' + $action.$id}" exact="$action"/>
+
+          <!-- Args are transmitted to lua using a blackboard var. -->
+          <!-- Create the blackboard list if it doesn't exist. -->
+          <do_if value="not player.entity.$interact_menu_args?">
+            <set_value name="player.entity.$interact_menu_args" exact="[]" />
+          </do_if>
+          <append_to_list name="player.entity.$interact_menu_args" exact="$action"/>
+
+          <debug_text text="'Sending Register_Action with args: %s'.[$action]"
+                    chance="Globals.$DebugChance" filter="general"/>
+
+          <!-- Signal the lua function. -->
+          <raise_lua_event name="'Interact_Menu.Process_Command'"/>
+          
+        </do_else>
+      </actions>
+    </cue>
+
+
+    <!--
+    Listen for the lua signals when an option is selected.
+    -->
+    <cue name="Capture_Lua_Callback" instantiate="true" namespace="this">
+      <conditions>
+        <event_ui_triggered screen="'Interact_Menu'" control="'Selected'" />
+      </conditions>
+      <actions>        
+        <!--Look up the action by id to get the callback.-->
+        <set_value name="$action" exact="Globals.$actions.{'$' + event.param3.$id}"/>
+
+        <debug_text text="'Action: %s on %s'.[
+                            event.param3.$id, 
+                            event.param3.$component,]"
+                  chance="Globals.$DebugChance" filter="general"/>
+        
+        <!--Handle the callback, if it is still valid.-->
+        <!--Note: need to cast the object into an MD suitable component.-->
+        <do_if value="$action.$callback? and $action.$callback.exists">
+          <signal_cue_instantly
+            cue="$action.$callback"
+            param="table[
+                $id     = $action.$id,
+                $echo   = $action.$echo,
+                $object = component.{event.param3.$component},
+                ]"/>
+        </do_if>
+      </actions>
+    </cue>
+    
+  </cues>
+
+</mdscript>
+
+
+

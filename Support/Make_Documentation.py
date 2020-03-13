@@ -44,7 +44,7 @@ def Make_Lua_Loader_Doc():
     '''
     Document lua_loader_api.
     '''
-    doc_dir = project_dir / 'extensions' / 'lua_loader_api'
+    doc_dir = project_dir / 'extensions' / 'sn_lua_loader_api'
     
     # The readme is all hand written for now.
 
@@ -61,7 +61,7 @@ def Make_Time_Doc():
     '''
     Document time_api.
     '''
-    doc_dir = project_dir / 'extensions' / 'time_api'
+    doc_dir = project_dir / 'extensions' / 'sn_time_api'
     
     # The readme is all hand written for now.
 
@@ -78,7 +78,7 @@ def Make_Named_Pipes_Doc():
     '''
     Document named_pipes_api.
     '''
-    doc_dir = project_dir / 'extensions' / 'named_pipes_api'
+    doc_dir = project_dir / 'extensions' / 'sn_named_pipes_api'
     ext_dir = doc_dir
     doc_lines = []
         
@@ -102,7 +102,7 @@ def Make_Simple_Menu_Doc():
     '''
     Document simple_menu_api.
     '''
-    doc_dir = project_dir / 'extensions' / 'simple_menu_api'
+    doc_dir = project_dir / 'extensions' / 'sn_simple_menu_api'
     ext_dir = doc_dir
     doc_lines = []
     
@@ -122,7 +122,7 @@ def Make_Hotkey_Doc():
     '''
     Document hotkey_api.
     '''
-    doc_dir = project_dir / 'extensions' / 'hotkey_api'
+    doc_dir = project_dir / 'extensions' / 'sn_hotkey_api'
     ext_dir = doc_dir
     doc_lines = []
         

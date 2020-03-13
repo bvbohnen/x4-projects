@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Extra_Game_Options" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  MD side of the new game options.
+  Most of the crunchy code is in lua.
+  -->
+
+  <cues>
+
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.sn_extra_game_options.lua.Custom_Options'"/>
+      </actions>
+    </cue>
+
+    <!-- Listen from the menu api reloading. -->
+    <cue name="Reset_On_Reload" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+      </conditions>
+      <actions>
+        
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'disable_animations',
+            $name       = 'Disable menu animations',
+            $mouseover  = 'Removes the animation and associated delay for top menus opening',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'disable_helptext',
+            $name       = 'Disable help popups',
+            $mouseover  = 'Stops the one-time help text popups from displaying',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+        
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'tooltip_fontsize',
+            $name       = 'Adjust tooltip font size',
+            $mouseover  = 'Globally increases the font size of tooltips (originally 9 pt)',
+            $default    = 9,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 9,
+              $max      = 12,
+              $suffix   = 'pt',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'map_menu_alpha',
+            $name       = 'Adjust map opacity',
+            $mouseover  = 'Sets the alpha value of the map menu; egosoft default is 98, set to 100 to remove transparency',
+            $default    = 98,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 90,
+              $max      = 100,
+              $suffix   = '%',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $disabled   = true,
+            $id         = 'adjust_fov',
+            $name       = 'Adjust Field of View',
+            $mouseover  = 'Changes the FoV multiplier; ui will shrink',
+            $default    = 100,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 100,
+              $max      = 130,
+              $suffix   = ' %',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+      </actions>
+    </cue>
+
+    <!--
+      Signal lua with value changes.
+    -->
+    <cue name="OnChange" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$id"    exact="event.param.$id"/>
+        <set_value name="$value" exact="event.param.$value"/>
+        
+        <raise_lua_event
+          name="'Simple_Menu_Options.'+$id"
+          param="$value"/>
+
+      </actions>
+    </cue>
+
+  </cues>
+
+</mdscript>
