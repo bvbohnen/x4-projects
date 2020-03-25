@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<mdscript name="Lua_Loader" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+<mdscript name="Lua_Loader" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!--Note: keep the MD name convenient for users.-->
 
 <cues>
   

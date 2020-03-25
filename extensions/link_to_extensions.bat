@@ -14,7 +14,7 @@ for %%F in (
 	sn_named_pipes_api_test
 	sn_simple_menu_api
 	sn_simple_menu_api_test
-	sn_sn_extra_game_options
+	sn_extra_game_options
 	sn_time_api
 	sn_time_api_test
 ) do (

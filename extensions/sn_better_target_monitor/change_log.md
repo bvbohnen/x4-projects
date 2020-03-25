@@ -10,3 +10,9 @@ Change Log
 * 1.0
   - Improved rounding for smoother relative speed display.
   - Refined x3 class determination, and made it optional.
+* 1.1
+  - Fix for missed asteroid rows.
+* 1.2
+  - Support generic objects, eg. data vaults.
+  - Tweaked faction name coloring.
+  - Bypassed C.GetPlayerTargetOffset() returning bad z data.

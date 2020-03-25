@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <mdscript name="Simple_Menu_API" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+  <!--Note: keep the MD name convenient for users.-->
 
 <!--@doc-title Simple Menu API -->
 <!--@doc-overview

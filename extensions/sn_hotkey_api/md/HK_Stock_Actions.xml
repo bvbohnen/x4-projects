@@ -21,7 +21,6 @@
       <actions>
         
         <!-- Register actions. -->
-        <!--TODO: maybe allow autopilot from the map menu somehow.-->
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
           $id = 'kc_target_follow', 
           $onPress = Target_Follow,
@@ -37,7 +36,34 @@
           $description = 'Eject any player inventory or piloted ship cargo that is illegal in the player zone',
           $contexts = ['flying'],
           ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'kc_launch_satellite', 
+          $onPress = Launch_Satellite,
+          $name = 'Launch Satellite', 
+          $description = 'Launches a satellite from the player piloted ship',
+          $contexts = ['flying'],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'kc_launch_adv_satellite', 
+          $onPress = Launch_Adv_Satellite,
+          $name = 'Launch Advanced Satellite', 
+          $description = 'Launches an advanced satellite from the player piloted ship',
+          $contexts = ['flying'],
+          ]"/>
         
+        <!--TODO: deploy mines/etc.-->
+
+        <!--Debug keys. TODO: move elsewhere.
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'kc_print_combined_skill', 
+          $onPress = Print_Combined_Skill,
+          $name = 'Print Combined Skill', 
+          $category = 'Debug',
+          $description = 'Prints the combined skill of the current target',
+          $contexts = ['flying','walking'],
+          ]"/>-->
       </actions>
     </cue>
     
@@ -93,6 +119,55 @@
         
       </actions>
     </cue>
+
+    <cue name="Launch_Satellite" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <!-- Verify the player is piloting a ship.-->
+        <check_value value="player.occupiedship"/>
+      </conditions>
+      <actions>
+        <!--Try basic satellites-->
+        <do_if value="player.occupiedship.ammostorage.{macro.eq_arg_satellite_01_macro}.count gt 0">
+          <launch_satellite object="player.occupiedship" macro="macro.eq_arg_satellite_01_macro"/>
+          <show_notification text="'Launched satellite'"/>
+        </do_if>
+        <do_else>
+          <show_notification text="'No satellites available'"/>
+        </do_else>
+      </actions>
+    </cue>
+
+    <cue name="Launch_Adv_Satellite" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <!-- Verify the player is piloting a ship.-->
+        <check_value value="player.occupiedship"/>
+      </conditions>
+      <actions>
+        <!--Try advanced satellites-->
+        <do_if value="player.occupiedship.ammostorage.{macro.eq_arg_satellite_02_macro}.count gt 0">
+          <launch_satellite object="player.occupiedship" macro="macro.eq_arg_satellite_02_macro"/>
+          <show_notification text="'Launched advanced satellite'"/>
+        </do_if>
+        <do_else>
+          <show_notification text="'No advanced satellites available'"/>
+        </do_else>
+      </actions>
+    </cue>
+
+    <!--For the current target, return the combined skill value.-->
+    <cue name="Print_Combined_Skill" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <!-- Verify the player has a target selected. -->
+        <check_value value="player.target"/>
+      </conditions>
+      <actions>
+        <show_notification text="'Skill: '+player.target.combinedskill"/>
+      </actions>
+    </cue>
+    
 
   </cues>
 

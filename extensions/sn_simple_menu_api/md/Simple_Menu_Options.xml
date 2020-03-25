@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <mdscript name="Simple_Menu_Options" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+  <!--TODO: merge this into Simple_Menu_API? Or split off entirely?-->
 
   <!--
   MD side of a stock options menu for customizing menus.
@@ -408,7 +409,7 @@
 
     
     <!-- Set up a menu option to turn on/off the debug logging. -->
-    <cue name="Reset_On_Reload" instantiate="true">
+    <cue name="Set_Menu_Options" instantiate="true">
       <conditions>
         <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
       </conditions>
@@ -417,21 +418,19 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
+            $category   = 'Debug',
             $id         = 'debug_menu_api',
             $name       = 'Enable menu api debug logs',
             $mouseover  = 'Prints extra api status info to the debug log, general category',
             $default    = 0,
             $type       = 'button',
-            $callback   = OnChange,
+            $callback   = On_Option_Change,
             ]"/>
 
       </actions>
     </cue>
 
-    <!--
-      Signal lua with value changes.
-    -->
-    <cue name="OnChange" instantiate="true">
+    <cue name="On_Option_Change" instantiate="true">
       <conditions>
         <event_cue_signalled />
       </conditions>

@@ -9,7 +9,7 @@ Change Log
 * 0.9
   - Made use of Pipe_Server_Lib to simplify MD code.
   - Added requirement that keys be re-registered when it reloads.
-* 0.91
+* 0.9.1
   - Removed ack-based flow control.
 * 0.10
   - Key listener thread will completely stop when X4 loses focus.
@@ -34,5 +34,7 @@ Change Log
   - "Shorcuts" renamed to "actions".
 * 1.0.1
   - Ignore UserQuestionMenu context, due to difficulty detecting its closure.
+* 1.1
+  - Added keys to fast-drop satellites.
 
 

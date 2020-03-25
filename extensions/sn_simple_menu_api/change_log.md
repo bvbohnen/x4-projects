@@ -61,5 +61,5 @@ Change Log
   - Added option to adjust the standard map menu's opacity.
   - Added Simple Options API.
   - Added support for shieldhullbar widgets.
-* 1.1.1
+* 1.2
   - Split off generic ui options to a separate extension.

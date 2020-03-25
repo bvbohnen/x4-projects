@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <mdscript name="Pipe_Server_Host" 
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xsi:noNamespaceSchemaLocation="md.xsd">
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
 
 <!-- @doc-title MD Pipe Python Host -->
   

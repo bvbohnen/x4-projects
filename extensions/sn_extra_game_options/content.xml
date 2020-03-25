@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="sn_extra_game_options" name="Extra Game Options" author="SirNukes" version="100" date="2020-3-12" save="false" sync="false">
+<content id="sn_extra_game_options" name="Extra Game Options" description="Adds a variety of new game options, generally ui related." author="SirNukes" version="100" date="2020-3-12" save="false" sync="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>
@@ -13,4 +13,5 @@
   <langugage description="" language="86"/>
   <langugage description="" language="88"/>
   <dependency id="simple_menu_api" version="101" optional="false"/>
+  <dependency version="300" />
 </content>

@@ -49,8 +49,11 @@ TODO: possible future options
 local ffi = require("ffi")
 local C = ffi.C
 ffi.cdef[[
+    typedef uint64_t UniverseID;
     void SkipNextStartAnimation(void);
     bool IsGameModified(void);
+    UniverseID GetPlayerObjectID(void);
+    UniverseID GetContextByClass(UniverseID componentid, const char* classname, bool includeself);
 ]]
 --DebugError(tostring(ffi))
 
@@ -83,6 +86,7 @@ function L.Init()
     RegisterEvent("Simple_Menu_Options.disable_animations", L.Handle_Disable_Animations)
     RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , L.Handle_Tooltip_Font)
     RegisterEvent("Simple_Menu_Options.map_menu_alpha"    , L.Handle_Map_alpha)
+    RegisterEvent("Simple_Menu_Options.map_menu_player_focus" , L.Handle_Map_Player_Focus)
     RegisterEvent("Simple_Menu_Options.adjust_fov"        , L.Handle_FOV)
     RegisterEvent("Simple_Menu_Options.disable_helptext"  , L.Handle_Hide_Helptext)
     
@@ -174,6 +178,7 @@ function L.Init_Menu_Alpha()
                 end
             end
             if rendertarget == nil then
+                -- Note, this was seen printed once; unclear on cause.
                 DebugError("Failed to find map_menu rendertarget")
                 return retval
             else
@@ -555,6 +560,66 @@ function L.Handle_Hide_Helptext(_, param)
 
     -- Store it.
     L.helptext.disable = param
+end
+
+------------------------------------------------------------------------------
+-- Testing force map to open on player (as if no target selected)
+--[[
+    Code of interest appears to be menu_map.lua menu.importMenuParameters(),
+    wherein it sets up menu.focuscomponent and menu.selectfocuscomponent.
+    There is a fallback in this code for when no soft target is present
+    to focus on the player ship.
+    Can monkey patch this to follow up by focusing on player ship,
+    regardless of what was set before.
+]]
+L.mapfocus = {
+    onplayer = true,
+}
+-- Setup wrappers.
+function L.Init_Map_Focus()
+
+    -- Stop if something went wrong.
+    if Menus == nil then
+        error("Menus global not yet initialized")
+    end
+    
+    local menu = nil
+    for i, ego_menu in ipairs(Menus) do
+        if ego_menu.name == "MapMenu" then
+            menu = ego_menu
+        end
+    end
+    
+    -- Stop if something went wrong.
+    if menu == nil then
+        error("Failed to find egosoft's MapMenu")
+    end
+
+    local ego_importMenuParameters = menu["importMenuParameters"]
+    menu["importMenuParameters"] = function (...)
+        -- Call it as normal.
+        ego_importMenuParameters(...)
+        -- Reset focus target.
+        if L.mapfocus.onplayer then
+            menu.focuscomponent = C.GetPlayerObjectID()
+            menu.selectfocuscomponent = nil
+            menu.currentsector = C.GetContextByClass(menu.focuscomponent, "sector", true)
+        end
+    end
+end
+L.Init_Map_Focus()
+
+
+function L.Handle_Map_Player_Focus(_, param)
+    if debugger.verbose then
+        DebugError("Handle_Map_Player_Focus called with " .. tostring(param))
+    end
+
+    -- Convert param to true/false, since lua confuses 0 with true.
+    if param == 1 then param = true else param = false end
+
+    -- Store it.
+    L.mapfocus.onplayer = param
 end
 
 ------------------------------------------------------------------------------

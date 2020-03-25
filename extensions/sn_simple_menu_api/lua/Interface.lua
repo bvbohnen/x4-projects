@@ -76,6 +76,11 @@ ffi.cdef[[
     void SetStatusBarMaxValue(const int statusbarid, float value);
     void SetStatusBarStartValue(const int statusbarid, float value);    
 ]]
+--[[
+TODO:
+    void SetCheckBoxChecked2(const int checkboxid, bool checked, bool update);
+    void SetCheckBoxColor(const int checkboxid, Color color);
+]]
 
 
 -- Note on forward declarations: any functions (or other locals) refernced

@@ -12,4 +12,5 @@
   <langugage description="" language="82"/>
   <langugage description="" language="86"/>
   <langugage description="" language="88"/>
+  <dependency version="300" />
 </content>

@@ -86,6 +86,17 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
+            $id         = 'map_menu_player_focus',
+            $name       = 'Open map on player',
+            $mouseover  = 'Forces the map to open focused on the player location always, instead of the current target location',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
             $disabled   = true,
             $id         = 'adjust_fov',
             $name       = 'Adjust Field of View',

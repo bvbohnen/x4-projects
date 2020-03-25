@@ -22,6 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_support_apis\" />
     <Folder Include="sn_better_target_monitor\" />
     <Folder Include="sn_better_target_monitor\lua\" />
     <Folder Include="sn_better_target_monitor\md\" />
@@ -119,8 +120,9 @@
     <Content Include="sn_simple_menu_api_test\md\Simple_Menu_API_Test.xml" />
     <Content Include="sn_extra_game_options\change_log.md" />
     <Content Include="sn_extra_game_options\content.xml" />
-    <Content Include="sn_extra_game_options\md\SN_Extra_Game_Options.xml" />
+    <Content Include="sn_extra_game_options\md\Extra_Game_Options.xml" />
     <Content Include="sn_extra_game_options\Readme.md" />
+    <Content Include="sn_support_apis\content.xml" />
     <Content Include="sn_time_api\change_log.md" />
     <Content Include="sn_time_api\content.xml" />
     <Content Include="sn_time_api\lua\Interface.lua" />

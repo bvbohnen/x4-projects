@@ -40,13 +40,6 @@
     eg. $bla$. These are parsed later by GetLiveData, also a global function.
     If adding new keywords, can wrap GetLiveData to handle them.
 
-
-TODO:
-    Faction colors:
-        Use this to look up the color of a faction in general:
-            GetFactionData(faction, "color")
-        If wanting to insert this into a text string, can use:
-            Helper.convertColorToText(color_table)
 ]]
 
 -- Set up any used ffi functions.
@@ -123,10 +116,14 @@ local L = {
     -- TODO: make ship size specific.
     arrival_tolerance = 1000,
 
-    -- When brightening colors, how much to reduce the range from the color
-    -- current value to max 255.
-    -- Eg. 0.6 will take a 120 color to 120+(255-120)*0.6 = 201
-    faction_color_brightening_factor = 0.5,   
+    -- When brightening colors, what the target total r+g+b value.
+    -- Up to 255*3 = 765
+    -- TODO: play around with this concept; 600 is good for paranid purple,
+    -- but too much for red xenon; how to fix? Should red be treated
+    -- differently?
+    faction_color_target_brightness = 200*3,
+    -- Storage of color channels, to avoid rebuilding regularly.
+    color_channels = {"r","g","b"},
 
     -- Default font/color, originally matching the ego menu.
     orig_defaults = {
@@ -384,6 +381,80 @@ function Filter.Smooth(filter, sample)
     return filter.current
 end
 
+-- Change the depth of a filter, if signifcantly different.
+function Filter.Change_Depth(filter, new_depth)
+    -- To prevent excess changes when an object is around a depth
+    -- boundary, only update if the depth changed by a couple steps,
+    -- where one step is 2 (hence 4 for two steps).
+    if math.abs(new_depth - filter.depth) < 4 then
+        return
+    end
+    -- Safety against 0, negative, or just too large.
+    new_depth = math.floor(new_depth)
+    if new_depth <= 0 or new_depth > 100 then
+        DebugError("Change_Depth rejecting "..tostring(new_depth))
+        return
+    end
+
+    -- Build a new list, using existing oldest to newest points.
+    local new_samples = {}
+
+    -- There needs to be at least one point for the following to make sense.
+    if #filter.samples > 0 then
+        -- Points from the latter part of the filter, oldest to end.
+        -- If next == 1, then this gets everything.
+        for i = filter.next, #filter.samples do
+            -- TODO: if speed is important, t[#t+1] is 2x faster than table.insert
+            table.insert(new_samples, filter.samples[i])
+        end
+        -- Points from start of the filter, midway to newest.
+        -- Only if next != 1
+        if filter.next ~= 1 then
+            for i = 1, filter.next - 1 do
+                table.insert(new_samples, filter.samples[i])
+            end
+        end
+    end
+
+    -- If the new_depth is shorter than the known samples, take away
+    -- the oldest ones.
+    local samples_to_remove = #new_samples - new_depth
+    if samples_to_remove > 0 then
+        local pruned_samples = {}
+        for i = samples_to_remove + 1, #new_samples do
+            table.insert(pruned_samples, new_samples[i])
+        end
+        new_samples = pruned_samples
+    end
+
+    -- Swap the filter state.
+    filter.depth = new_depth
+    filter.samples = new_samples
+    -- Set the .next to the correct point.
+    filter.next = #new_samples + 1
+    if filter.next > filter.depth then
+        filter.next = 1
+    end
+
+    -- Compte a new current value.
+    Filter.Refresh_Sum(filter)
+end
+
+-- Recompute the current sum and average.
+function Filter.Refresh_Sum(filter)
+    local sum = 0
+    for i, value in ipairs(filter.samples) do
+        sum = sum + value
+    end
+    filter.sum = sum
+    -- Reset current to nil if no samples.
+    if #filter.samples > 0 then
+        filter.current = filter.sum / #filter.samples
+    else
+        filter.current = nil
+    end
+end
+
 -- Clear samples.
 function Filter.Clear(filter)
     filter.samples = {}
@@ -457,20 +528,94 @@ end
 -- Generic text support functions.
 
 -- Given a color table, brightens and returns it. Alpha is unchanged.
-function L.Brighten_Color(color, color_brightening_factor)
-    if color == nil then return nil end
-    local new_color = {}
-    for key, value in pairs(color) do
-        if key == "r" or key == "g" or key == "b" then
-            -- Adjust based on distance from 255.
-            new_color[key] = value + math.floor((255 - value) * color_brightening_factor)
-            -- Safety limits.
-            if new_color[key] > 255 then new_color[key] = 255 end
-            if new_color[key] < 0   then new_color[key] = 0 end
-        else
-            new_color[key] = color
+-- TODO: maybe rethink this whole algorithm; complicated and doesn't work
+-- well on red vs purple. Maybe something more color specific would
+-- be better.
+function L.Brighten_Color(color, target_brightness)
+    if color == nil then return color end
+
+    -- Determine the total brightness of the existing color.
+    local orig_brightness = color.r + color.g + color.b
+    -- If target already met, return unchanged.
+    if orig_brightness >= target_brightness  then
+        return color
+    end
+
+    -- Determine the desired amount of upscaling to reach the
+    -- target brightness. Should be >1.
+    local target_ratio = target_brightness / orig_brightness
+
+    -- Determine the maximum amount the color can be brightened while
+    -- maintaining the color balance.
+    -- This depends on whichever channel is closest to 255.
+    local max_ratio
+    for i, channel in ipairs(L.color_channels) do
+        -- Eg. if color is 128, then the ratio is ~2.
+        local this_ratio = 255 / color[channel]
+        -- Keep the smallest ratio.
+        if max_ratio == nil or this_ratio < max_ratio then
+            max_ratio = this_ratio
         end
     end
+
+    -- Use the smaller ratio.
+    if max_ratio < target_ratio then
+        target_ratio = max_ratio
+    end
+
+    -- Apply this ratio to all channels.  Keep original alpha (maybe nil).
+    local new_color = {a = color.a}
+    for i, channel in ipairs(L.color_channels) do
+        -- Round to an integer.
+        new_color[channel] = math.floor(color[channel] * target_ratio + 0.5)
+        -- Safety limits.
+        if new_color[channel] > 255 then new_color[channel] = 255 end
+        if new_color[channel] < 0   then new_color[channel] = 0 end
+    end
+
+
+    -- The above may not have hit the brightness target, eg. an original
+    -- channel with a 0 value would still be 0.
+    -- Fall back on generically lightening channels uniformly.
+    -- This shouldn't need more than 3 loops.
+    for loops=1,3 do
+
+        -- Compute amount still needed.
+        local new_brightness = new_color.r + new_color.g + new_color.b
+        local remaining_amount = target_brightness - new_brightness
+
+        -- Figure out how many channels are not saturated, 1-3.
+        local unsaturated_channels = 0
+        for i, channel in ipairs(L.color_channels) do
+            if new_color[channel] < 255 then
+                unsaturated_channels = unsaturated_channels + 1
+            end
+        end
+
+        -- Distribute remaining_amount to unsaturated channels.
+        local amount_per_channel = remaining_amount / unsaturated_channels
+        for i, channel in ipairs(L.color_channels) do
+            if new_color[channel] < 255 then
+                new_color[channel] = new_color[channel] + amount_per_channel
+                -- Saturate.
+                if new_color[channel] > 255 then new_color[channel] = 255 end
+            end
+        end
+    end
+
+    -- Removed; old algorithm made already-readable colors too light.
+    --local new_color = {}
+    --for key, value in pairs(color) do
+    --    if key == "r" or key == "g" or key == "b" then
+    --        -- Adjust based on distance from 255.
+    --        new_color[key] = value + math.floor((255 - value) * color_brightening_factor)
+    --        -- Safety limits.
+    --        if new_color[key] > 255 then new_color[key] = 255 end
+    --        if new_color[key] < 0   then new_color[key] = 0 end
+    --    else
+    --        new_color[key] = color
+    --    end
+    --end
     return new_color
 end
 
@@ -660,7 +805,6 @@ function L.Init_Specs()
     local str_hull_l, str_shield_l = L.Match_String_Length(T.hull, T.shield, hullshield_font, false)
 
     -- Right display, half row each.
-    -- TODO: fancy functions to equalize shield/hull string lengths.
     -- X% Hull
     cols.right.hull   = Make_Spec(hull_code.."   "..str_hull_r, hullshield_font)
     -- X% Shield
@@ -737,34 +881,38 @@ function L.Categorize_Original_Rows(text_rows)
     local orig = {unknowns = {}}
     for i, row in ipairs(text_rows) do
 
-        if row.right == nil then
-            -- Skip.
+        -- Some rows have no entry on the right; isolate the text or nil.
+        local right_text
+        if row.right ~= nil then
+            right_text = row.right.text
+        end
 
-        elseif row.right.text == "$hullpercent$%" then
+        -- Check all cases, defaulting to unknown.
+        if right_text == "$hullpercent$%" then
             orig.hull = row
 
-        elseif row.right.text == "$shieldpercent$%" then
+        elseif right_text == "$shieldpercent$%" then
             orig.shield = row
 
-        elseif row.right.text == "$aicommand$" then
+        elseif right_text == "$aicommand$" then
             orig.command_0 = row
 
-        elseif row.right.text == "$aicommandaction$" then
+        elseif right_text == "$aicommandaction$" then
             orig.command_1 = row
 
-        elseif row.right.text == "$crew$" then
+        elseif right_text == "$crew$" then
             orig.crew = row
             -- Storage always preceeds crew, though its format isn't
             -- always the same, so fill here.
             orig.storage = text_rows[i -1]
 
-        elseif row.right.text == "$revealpercent$%" then
+        elseif right_text == "$revealpercent$%" then
             orig.reveal = row
 
-        elseif row.right.text == "$commander$" then
+        elseif right_text == "$commander$" then
             orig.commander = row
 
-        elseif row.right.text == "$buildingprogress$%" then
+        elseif right_text == "$buildingprogress$%" then
             orig.building = row
         else
             table.insert(orig.unknowns, row)
@@ -839,13 +987,14 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
         new_rows = {
             orig.reveal,
             Make_Row(col_left_shield_blank, cols.distance_delta),
-            Make_Row(cols.left.hull,        cols.speed),
+            Make_Row(cols.left.hull,        ""),
             Make_Row("",                    cols.right.eta),
             orig.command_0,
             orig.command_1,
             orig.building,
         }
         
+    -- Some mines can move, so include speed.
     elseif IsComponentClass(component, "mine")
     then
         new_rows = {
@@ -854,14 +1003,21 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
             Make_Row("",                    cols.right.eta),
         }
 
-    -- TODO: maybe split off objects that can't move to hide speed.
-    -- TODO: check if object has shields, and maybe hide shield readout if not.
-    elseif IsComponentClass(component, "collectable")
+    -- Objects that can't move.
+    elseif IsComponentClass(component, "asteroid")
+    or     IsComponentClass(component, "collectable")
     or     IsComponentClass(component, "crate")
     or     IsComponentClass(component, "lockbox")
     or     IsComponentClass(component, "navbeacon")
-    or     IsComponentClass(component, "resourceprobe")    
+    or     IsComponentClass(component, "resourceprobe")
     or     IsComponentClass(component, "satellite")
+    -- Ship subsystems treated as speedless for now; todo: support speed
+    -- based on parent ship.
+    or     IsComponentClass(component, "turret")
+    or     IsComponentClass(component, "shieldgenerator")
+    or     IsComponentClass(component, "engine")
+    or     IsComponentClass(component, "module")
+    or     IsComponentConstruction(component)
     then
         new_rows = {
             Make_Row(col_left_shield_blank, cols.distance_delta),
@@ -870,14 +1026,29 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
         }
                 
     -- Static objects without hull/shield.
-    elseif IsComponentClass(component, "asteroid")
-    or     IsComponentClass(component, "gate")
+    elseif IsComponentClass(component, "gate")
+    or     IsComponentClass(component, "highway") 
+    or     IsComponentClass(component, "highwayentrygate") 
+    or     IsComponentClass(component, "highwayexitgate")
+    or     IsComponentClass(component, "zone")
+    or     IsComponentClass(component, "dockingbay")
+    -- Wrecks
+    or not IsComponentOperational(component)
+    -- Data vaults have no special class; they are just "object"; try
+    -- this as a catch-all.
+    or     IsComponentClass(component, "object")
+    -- TODO: other misc components
+    or     IsComponentClass(component, "signalleak")    
+    -- TODO: are submodules generically caught by "destructable"?
     then
         new_rows = {
             Make_Row("",               cols.distance_delta),
             Make_Row("",               cols.right.eta),
         }
         
+    -- TODO: npcs are entities (eg. with skill popup);
+    -- anything interesting to add?
+    --elseif IsComponentClass(component, "entity")
         
     end
 
@@ -1070,7 +1241,7 @@ function L.Patch_GetTargetMonitorDetails()
             if factionID_str and factionID_str ~= "" then
                 local faction_color = GetFactionData(factionID_str, "color")
                 if faction_color then
-                    full_spec.header.color = L.Brighten_Color(faction_color, L.faction_color_brightening_factor)
+                    full_spec.header.color = L.Brighten_Color(faction_color, L.faction_color_target_brightness)
                 end
             end
         end
@@ -1105,10 +1276,9 @@ function L.Patch_GetLiveData()
                 L.last_distance    = nil
                 L.last_update_time = nil
 
-                Filter.Clear(L.filters.speed)
-                Filter.Clear(L.filters.rel_speed)
-                Filter.Clear(L.filters.distance)
-                Filter.Clear(L.filters.eta)
+                for key, filter in pairs(L.filters) do
+                    Filter.Clear(filter)
+                end
             end
 
             if placeholder == "speed" then
@@ -1150,6 +1320,25 @@ end
 
 ------------------------------------------------------------------------------
 
+-- Wrapper function on C.GetObjectPositionInSector, since it may
+-- be sometimes triggering errors (perhaps GetPlayerObjectID isn't
+-- always valid?).
+-- Returns nil on error.
+local function GetObjectPositionInSector(object)
+    local success, result = pcall(C.GetObjectPositionInSector, object)
+    if success then
+        return result
+    else
+        -- Something went wrong. Maybe bad player object?
+        -- TODO: try to catch this sometime; leave printout disabled
+        -- for now to avoid spamming log.
+        -- Result: the problem is some other file; this trigger is
+        -- never hit.
+        --DebugError("C.GetObjectPositionInSector error: "..tostring(result))
+        return nil
+    end
+end
+
 -- Returns a string for target's distance, and updates internal
 -- values used in relative speed and ETA.
 function L.Get_Distance(targetdata)
@@ -1168,15 +1357,24 @@ function L.Get_Distance(targetdata)
     --local playertarget = ConvertIDTo64Bit(GetPlayerTarget())
     -- Or maybe this, gives x/y/z of player target:
     -- C.GetPlayerTargetOffset()
-    local t_off = C.GetPlayerTargetOffset()
+    -- Note: GetPlayerTargetOffset has been observed (rarely) to return bad z
+    -- data for a superhighway when it was selected with no prior target; z data
+    -- was correct if there was a prior target. No ideas on why.
+    --local t_off = C.GetPlayerTargetOffset()
+    -- Work off the player target object instead; more reliable in testing.
+    --local t_off = C.GetObjectPositionInSector(ConvertIDTo64Bit(GetPlayerTarget()))
+    local t_off = GetObjectPositionInSector(targetdata.component64)
+    
     --if t_off then
     --    DebugError("x "..t_off.x .." y "..t_off.y .." z "..t_off.z)
     --end
 
     -- This gets pos of an object; try to get player ship or player.
     -- Need to use player directly, so this works when outside a ship.
-    --local player_ship = C.GetPlayerOccupiedShipID()
-    local p_off = C.GetObjectPositionInSector(C.GetPlayerObjectID()    )
+    -- TODO: sometimes getting messages about this in log, couldn't find
+    -- sector for object (some id); is that coming from this spot or some
+    -- other ego code?
+    local p_off = GetObjectPositionInSector(C.GetPlayerObjectID())
 
     if t_off and p_off then
         local distance = ((t_off.x - p_off.x)^2
@@ -1189,6 +1387,27 @@ function L.Get_Distance(targetdata)
         -- speeds the differences between samples can easily be well below
         -- the decimal point.
 
+        -- Update filter depths based on this distance.
+        -- Further objects need more filtering. Unclear on good depths,
+        -- but 4 was too few for objects 90km out, and probably want something
+        -- even to smooth out every-other-frame oscillations.
+        local distance_km = distance / 1000
+        local filter_depth
+        -- Just hand set based on distance cuttoffs for now, to easily tune.
+        -- TODO: maybe instead adjust the sampling rate at long distance.
+        if distance_km > 80 then
+            filter_depth = 40
+        elseif distance_km > 50 then
+            filter_depth = 20
+        elseif distance_km > 30 then
+            filter_depth = 8
+        else
+            filter_depth = 4
+        end
+        for key, filter in pairs(L.filters) do
+            Filter.Change_Depth(filter, filter_depth)
+        end
+
         -- Hand off to the update function for deltas.
         L.Update_Relative_Speed(targetdata, distance)
 
@@ -1198,9 +1417,13 @@ function L.Get_Distance(targetdata)
 
         -- Suffix it.
         return L.Value_To_Rounded_Text(distance, T.units["m"], T.units["km"], false)
+    else
+        -- Clear out data that eta uses; it should also be unknown.
+        Filter.Clear(L.filters.distance)
+        Filter.Clear(L.filters.rel_speed)
     end
 
-    return "Much Far"
+    return "..."
 end
 
 -- Update values for the change in distance.
@@ -1335,8 +1558,10 @@ function L.getShipTypeText(targetdata)
     -- by this name.
     --local macroclass = GetComponentData(targetdata.component, "macroclass")
     -- Need macro for size lookup.
-    local macro = GetComponentData(targetdata.component, "macro")
-    local macroclass = ffi.string(C.GetMacroClass(macro))
+    --local macro = GetComponentData(targetdata.component, "macro")
+    --local macroclass = ffi.string(C.GetMacroClass(macro))
+    -- The above 2 lines work fine, but can be done in one line.
+    local macroclass = ffi.string(C.GetComponentClass(targetdata.component64))
 
     -- Encode ship purpose, eg. Fight.
     local purpose_name = T.purpose_names[purpose]

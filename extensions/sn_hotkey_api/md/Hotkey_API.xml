@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
 <mdscript name="Hotkey_API"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<!--Note: keep the MD name convenient for users.-->
 
 <!--@doc-title Hotkey API -->
 <!--
@@ -899,6 +900,44 @@ TODO:
     </actions>
   </cue>
 
-    
-  </cues>
+
+  <!-- Set up a menu option to turn on/off the debug logging. -->
+  <cue name="Set_Menu_Options" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+    </conditions>
+    <actions>
+      <!--TODO: maybe hide this unless in developer mode (how to know?)-->
+      <signal_cue_instantly
+        cue="md.Simple_Menu_Options.Register_Option"
+        param = "table[
+            $category   = 'Debug',
+            $id         = 'debug_hotkey_api',
+            $name       = 'Enable hotkey api debug logs',
+            $mouseover  = 'Prints extra api status info to the debug log, general category',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = On_Option_Change,
+            ]"/>
+    </actions>
+  </cue>
+
+  <cue name="On_Option_Change" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+      <set_value name="$id"    exact="event.param.$id"/>
+      <set_value name="$value" exact="event.param.$value"/>
+
+      <do_if value="$id == 'debug_hotkey_api'">
+        <!-- Change the debug chance in the main md file. -->
+        <set_value name="md.Hotkey_API.Globals.$DebugChance"
+                   exact ="if ($value) then 100 else 0"/>
+      </do_if>
+    </actions>
+  </cue>
+
+
+</cues>
 </mdscript>
