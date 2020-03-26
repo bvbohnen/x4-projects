@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="simple_menu_api_test" name="Simple Menu API Test" author="SirNukes" version="001" date="2019-10-18" save="false" sync="false">
+<content id="simple_menu_api_test" name="Simple Menu API Test" author="SirNukes" version="001" date="2019-10-18" save="false" sync="false" enabled="false">
   <!-- Maybe fill out individual languages. -->
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>

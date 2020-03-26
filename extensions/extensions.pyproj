@@ -22,12 +22,13 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_interact_collection\" />
     <Folder Include="sn_hotkey_collection\" />
+    <Folder Include="sn_interact_collection\md\" />
     <Folder Include="sn_mod_support_apis\" />
     <Folder Include="sn_better_target_monitor\" />
     <Folder Include="sn_better_target_monitor\lua\" />
     <Folder Include="sn_better_target_monitor\md\" />
-    <Folder Include="sn_mod_support_apis\lua\lib\" />
     <Folder Include="test_hotkey_api\" />
     <Folder Include="test_hotkey_api\md\" />
     <Folder Include="test_interact_menu_api\" />
@@ -63,7 +64,10 @@
     <Content Include="sn_better_target_monitor\lua\Target_Monitor.lua" />
     <Content Include="sn_better_target_monitor\md\Better_Target_Monitor.xml" />
     <Content Include="sn_better_target_monitor\Readme.md" />
-    <Content Include="sn_mod_support_apis\lua\lib\Library.lua" />
+    <Content Include="sn_interact_collection\change_log.md" />
+    <Content Include="sn_interact_collection\content.xml" />
+    <Content Include="sn_interact_collection\md\SN_Interact_Commands.xml" />
+    <Content Include="sn_mod_support_apis\lua\Library.lua" />
     <Content Include="test_hotkey_api\content.xml" />
     <Content Include="test_hotkey_api\md\Hotkey_API_Test.xml" />
     <Content Include="test_interact_menu_api\content.xml" />
@@ -80,7 +84,6 @@
     <Content Include="sn_extra_game_options\content.xml" />
     <Content Include="sn_extra_game_options\md\Extra_Game_Options.xml" />
     <Content Include="sn_extra_game_options\Readme.md" />
-    <Content Include="sn_mod_support_apis\lua\hotkey\Library.lua" />
     <Content Include="sn_mod_support_apis\lua\hotkey\Tables.lua" />
     <Content Include="sn_mod_support_apis\Readme.md">
       <SubType>Code</SubType>

@@ -7,6 +7,7 @@ for %%F in (
 	sn_better_target_monitor
 	sn_extra_game_options
 	sn_hotkey_collection
+	sn_interact_collection
 	sn_mod_support_apis
 	test_hotkey_api
 	test_interact_menu_api

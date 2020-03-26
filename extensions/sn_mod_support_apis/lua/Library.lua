@@ -5,7 +5,6 @@ Library functions to be shared across apis.
 -- Table to hold lib functions.
 local L = {}
 
-
 -- Table of lua's pattern characters that have special meaning.
 -- These need to be escaped for string.find.
 -- Can check a separator based on table key; values are dummies.
@@ -202,6 +201,45 @@ function L.Slice_List(itable, start, stop)
         table.insert(otable, itable[i])
     end
     return otable
+end
+
+
+
+-- FIFO definition, largely lifted from https://www.lua.org/pil/11.4.html
+-- Adjusted for pure fifo behavior.
+-- TODO: change to act as methods.
+local FIFO = {}
+L.FIFO = FIFO
+
+function FIFO.new ()
+  return {first = 0, last = -1}
+end    
+
+function FIFO.Write (fifo, value)
+  local last = fifo.last + 1
+  fifo.last = last
+  fifo[last] = value
+end
+
+function FIFO.Read (fifo)
+  local first = fifo.first
+  if first > fifo.last then error("fifo is empty") end
+  local value = fifo[first]
+  fifo[first] = nil
+  fifo.first = first + 1
+  return value
+end
+
+-- Return the next Read value of the fifo, without removal.
+function FIFO.Next (fifo)
+  local first = fifo.first
+  if first > fifo.last then error("fifo is empty") end
+  return fifo[first]
+end
+
+-- Returns true if fifo is empty, else false.
+function FIFO.Is_Empty (fifo)
+  return fifo.first > fifo.last
 end
 
 

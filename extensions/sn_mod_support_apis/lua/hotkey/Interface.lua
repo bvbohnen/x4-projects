@@ -25,7 +25,7 @@ ffi.cdef[[
 ]]
 
 -- Imports.
-local Lib = require("extensions.sn_mod_support_apis.lua.hotkey.Library")
+local Lib = require("extensions.sn_mod_support_apis.lua.Library")
 local Tables = require("extensions.sn_mod_support_apis.lua.hotkey.Tables")
 local config = Tables.config
 
@@ -53,6 +53,16 @@ local L = {
 -- Proxy for the gameoptions menu, linked further below.
 local menu = nil
 
+
+-- Signalling results from lua to md.
+-- Takes the row,col of the activated widget, and an optional new value
+-- for that widget.
+-- TODO: think about this more.
+local function Raise_Signal(name, value)
+    AddUITriggeredEvent("Hotkey", name, value)
+end
+
+
 local function Init()
 
     -- MD triggered events.
@@ -66,7 +76,7 @@ local function Init()
     -- Signal to md that a reload event occurred.
     -- This will also trigger md to send over its stored list of
     -- player assigned keys.
-    Lib.Raise_Signal("reloaded")
+    Raise_Signal("reloaded")
     
 
     -- Stop if something went wrong.
@@ -273,7 +283,7 @@ end
 function L.Menu_Closed(menu)
     if menu.name == "TopLevelMenu" then return end
     --DebugError("Menu closed: "..tostring(menu.name))
-    Lib.Raise_Signal("Menu_Closed", menu.name)
+    Raise_Signal("Menu_Closed", menu.name)
     -- TODO: in practice, some menu closures might get missed.
     --  Can maybe check all menu open states, and indicate if they
     --  are all closed at the time (to recover from bad information).
@@ -286,7 +296,7 @@ function L.Menu_Opened(menu)
     if menu.name == "TopLevelMenu" then return end
     if menu.name == "UserQuestionMenu" then return end
     --DebugError("Menu opened: "..tostring(menu.name))
-    Lib.Raise_Signal("Menu_Opened", menu.name)
+    Raise_Signal("Menu_Opened", menu.name)
 end
 
 -- This is called when menus are minimized in Helper.
@@ -294,7 +304,7 @@ end
 function L.Menu_Minimized(menu)
     if menu.name == "TopLevelMenu" then return end
     --DebugError("Menu minimized: "..tostring(menu.name))
-    Lib.Raise_Signal("Menu_Closed", menu.name)
+    Raise_Signal("Menu_Closed", menu.name)
 end
 
 -- This is called when menus are restored (unminimized) in Helper.
@@ -302,7 +312,7 @@ end
 function L.Menu_Restored(menu)
     if menu.name == "TopLevelMenu" then return end
     --DebugError("Menu restored: "..tostring(menu.name))
-    Lib.Raise_Signal("Menu_Opened", menu.name)
+    Raise_Signal("Menu_Opened", menu.name)
 end
 
 -- TODO: a timed check to occasionally go through all the menus and
@@ -389,7 +399,7 @@ end
 function L.Write_Player_Keys()
     -- Args are attached to the player component object.
     SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_lua", L.player_action_keys)
-    Lib.Raise_Signal("Store_Player_Keys")
+    Raise_Signal("Store_Player_Keys")
     
     --Lib.Print_Table(L.player_action_keys, "Write_Player_Keys player_action_keys")
 end
@@ -770,7 +780,7 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
         signum = newinputsgn }
         
     -- Signal lua to update if the combo changed.
-    Lib.Raise_Signal("Update_Key", {
+    Raise_Signal("Update_Key", {
         id      = action_keys.id,
         new_key = new_combo,
         old_key = old_combo,

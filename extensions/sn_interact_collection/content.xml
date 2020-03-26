@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="interact_menu_api_test" name="Interact Menu API Test" author="SirNukes" version="001" date="2020-3-11" save="false" sync="false" enabled="false">
-  <!-- Maybe fill out individual languages. -->
+<content 
+  id="sn_interact_collection" 
+  name="SirNukes Interact Command Collection"
+  description="Adds new context menu interaction commands." 
+  author="SirNukes" 
+  version="100" 
+  date="2020-3-25" 
+  save="false" 
+  sync="false">
+  
+  <!-- Maybe fill out individual languages.
   <langugage description="" language="7"/>
   <langugage description="" language="33"/>
   <langugage description="" language="37"/>
@@ -11,6 +20,8 @@
   <langugage description="" language="81"/>
   <langugage description="" language="82"/>
   <langugage description="" language="86"/>
-  <langugage description="" language="88"/>
-  <dependency id="interact_menu_api" version="001" optional="false"/>
+  <langugage description="" language="88"/> -->
+  
+  <dependency id="sn_mod_support_apis" version="100" optional="false"/>
+  <dependency version="300" />
 </content>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Interact_Commands" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+<cues>
+
+  <!-- Listen from the menu api reloading. -->
+  <cue name="Reset_On_Reload" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
+    </conditions>
+    <actions>
+      
+      <signal_cue_instantly
+        cue="md.Interact_Menu_API.Register_Action"
+        param = "table[
+          $id         = 'target_follow',
+          $section    = 'interaction',
+          $name       = 'Follow',
+          $callback   = Target_Follow,
+          $enabled_conditions  = ['player_is_piloting'],
+          $disabled_conditions = ['~show_PlayerInteractions'],
+          ]"/>
+      
+    </actions>
+  </cue>
+
+  <!-- Auto-follow selected ship. -->
+  <cue name="Target_Follow" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+      <!-- Verify the player is piloting a ship.-->
+      <check_value value="player.occupiedship"/>
+    </conditions>
+    <actions>
+      <!-- Debug message. -->
+      <!--<raise_lua_event name="'directChatMessageReceived'" param="'InteractMenu;Starting Target_Follow'"/>-->
+      <!--<debug_text text="'InteractMenu Triggered Target_Follow'" filter="general"/>-->
+
+      <start_player_autopilot destination="event.param.$object"/>
+    </actions>
+  </cue>
+    
+</cues>
+
+</mdscript>
+
+
+

@@ -330,6 +330,7 @@ local T = {
 
 ------------------------------------------------------------------------------
 -- Support object for data smoothing.
+-- TODO: move to the mod support apis, maybe.
 
 local Filter = {}
 

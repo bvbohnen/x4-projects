@@ -254,7 +254,7 @@ end
 function L.Handle_pipeRead(_, pipe_name_id)
 
     -- Isolate the pipe_name and access id.
-    local pipe_name, callback = Lib.Split_String(pipe_name_id)
+    local pipe_name, callback = Lib.Split_String(pipe_name_id, ";")
        
     -- Pass to the scheduler.
     Pipes.Schedule_Read(pipe_name, callback)
@@ -270,8 +270,9 @@ end
 function L.Handle_pipeWrite(signal_name, pipe_name_id_message)
 
     -- Isolate the pipe_name, id, value.
-    local pipe_name, temp = Lib.Split_String(pipe_name_id_message)
-    local callback, message = Lib.Split_String(temp)
+    -- TODO: maybe use Split_String_Multi if ; not allows in message.
+    local pipe_name, temp = Lib.Split_String(pipe_name_id_message, ";")
+    local callback, message = Lib.Split_String(temp, ";")
     
     -- Handle special commands.
     -- Note: if the command not recognized, it just gets sent as-is.
@@ -305,7 +306,7 @@ end
 -- consistency and code reuse in the MD.
 function L.Handle_pipeCheck(_, pipe_name_id)
     -- Use find/sub for splitting instead.
-    local pipe_name, callback = Lib.Split_String(pipe_name_id)
+    local pipe_name, callback = Lib.Split_String(pipe_name_id, ";")
     
     local success = pcall(L.Connect_Pipe, pipe_name)
     -- Translate to strings that match read/write returns.

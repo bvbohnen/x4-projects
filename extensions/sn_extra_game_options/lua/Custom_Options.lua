@@ -63,7 +63,7 @@ local debugger = {
 }
 
 -- Import library functions for strings and tables.
-local Lib = require("extensions.sn_simple_menu_api.lua.Library")
+local Lib = require("extensions.sn_mod_support_apis.lua.Library")
 
 -- Table of locals.
 local L = {}

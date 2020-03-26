@@ -1,19 +1,8 @@
 --[[
-    Functionality for opening, reading, writing to pipes.
+Functionality for opening, reading, writing to pipes.
 
-    TODO: getting repeatable crash when:
-    -1 start host
-    -2 let x4 connect
-    -3 reloadui, reconnect okay
-    -4 restart host
-    -5 tabbing back into game crashes, though pipe does initially reconnect
-       and ping okay. No messages in x4 log.
-    - doesn't crash if just continually restarting the host.
-    - doesn't crash if just continually doing reloadui
-    - somehow the interaction crashes?
-    - Also noticed to crash if restarting host first, then doing reloadui.
-    - TODO: try disabling keycapture and time apis, and recreate crash
-      with just the main host pipe.
+Note: if the pipes dll fails to load, the behavior here will be to
+still act as if pipes are supported, but the server is disconnected.
 ]]
 
 local debug = {    
@@ -39,13 +28,15 @@ ffi.cdef[[
 -- Load in the winpipe dll, which has been set up with the necessary
 -- Windows functions for working with pipes.
 local winpipe = require("extensions.sn_mod_support_apis.lualibs.winpipe")
+-- If not on windows, the above will be nil, and the pipe will be treated
+-- as disconnected.
 
 local Lib = require("extensions.sn_mod_support_apis.lua.named_pipes.Library")
 FIFO = Lib.FIFO
 -- Pass along any debug params.
 Lib.debug.print_to_log = debug.print_to_log
 
-local Time = require("extensions.sn_time_api.lua.Interface")
+local Time = require("extensions.sn_mod_support_apis.lua.time.Interface")
 
 
 -- Local functions and state. These are returned on require().
@@ -339,9 +330,12 @@ function L.Connect_Pipe(pipe_name)
 
     -- Check if a file is not open.
     if pipes[pipe_name].file == nil then
-        -- Add a prefix to the pipe_name to get the path to use.
-        pipes[pipe_name].file = winpipe.open_pipe(L.pipe_path_prefix .. pipe_name)
-        
+
+        if winpipe ~= nil then
+            -- Add a prefix to the pipe_name to get the path to use.
+            pipes[pipe_name].file = winpipe.open_pipe(L.pipe_path_prefix .. pipe_name)
+        end
+
         -- If the entry is still nil, the open failed.
         if pipes[pipe_name].file == nil then
             if debug.print_connect_errors then
@@ -350,7 +344,6 @@ function L.Connect_Pipe(pipe_name)
             -- A simple error description is used for the Test function.
             error("open_pipe returned nil for "..pipe_name)
         end
-            
         -- Announce to the server that x4 just connected.
         -- Removed; depends on server protocol, and MD can send this signal
         -- if needed for a particular server.
