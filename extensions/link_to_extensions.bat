@@ -5,18 +5,14 @@ SET "src_path=%~dp0"
 
 for %%F in (
 	sn_better_target_monitor
-	sn_hotkey_api
-	sn_hotkey_api_test
-	sn_interact_menu_api
-	sn_interact_menu_api_test
-	sn_lua_loader_api
-	sn_named_pipes_api
-	sn_named_pipes_api_test
-	sn_simple_menu_api
-	sn_simple_menu_api_test
 	sn_extra_game_options
-	sn_time_api
-	sn_time_api_test
+	sn_hotkey_collection
+	sn_mod_support_apis
+	test_hotkey_api
+	test_interact_menu_api
+	test_named_pipes_api
+	test_simple_menu_api
+	test_time_api
 ) do (
 	mklink /J "%x4_path%\%%F" "%src_path%\%%F"
 )

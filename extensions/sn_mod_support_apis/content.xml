@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="sn_mod_support_apis" 
+  name="SirNukes Mod Support APIs" 
+  description="Collection APIs for modding support. Components include: Lua Loader API, Time API, Named Pipes API, Hotkey API, Interact Menu API, Simple Menu API." 
+  author="SirNukes" 
+  version="100" 
+  date="2019-07-23" 
+  save="false" 
+  sync="false">
+  
+  <!-- Maybe fill out individual languages.
+  <langugage description="" language="7"/>
+  <langugage description="" language="33"/>
+  <langugage description="" language="37"/>
+  <langugage description="" language="39"/>
+  <langugage description="" language="44"/>
+  <langugage description="" language="49"/>
+  <langugage description="" language="55"/>
+  <langugage description="" language="81"/>
+  <langugage description="" language="82"/>
+  <langugage description="" language="86"/>
+  <langugage description="" language="88"/> -->
+  
+  <!--Set X4 version requirement.-->
+  <dependency version="300" />
+</content>
