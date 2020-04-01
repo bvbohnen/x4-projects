@@ -4,6 +4,7 @@ REM "%x_tools_path%" publishx4 -path "%src_path%\%%F" -preview "%src_path%\%%F\p
 SET "x_tools_path=E:\Steam\SteamApps\common\X Rebirth Tools\WorkshopTool.exe"
 SET "src_path=%~dp0\..\Release\"
 
+REM TODO: replace this with a more selective approach, to avoid spamming steam update logs.
 for %%F in (
 	sn_better_target_monitor
 	sn_extra_game_options

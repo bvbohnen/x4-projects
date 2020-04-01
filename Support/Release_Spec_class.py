@@ -109,11 +109,6 @@ class Release_Spec:
         for path in (content_dir / 'change_logs').glob('**/*.*'):
             files['change_logs'].append(path)
 
-        # Any pngs at main level are preview images.
-        for path in content_dir.glob('*.png'):
-            # Include as misc files.
-            files['misc'].append(path)
-
         # Find everything else in subfolders to pack into a normal cat.
         # For safety, filter to just xml for now.
         paths_seen = [x for sublist in files.values() for x in sublist]

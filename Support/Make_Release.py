@@ -120,6 +120,17 @@ def Make_Zip(release_dir, zip_path, spec):
     # Also write a version of these files to loose folders for each
     # extension, in preparation for steam upload using egosoft's tools.
     if spec.is_extension:
+
+        # Clear old files (may have been renamed/etc.)
+        # Note: shutil rmtree is slow/async and cause random permission
+        # errors in following file gen. As a workaround, rename the folder
+        # first (fast) and delete that.
+        folder = release_dir / spec.name
+        if folder.exists():
+            delete_path = folder.parent / (folder.stem + '_deleting')
+            folder.rename(delete_path)
+            shutil.rmtree(str(delete_path))
+
         for rel_path, binary in path_binaries.items():
 
             # Make the real path, releases folder alongside the zip.
@@ -137,6 +148,19 @@ def Make_Zip(release_dir, zip_path, spec):
 
     return
 
+
+def Update_Steam(spec):
+    '''
+    Update the steam copy of this release, if the version has changed
+    since the last update.
+    TODO: intelligent way to go about this?
+    - Save versions to a json (keep in repo)
+    - Update json when steam is updated
+    - On new extension, check if flagged for steam upload; if so, add
+      a dummy preview pic and publish to steam.
+
+    Pending development.
+    '''
 
 
 if __name__ == '__main__':
