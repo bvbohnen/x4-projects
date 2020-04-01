@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content 
-  id="sn_mod_support_apis" 
+  id="ws_2042901274" 
   name="SirNukes Mod Support APIs" 
   description="Collection APIs for modding support. Components include: Lua Loader API, Time API, Named Pipes API, Hotkey API, Interact Menu API, Simple Menu API." 
   author="SirNukes" 
-  version="100" 
+  version="163" 
   date="2019-07-23" 
   save="false" 
   sync="false">
@@ -25,3 +25,4 @@
   <!--Set X4 version requirement.-->
   <dependency version="300" />
 </content>
+

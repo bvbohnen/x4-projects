@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="ws_2042914964" 
+  name="Remove Dock Symbol" 
+  description="Removes the red overlay symbol from small docking pads on ships." 
+  author="SirNukes" 
+  version="100" 
+  date="2020-3-28" 
+  save="false" 
+  sync="false">
+</content>

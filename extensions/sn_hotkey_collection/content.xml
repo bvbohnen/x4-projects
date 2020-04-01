@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content 
-  id="sn_new_hotkeys" 
+  id="ws_2042920586" 
   name="SirNukes Hotkey Collection"
   description="Adds a variety of new hotkeys. Requires a running named pipe server (part of the mod support APIs)." 
   author="SirNukes" 
@@ -21,7 +21,8 @@
   <langugage description="" language="82"/>
   <langugage description="" language="86"/>
   <langugage description="" language="88"/> -->
-  
-  <dependency id="sn_mod_support_apis" version="100" optional="false"/>
+
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="100" optional="false"/>
   <dependency version="300" />
 </content>

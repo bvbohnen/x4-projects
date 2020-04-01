@@ -16,3 +16,5 @@ Change Log
   - Support generic objects, eg. data vaults.
   - Tweaked faction name coloring.
   - Bypassed C.GetPlayerTargetOffset() returning bad z data.
+* 1.3
+  - Removed distance/eta from some target types that gave errors.

@@ -27,7 +27,7 @@ ffi.cdef[[
 
 -- Load in the winpipe dll, which has been set up with the necessary
 -- Windows functions for working with pipes.
-local winpipe = require("extensions.sn_mod_support_apis.lualibs.winpipe")
+local winpipe = require("extensions.sn_mod_support_apis.lua.c_library.winpipe")
 -- If not on windows, the above will be nil, and the pipe will be treated
 -- as disconnected.
 

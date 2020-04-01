@@ -26,10 +26,12 @@
   <ItemGroup>
     <Compile Include="Make_Documentation.py" />
     <Compile Include="Make_Release.py" />
-    <Compile Include="Project_Specs.py">
+    <Compile Include="Release_Specs.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Version.py" />
+    <Compile Include="Release_Spec_class.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

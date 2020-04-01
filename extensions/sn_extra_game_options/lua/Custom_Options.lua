@@ -63,7 +63,7 @@ local debugger = {
 }
 
 -- Import library functions for strings and tables.
-local Lib = require("extensions.sn_mod_support_apis.lua.Library")
+local Lib = require("extensions.sn_mod_support_apis.lua_interface").Library
 
 -- Table of locals.
 local L = {}
@@ -459,6 +459,8 @@ function L.Init_Help_Text()
 
     RegisterEvent("helptext", L.helptext.setup_func)
     RegisterEvent("multihelptext", L.helptext.setup_func)
+
+    -- TODO: disable sounds, eg. PlaySound("notification_hint")
 
     -- Removed; only semi-functional.
     --[[

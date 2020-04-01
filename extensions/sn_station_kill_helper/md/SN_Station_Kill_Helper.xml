@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Station_Kill_Helper" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  When watching a fleet kill a station, it can end up at 0% hull but be
+  unkillable, for whatever dumb reason.
+  
+  This script will occasionally search the universe stations to find any
+  at <1% health, then listen for it being attacked; if attacked, kills
+  the station and its build storage.
+  
+  Note: invuln objects have a min hull set to 42%, so this will naturally
+  keep them protected.
+  -->
+
+  <cues>
+
+    <!--
+    Cue which holds the global state.
+    Resets on save reload or anytime the simple menu api reloads (to make
+    it easier to develop with /reloadui commands).
+    
+    * $enable
+      - Int, 1 to enable this logic.
+    * $runtime_cue
+      - Main cue with the runtime logic.
+      - Gets killed and recreated when globals is reset.
+    * $DebugChance
+      - Chance of printing debug messages.
+    -->
+    <cue name="Globals">
+      <actions>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <cue name="Reset_On_Reload" instantiate="true">
+          <conditions>
+            <check_any>
+              <event_game_loaded/>
+              <event_game_started/>
+              <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+            </check_any>
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!--Reused code to actually do the globals reset.-->
+    <library name="Reset_Globals">
+      <actions>
+        <set_value name="$enable" exact="1"/>
+        <set_value name="$DebugChance" exact="100"/>        
+        <!-- Kill the runtime cue if it exists. -->
+        <do_if value="$runtime_cue? and $runtime_cue.exists">
+          <cancel_cue cue="$runtime_cue"/>
+        </do_if>
+        <set_value name="$runtime_cue" exact="null"/>
+        <!--Restart the runtime cue; it will fill in $runtime_cue-->
+        <signal_cue cue="Main"/>
+      </actions>
+    </library>
+
+    
+    <!--Register player facing menu options.
+    <cue name="Setup_Options" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+      </conditions>
+      <actions>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'sn_destroy_station_enable',
+            $name       = 'Enable Dead Station Destruction',
+            $mouseover  = 'Enables the logic which looks for nearly dead stations and destroys them.',
+            $default    = 1,
+            $type       = 'button',
+            $callback   = On_Option_Change,
+            ]"/>
+
+      </actions>
+    </cue>-->
+    
+    <!--
+      Handle option changes.
+    <cue name="On_Option_Change" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$id"    exact="event.param.$id"/>
+        <set_value name="$value" exact="event.param.$value"/>
+
+        <do_if value="$id == 'sn_destroy_station_enable'">
+          <set_value name="Globals.$enable" exact="1"/>
+        </do_if>
+
+      </actions>
+    </cue>
+    -->
+
+    
+    <!--
+    Primary parent cue holding all subcues.
+    Only one instance of this should be live at a time, getting killed
+    off when the globals reset and then recreated.
+      
+    * $station_group
+      - Group of all stations in the galaxy.
+      - Gathered on game/ui loading, then maintained incrementally by
+        listening to events.
+    * $low_station_group
+      - Group of stations at low health (<1%) to possibly be destroyed.
+      - Updated periodically.
+      - Removed; stations killed directly when matching conditions found.
+    * $stations_being_destroyed_group
+      - Group of stations scheduled to be destroyed.
+    -->
+    <cue name="Main" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      
+      <actions>
+        <!--Save this cue instance to globals.-->
+        <set_value name="Globals.$runtime_cue" exact="this"/>
+        
+        <!--Get the initial group of all stations.-->
+        <find_station groupname="$station_group" space="player.galaxy" multiple="true"/>
+        <!--Start with no stations selected; fill in below.-->
+        <!--<create_group groupname="$low_station_group"/>-->
+        <set_value name="$stations_being_destroyed_list" exact="[]"/>
+      </actions>
+      
+      <cues>
+        
+        <!--Update list of all stations.
+            TODO: cleaner way to do this?  build events might work in terms
+            of being more selective, but would have messier code to pick
+            out stations (maybe).
+        -->
+        <cue name="Find_All_Stations" instantiate="true" checkinterval="600s">
+          <conditions>
+          </conditions>
+          <actions>
+            <find_station groupname="$station_group" space="player.galaxy" multiple="true"/>
+          </actions>
+        </cue>
+        
+        <!--Search for stations of interest.
+          Do this more often than the full station search.
+          Note: checkinterval should be longer than the delayed kill.
+        -->
+        <cue name="Find_Low_Health_Stations" instantiate="true" checkinterval="60s">
+          <conditions>
+          </conditions>
+          <actions>            
+            <!--Clear prior findings (they may have repaired up).-->
+            <!--<create_group groupname="$low_station_group"/>-->
+            
+            <!--Search all stations in the galaxy (pregathered)-->
+            <do_for_each name="$station" in="$station_group">
+              
+              <!--
+                Check for 0 hull, but does have a maxhull >1.
+                
+                Check if a functional object with isenemylockingon,
+                since in practice the event_object_attacked signal
+                doesn't fire consistently (seemed to only fire once
+                on a /refreshmd, not during normal action).
+                - Removed; doesn't appear to work, even with a full fleet
+                bashing on the station.
+                TODO: some other safe filter method; for now just blindly
+                kill the station.
+                
+                Skip if already scheduled to be destroyed.
+              -->
+              <do_if value="$station.hull == 0
+                     and $station.maxhull ge 1
+                     and $station.isfunctional
+                     and $stations_being_destroyed_list.indexof.{$station} == 0">
+                
+                <debug_text text="'Found low hull station ' + $station.knownname + ' ' + $station + '; hull: ' + $station.hull "
+                            chance="Globals.$DebugChance" filter="general"/>
+
+                <!--Set it to blow up, after a delay in case it can be killed normally.-->
+                <signal_cue_instantly cue="Delayed_Destroy_Station" param="$station"/>
+                <debug_text text="'Scheduling removal of station ' + $station.knownname + ' ' + $station"
+                            chance="Globals.$DebugChance" filter="general"/>
+
+                <!--Stop listening to this station.-->
+                <!--<remove_from_group group="$low_station_group" object="$station"/>-->
+                <append_to_list name="$stations_being_destroyed_list" exact="$station"/>
+                
+                <!--Removed
+                <add_to_group groupname="$low_station_group" object="$station"/>-->
+                
+              </do_if>
+            </do_for_each>
+            
+          </actions>      
+        </cue>
+
+        <!--
+        Listen for low health stations being attacked.
+        Note: this works poorly, often not triggering for long periods,
+        seeming to trigger only when doing a refreshmd or somewhat randomly.
+        
+        -Removed in favor of an isenemylockingon check above.
+        -->
+        <!--
+        <cue name="Station_Attacked" instantiate="true">
+          <conditions>
+            <event_object_attacked group="$low_station_group"/>
+          </conditions>
+          <actions>
+            <set_value name="$station" exact="event.object"/>
+            
+            <!-Set it to blow up, after a delay in case it can be killed normally.->
+            <signal_cue_instantly cue="Delayed_Destroy_Station" param="$station"/>
+            <debug_text text="'Scheduling removal of station ' + $station.knownname + ' ' + $station"
+                        chance="Globals.$DebugChance" filter="general"/>
+            
+            <!-Stop listening to this station.->
+            <remove_from_group group="$low_station_group" object="$station"/>
+            <add_to_group groupname="$stations_being_destroyed_group" object="$station"/>
+          </actions>
+        </cue>
+        -->
+
+        <!--Destroy the station after a delay, which allows time for normal
+            kill logic to kick in (maybe; unclear on if there is any). -->
+        <cue name="Delayed_Destroy_Station" instantiate="true">
+          <conditions>
+            <event_cue_signalled />
+          </conditions>
+          <delay exact="10s"/>
+          <actions>
+            <set_value name="$station" exact="event.param"/>
+            <remove_from_list name="$stations_being_destroyed_list" exact="$station"/>
+            
+            <!--
+              Verify it is still around; normal logic may have worked already.
+              Note: in practice, .exists seems to be True even after destroy_object,
+              so also check for build storage being attached still (which
+              appears to go to null right away).
+            -->
+            <do_if value="$station.exists and $station.buildstorage">
+              <debug_text text="'Removing station ' + $station.knownname + ' ' + $station"
+                          chance="Globals.$DebugChance" filter="general"/>
+              
+              <!--
+              Example code from factionsubgoal_buildstation kills storage
+              then the station.
+              -->
+              <destroy_object object="$station.buildstorage" explosion="true"/>
+              <destroy_object object="$station" explosion="true"/>
+              
+            </do_if>
+
+          </actions>
+        </cue>
+        
+      </cues>
+    </cue>
+    
+    
+  </cues>
+
+</mdscript>

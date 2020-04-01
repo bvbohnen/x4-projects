@@ -22,6 +22,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_station_kill_helper\" />
+    <Folder Include="sn_station_kill_helper\md\" />
+    <Folder Include="sn_remove_dock_symbol\" />
     <Folder Include="sn_interact_collection\" />
     <Folder Include="sn_hotkey_collection\" />
     <Folder Include="sn_interact_collection\md\" />
@@ -29,12 +32,15 @@
     <Folder Include="sn_better_target_monitor\" />
     <Folder Include="sn_better_target_monitor\lua\" />
     <Folder Include="sn_better_target_monitor\md\" />
+    <Folder Include="sn_remove_dock_symbol\assets\" />
+    <Folder Include="sn_remove_dock_symbol\assets\structures\" />
+    <Folder Include="sn_remove_dock_symbol\assets\structures\dock\" />
     <Folder Include="test_hotkey_api\" />
     <Folder Include="test_hotkey_api\md\" />
     <Folder Include="test_interact_menu_api\" />
     <Folder Include="test_interact_menu_api\md\" />
     <Folder Include="sn_mod_support_apis\change_logs\" />
-    <Folder Include="sn_mod_support_apis\pipe_servers\" />
+    <Folder Include="sn_mod_support_apis\python\" />
     <Folder Include="test_named_pipes_api\" />
     <Folder Include="test_named_pipes_api\md\" />
     <Folder Include="sn_extra_game_options\" />
@@ -50,7 +56,7 @@
     <Folder Include="sn_mod_support_apis\lua\time\" />
     <Folder Include="sn_mod_support_apis\lua\simple_menu\" />
     <Folder Include="sn_mod_support_apis\md\" />
-    <Folder Include="sn_mod_support_apis\lualibs\" />
+    <Folder Include="sn_mod_support_apis\lua\c_library\" />
     <Folder Include="sn_mod_support_apis\documentation\" />
     <Folder Include="sn_mod_support_apis\ui\" />
     <Folder Include="sn_mod_support_apis\ui\addons\" />
@@ -64,10 +70,19 @@
     <Content Include="sn_better_target_monitor\lua\Target_Monitor.lua" />
     <Content Include="sn_better_target_monitor\md\Better_Target_Monitor.xml" />
     <Content Include="sn_better_target_monitor\Readme.md" />
+    <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
+    <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
+    <Content Include="sn_mod_support_apis\lua_interface.txt" />
+    <Content Include="sn_station_kill_helper\content.xml" />
+    <Content Include="sn_station_kill_helper\md\SN_Station_Kill_Helper.xml" />
     <Content Include="sn_interact_collection\change_log.md" />
     <Content Include="sn_interact_collection\content.xml" />
     <Content Include="sn_interact_collection\md\SN_Interact_Commands.xml" />
     <Content Include="sn_mod_support_apis\lua\Library.lua" />
+    <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01.xml" />
+    <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01_hightech.xml" />
+    <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01_lowtech.xml" />
+    <Content Include="sn_remove_dock_symbol\content.xml" />
     <Content Include="test_hotkey_api\content.xml" />
     <Content Include="test_hotkey_api\md\Hotkey_API_Test.xml" />
     <Content Include="test_interact_menu_api\content.xml" />
@@ -93,7 +108,7 @@
     <Content Include="sn_mod_support_apis\lua\time\Pipe_Time.lua" />
     <Content Include="sn_mod_support_apis\md\Time_API.xml" />
     <Content Include="sn_mod_support_apis\change_logs\simple_menu_api.md" />
-    <Content Include="sn_mod_support_apis\documentation\Simple Menu API.md" />
+    <Content Include="sn_mod_support_apis\documentation\Simple_Menu_API.md" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Library.lua" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Options_Menu.lua" />
@@ -111,15 +126,15 @@
     <Content Include="sn_mod_support_apis\md\Simple_Menu_API.xml" />
     <Content Include="sn_mod_support_apis\md\Simple_Menu_Options.xml" />
     <Content Include="sn_mod_support_apis\change_logs\named_pipes_api.md" />
-    <Content Include="sn_mod_support_apis\documentation\Hotkey API.md" />
-    <Content Include="sn_mod_support_apis\lualibs\winpipe.lua" />
+    <Content Include="sn_mod_support_apis\documentation\Hotkey_API.md" />
+    <Content Include="sn_mod_support_apis\lua\c_library\winpipe.lua" />
     <Content Include="sn_mod_support_apis\lua\named_pipes\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\named_pipes\Pipes.lua" />
     <Content Include="sn_mod_support_apis\lua\named_pipes\Library.lua" />
     <Content Include="sn_mod_support_apis\md\Named_Pipes.xml" />
     <Content Include="sn_mod_support_apis\md\Pipe_Server_Host.xml" />
     <Content Include="sn_mod_support_apis\md\Pipe_Server_Lib.xml" />
-    <Content Include="sn_mod_support_apis\documentation\Named Pipes API.md" />
+    <Content Include="sn_mod_support_apis\documentation\Named_Pipes_API.md" />
     <Content Include="sn_mod_support_apis\content.xml" />
     <Content Include="sn_mod_support_apis\ui\addons\ego_debug\Lua_Loader.lua" />
     <Content Include="sn_mod_support_apis\ui\addons\ego_debug\ui.xml" />
@@ -127,8 +142,8 @@
     <Content Include="test_time_api\md\Time_API_Test.xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="sn_mod_support_apis\pipe_servers\Send_Keys.py" />
-    <Compile Include="sn_mod_support_apis\pipe_servers\Time_API.py" />
+    <Compile Include="sn_mod_support_apis\python\Send_Keys.py" />
+    <Compile Include="sn_mod_support_apis\python\Time_API.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

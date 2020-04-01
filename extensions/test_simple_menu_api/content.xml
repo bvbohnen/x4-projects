@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="simple_menu_api_test" name="Simple Menu API Test" author="SirNukes" version="001" date="2019-10-18" save="false" sync="false" enabled="false">
-  <!-- Maybe fill out individual languages. -->
-  <langugage description="" language="7"/>
-  <langugage description="" language="33"/>
-  <langugage description="" language="37"/>
-  <langugage description="" language="39"/>
-  <langugage description="Test for simple menu api." language="44"/>
-  <langugage description="" language="49"/>
-  <langugage description="" language="55"/>
-  <langugage description="" language="81"/>
-  <langugage description="" language="82"/>
-  <langugage description="" language="86"/>
-  <langugage description="" language="88"/>
-  <dependency id="simple_menu_api" version="001" optional="false"/>
+<content 
+  id="simple_menu_api_test" 
+  name="Simple Menu API Test" 
+  author="SirNukes" 
+  version="001" 
+  date="2019-10-18" 
+  save="false" 
+  sync="false" 
+  enabled="false">
+
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="100" optional="false"/>
 </content>

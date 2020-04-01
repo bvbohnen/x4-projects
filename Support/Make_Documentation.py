@@ -1,139 +1,49 @@
 '''
 Support for generating documentation readmes for the extensions.
-
 Extracts from decorated lua block comments and xml comments.
 '''
 
 from pathlib import Path
 from lxml import etree
-from collections import OrderedDict
 import sys
 from itertools import chain
-import Version
 
 project_dir = Path(__file__).resolve().parents[1]
 
 # Set up an import from the customizer for some text processing.
-x4_customizer_dir = project_dir.parent / 'X4_Customizer'
-sys.path.append(str(x4_customizer_dir))
-from Framework.Make_Documentation import Merge_Lines, Get_BB_Text
+x4_customizer_dir = str(project_dir.parent / 'X4_Customizer')
+if x4_customizer_dir not in sys.path:
+    sys.path.append(x4_customizer_dir)
+
+from Framework.Make_Documentation import Merge_Lines
+#from Framework.Make_Documentation import Get_BB_Text
 
 # Grab the project specifications.
-from Project_Specs import *
-
-# Name to use for the generated doc file.
-gen_doc_name = "API Functions.md"
-
+from Release_Specs import release_specs
 
 def Make():
-    # Update content.xml for all projects.
-    for project_name, spec in project_spec_table.items():
-        if Get_Content_Path(spec):
-            Version.Update_Content_Version(Get_Changelog_Path(spec), Get_Content_Path(spec))
-
-    # TODO: standardize these somewhat. Maybe move away from bbcode entirely.
-    Make_Lua_Loader_Doc()
-    Make_Hotkey_Doc()
-    Make_Named_Pipes_Doc()
-    Make_Simple_Menu_Doc()
-    Make_Time_Doc()
-    return
-
-
-def Make_Lua_Loader_Doc():
-    '''
-    Document lua_loader_api.
-    '''
-    doc_dir = project_dir / 'extensions' / 'sn_lua_loader_api'
-    
-    # The readme is all hand written for now.
-
-    # Set up the bbcode version.
-    Make_BB_Code(doc_dir, header_lines = [
-        # TODO: put header in the source doc.
-        r'Download: [url]https://github.com/bvbohnen/x4-lua-loader-api/releases[/url]',
-        '',
-        ])
-    return
-
-
-def Make_Time_Doc():
-    '''
-    Document time_api.
-    '''
-    doc_dir = project_dir / 'extensions' / 'sn_time_api'
-    
-    # The readme is all hand written for now.
-
-    # Set up the bbcode version.
-    Make_BB_Code(doc_dir, header_lines = [
-        # TODO: put header in the source doc.
-        r'Download: [url]https://github.com/bvbohnen/x4-time-api/releases[/url]',
-        '',
-        ])
-    return
-
-
-def Make_Named_Pipes_Doc():
-    '''
-    Document named_pipes_api.
-    '''
-    doc_dir = project_dir / 'extensions' / 'sn_named_pipes_api'
-    ext_dir = doc_dir
-    doc_lines = []
+    for spec in release_specs:
+        # Update all of the content.xml files.
+        spec.Update_Content_Version()
         
-    # The MD pipe api.
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Named_Pipes.xml')
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Pipe_Server_Host.xml')
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Pipe_Server_Lib.xml')
+        # Make each of the doc files (if any).
+        # (Note: this function not included in the class methods to avoid
+        # import issues with the text helper functions below.)
+        for rel_path, file_list in spec.doc_specs.items():
+            # Set up the full path.
+            doc_path = spec.root_path / rel_path
 
-    # The Lua pipe api.
-    doc_lines += Get_Lua_Text(ext_dir / 'lua' / 'Interface.lua')
-    
-    with open(doc_dir / gen_doc_name, 'w') as file:
-        file.write('\n'.join(doc_lines))
+            # Get lines for all files.
+            doc_lines = []
+            for file_path in file_list:
+                if file_path.suffix == '.xml':
+                    doc_lines += Get_XML_Cue_Text(file_path)
+                elif file_path.suffix == '.lua':
+                    doc_lines += Get_Lua_Text(file_path)
 
-    # Set up the bbcode version.
-    Make_BB_Code(doc_dir)
-    return
+            with open(doc_path, 'w') as file:
+                file.write('\n'.join(doc_lines))
 
-
-def Make_Simple_Menu_Doc():
-    '''
-    Document simple_menu_api.
-    '''
-    doc_dir = project_dir / 'extensions' / 'sn_simple_menu_api'
-    ext_dir = doc_dir
-    doc_lines = []
-    
-    # Add the api cues.
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_API.xml')
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Simple_Menu_Options.xml')
-
-    with open(doc_dir / gen_doc_name, 'w') as file:
-        file.write('\n'.join(doc_lines))
-
-    # Set up the bbcode version.
-    Make_BB_Code(doc_dir)
-    return
-
-
-def Make_Hotkey_Doc():
-    '''
-    Document hotkey_api.
-    '''
-    doc_dir = project_dir / 'extensions' / 'sn_hotkey_api'
-    ext_dir = doc_dir
-    doc_lines = []
-        
-    # Add the api cues.
-    doc_lines += Get_XML_Cue_Text(ext_dir / 'md' / 'Hotkey_API.xml')
-
-    with open(doc_dir / gen_doc_name, 'w') as file:
-        file.write('\n'.join(doc_lines))
-
-    # Set up the bbcode version.
-    Make_BB_Code(doc_dir)
     return
 
 
@@ -313,21 +223,22 @@ def Get_Lua_Text(lua_path):
     return Sections_To_Lines(doc_text_sections)
 
 
-def Make_BB_Code(doc_dir, header_lines = []):
-    '''
-    Turn the ext_dir's readme into a bbcode txt file.
-    Output is placed in the release folder.
-    '''
-    release_dir = project_dir / 'Release'
-    if not release_dir.exists():
-        release_dir.mkdir()
-
-    # Grab the readme contents.
-    doc_lines = (doc_dir / 'Readme.md').read_text().splitlines()
-    # Generate a bbcode version, prefixing with custom header.
-    bb_lines = header_lines + Get_BB_Text(doc_lines)
-    (release_dir / (doc_dir.name + '_bb_readme.txt')).write_text('\n'.join(bb_lines))
-    return
+#-Removed; generally avoiding putting main docs on the forum.
+#def Make_BB_Code(doc_dir, header_lines = []):
+#    '''
+#    Turn the ext_dir's readme into a bbcode txt file.
+#    Output is placed in the release folder.
+#    '''
+#    release_dir = project_dir / 'Release'
+#    if not release_dir.exists():
+#        release_dir.mkdir()
+#
+#    # Grab the readme contents.
+#    doc_lines = (doc_dir / 'Readme.md').read_text().splitlines()
+#    # Generate a bbcode version, prefixing with custom header.
+#    bb_lines = header_lines + Get_BB_Text(doc_lines)
+#    (release_dir / (doc_dir.name + '_bb_readme.txt')).write_text('\n'.join(bb_lines))
+#    return
 
 
 if __name__ == '__main__':

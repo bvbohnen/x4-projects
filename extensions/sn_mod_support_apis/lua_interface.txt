@@ -1,0 +1,12 @@
+--[[
+Lightweight lua wrapper on some exported api functions.
+Other extensions using these lua apis should 'require' this file, as its
+path will be maintained between github development files and steam style
+release files.
+]]
+
+local L = {}
+L.Library = require("extensions.sn_mod_support_apis.lua.Library")
+L.Pipes   = require("extensions.sn_mod_support_apis.lua.named_pipes.Pipes")
+
+return L

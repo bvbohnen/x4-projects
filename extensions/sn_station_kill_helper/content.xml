@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="ws_2042915001" 
+  name="Station Kill Helper" 
+  description="Forcibly destroys stations at ~0% health, as a workaround to stations refusing to die." 
+  author="SirNukes" 
+  version="100" 
+  date="2020-3-29" 
+  save="false" 
+  sync="false">
+</content>

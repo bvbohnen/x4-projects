@@ -1,4 +1,4 @@
-﻿
+
 ------------------------------------------------------------------------------
 --[[
     The high level of the monitor is handled in monitors.lua.
@@ -82,7 +82,7 @@ ffi.cdef[[
 
 -- TODO: maybe remove dependency on the existing lib, if wanting to
 -- support this without simple meny api installed.
---local Lib = require("extensions.sn_simple_menu_api.lua.Library")
+--local Lib = require("extensions.sn_mod_support_apis.lua_interface").Library
 
 -- Table of locals.
 local L = {
@@ -957,6 +957,28 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
     local has_shields = GetComponentData(component, "shieldmax") ~= 0
     -- Term for shields or blank if unshielded.
     local col_left_shield_blank = has_shields and cols.left.shield or ""
+    
+    -- Some of these objects don't work with the sector position lookup
+    -- function.  Pending tweaks, adjust their distance/eta to be
+    -- hidden.
+    -- TODO: maybe support some of these by checking for their container.
+    if     IsComponentClass(component, "turret")
+    or     IsComponentClass(component, "weapon")
+    or     IsComponentClass(component, "shieldgenerator")
+    or     IsComponentClass(component, "engine")
+    or     IsComponentClass(component, "module")
+    or     IsComponentClass(component, "highway") 
+    or     IsComponentClass(component, "zone")
+    or     IsComponentClass(component, "signalleak")
+    or     IsComponentClass(component, "dockingbay")
+    or     IsComponentConstruction(component)
+    then
+        cols_distance_delta = ""
+        cols_right_eta      = ""
+    else
+        cols_distance_delta = cols.distance_delta
+        cols_right_eta      = cols.right.eta
+    end
 
     local new_rows = nil
 
@@ -970,10 +992,10 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
             -- TODO: does this get too busy with player ship commanders?
             Make_Row(cols.type, orig.reveal and cols.reveal or cols.commander),
             -- Shield/hull in top left, distance/speed top right.
-            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(col_left_shield_blank, cols_distance_delta),
             Make_Row(cols.left.hull,        cols.speed),
             -- Pack in crew on the left, eta right.
-            Make_Row(cols.left.crew,        cols.right.eta),
+            Make_Row(cols.left.crew,        cols_right_eta),
             -- TODO: pack in crew, maybe storage (though that is trickier
             -- to put together, and may be too long).
             -- Continue with normal stuff.
@@ -987,9 +1009,9 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
     elseif IsComponentClass(component, "station") then
         new_rows = {
             orig.reveal,
-            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(col_left_shield_blank, cols_distance_delta),
             Make_Row(cols.left.hull,        ""),
-            Make_Row("",                    cols.right.eta),
+            Make_Row("",                    cols_right_eta),
             orig.command_0,
             orig.command_1,
             orig.building,
@@ -999,9 +1021,9 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
     elseif IsComponentClass(component, "mine")
     then
         new_rows = {
-            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(col_left_shield_blank, cols_distance_delta),
             Make_Row(cols.left.hull,        cols.speed),
-            Make_Row("",                    cols.right.eta),
+            Make_Row("",                    cols_right_eta),
         }
 
     -- Objects that can't move.
@@ -1021,37 +1043,37 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
     or     IsComponentConstruction(component)
     then
         new_rows = {
-            Make_Row(col_left_shield_blank, cols.distance_delta),
+            Make_Row(col_left_shield_blank, cols_distance_delta),
             Make_Row(cols.left.hull,        ""),
-            Make_Row("",                    cols.right.eta),
+            Make_Row("",                    cols_right_eta),
         }
                 
     -- Static objects without hull/shield.
     elseif IsComponentClass(component, "gate")
-    or     IsComponentClass(component, "highway") 
     or     IsComponentClass(component, "highwayentrygate") 
     or     IsComponentClass(component, "highwayexitgate")
+    or     IsComponentClass(component, "highway") 
     or     IsComponentClass(component, "zone")
+    or     IsComponentClass(component, "signalleak")
     or     IsComponentClass(component, "dockingbay")
-    -- Wrecks
-    or not IsComponentOperational(component)
     -- Data vaults have no special class; they are just "object"; try
     -- this as a catch-all.
     or     IsComponentClass(component, "object")
-    -- TODO: other misc components
-    or     IsComponentClass(component, "signalleak")    
-    -- TODO: are submodules generically caught by "destructable"?
+    -- Wrecks
+    or not IsComponentOperational(component)
     then
         new_rows = {
-            Make_Row("",               cols.distance_delta),
-            Make_Row("",               cols.right.eta),
+            Make_Row("",               cols_distance_delta),
+            Make_Row("",               cols_right_eta),
         }
+        
         
     -- TODO: npcs are entities (eg. with skill popup);
     -- anything interesting to add?
     --elseif IsComponentClass(component, "entity")
         
     end
+
 
     if new_rows ~= nil then
         -- Append all unknown original rows.
@@ -1062,124 +1084,6 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
 
     return new_rows
 end
-
-------------------------------------------------------------------------------
--- Older functions, mostly replaced.
---[[
-function L.Modify_Ship_Rows(full_spec)
-    local text_rows = full_spec.text
-
-    -- Look through the data to identify lines of interest.
-    local orig = Categorize_Original_Rows(text_rows)
-
-    -- Build the new table.
-    -- Can try different styles here.
-    local style = 3
-    
-    local cols = L.specs.cols
-    local rows = L.specs.rows
-
-    local new_rows
-    if style == 1 then
-        -- Labels on left still.
-        -- Put new info up top.
-        new_rows = {
-            rows.type,
-            rows.shield_hull,
-            rows.distance,
-            rows.speed,
-            orig.command_0,
-            orig.command_1,
-            orig.storage,
-            orig.crew,
-            orig.commander or orig.reveal,
-            orig.building,
-        }
-    elseif style == 2 then
-        -- Make use of columns to pack in more info, or organize it.
-        new_rows = {
-            -- Type on left, info % or commander on right.
-            Make_Row(cols.type, orig.reveal and cols.reveal or cols.commander),
-            -- Shield/hull still take up 2 columns, but orient on the top
-            -- left for easier visual parsing.
-            -- On right, put distance and speed.
-            Make_Row(cols.left.shield, cols.distance),
-            Make_Row(cols.left.hull, cols.speed),
-            -- TODO: pack in crew, maybe storage (though that is trickier
-            -- to put together, and may be too long).
-            -- Continue with normal stuff.
-            orig.command_0,
-            orig.command_1,
-            orig.storage,
-            orig.crew,
-            orig.building,
-        }
-    elseif style == 3 then
-        -- Similar to 2, but include relative speed and eta.
-        -- TODO: compress storage.
-        new_rows = {
-            Make_Row(cols.type, orig.reveal and cols.reveal or cols.commander),
-            -- Shield/hull in top left, distance/speed top right.
-            Make_Row(cols.left.shield, cols.distance_delta),
-            Make_Row(cols.left.hull, cols.speed),
-            -- Pack in crew on the left, eta right.
-            Make_Row(cols.left.crew, cols.right.eta),
-            -- TODO: pack in crew, maybe storage (though that is trickier
-            -- to put together, and may be too long).
-            -- Continue with normal stuff.
-            orig.command_0,
-            orig.command_1,
-            orig.storage,
-            --orig.crew,
-            orig.building,
-        }
-    else
-        -- No change.
-        new_rows = text_rows
-    end
-
-    -- Store the new row list.
-    full_spec.text = L.Sanitize_Rows(new_rows)
-end
-
--- Logic for changing what rows are displayed for mines.
-function L.Modify_Mine_Rows(full_spec)
-    -- This just has one row for hull, maybe a second for shield.
-    local orig = Categorize_Original_Rows(full_spec.text)
-    
-    -- Build the new table.
-    -- Can try different styles here.
-    local style = 2
-    
-    local cols = L.specs.cols
-    local rows = L.specs.rows
-
-    local new_rows
-    if style == 1 then
-        -- Labels on left still.
-        -- TODO: maybe prune out shield if unshielded.
-        new_rows = {
-            rows.shield,
-            rows.hull,
-            rows.distance,
-            rows.speed,
-        }
-    elseif style == 2 then
-        -- Make use of columns to pack in more info, or organize it.
-        new_rows = {
-            Make_Row(cols.left.shield, cols.distance),
-            Make_Row(cols.left.hull, cols.speed),
-        }
-    else
-        -- No change.
-        new_rows = text_rows
-    end
-    
-    -- Store the new row list.
-    full_spec.text = L.Sanitize_Rows(new_rows)
-end
-]]
-
 
 ------------------------------------------------------------------------------
 -- Patching the primary function that lays out the ui rows.
@@ -1321,24 +1225,25 @@ end
 
 ------------------------------------------------------------------------------
 
--- Wrapper function on C.GetObjectPositionInSector, since it may
--- be sometimes triggering errors (perhaps GetPlayerObjectID isn't
--- always valid?).
--- Returns nil on error.
-local function GetObjectPositionInSector(object)
-    local success, result = pcall(C.GetObjectPositionInSector, object)
-    if success then
-        return result
-    else
-        -- Something went wrong. Maybe bad player object?
-        -- TODO: try to catch this sometime; leave printout disabled
-        -- for now to avoid spamming log.
-        -- Result: the problem is some other file; this trigger is
-        -- never hit.
-        --DebugError("C.GetObjectPositionInSector error: "..tostring(result))
-        return nil
-    end
-end
+-- -Removed; didn't help prevent errors (they are deeper than pcall sees).
+---- Wrapper function on C.GetObjectPositionInSector, since it may
+---- be sometimes triggering errors (perhaps GetPlayerObjectID isn't
+---- always valid?).
+---- Returns nil on error.
+--local function GetObjectPositionInSector(object)
+--    local success, result = pcall(C.GetObjectPositionInSector, object)
+--    if success then
+--        return result
+--    else
+--        -- Something went wrong. Maybe bad player object?
+--        -- TODO: try to catch this sometime; leave printout disabled
+--        -- for now to avoid spamming log.
+--        -- Result: the problem is some other file; this trigger is
+--        -- never hit.
+--        --DebugError("C.GetObjectPositionInSector error: "..tostring(result))
+--        return nil
+--    end
+--end
 
 -- Returns a string for target's distance, and updates internal
 -- values used in relative speed and ETA.
@@ -1362,9 +1267,15 @@ function L.Get_Distance(targetdata)
     -- data for a superhighway when it was selected with no prior target; z data
     -- was correct if there was a prior target. No ideas on why.
     --local t_off = C.GetPlayerTargetOffset()
-    -- Work off the player target object instead; more reliable in testing.
     --local t_off = C.GetObjectPositionInSector(ConvertIDTo64Bit(GetPlayerTarget()))
-    local t_off = GetObjectPositionInSector(targetdata.component64)
+
+    -- Work off the player target object instead; more reliable in testing.
+    -- Buffer into an ffi object like menu_interactmenu does.
+    -- Note: Some targets fail at this, eg. signal leaks; is there a good way
+    -- to detect such failures here? For now, just prune it above when
+    -- selecting the rows to display.
+    local t_off = ffi.new("UIPosRot")
+    t_off = C.GetObjectPositionInSector(targetdata.component64)
     
     --if t_off then
     --    DebugError("x "..t_off.x .." y "..t_off.y .." z "..t_off.z)
@@ -1372,10 +1283,8 @@ function L.Get_Distance(targetdata)
 
     -- This gets pos of an object; try to get player ship or player.
     -- Need to use player directly, so this works when outside a ship.
-    -- TODO: sometimes getting messages about this in log, couldn't find
-    -- sector for object (some id); is that coming from this spot or some
-    -- other ego code?
-    local p_off = GetObjectPositionInSector(C.GetPlayerObjectID())
+    local p_off = ffi.new("UIPosRot")
+    p_off = C.GetObjectPositionInSector(C.GetPlayerObjectID())
 
     if t_off and p_off then
         local distance = ((t_off.x - p_off.x)^2

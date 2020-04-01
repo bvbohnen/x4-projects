@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="ISO-8859-1" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <mdscript name="Hotkey_API"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <!--Note: keep the MD name convenient for users.-->
@@ -45,7 +45,7 @@ TODO:
     <actions>
       <signal_cue_instantly
         cue="md.Pipe_Server_Host.Register_Module"
-        param="'extensions/sn_mod_support_apis/pipe_servers/Send_Keys.py'"/>
+        param="'extensions/sn_mod_support_apis/python/Send_Keys.py'"/>
     </actions>
   </cue>
 
