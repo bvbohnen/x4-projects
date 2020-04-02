@@ -248,6 +248,8 @@ Notes on server access looping cues:
         </conditions>
         <actions>
           <set_value name="$server_access_loop_cue" exact="this"/>
+          <debug_text text="'Starting server access loop for ' + $Pipe_Name"
+                      chance="$DebugChance" filter="general"/>
         </actions>
         
         <cues>

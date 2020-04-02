@@ -4,7 +4,7 @@
   name="Extra Game Options" 
   description="Adds a variety of new game options, generally ui related." 
   author="SirNukes" 
-  version="101" 
+  version="102" 
   date="2020-3-12" 
   save="false" 
   sync="false">

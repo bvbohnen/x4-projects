@@ -53,7 +53,7 @@
     <library name="Reset_Globals">
       <actions>
         <set_value name="$enable" exact="1"/>
-        <set_value name="$DebugChance" exact="100"/>        
+        <set_value name="$DebugChance" exact="0"/>        
         <!-- Kill the runtime cue if it exists. -->
         <do_if value="$runtime_cue? and $runtime_cue.exists">
           <cancel_cue cue="$runtime_cue"/>

@@ -33,30 +33,37 @@ release_specs = [
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_better_target_monitor',
+        steam = True,
         ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_extra_game_options',
+        steam = True,
         ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_hotkey_collection',
+        steam = True,
         ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_remove_dock_symbol',
+        steam = True,
         ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_station_kill_helper',
+        steam = True,
         ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_interact_collection',
+        steam = True,
         ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_mod_support_apis',
+        steam = True,
         files = [
             'lua_interface.txt',
         ],

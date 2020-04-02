@@ -36,5 +36,9 @@ Change Log
   - Ignore UserQuestionMenu context, due to difficulty detecting its closure.
 * 1.1
   - Added keys to fast-drop satellites.
+* 1.2
+  - Moved custom hotkeys to SirNukes' Hotkey Collection.
+  - Fixed menu not showing in new games that don't yet have hotkeys set up.
+  - Fixed problem with key remap and deletion remembering the old key.
 
 

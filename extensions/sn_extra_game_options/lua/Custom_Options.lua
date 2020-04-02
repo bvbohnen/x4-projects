@@ -573,6 +573,7 @@ end
     to focus on the player ship.
     Can monkey patch this to follow up by focusing on player ship,
     regardless of what was set before.
+
 ]]
 L.mapfocus = {
     onplayer = true,
@@ -599,12 +600,17 @@ function L.Init_Map_Focus()
 
     local ego_importMenuParameters = menu["importMenuParameters"]
     menu["importMenuParameters"] = function (...)
+
         -- Call it as normal.
         ego_importMenuParameters(...)
+
         -- Reset focus target.
         if L.mapfocus.onplayer then
             menu.focuscomponent = C.GetPlayerObjectID()
             menu.selectfocuscomponent = nil
+            menu.focusoffset = nil
+            -- TODO: should showzone always be false?
+            --menu.showzone = false
             menu.currentsector = C.GetContextByClass(menu.focuscomponent, "sector", true)
         end
     end

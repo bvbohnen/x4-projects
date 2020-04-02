@@ -6,3 +6,5 @@ Change Log
   - Added option to hide help text popups.
 * 1.1
   - Added option to focus a newly opened map on player
+* 1.2
+  - Fixed player-centered map sometimes opening to a generic sector.

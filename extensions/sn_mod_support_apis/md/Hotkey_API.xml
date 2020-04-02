@@ -438,6 +438,19 @@ TODO:
       <!-- Passes it on a player blackboard var, which lua clears. -->
       <set_value name="player.entity.$hotkey_api_actions" exact="Globals.$action_registry" />
       <raise_lua_event name="'Hotkey.Update_Actions'"/>
+      
+      <!--Note: if this is the first registered action, at this point the action
+          is registered, but a key is not set, and the server hasn't been
+          connected (since it looks for actual keys to be registered).
+          However, logic exists to suppress the menu hotkey displays if there
+          is no connected server, to reduce confusion slightly.
+          So, start the server connection now, regardless of registered keys,
+          to find out if it can even make a connection, after which the menu
+          to set hotkeys can be displayed.
+          (This isn't needed once keys are registered and remembered, but
+          does apply to new games or new installs of the extension.)
+          -->
+      <signal_cue cue="Server_Reader.$Start_Reading" />
     </actions>
   </cue>
 
@@ -615,6 +628,7 @@ TODO:
     </conditions>
 
     <actions>
+      <set_value name="$key" exact="'$' + event.param.$key"/>
       <set_value name="$id" exact="event.param.$id"/>
 
       <!-- Look up the action; error if not found. -->
@@ -623,11 +637,11 @@ TODO:
       <!-- Loop over possible event types; each gets its own entry. -->
       <do_for_each name="$event" in="['onPress','onRelease','onRepeat']">
         <!-- Skip if the action doesn't use this event. -->
-        <do_if value="not $action.{$event}?">
+        <do_if value="not $action.{'$' + $event}?">
           <continue/>
         </do_if>
         <!-- Create the full key, by suffixing with event type. -->
-        <set_value name="$key_event" exact="'$' + event.param.$key + $event"/>
+        <set_value name="$key_event" exact="$key + ' ' + $event"/>
 
         <!-- Check if there is no table entry for the key. -->
         <do_if value="not Globals.$key_event_action_registry.{$key_event}?">
@@ -651,7 +665,7 @@ TODO:
         <debug_text text="'Removed action %s from key %s'.[$id, $key_event]"
                     chance="Globals.$DebugChance" filter="general"/>
 
-        <!-- If the key's cue list is empty, and remove it if so. -->
+        <!-- Check if the key's cue list is empty, and remove it if so. -->
         <do_if value="Globals.$key_event_action_registry.{$key_event}.count == 0">
           <remove_value name="Globals.$key_event_action_registry.{$key_event}" />
           <debug_text text="'No remaining listeners to key %s; removing it'.[$key_event]"

@@ -26,6 +26,11 @@ class Release_Spec:
       - Name of the release; uses the root_path name if not specified.
     * is_extension
       - Bool, True if this is an extension.
+    * steam
+      - Bool, True if this is an extension that is intended to be on steam.
+    * extension_id
+      - String; if this is an extension, this is the id from the content.xml.
+      - TODO
     * files
       - Dict of lists of files, where keys are category strings.
       - Categories include: lua, python, ext_cat, subst_cat, documentation,
@@ -38,6 +43,7 @@ class Release_Spec:
     def __init__(
             self,
             root_path,
+            steam = False,
             name = None,
             doc_specs = None,
             files = None,
@@ -46,6 +52,7 @@ class Release_Spec:
         self.name = self.root_path.name if not name else name
         self.is_extension = self.root_path.parent.name == 'extensions'
         self.files = defaultdict(list)
+        self.steam = steam
 
         self.doc_specs = doc_specs if doc_specs else {}
         # Touch up doc paths.
@@ -65,6 +72,10 @@ class Release_Spec:
         # If an extension, find its general files.
         if self.is_extension:
             self.Find_Ext_Files()
+            
+        # Fill this in below.
+        self.extension_id = None
+
         return
 
 
@@ -126,8 +137,19 @@ class Release_Spec:
             files['misc'].append(content_path)
 
         return
-        
+            
+
+    def Init_Ext_Info(self):
+        '''
+        Loads the extension content.xml and reads some information out.
+        TODO
+        '''
+        # TODO:
+        # current version
+        # id
+        # current version replacement string.
     
+
     def Get_Version(self):
         '''
         Returns the last version number in the extension's change log,

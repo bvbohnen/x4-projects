@@ -736,13 +736,26 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
     local old_combo = action_keys.inputs[input_index].combo
     local new_combo
 
+    -- Note: ego menu behavior has "escape" cancel the selection with no change,
+    -- and "delete" remove the key binding.
+    -- Try to mimic that here.
+
+    -- Check for escape.
+    if newinputtype == 1 and newinputcode == 1 then
+        -- Do nothing.
+        return return_func()
+
     -- Check for "delete" on a key that was mapped.
     -- (oldinputcode == -1 means it wasn't mapped.)
-    if newinputtype == 1 and newinputcode == 211 then
+    elseif newinputtype == 1 and newinputcode == 211 then
+        -- Prepare to reset to defaults.
         newinputtype = nil
         newinputcode = nil
         newinputsgn = nil
         new_combo = ""
+        if debug.print_keynames then
+            DebugError("Deleting key combo: "..old_combo)
+        end
     else
         -- Get the new combo string.
         new_combo = string.format("code %d %d %d", newinputtype, newinputcode, newinputsgn)
@@ -764,8 +777,8 @@ function L.remapInput_wrapped(return_func, newinputtype, newinputcode, newinputs
     
 
     -- If the new_combo is already recorded as either of the existing inputs,
-    -- do nothing.
-    if action_keys.inputs[1].combo == new_combo or action_keys.inputs[2].combo == new_combo then
+    -- and is not empty (eg. deleting binding), do nothing.
+    if new_combo ~= "" and (action_keys.inputs[1].combo == new_combo or action_keys.inputs[2].combo == new_combo) then
         if debug.print_keynames then
             DebugError("Ignoring already recorded key combo: "..new_combo)
         end

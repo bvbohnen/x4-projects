@@ -12,7 +12,7 @@
     <Name>Support</Name>
     <RootNamespace>Support</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>-refresh</CommandLineArguments>
+    <CommandLineArguments>-refresh -steam</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

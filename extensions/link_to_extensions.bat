@@ -11,13 +11,14 @@ for %%F in (
 	sn_mod_support_apis
 	sn_remove_dock_symbol
 	sn_station_kill_helper
-	test_hotkey_api
-	test_interact_menu_api
-	test_named_pipes_api
-	test_simple_menu_api
-	test_time_api
+
 ) do (
 	mklink /J "%x4_path%\%%F" "%src_path%\%%F"
 )
 
 
+REM	test_hotkey_api
+REM	test_interact_menu_api
+REM	test_named_pipes_api
+REM	test_simple_menu_api
+REM	test_time_api

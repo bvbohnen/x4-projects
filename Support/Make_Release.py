@@ -9,6 +9,8 @@ import sys
 import shutil
 import zipfile
 import argparse
+import json
+import subprocess
 from collections import defaultdict
 
 import Make_Documentation
@@ -36,6 +38,11 @@ def Make(*args):
         action='store_true',
         help = 'Automatically call Make_Documentation and Make_Executable.')
     
+    argparser.add_argument(
+        '-steam', 
+        action='store_true',
+        help = 'Update the versions of steam-enabled extensions on steam.')
+
     #argparser.add_argument(
     #    '-catdat', 
     #    action='store_true',
@@ -72,6 +79,9 @@ def Make(*args):
 
         # Add all files to the zip.
         Make_Zip(release_dir, zip_path, spec)
+        
+    if args.steam:
+        Update_Steam(release_specs, release_dir)
 
     return
 
@@ -149,18 +159,67 @@ def Make_Zip(release_dir, zip_path, spec):
     return
 
 
-def Update_Steam(spec):
+def Update_Steam(release_specs, release_dir):
     '''
     Update the steam copy of this release, if the version has changed
     since the last update.
-    TODO: intelligent way to go about this?
+    '''
+    '''
+    To regulate how often steam updates (to avoid spamming its update log):
     - Save versions to a json (keep in repo)
     - Update json when steam is updated
     - On new extension, check if flagged for steam upload; if so, add
       a dummy preview pic and publish to steam.
-
-    Pending development.
     '''
+    json_path = Path(__file__).resolve().parent / 'steam_versions.json'
+    x_tools_path = Path("E:\Steam\SteamApps\common\X Rebirth Tools\WorkshopTool.exe")
+
+    # Load the prior updated versions.
+    steam_versions = defaultdict(int)
+    if json_path.exists():
+        with open(json_path, 'r') as file:
+            steam_versions.update(json.load(file))
+
+    # Work through the specs.
+    for spec in release_specs:
+        if not spec.is_extension or not spec.steam:
+            continue
+
+        # If this does not have a workshop id, then it is not yet on
+        # steam.  TODO: support such cases.
+
+        # Compare versions.
+        this_version = spec.Get_Version()
+        prior_version = steam_versions[spec.name]
+        if prior_version != this_version:
+
+            # Do the update.
+            folder = release_dir / spec.name
+
+            # Catch errors.
+            try:
+                subprocess.run(
+                    [str(x_tools_path),
+                     'update',
+                     '-path',
+                     '{}'.format(folder),
+                     '-batchmode',
+                     '-minor',
+                     '-changenote',
+                     '',
+                     ], check = True)
+
+                # Update the version number.
+                steam_versions[spec.name] = this_version
+            except Exception as ex:
+                print('Skipping steam update of {} due to exception: {}'.format(
+                    spec.name, ex))
+
+            
+    # Store the new versions.
+    with open(json_path, 'w') as file:
+        json.dump( steam_versions, file, indent=2)
+    return
 
 
 if __name__ == '__main__':
