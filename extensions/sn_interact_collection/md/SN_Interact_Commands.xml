@@ -4,19 +4,31 @@
 
 <cues>
 
+  <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+  <cue name="Text"/>
+  <library name="Load_Text">
+    <actions>
+      <set_value exact="{68537, 5000}" name="Text.$Follow" />
+    </actions>
+  </library>
+
   <!-- Listen from the menu api reloading. -->
   <cue name="Reset_On_Reload" instantiate="true">
     <conditions>
       <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
     </conditions>
     <actions>
+      <include_actions ref="Load_Text"/>
       
       <signal_cue_instantly
         cue="md.Interact_Menu_API.Register_Action"
         param = "table[
           $id         = 'target_follow',
           $section    = 'interaction',
-          $name       = 'Follow',
+          $name       = Text.$Follow,
           $callback   = Target_Follow,
           $enabled_conditions  = ['player_is_piloting'],
           $disabled_conditions = ['~show_PlayerInteractions'],

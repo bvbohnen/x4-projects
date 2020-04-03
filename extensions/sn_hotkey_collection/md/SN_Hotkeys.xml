@@ -13,47 +13,154 @@
   -->
 
   <cues>
+    
+    <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+    <cue name="Text"/>
+    <library name="Load_Text">
+      <actions>
+
+        <set_value exact="{68537, 4000}" name="Text.$kc_target_follow_name" />
+        <set_value exact="{68537, 4001}" name="Text.$kc_target_follow_mouseover" />
+        <set_value exact="{68537, 4002}" name="Text.$kc_eject_illegals_name" />
+        <set_value exact="{68537, 4003}" name="Text.$kc_eject_illegals_mouseover" />
+
+        <set_value exact="{68537, 4100}" name="Text.$kc_tracker_mine_name" />
+        <set_value exact="{68537, 4101}" name="Text.$kc_mine_name" />
+        <set_value exact="{68537, 4102}" name="Text.$kc_launch_satellite_name" />
+        <set_value exact="{68537, 4103}" name="Text.$kc_launch_adv_satellite_name" />
+        <set_value exact="{68537, 4104}" name="Text.$kc_laser_tower_mk1_name" />
+        <set_value exact="{68537, 4105}" name="Text.$kc_laser_tower_mk2_name" />
+        <set_value exact="{68537, 4106}" name="Text.$kc_resource_probe_name" />
+        <set_value exact="{68537, 4107}" name="Text.$kc_nav_beacon_name" />
+        <set_value exact="{68537, 4108}" name="Text.$kc_friend_foe_mine_name" />
+        <set_value exact="{68537, 4109}" name="Text.$kc_cluster_mine_name" />
+        
+        <set_value exact="{68537, 4120}" name="Text.$kc_launch_consumable_mouseover" />
+        <set_value exact="{68537, 4121}" name="Text.$notification_launch_success" />
+        <set_value exact="{68537, 4122}" name="Text.$notification_launch_failure" />
+
+      </actions>
+    </library>
+    
+    
     <!-- Register keys with the hotkey api. -->
     <cue name="Register_Keys" instantiate="true">
       <conditions>
         <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
       </conditions>
       <actions>
-        
+
+        <!--Load any text.-->
+        <include_actions ref="Load_Text"/>
+
         <!-- Register actions. -->
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
-          $id = 'kc_target_follow', 
-          $onPress = Target_Follow,
-          $name = 'Follow Target', 
-          $description = 'Turns on autopilot to follow the target',
-          $contexts = ['flying'],
+          $id          = 'kc_target_follow', 
+          $onPress     = Target_Follow,
+          $name        = Text.$kc_target_follow_name, 
+          $description = Text.$kc_target_follow_mouseover, 
+          $contexts    = ['flying'],
           ]"/>
 
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
-          $id = 'kc_eject_illegals', 
-          $onPress = Eject_Illegals,
-          $name = 'Eject Illegal Wares', 
-          $description = 'Eject any player inventory or piloted ship cargo that is illegal in the player zone',
-          $contexts = ['flying'],
+          $id          = 'kc_eject_illegals', 
+          $onPress     = Eject_Illegals,
+          $name        = Text.$kc_eject_illegals_name, 
+          $description = Text.$kc_eject_illegals_mouseover, 
+          $contexts    = ['flying'],
           ]"/>
 
-        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
-          $id = 'kc_launch_satellite', 
-          $onPress = Launch_Satellite,
-          $name = 'Launch Satellite', 
-          $description = 'Launches a satellite from the player piloted ship',
-          $contexts = ['flying'],
-          ]"/>
-
-        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
-          $id = 'kc_launch_adv_satellite', 
-          $onPress = Launch_Adv_Satellite,
-          $name = 'Launch Advanced Satellite', 
-          $description = 'Launches an advanced satellite from the player piloted ship',
-          $contexts = ['flying'],
-          ]"/>
         
-        <!--TODO: deploy mines/etc.-->
+        <!--
+          Object launching hotkeys; all reuse Launch_Consumable.
+          Echo holds the macro, and an int for the object type.
+          TODO: maybe allow onRepeat with a manual timer to limit frequency.
+          (Could even put this repeat rate in the options.)
+        -->
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_satellite', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_launch_satellite_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.eq_arg_satellite_01_macro, 0],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_adv_satellite', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_launch_adv_satellite_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.eq_arg_satellite_02_macro, 0],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_nav_beacon', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_nav_beacon_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.env_deco_nav_beacon_t1_macro, 4],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_resource_probe', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_resource_probe_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.eq_arg_resourceprobe_01_macro, 3],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_laser_tower_mk1', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_laser_tower_mk1_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.ship_gen_xs_lasertower_01_a_macro, 2],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_laser_tower_mk2', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_laser_tower_mk2_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.ship_gen_s_lasertower_01_a_macro, 2],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_mine', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_mine_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.weapon_gen_mine_01_macro, 1],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_tracker_mine', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_tracker_mine_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.weapon_gen_mine_02_a_macro, 1],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_launch_friend_foe_mine', 
+          $onPress     = Launch_Consumable,
+          $name        = Text.$kc_friend_foe_mine_name, 
+          $description = Text.$kc_launch_consumable_mouseover,
+          $contexts    = ['flying'],
+          $echo        = [macro.weapon_gen_mine_03_macro, 1],
+          ]"/>
+
 
         <!--Debug keys. TODO: move elsewhere.
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
@@ -119,39 +226,41 @@
         
       </actions>
     </cue>
-
-    <cue name="Launch_Satellite" instantiate="true" namespace="this">
+    
+    
+    <cue name="Launch_Consumable" instantiate="true" namespace="this">
       <conditions>
         <event_cue_signalled/>
         <!-- Verify the player is piloting a ship.-->
         <check_value value="player.occupiedship"/>
       </conditions>
       <actions>
-        <!--Try basic satellites-->
-        <do_if value="player.occupiedship.ammostorage.{macro.eq_arg_satellite_01_macro}.count gt 0">
-          <launch_satellite object="player.occupiedship" macro="macro.eq_arg_satellite_01_macro"/>
-          <show_notification text="'Launched satellite'"/>
-        </do_if>
-        <do_else>
-          <show_notification text="'No satellites available'"/>
-        </do_else>
-      </actions>
-    </cue>
+        <!--Consumable macro is in echo.-->
+        <set_value name="$macro" exact="event.param.$echo.{1}"/>
+        <set_value name="$type"  exact="event.param.$echo.{2}"/>
+        <do_if value="player.occupiedship.ammostorage.{$macro}.count gt 0">
+          
+          <!--Need to select a command based on macro type.-->
+          <do_if     value="$type == 0">
+            <launch_satellite object="player.occupiedship" macro="$macro"/>            
+          </do_if>
+          <do_elseif value="$type == 1">
+            <launch_mine object="player.occupiedship" macro="$macro"/>
+          </do_elseif>
+          <do_elseif value="$type == 2">
+            <launch_lasertower object="player.occupiedship" macro="$macro"/>
+          </do_elseif>
+          <do_elseif value="$type == 3">
+            <launch_resourceprobe object="player.occupiedship" macro="$macro"/>
+          </do_elseif>
+          <do_elseif value="$type == 4">
+            <launch_navbeacon object="player.occupiedship" macro="$macro"/>
+          </do_elseif>
 
-    <cue name="Launch_Adv_Satellite" instantiate="true" namespace="this">
-      <conditions>
-        <event_cue_signalled/>
-        <!-- Verify the player is piloting a ship.-->
-        <check_value value="player.occupiedship"/>
-      </conditions>
-      <actions>
-        <!--Try advanced satellites-->
-        <do_if value="player.occupiedship.ammostorage.{macro.eq_arg_satellite_02_macro}.count gt 0">
-          <launch_satellite object="player.occupiedship" macro="macro.eq_arg_satellite_02_macro"/>
-          <show_notification text="'Launched advanced satellite'"/>
+          <show_notification text="Text.$notification_launch_success.[$macro.name]"/>
         </do_if>
         <do_else>
-          <show_notification text="'No advanced satellites available'"/>
+          <show_notification text="Text.$notification_launch_failure.[$macro.name]"/>
         </do_else>
       </actions>
     </cue>

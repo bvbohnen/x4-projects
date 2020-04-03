@@ -49,6 +49,19 @@ TODO:
     </actions>
   </cue>
 
+  <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+  <cue name="Text"/>
+  <library name="Load_Text">
+    <actions>
+      <set_value exact="{68537, 1010}" name="Text.$Debug" />
+      <set_value exact="{68537, 1021}" name="Text.$option_debug_enable" />
+      <set_value exact="{68537, 1012}" name="Text.$option_debug_enable_mouseover" />
+    </actions>
+  </library>
+
 
   <!--
   Static cue that holds some shared state information or constants.
@@ -157,6 +170,9 @@ TODO:
   <!-- TODO: can this lib be put into the cues list above? -->
   <library name="Reset_Globals">
     <actions>
+      <!--Load any text.-->
+      <include_actions ref="Load_Text"/>
+      
       <set_value name="$action_registry" exact="table[]"/>
       <set_value name="$key_event_action_registry" exact="table[]"/>
       <set_value name="$key_event_substrings" exact="table[]"/>      
@@ -309,6 +325,8 @@ TODO:
     * onRepeat = null
       - Callback cue when the combo final key is repeated while held.
       - Repeat delay and rate depend on OS settings.
+    * echo
+      - Anything; this will be passed to the callback cue.
     * contexts
       - List of strings, names of player contexts where the action is valid.
       - If not given, defaults to "['flying']".
@@ -337,6 +355,8 @@ TODO:
     * event
       - String, name of the event that occured.
       - One of ["onPress", "onRelease", "onRepeat"].
+    * echo
+      - Copy of what was given to the action registration, or null.
     
     Usage example:
       ```xml
@@ -384,6 +404,9 @@ TODO:
       </do_if>
       <do_if value="not $args.$contexts?">
         <set_value name="$args.$contexts" exact="['flying']"/>
+      </do_if>
+      <do_if value="not $args.$echo?">
+        <set_value name="$args.$echo" exact="null"/>
       </do_if>
 
       <!-- For easier usage, split standard and menu contexts. -->
@@ -894,10 +917,11 @@ TODO:
             <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Signalling cue: %s'.[$cue]"/>-->
             <!-- Call the cue, with return values. -->
             <signal_cue_instantly cue="$cue" param="table[
-                                  $key = $key,
-                                  $id = $id,
+                                  $key     = $key,
+                                  $id      = $id,
                                   $context = $context,
-                                  $event = $event,
+                                  $event   = $event,
+                                  $echo    = $action.$echo
                                   ]"/>
           </do_if>
           <!-- TODO: delink keys from non-existent actions/cues. -->
@@ -925,10 +949,10 @@ TODO:
       <signal_cue_instantly
         cue="md.Simple_Menu_Options.Register_Option"
         param = "table[
-            $category   = 'Debug',
+            $category   = Text.$Debug,
             $id         = 'debug_hotkey_api',
-            $name       = 'Enable hotkey api debug logs',
-            $mouseover  = 'Prints extra api status info to the debug log, general category',
+            $name       = Text.$option_debug_enable,
+            $mouseover  = Text.$option_debug_enable_mouseover,
             $default    = 0,
             $type       = 'button',
             $callback   = On_Option_Change,

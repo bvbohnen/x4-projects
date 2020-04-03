@@ -24,6 +24,25 @@
 
   <cues>
 
+
+    <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+    <cue name="Text"/>
+    <library name="Load_Text">
+      <actions>
+        <set_value exact="{ 1001, 2658}" name="Text.$General" />
+        <set_value exact="{ 1001, 2648}" name="Text.$on" />
+        <set_value exact="{ 1001, 2649}" name="Text.$off" />
+        <set_value exact="{68537, 1001}" name="Text.$General_Options" />
+        <set_value exact="{68537, 1010}" name="Text.$Debug" />
+        <set_value exact="{68537, 1011}" name="Text.$option_debug_enable" />
+        <set_value exact="{68537, 1012}" name="Text.$option_debug_enable_mouseover" />
+      </actions>
+    </library>
+    
+    
     <!--
       Static cue for holding general state.
     
@@ -60,6 +79,10 @@
       <actions>
         <set_value name="Globals.$DebugChance" exact="0"/>
         <set_value name="Globals.$options" exact="table[]" />
+        
+        <!--Load any text.-->
+        <include_actions ref="Load_Text"/>
+        
         <!-- Send a signal that all users listen to. -->
         <signal_cue_instantly cue="Reloaded"/>        
       </actions>
@@ -93,6 +116,7 @@
       * $category
         - Optional string, category name under which this option will be
           placed, along with any others of the same category.
+        - If not given, or given as "General" will be set to General.
       * $mouseover
         - String, text to display on menu widget mouseover.
       * $type
@@ -134,8 +158,15 @@
           <do_if value="not $option.$echo?">
             <set_value name="$option.$echo" exact="null" />
           </do_if>
+          
           <do_if value="not $option.$category?">
-            <set_value name="$option.$category" exact="'General'" />
+            <set_value name="$option.$category" exact="Text.$General" />
+          </do_if>
+          <!--If a user explicitly tried to add to General, rename it
+              based on the text lookup. (May also rename the above,
+              but that is harmless.) -->
+          <do_if value="$option.$category == 'General'">
+            <set_value name="$option.$category" exact="Text.$General" />
           </do_if>
           
           <!--Save original id, then prefix with $ for use as a key.-->
@@ -189,7 +220,7 @@
                 
         <do_if value="$args.$type == 'button'">
           <!-- Buttons will be on/off labeled toggles. -->
-          <set_value name="$args.$text.$text" exact="if (Globals.$storage.{$args.$id}) then {1001, 2648} else {1001, 2649}"/>          
+          <set_value name="$args.$text.$text" exact="if (Globals.$storage.{$args.$id}) then Text.$on else Text.$off"/>          
         </do_if>
 
         <do_elseif value="$args.$type == 'slidercell'">          
@@ -222,7 +253,7 @@
           param = "table[
             $id      = 'simple_menu_options',
             $columns = 2, 
-            $title   = 'General Options',
+            $title   = Text.$General_Options,
             $onOpen  = Build_Options_Menu,
             $onSelectElement = Handle_SelectElement,
             $private = 1,
@@ -240,9 +271,9 @@
         <!--Sort the categories, putting General first.-->
         <set_value name="$categories" exact="Globals.$options.keys.list"/>
         <sort_list list="$categories"/>
-        <set_value name="$sorted_categories" exact="['$General']" />
+        <set_value name="$sorted_categories" exact="['$'+Text.$General]" />
         <do_for_each name="$value" in="$categories">
-          <do_if value="$value == '$General'">
+          <do_if value="$value == '$'+Text.$General">
             <continue/>
           </do_if>
           <append_to_list name="$sorted_categories" exact="$value"/>
@@ -418,10 +449,10 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
-            $category   = 'Debug',
+            $category   = Text.$Debug,
             $id         = 'debug_menu_api',
-            $name       = 'Enable menu api debug logs',
-            $mouseover  = 'Prints extra api status info to the debug log, general category',
+            $name       = Text.$option_debug_enable,
+            $mouseover  = Text.$option_debug_enable_mouseover,
             $default    = 0,
             $type       = 'button',
             $callback   = On_Option_Change,

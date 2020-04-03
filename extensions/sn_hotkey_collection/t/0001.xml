@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+  
+<page id="68537" title="SirNukes texts" descr="0" voice="no">
+  
+  <!--Start at 4000-->
+  <t id="4000">{1004,55}(Launch)</t>
+  
+
+  <t id="4000">Follow Target</t>
+  <t id="4001">Turns on autopilot to follow the target, without needing to overwrite mission objective</t>
+  <t id="4002">Eject Illegal Wares</t>
+  <t id="4003">Eject any player inventory or piloted ship cargo that is illegal in the player zone</t>
+  
+  <!--
+  Launch consumables. {1004,55} is "Launch".
+  Ware names are on page 20201
+  -->
+  <t id="4100">{1004,55} {20201,20101}(Tracker Mine)</t>
+  <t id="4101">{1004,55} {20201,20201}(Mine)</t>
+  <t id="4102">{1004,55} {20201,20301}(Satellite)</t>
+  <t id="4103">{1004,55} {20201,20401}(Advanced Satellite)</t>
+  <t id="4104">{1004,55} {20201,20501}(Laser Tower Mk1)</t>
+  <t id="4105">{1004,55} {20201,20601}(Laser Tower Mk2)</t>
+  <t id="4106">{1004,55} {20201,20701}(Resource Probe)</t>
+  <t id="4107">{1004,55} {20201,20801}(Nav Beacon)</t>
+  <t id="4108">{1004,55} {20201,20901}(Friend/Foe Mine)</t>
+  <t id="4109">{1004,55} {20201,21001}(Cluster Mine)</t> <!--Unused-->
+  <t id="4120">Launches a consumable from the player piloted ship</t>
+
+  <t id="4121">Launched %s</t>
+  <t id="4122">No %s available</t>
+
+</page>
+
+</language>

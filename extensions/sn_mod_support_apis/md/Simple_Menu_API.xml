@@ -622,6 +622,7 @@ Complex properties:
   </cue>
 
   <!--TODO: copy over some documentation from Make_Menu.-->
+  <!--TODO: a way to dynamically condition when a menu is displayed, eg. only when debugging.-->
   <!--@doc-cue
     Register an options menu, which will be accessible as a submenu of
     the normal game options. These menus will be set to use the same

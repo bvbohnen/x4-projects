@@ -26,6 +26,8 @@ local menu_data         = Tables.menu_data
 local debugger          = Tables.debugger
 local custom_menu_specs = Tables.custom_menu_specs
 
+local T = require("extensions.sn_mod_support_apis.lua.Text")
+
 
 -- Import library functions for strings and tables.
 local Lib = require("extensions.sn_mod_support_apis.lua.simple_menu.Library")
@@ -180,7 +182,7 @@ local function Init_Gameoptions_Link()
             gameoptions_menu.displayOption(ftable, {
                 -- TODO: put this id/name in a global table somewhere.
                 id = "simple_menu_extension_options",
-                name = "Extension Options",
+                name = T.extension_options,
                 submenu = "simple_menu_extension_options",
                 -- TODO: maybe give a display function that turns off this
                 -- entry if there are no registered user mod menus.
@@ -507,8 +509,7 @@ function menu.Display_Extension_Options()
     local num_cols = 2
     local frame, ftable = menu.Make_Menu_Shell({
         id = "simple_menu_extension_options", 
-        -- TODO: readtext
-        title = "Extension Options", 
+        title = T.extensionoptions, 
         -- Set to 2, to sync with the extra options that will get
         -- appended after the submenu list.
         columns = num_cols })
@@ -548,6 +549,7 @@ function menu.Display_Extension_Options()
         menu.Display_Custom_Menu_PostShell(menu_spec, frame, ftable)
     else
         -- If there are no menus, note this.
+        -- In the current setup, this logic is not expected to be reached.
         if not menu_found then
             local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
             row[2]:setColSpan(num_cols):createText("No menus registered", config.warningTextProperties)

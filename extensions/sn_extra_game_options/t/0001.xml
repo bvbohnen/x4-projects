@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+  
+<page id="68537" title="SirNukes texts" descr="0" voice="no">
+  
+  <!--Start at 2000-->
+  <t id="2000">Disable menu animations</t>
+  <t id="2001">Removes the animation and associated delay for top menus opening</t>
+  <t id="2002">Disable help popups</t>
+  <t id="2003">Stops the one-time help text popups from displaying</t>
+  <t id="2004">Adjust tooltip font size</t>
+  <t id="2005">Globally increases the font size of tooltips (originally 9 pt)</t>
+  <t id="2006">Adjust map opacity</t>
+  <t id="2007">Sets the alpha value of the map menu; egosoft default is 98, set to 100 to remove transparency</t>
+  <t id="2008">Open map on player</t>
+  <t id="2009">Forces the map to open focused on the player location always, instead of the current target location</t>
+  <t id="2010">Adjust Field of View</t>
+  <t id="2011">Changes the FoV multiplier; ui will shrink</t>
+  
+</page>
+
+</language>

@@ -1,5 +1,8 @@
 --[[
 Library functions to be shared across apis.
+
+TODO:
+    - Convenience table of stock menus, keyed by name.
 ]]
 
 -- Table to hold lib functions.
@@ -99,6 +102,7 @@ end
 
 -- Function to remove $ prefixes from MD keys.
 -- Recursively calls itself for subtables.
+-- Note: not always needed, depending on how data was passed.
 function L.Clean_MD_Keys( in_table )
     -- Loop over table entries.
     for key, value in pairs(in_table) do

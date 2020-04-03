@@ -63,8 +63,25 @@ TODO:
                        param="'extensions.sn_mod_support_apis.lua.named_pipes.Interface'"/>
     </actions>
   </cue>
-  
-  
+
+  <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+  <cue name="Text"/>
+  <library name="Load_Text">
+    <actions>
+      <set_value exact="{68537, 1030}" name="Text.$Named_Pipes_API" />
+      <set_value exact="{68537, 1031}" name="Text.$connected" />
+      <set_value exact="{68537, 1032}" name="Text.$disconnected" />
+      <set_value exact="{68537, 1033}" name="Text.$Pipe" />
+      <set_value exact="{68537, 1034}" name="Text.$Status" />
+      <set_value exact="{68537, 1035}" name="Text.$pipe_mouseover" />
+      <set_value exact="{68537, 1036}" name="Text.$status_mouseover" />
+    </actions>
+  </library>
+
+
   <!--
     Static cue that holds some shared state information or constants.
     When this script is installed, a new instance of this cue is created,
@@ -98,6 +115,9 @@ TODO:
   <!-- TODO: can this lib be put into the cues list above? -->
   <library name="Reset_Globals">
     <actions>
+      <!--Load any text.-->
+      <include_actions ref="Load_Text"/>
+      
       <!-- Counter reset is optional, but include for init. -->
       <set_value name="Globals.$access_counter" exact="0"/>
       <!-- Prefix to add to all pipe names. -->
@@ -669,7 +689,7 @@ TODO:
         param = "table[
             $id      = 'named_pipes_menu',
             $columns = 2, 
-            $title   = 'Named Pipes API',
+            $title   = Text.$Named_Pipes_API,
             $onOpen  = Build_Options_Menu
             ]"/>
     </actions>
@@ -699,7 +719,6 @@ TODO:
     </actions>
   </cue>
 
-  
   <!--
       Callback for building the options menu.
     -->
@@ -714,18 +733,18 @@ TODO:
       <signal_cue_instantly
         cue="md.Simple_Menu_API.Make_Text"
         param = "table[
-            $col=1, 
-            $text='Pipe', 
-            $mouseOverText='Name of the pipe.',
-            $cellBGColor = 'Helper.color.transparent60',
+            $col           = 1, 
+            $text          = Text.$Pipe, 
+            $mouseOverText = Text.$pipe_mouseover,
+            $cellBGColor   = 'Helper.color.transparent60',
             ]"/>
       <signal_cue_instantly
         cue="md.Simple_Menu_API.Make_Text"
         param = "table[
-            $col=2, 
-            $text='Status', 
-            $mouseOverText='If the pipe is connected.',
-            $cellBGColor = 'Helper.color.transparent60',
+            $col           = 2, 
+            $text          = Text.$Status, 
+            $mouseOverText = Text.$status_mouseover,
+            $cellBGColor   = 'Helper.color.transparent60',
             ]"/>
       
       <!-- Loop over registered pipe handler cues. -->
@@ -733,11 +752,11 @@ TODO:
         
         <!-- Set the text string, connected/disconnected with color. -->
         <do_if value="@Globals.$pipe_status_cues.{$i}.{'$server_connected'}">
-          <set_value name="$text" exact="'connected'"/>
+          <set_value name="$text" exact="Text.$connected"/>
           <set_value name="$color" exact="'Helper.color.green'"/>
         </do_if>
         <do_else>
-          <set_value name="$text" exact="'disconnected'"/>
+          <set_value name="$text" exact="Text.$disconnected"/>
           <set_value name="$color" exact="'Helper.color.red'"/>
         </do_else>
         

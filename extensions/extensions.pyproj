@@ -22,6 +22,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_better_target_monitor\t\" />
+    <Folder Include="sn_extra_game_options\t\" />
+    <Folder Include="sn_hotkey_collection\t\" />
+    <Folder Include="sn_interact_collection\t\" />
+    <Folder Include="sn_mod_support_apis\t\" />
     <Folder Include="sn_station_kill_helper\" />
     <Folder Include="sn_station_kill_helper\md\" />
     <Folder Include="sn_remove_dock_symbol\" />
@@ -70,9 +75,15 @@
     <Content Include="sn_better_target_monitor\lua\Target_Monitor.lua" />
     <Content Include="sn_better_target_monitor\md\Better_Target_Monitor.xml" />
     <Content Include="sn_better_target_monitor\Readme.md" />
+    <Content Include="sn_better_target_monitor\t\0001.xml" />
+    <Content Include="sn_extra_game_options\t\0001.xml" />
+    <Content Include="sn_hotkey_collection\t\0001.xml" />
+    <Content Include="sn_interact_collection\t\0001.xml" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
+    <Content Include="sn_mod_support_apis\lua\Text.lua" />
     <Content Include="sn_mod_support_apis\lua_interface.txt" />
+    <Content Include="sn_mod_support_apis\t\0001.xml" />
     <Content Include="sn_station_kill_helper\content.xml" />
     <Content Include="sn_station_kill_helper\md\SN_Station_Kill_Helper.xml" />
     <Content Include="sn_interact_collection\change_log.md" />

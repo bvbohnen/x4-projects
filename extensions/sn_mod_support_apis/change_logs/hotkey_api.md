@@ -40,5 +40,7 @@ Change Log
   - Moved custom hotkeys to SirNukes' Hotkey Collection.
   - Fixed menu not showing in new games that don't yet have hotkeys set up.
   - Fixed problem with key remap and deletion remembering the old key.
+* 1.2
+  - Added $echo support for callbacks.
 
 

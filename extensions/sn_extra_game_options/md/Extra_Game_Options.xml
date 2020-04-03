@@ -9,6 +9,30 @@
 
   <cues>
 
+    <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+    <cue name="Text"/>
+    <library name="Load_Text">
+      <actions>
+        <set_value exact="{68537, 2000}" name="Text.$disable_animations_name" />
+        <set_value exact="{68537, 2001}" name="Text.$disable_animations_mouseover" />
+        <set_value exact="{68537, 2002}" name="Text.$disable_helptext_name" />
+        <set_value exact="{68537, 2003}" name="Text.$disable_helptext_mouseover" />
+        <set_value exact="{68537, 2004}" name="Text.$tooltip_fontsize_name" />
+        <set_value exact="{68537, 2005}" name="Text.$tooltip_fontsize_mouseover" />
+        <set_value exact="{68537, 2006}" name="Text.$map_menu_alpha_name" />
+        <set_value exact="{68537, 2007}" name="Text.$map_menu_alpha_mouseover" />
+        <set_value exact="{68537, 2008}" name="Text.$map_menu_player_focus_name" />
+        <set_value exact="{68537, 2009}" name="Text.$map_menu_player_focus_mouseover" />
+        <set_value exact="{68537, 2010}" name="Text.$adjust_fov_name" />
+        <set_value exact="{68537, 2011}" name="Text.$adjust_fov_mouseover" />
+      </actions>
+    </library>
+
+
+
     <!-- Register the main lua file. -->
     <cue name="Load_Lua_Files" instantiate="true">
       <conditions>
@@ -26,13 +50,14 @@
         <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
       </conditions>
       <actions>
+        <include_actions ref="Load_Text"/>
         
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'disable_animations',
-            $name       = 'Disable menu animations',
-            $mouseover  = 'Removes the animation and associated delay for top menus opening',
+            $name       = Text.$disable_animations_name,
+            $mouseover  = Text.$disable_animations_mouseover,
             $default    = 0,
             $type       = 'button',
             $callback   = OnChange,
@@ -42,8 +67,8 @@
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'disable_helptext',
-            $name       = 'Disable help popups',
-            $mouseover  = 'Stops the one-time help text popups from displaying',
+            $name       = Text.$disable_helptext_name,
+            $mouseover  = Text.$disable_helptext_mouseover,
             $default    = 0,
             $type       = 'button',
             $callback   = OnChange,
@@ -53,8 +78,8 @@
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'tooltip_fontsize',
-            $name       = 'Adjust tooltip font size',
-            $mouseover  = 'Globally increases the font size of tooltips (originally 9 pt)',
+            $name       = Text.$tooltip_fontsize_name,
+            $mouseover  = Text.$tooltip_fontsize_mouseover,
             $default    = 9,
             $type       = 'slidercell',
             $args       = table[
@@ -70,8 +95,8 @@
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'map_menu_alpha',
-            $name       = 'Adjust map opacity',
-            $mouseover  = 'Sets the alpha value of the map menu; egosoft default is 98, set to 100 to remove transparency',
+            $name       = Text.$map_menu_alpha_name,
+            $mouseover  = Text.$map_menu_alpha_mouseover,
             $default    = 98,
             $type       = 'slidercell',
             $args       = table[
@@ -87,8 +112,8 @@
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'map_menu_player_focus',
-            $name       = 'Open map on player',
-            $mouseover  = 'Forces the map to open focused on the player location always, instead of the current target location',
+            $name       = Text.$map_menu_player_focus_name,
+            $mouseover  = Text.$map_menu_player_focus_mouseover,
             $default    = 0,
             $type       = 'button',
             $callback   = OnChange,
@@ -99,8 +124,8 @@
           param = "table[
             $disabled   = true,
             $id         = 'adjust_fov',
-            $name       = 'Adjust Field of View',
-            $mouseover  = 'Changes the FoV multiplier; ui will shrink',
+            $name       = Text.$adjust_fov_name,
+            $mouseover  = Text.$adjust_fov_mouseover,
             $default    = 100,
             $type       = 'slidercell',
             $args       = table[

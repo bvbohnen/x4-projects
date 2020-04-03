@@ -26,6 +26,7 @@ ffi.cdef[[
 
 -- Imports.
 local Lib = require("extensions.sn_mod_support_apis.lua.Library")
+local T = require("extensions.sn_mod_support_apis.lua.Text")
 local Tables = require("extensions.sn_mod_support_apis.lua.hotkey.Tables")
 local config = Tables.config
 
@@ -459,7 +460,8 @@ function L.displayControls (preselectOption, optionParameter)
     -- Add a nice title.
     -- Make this a larger than normal font.
     local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
-    row[2]:setColSpan(3):createText("Extensions", config.subHeaderTextProperties_2)
+
+    row[2]:setColSpan(3):createText(T.extensions, config.subHeaderTextProperties_2)
     
     -- Make sure all actions have an entry in the player keys table.
     for _, action in pairs(L.action_registry) do

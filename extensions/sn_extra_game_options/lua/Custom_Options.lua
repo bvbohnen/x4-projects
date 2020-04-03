@@ -33,6 +33,14 @@ TODO: possible future options
     GetCharacterDensityOption
     ClearLogbook
 
+- Remove the egosoft station announcement
+    On page {10099,1014}.
+    Played in md/Notifications.xml cue StationAnnouncements_PrepareSpeak.
+    Can insert a node after "<set_value name="$textid" min="1001" max="1022" />"
+    to detect the ego announcement and cancel the cue (it refires itself
+    after a few seconds anyway).
+    Condition on setting here.
+
 - Look through the global config table to see if anything interesting is there.
     Note: most interesting stuff is in ui/core, but those don't see to be
     exported despite being globals.
