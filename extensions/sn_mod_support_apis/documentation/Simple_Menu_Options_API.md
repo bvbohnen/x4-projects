@@ -16,6 +16,7 @@
     - String, text to display on the menu widget label.
   * $category
     - Optional string, category name under which this option will be placed, along with any others of the same category.
+    - If not given, or given as "General" will be set to General.
   * $mouseover
     - String, text to display on menu widget mouseover.
   * $type

@@ -28,6 +28,8 @@
   * onRepeat = null
     - Callback cue when the combo final key is repeated while held.
     - Repeat delay and rate depend on OS settings.
+  * echo
+    - Anything; this will be passed to the callback cue.
   * contexts
     - List of strings, names of player contexts where the action is valid.
     - If not given, defaults to "['flying']".
@@ -53,6 +55,8 @@
   * event
     - String, name of the event that occured.
     - One of ["onPress", "onRelease", "onRepeat"].
+  * echo
+    - Copy of what was given to the action registration, or null.
       
   Usage example:
     ```xml
