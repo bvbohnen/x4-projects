@@ -8,6 +8,25 @@ TODO:
 -- Table to hold lib functions.
 local L = {}
 
+
+-- Retrieve a vanilla game menu by name.
+function L.Get_Egosoft_Menu(name)
+    -- These are stored in a global list.
+    if Menus == nil then
+        error("Menus global not yet initialized")
+    end
+    -- Search the list for the name.
+    for i, ego_menu in ipairs(Menus) do
+        if ego_menu.name == name then
+            return ego_menu
+        end
+    end
+    
+    -- Something went wrong.
+    error("Failed to find egosoft menu with name "..tostring(name))
+end
+
+
 -- Table of lua's pattern characters that have special meaning.
 -- These need to be escaped for string.find.
 -- Can check a separator based on table key; values are dummies.

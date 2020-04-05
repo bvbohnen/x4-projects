@@ -8,20 +8,19 @@
   date="2019-07-23" 
   save="false" 
   sync="false">
-  
-  <!-- Maybe fill out individual languages.
-  <langugage description="" language="7"/>
-  <langugage description="" language="33"/>
-  <langugage description="" language="37"/>
-  <langugage description="" language="39"/>
-  <langugage description="" language="44"/>
-  <langugage description="" language="49"/>
-  <langugage description="" language="55"/>
-  <langugage description="" language="81"/>
-  <langugage description="" language="82"/>
-  <langugage description="" language="86"/>
-  <langugage description="" language="88"/> -->
-  
+
+  <langugage language="7"  description=""/>
+  <langugage language="33" description=""/>
+  <langugage language="37" description=""/>
+  <langugage language="39" description=""/>
+  <langugage language="44" />
+  <langugage language="49" description=""/>
+  <langugage language="55" description=""/>
+  <langugage language="81" description=""/>
+  <langugage language="82" description=""/>
+  <langugage language="86" description=""/>
+  <langugage language="88" description=""/>
+
   <!--Set X4 version requirement.-->
   <dependency version="300" />
 </content>

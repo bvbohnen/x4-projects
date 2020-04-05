@@ -42,6 +42,11 @@ def Make(*args):
         '-steam', 
         action='store_true',
         help = 'Update the versions of steam-enabled extensions on steam.')
+    
+    argparser.add_argument(
+        '-force', 
+        action='store_true',
+        help = 'Forces steam update even if version did not change.')
 
     #argparser.add_argument(
     #    '-catdat', 
@@ -81,7 +86,7 @@ def Make(*args):
         Make_Zip(release_dir, zip_path, spec)
         
     if args.steam:
-        Update_Steam(release_specs, release_dir)
+        Update_Steam(release_specs, release_dir, force = args.force)
 
     return
 
@@ -159,7 +164,7 @@ def Make_Zip(release_dir, zip_path, spec):
     return
 
 
-def Update_Steam(release_specs, release_dir):
+def Update_Steam(release_specs, release_dir, force = False):
     '''
     Update the steam copy of this release, if the version has changed
     since the last update.
@@ -191,7 +196,7 @@ def Update_Steam(release_specs, release_dir):
         # Compare versions.
         this_version = spec.Get_Version()
         prior_version = steam_versions[spec.name]
-        if prior_version != this_version:
+        if prior_version != this_version or force:
 
             # Do the update.
             folder = release_dir / spec.name

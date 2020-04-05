@@ -8,5 +8,6 @@ release files.
 local L = {}
 L.Library = require("extensions.sn_mod_support_apis.lua.Library")
 L.Pipes   = require("extensions.sn_mod_support_apis.lua.named_pipes.Pipes")
+L.Time    = require("extensions.sn_mod_support_apis.lua.time.Interface")
 
 return L

@@ -22,8 +22,10 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_friendlier_fire\" />
     <Folder Include="sn_better_target_monitor\t\" />
     <Folder Include="sn_extra_game_options\t\" />
+    <Folder Include="sn_friendlier_fire\md\" />
     <Folder Include="sn_hotkey_collection\t\" />
     <Folder Include="sn_interact_collection\t\" />
     <Folder Include="sn_mod_support_apis\t\" />
@@ -77,6 +79,8 @@
     <Content Include="sn_better_target_monitor\Readme.md" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
     <Content Include="sn_extra_game_options\t\0001.xml" />
+    <Content Include="sn_friendlier_fire\content.xml" />
+    <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
     <Content Include="sn_interact_collection\t\0001.xml" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />

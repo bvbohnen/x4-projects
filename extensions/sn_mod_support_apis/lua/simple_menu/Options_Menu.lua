@@ -94,25 +94,9 @@ local gameoptions_menu = nil
 
 -- Hook into the gameoptions menu.
 local function Init_Gameoptions_Link()
-    -- Stop if something went wrong.
-    if Menus == nil then
-        error("Menus global not yet initialized")
-    end
-    
-    -- Search the ego menu list. When this lua loads, they should all
-    -- be filled in.
-    for i, ego_menu in ipairs(Menus) do
-        if ego_menu.name == "OptionsMenu" then
-            gameoptions_menu = ego_menu
-        end
-    end
-    
-    -- Stop if something went wrong.
-    if gameoptions_menu == nil then
-        error("Failed to find egosoft's OptionsMenu")
-    end
+    -- Look up the menu, store in this module's local.
+    gameoptions_menu = Lib.Get_Egosoft_Menu("OptionsMenu")
 
-    
     -- Patch displayOptions.
     local original_displayOptions = gameoptions_menu.displayOptions
     gameoptions_menu.displayOptions = function (optionParameter)

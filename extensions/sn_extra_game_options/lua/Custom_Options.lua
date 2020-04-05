@@ -130,23 +130,7 @@ L.menu_alpha = {
     }
 function L.Init_Menu_Alpha()
 
-    -- Stop if something went wrong.
-    if Menus == nil then
-        error("Menus global not yet initialized")
-    end
-    
-    local map_menu = nil
-    for i, ego_menu in ipairs(Menus) do
-        if ego_menu.name == "MapMenu" then
-            map_menu = ego_menu
-        end
-    end
-    
-    -- Stop if something went wrong.
-    if map_menu == nil then
-        error("Failed to find egosoft's MapMenu")
-    end
-    
+    local map_menu = Lib.Get_Egosoft_Menu("MapMenu")    
             
     -- Pick out the menu creation function.
     local original_createMainFrame = map_menu.createMainFrame
@@ -186,9 +170,8 @@ function L.Init_Menu_Alpha()
                 end
             end
             if rendertarget == nil then
-                -- Note, this was seen printed once; unclear on cause.
-                DebugError("Failed to find map_menu rendertarget")
-                return retval
+                -- Note, this was seen printed a few times; unclear on cause.
+                DebugError("Custom Options Map alpha: Failed to find map_menu rendertarget")
             else
                 -- Try to directly overwrite the alpha.
                 --DebugError("alpha: "..tostring(rendertarget.properties.alpha))
@@ -589,23 +572,8 @@ L.mapfocus = {
 -- Setup wrappers.
 function L.Init_Map_Focus()
 
-    -- Stop if something went wrong.
-    if Menus == nil then
-        error("Menus global not yet initialized")
-    end
+    local menu = Lib.Get_Egosoft_Menu("MapMenu")
     
-    local menu = nil
-    for i, ego_menu in ipairs(Menus) do
-        if ego_menu.name == "MapMenu" then
-            menu = ego_menu
-        end
-    end
-    
-    -- Stop if something went wrong.
-    if menu == nil then
-        error("Failed to find egosoft's MapMenu")
-    end
-
     local ego_importMenuParameters = menu["importMenuParameters"]
     menu["importMenuParameters"] = function (...)
 
@@ -637,6 +605,111 @@ function L.Handle_Map_Player_Focus(_, param)
     -- Store it.
     L.mapfocus.onplayer = param
 end
+
+
+------------------------------------------------------------------------------
+-- Testing cheat enables
+--[[
+    The base game has an IsCheatVersion() global function, that controls
+    inclusion of some extra cheat commands through the ui.
+
+    Can try forcing it to return True. May not work perfectly if this
+    depends on lower level cheat functionality that is missing.
+
+    The map_menu records this global function as a condition check
+    prior to it getting monkey patched here.
+    However, this link is stored in the menu config, and the function that
+    checks it looks are config directly. As such, the cheat icon needs to
+    be patched back in after the relevant function returns, copy/pasting
+    any necessary innards.
+
+    Result: cheat menu shows up fine in the map menu, but most of the options
+    don't seem to work or give errors. It is possible some of the ffi callbacks
+    have another cheat check that fails.
+    Several options set up a conversation menu, handled in the md
+    script MainMenu which listens to event_conversation_started. It seems
+    no actual conversation menu is opened; this is just used for
+    signalling the md cue. However, the md cues appear to not be maintained,
+    and give errors (eg. lookup failures on people when selecting to increase
+    crew skill).
+
+    For now, scratch support for ego cheats.
+]]
+--[[
+L.cheats = {
+    enable = true,
+}
+
+local global_IsCheatVersion = IsCheatVersion
+IsCheatVersion = function(...)
+    --CallEventScripts("directChatMessageReceived", "Event;IsCheatVersion called")
+    return L.cheats.enable
+    --global_IsCheatVersion(...)
+end
+
+-- Setup wrappers.
+function L.Init_Cheats()
+
+    local menu = Lib.Get_Egosoft_Menu("MapMenu")
+    local ego_createSideBar = menu.createSideBar
+
+    menu.createSideBar = function(firsttime, frame, ...)
+
+        -- Save the current selection.
+        local sideBar = menu.selectedRows.sideBar
+
+        -- Run the standard logic.
+        ego_createSideBar(firsttime, frame, ...)
+
+        -- Insert the cheat option back in.
+        if IsCheatVersion() then
+
+
+            -- Look up the ftable the above function added.
+            -- Expect the newest ftable to be the last table in the frame.
+            local ftable
+            for i = 1, #frame.content do
+                if frame.content[i].type == "table" then
+                    ftable = frame.content[i]
+                end
+            end
+
+            -- Copy of the ego leftbar entries from config.
+            local entry = {
+                name = "Cheats",
+                icon = "mapst_cheats",
+                mode = "cheats"}
+
+            -- Note: following code chunk is a heavily pruned bit of ego code.
+
+            -- Blank space.
+            local spacingHeight = menu.sideBarWidth / 4
+            local row = ftable:addRow(false, { fixed = true })
+            row[1]:createIcon("mapst_seperator_line", { width = menu.sideBarWidth, height = spacingHeight })
+
+            -- Cheats entry.
+            local row = ftable:addRow(true, { fixed = true })
+
+            local bgcolor = Helper.defaultTitleBackgroundColor
+            if menu.infoTableMode == "cheats" then
+                bgcolor = Helper.defaultArrowRowBackgroundColor
+            end
+
+            local color = Helper.color.white
+            if menu.highlightLeftBar["cheats"] then
+                color = Helper.color.mission
+            end
+                
+            row[1]:createButton({ active = true, height = menu.sideBarWidth, bgColor = bgcolor, mouseOverText = entry.name, helpOverlayID = entry.helpOverlayID, helpOverlayText = entry.helpOverlayText }):setIcon(entry.icon, { color = color })
+            row[1].handlers.onClick = function () return menu.buttonToggleObjectList("cheats") end
+
+            -- Restore the selection.
+            ftable:setSelectedRow(sideBar)
+        end
+    end    
+end
+L.Init_Cheats()
+]]
 
 ------------------------------------------------------------------------------
 -- Testing sound disables.

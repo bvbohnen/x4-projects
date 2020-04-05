@@ -79,24 +79,8 @@ local function Init()
     -- player assigned keys.
     Raise_Signal("reloaded")
     
-
-    -- Stop if something went wrong.
-    if Menus == nil then
-        error("Menus global not yet initialized")
-    end
-    
-    -- Search the ego menu list. When this lua loads, they should all
-    -- be filled in.
-    for _, ego_menu in ipairs(Menus) do
-        if ego_menu.name == "OptionsMenu" then
-            menu = ego_menu
-        end
-    end
-    
-    -- Stop if something went wrong.
-    if menu == nil then
-        error("Failed to find egosoft's OptionsMenu")
-    end
+    -- Look up the menu, store in this module's local.
+    menu = Lib.Get_Egosoft_Menu("OptionsMenu")
     
     -- Patch displayOptions.
     local ego_displayControls = menu.displayControls

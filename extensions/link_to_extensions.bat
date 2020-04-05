@@ -5,6 +5,7 @@ SET "src_path=%~dp0"
 
 for %%F in (
 	sn_better_target_monitor
+	sn_friendlier_fire
 	sn_extra_game_options
 	sn_hotkey_collection
 	sn_interact_collection

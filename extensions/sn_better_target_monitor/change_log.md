@@ -18,3 +18,5 @@ Change Log
   - Bypassed C.GetPlayerTargetOffset() returning bad z data.
 * 1.3
   - Removed distance/eta from some target types that gave errors.
+* 1.4
+  - Rewrote smoothing filter for distant objects to reduce relative speed and eta jitter.

@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Friendlier_Fire" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  Logic for detecting friendly fire incidents, and adjusting the
+  reputation impact.
+  
+  TODO:
+  Think about if md.Notifactions.PlayerOwnedShipAttacks needs adjustment;
+  it may be odd to be able to freely attack down a friendly ship and get
+  it to bail without hostility. (Though local logic can maybe detect
+  that case well enough.)
+  
+  TODO:
+  Maybe switch out how this works somewhat, and instead occasionally
+  poll the faction relations to player, and set all faction ships to
+  disable rep due to attacked (set_object_relation_behaviour) if they
+  are player friendly.
+  Drawback is this would impact npc-vs-npc behavior, and would need
+  to poll often or otherwise listen to new allied ships being created.
+  -->
+
+  <cues>
+
+    <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+    <cue name="Text"/>
+    <library name="Load_Text">
+      <actions>
+        <!--TODO: t file-->
+        <set_value exact="'Friendlier Fire'" name="Text.$Friendlier_Fire" />
+        <set_value exact="'Enable'" name="Text.$ff_enable_name" />
+        <set_value exact="'Enables custom friendlier fire'" name="Text.$ff_enable_mouseover" />
+      </actions>
+    </library>
+
+
+    <!-- Listen from the menu api reloading. -->
+    <cue name="Reset_OnReload" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+      </conditions>
+      <actions>
+        
+        <!--Load any text.-->
+        <include_actions ref="Load_Text"/>
+
+        <!--TODO: enable mod?  enable rep penalties globally? etc.?-->
+        <signal_cue_instantly
+          cue = "md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = Text.$Friendlier_Fire,
+            $id         = 'sn_ff_enable',
+            $name       = Text.$ff_enable_name,
+            $mouseover  = Text.$ff_enable_mouseover,
+            $type       = 'button',
+            $default    = 1,
+            $callback   = OnChange,
+            $echo       = 'enabled',
+            ]"/>
+
+      </actions>
+    </cue>
+
+    <cue name="OnChange" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!--
+        TODO
+        -->
+      </actions>
+    </cue>
+
+    <!--
+    This cue listens for any changes to the faction-to-player reputation.
+    Of interest are those changing due to 'attackedobject'.
+    
+    Note: basic FF handling is defined by properties in defaults.xml,
+    where a temp 'boost' is applied after so many hits that floors
+    the reputation (to -1 absolute).
+    
+    Note: in vanilla, all penalties have:
+      decay="0.02" delay="540"
+      
+    TODO: mod defaults.xml so that the boost is smaller and relative, eg. -0.1,
+    in case a flicker to -1 has other negative impacts before this logic
+    kicks in and repairs the rep.
+    Also change the thresholds to trigger right away so this logic fires
+    more regularly, maybe.
+    
+    event_player_relation_changed doc:
+    "Event for when a faction or an object's control entity changes the relation 
+    towards the player (object = entity or null, param = faction or null, 
+    param2 = [new relation, old relation], param3 = relationchangereason).
+    NOTE: On permanent faction changes, object is null. On relation boosts, 
+    object is non-null, and param is either null (silent boost) or 
+    faction.player (non-silent boost)."
+    -->
+    <cue name="Detect_Change" instantiate="true">
+      <conditions>
+        <event_player_relation_changed reason="relationchangereason.attackedobject"/>
+        <check_value value="false"/>
+      </conditions>
+      <actions>
+        <!--Unpack the params.-->
+        <set_value name="$object"  exact="event.object"/>
+        <set_value name="$rep_new" exact="event.param2.{1}"/>
+        <set_value name="$rep_old" exact="event.param2.{2}"/>
+        <set_value name="$rep_delta" exact="$rep_new - $rep_old"/>
+        
+        <!--Only looking for temp changes, not perm, so object should be known.
+            Note: in this case, event.param is null (not faction). 
+            The change is expected to be negative.
+            -->
+        <do_if value="$object and $rep_delta lt 0">
+
+
+          <!--
+            The rep_old may be made up partly by basic faction reputation,
+            and partly by other temp boosts. The goal here is to preserve
+            other temp boosts, and just counter the newest change.
+            
+            While add_relation_boost of an opposite amount could be used,
+            it is unclear on how these temp boosts are tracked, eg. if there
+            is a limit on how many are included, so there may be some
+            awkwardness of stacking up a bunch of such temp boosts on
+            the target.
+            
+            The logic here will instead pick out what the prior natural
+            and boost reps were, then cancel all boosts, and use the prior
+            temp boost to set a new one.
+          -->
+          <set_value name="$rep_faction_base" exact="$object.trueowner.relationto.{faction.player}"/>
+          <!--Boost expected to be negative.-->
+          <set_value name="$rep_old_boost" exact="$rep_old - $rep_faction_base"/>
+          
+          <!--Calculate the new boost to apply, based on local logic.-->
+          <!--TODO: logic checks.-->
+          <set_value name="$rep_override_boost" exact="$rep_old_boost"/>
+  
+          <reset_relation_boost object="$object" faction= "faction.player" />
+          <add_relation_boost 
+            object      = "$object"
+            faction     = "faction.player" 
+            value       = "$rep_override_boost" 
+            decay       = "0.02" 
+            delay       = "540s" 
+            silent      = "true"/>
+
+          <debug_text text="'attackedobject relation change amount: %s to %s (delta %s), for object %s, base faction relation %s, original boost %s, new boost %s'.[
+                      $rep_old, $rep_new, $rep_delta, $object.name, $rep_faction_base, $rep_old_boost, $rep_override_boost]" filter="general"/>
+
+        </do_if>
+        
+      </actions>
+    </cue>
+    
+    
+    <!--
+      Cue to handle generic events of player assets hitting something else.
+      Note: in testing, this does not fire regularly, and there will be
+      gaps where player-owned shots can turn something hostile without
+      this cue being triggered (though more shots can then trigger
+      the cue and have it reset the hostility).
+      
+      Result: this would only be suitable if defaults.xml is heavily
+      edited to prevent it making targets hostile, doing the logic
+      purely here. This would have side-effects on npc-vs-npc hits
+      that may be undesirable.
+      
+      Possible workarounds:
+      a) Start a polling routine that keeps checking the object at some
+      regular rate, constantly trying to reset its relation to player
+      or player asset.
+      b) Disable relation adjustments on target (set_object_relation_behaviour),
+      though this is heavy handed and permenant without more effort.
+    
+      event_player_owned_attacked_object:
+      "Event for when a player owned object, including the player, attacks 
+      another object (param = attacker, param2 = attacked object, 
+      param3 = kill method)"
+    -->    
+    <cue name="Detect_Player_Owned_Attacked_Object" instantiate="true">
+      <conditions>
+        <event_player_owned_attacked_object/>
+        <set_value name="$target" exact="event.param2"/>
+        <check_value value="$target and $target.isoperational"/>
+        <check_value value="not $target.isplayerowned" />
+        <check_value value="not $target.isunit"/>
+        <check_value value="false"/>
+      </conditions>
+      <actions>
+        <!--Unpack the params.-->
+        <set_value name="$attacker" exact="event.param"/>
+        <set_value name="$target"   exact="event.param2"/>
+
+        <!--
+          In this case, the victim may have set a temp boost rep against
+          the attacker, and hence the player.
+          Pick out the current rep, race rep, estimated boost rep.
+        -->
+        <set_value name="$rep_current"      exact="$target.relationto.{faction.player}"/>
+        <set_value name="$rep_faction_base" exact="$target.trueowner.relationto.{faction.player}"/>
+        <!--Boost expected to be negative.-->
+        <set_value name="$rep_boost" exact="$rep_current - $rep_faction_base"/>
+
+        <!--Calculate the new boost to apply, based on local logic.-->
+        <!--TODO: logic checks.-->
+        <set_value name="$rep_boost_new" exact="0"/>
+
+        <!--TODO: are the boosts just against the attack object, or against
+            the object and the player?  Clear both for now.-->
+        <reset_relation_boost object="$target" faction= "faction.player" />
+        <reset_relation_boost object="$target" otherobject="$attacker" />
+        
+        <!--Set the new boost, adding to faction base using an 'add' node.
+            Apply to player faction as a whole, not just attacker.-->
+        <add_relation_boost
+          object      = "$target"
+          faction     = "faction.player"
+          value       = "$rep_boost_new"
+          decay       = "0.02"
+          delay       = "540s"
+          silent      = "true"/>
+
+        <debug_text text="'Player %s attacked %s; faction rep %s, prior boost %s, new boost %s'.[
+                    $attacker.name, $target.name, $rep_faction_base, 
+                    $rep_boost, $rep_boost_new]" filter="general"/>
+
+
+      </actions>
+    </cue>
+
+
+    <!--
+    Detect a player asset getting hit.
+    As above, this is likely not called on every hit, though relations
+    can update on every hit, so this may not be reliable if it needs to
+    run every time.
+    
+    As a workaround, set_object_relation_behaviour can be used to set
+    the player asset to ignore being attacked/killed, maybe on some
+    delay (using time api), or maybe just forever.
+    
+    event_player_owned_attacked:    
+    "Event for when a player owned object is attacked 
+    (object = attacked object, param = attacker, param2 = kill method, 
+    param3 = attacked component)"
+    -->
+    <cue name="Detect_Player_Owned_Attacked" instantiate="true">
+      <conditions>
+        <event_player_owned_attacked/>
+        <set_value name="$attacker" exact="event.param"/>
+        <check_value value="$attacker and $attacker.isoperational"/>
+        <check_value value="not $attacker.isplayerowned" />
+        <check_value value="false"/>
+      </conditions>
+      <actions>
+        <!--Unpack the params.-->
+        <set_value name="$attacker" exact="event.param"/>
+        <set_value name="$target"   exact="event.object"/>
+
+        <!--
+          In this case, the player asset has a temp boost to the attacker.
+        -->
+        <set_value name="$rep_current"      exact="$target.relationto.{$attacker}"/>
+        <set_value name="$rep_faction_base" exact="faction.player.relationto.{$attacker.trueowner}"/>
+        <!--Boost expected to be negative.-->
+        <set_value name="$rep_boost" exact="$rep_current - $rep_faction_base"/>
+
+        <!--Calculate the new boost to apply, based on local logic.-->
+        <!--TODO: logic checks.
+          - Check if attacker has an order to attack the target.
+          - Check natural relations; if poor, maybe allow the adjustment.
+          - Check if attacker has a locked rep to player, in which case can
+            be more lenient with temp boosts (no cascade effect).
+        -->
+        <set_value name="$rep_boost_new" exact="0"/>
+
+        <!--TODO: are the boosts just against the attack object, or against
+            the object and the player?  Clear both for now.-->
+        <reset_relation_boost object="$target" faction= "$attacker.trueowner" />
+        <reset_relation_boost object="$target" otherobject="$attacker" />
+
+        <!--Set the new boost, adding to faction base using an 'add' node.
+            Apply to player faction as a whole, not just attacker.-->
+        <add_relation_boost
+          object      = "$target"
+          faction     = "$attacker.trueowner"
+          value       = "$rep_boost_new"
+          decay       = "0.02"
+          delay       = "540s"
+          silent      = "true"/>
+        
+        <!--
+          Set to prevent further rep changes due to attacks.
+          TODO: is there any way to make this temporary? Hard to fix this
+          if it ends up with a problem and needs patching.
+        -->
+        <!--<set_object_relation_behaviour object="$target" disable="true"/>-->
+
+        <debug_text text="'Player %s attacked by %s; faction rep %s, prior boost %s, new boost %s'.[
+                    $attacker.name, $target.name, $rep_faction_base, 
+                    $rep_boost, $rep_boost_new]" filter="general"/>
+
+
+      </actions>
+    </cue>
+
+
+  </cues>
+
+</mdscript>

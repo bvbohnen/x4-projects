@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content 
-  id="ws_2042914964" 
-  name="Remove Dock Symbol" 
-  description="Removes the red overlay symbol from small docking pads on ships." 
+  id="sn_friendlier_fire" 
+  name="Friendlier Fire" 
+  description="Makes friendly fire logic more forgiving before the victim becomes hostile." 
   author="SirNukes" 
   version="100" 
-  date="2020-3-28" 
+  date="2020-4-3" 
   save="false" 
   sync="false">
 
@@ -21,4 +21,7 @@
   <langugage language="86" description=""/>
   <langugage language="88" description=""/>
 
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="100" optional="false"/>
+  <dependency version="300" />
 </content>

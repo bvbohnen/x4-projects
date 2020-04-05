@@ -71,11 +71,7 @@ ffi.cdef[[
 local debugger = {
     verbose = false,
 }
-local Lib
-if debugger.verbose then
-    -- Import library functions for strings and tables.
-    Lib = require("extensions.sn_mod_support_apis.lua.Library")
-end
+local Lib = require("extensions.sn_mod_support_apis.lua.Library")
 
 
 
@@ -154,21 +150,8 @@ end
 -- Patch the egosoft menu to insert custom actions.
 function L.Init_Patch_Menu()
 
-    -- Stop if something went wrong.
-    if Menus == nil then
-        error("Menus global not yet initialized")
-    end
-    
-    for i, ego_menu in ipairs(Menus) do
-        if ego_menu.name == "InteractMenu" then
-            menu = ego_menu
-        end
-    end
-    
-    -- Stop if something went wrong.
-    if menu == nil then
-        error("Failed to find egosoft's InteractMenu")
-    end
+    -- Look up the menu, store in this module's local.
+    menu = Lib.Get_Egosoft_Menu("InteractMenu")
 
     -- Patch the action prep.
     local ego_prepareActions = menu.prepareActions

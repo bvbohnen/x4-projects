@@ -80,9 +80,9 @@ ffi.cdef[[
     float GetTextWidth(const char*const text, const char*const fontname, const float fontsize);
 ]]
 
--- TODO: maybe remove dependency on the existing lib, if wanting to
--- support this without simple meny api installed.
---local Lib = require("extensions.sn_mod_support_apis.lua_interface").Library
+-- Inherited lua stuff from support apis.
+local Lib = require("extensions.sn_mod_support_apis.lua_interface").Library
+local Time = Lib.Time
 
 -- Table of locals.
 local L = {
@@ -168,21 +168,19 @@ local L = {
     targetdata = nil,
 
     -- Note: objects at a far distance, eg. borderline low-attention, get
-    -- very janky speed values (rapidly fluctuating, even every frame
-    -- while paused), causing distracting menu flutter for ETA calculations
-    -- and similar.  Can fix it somewhat with a smoothing filter on the
-    -- speed and distance values, and maybe eta.
-    filters = {
-        -- Objects created later.
-        speed = nil,
-        distance = nil,
-        eta = nil,
-        rel_speed = nil,
-    },
+    --  very janky speed values (rapidly fluctuating, even every frame
+    --  while paused), causing distracting menu flutter for ETA calculations
+    --  and similar.  Can fix it somewhat with a smoothing filter on the
+    --  speed and distance values, and maybe eta.
+    -- Note: speed will filter across realtime, since it can jitter per
+    --  frame even during a pause, but distance will filter across game time,
+    --  and will not update during a pause.
+    filter_speed = nil,
+    filter_distance = nil,
 
     -- Stored values for calculating relative speeds.
     last_component64 = nil,
-    last_distance    = nil,
+    --last_distance    = nil,
     last_update_time = nil,
 
     -- Note: next two are not currently used.
@@ -332,9 +330,9 @@ local T = {
 -- Support object for data smoothing.
 -- TODO: move to the mod support apis, maybe.
 
-local Filter = {}
+local Depth_Filter = {}
 
-function Filter.New ()
+function Depth_Filter.New ()
   return {
     -- List of samples.
     -- This will fill up on first pass, then has static size afterwards
@@ -342,9 +340,7 @@ function Filter.New ()
     samples = {},
     -- Index of the next location to store. (1-based indexing.)
     next = 1,
-    -- Max depth.
-    -- Assuming speed flutter alternates every frame, make this even
-    -- to balance the flutter.
+    -- Depth of the list. Grows dynamically.
     depth = 4,
     -- Running sum of values.
     sum = 0,
@@ -355,7 +351,7 @@ end
 
 -- Add a new sample, and return the current smoothed value.
 -- Stores returned value in "current".
-function Filter.Smooth(filter, sample)
+function Depth_Filter.Smooth(filter, sample)
 
     -- If at max depth, overwrite oldest.
     if #filter.samples == filter.depth then
@@ -383,7 +379,7 @@ function Filter.Smooth(filter, sample)
 end
 
 -- Change the depth of a filter, if signifcantly different.
-function Filter.Change_Depth(filter, new_depth)
+function Depth_Filter.Change_Depth(filter, new_depth)
     -- To prevent excess changes when an object is around a depth
     -- boundary, only update if the depth changed by a couple steps,
     -- where one step is 2 (hence 4 for two steps).
@@ -438,11 +434,11 @@ function Filter.Change_Depth(filter, new_depth)
     end
 
     -- Compte a new current value.
-    Filter.Refresh_Sum(filter)
+    Depth_Filter.Refresh_Sum(filter)
 end
 
 -- Recompute the current sum and average.
-function Filter.Refresh_Sum(filter)
+function Depth_Filter.Refresh_Sum(filter)
     local sum = 0
     for i, value in ipairs(filter.samples) do
         sum = sum + value
@@ -457,11 +453,191 @@ function Filter.Refresh_Sum(filter)
 end
 
 -- Clear samples.
-function Filter.Clear(filter)
+function Depth_Filter.Clear(filter)
     filter.samples = {}
     filter.next    = 1
     filter.sum     = 0
     filter.current = nil
+end
+
+------------------------------------------------------------------------------
+-- Alternate filter, time based instead of depth based.
+-- This will be the new default.
+local Filter = {}
+
+-- Make a new filter, set for "use_realtime" to base on realtime timeout,
+-- eg. for cases where jitter is observed in paused games, else uses gametime.
+function Filter.New (use_realtime, default_update_period)
+    local data = {
+        use_realtime = use_realtime,
+        default_update_period = default_update_period,
+    }
+    Filter.Clear(data)
+    return data
+end
+
+-- Init/clear the filter.
+function Filter.Clear(filter)
+
+    -- List of samples, where each is a sublist of [real_timestamp, game_timestamp, value].
+    -- This will grow dynamically as needed, but will not shrink.
+    -- Invalidated entries may be present with a nil timestamp, but all
+    -- entries will contain the sublists to be overwritten as needed.
+    filter.samples = {}
+
+    -- Index of the newest entry.
+    -- New samples will be stored after this (or at index 1 if this is
+    -- the last array index and index 1 is free).
+    -- Init to 0; logic works out for first insertion.
+    filter.newest = 0
+    -- Index of the oldest entry that is still valid, or if all are invalid,
+    -- then the index of the next entry expected to be added.
+    -- Anything older will have been invalidated (nil timestamp).
+    -- Init to 1; logic works out for first insertion.
+    filter.oldest = 1
+
+    -- Number of currently valid samples.
+    filter.valid_samples = 0
+
+    -- Time after which samples are dropped, in seconds (may be float).
+    -- (Speed will use this by default for now.)
+    filter.timeout = 0.2
+    -- Running sum of values.
+    filter.sum = 0
+
+    -- How frequently the resulting values are output to users.
+    -- This is used to regulate the ui update rate, since it doesn't need
+    -- to change every frame.
+    -- Can go with 1/10th of a second for now.
+    -- TODO: maybe tune based on distance.
+    filter.summary_period = filter.default_update_period
+    -- Time of the last summary update.
+    filter.last_summary_time = 0
+
+    -- Summary values, not updated every frame.
+    -- Current average value. Note: float.
+    filter.current = nil
+    -- The average delta from newest to oldest, or nil.
+    filter.delta = nil
+end
+
+
+-- Add a new sample, and return the current average value.
+-- Stores returned value in "current".
+function Filter.Update(filter, sample)
+    -- Convenience renaming.
+    local samples = filter.samples
+
+    -- Select the current time, from gametime or realtime.
+    local time
+    if filter.use_realtime then
+        time = GetCurRealTime()
+    else
+        time = GetCurTime()
+    end
+
+    -- Note how far back the filter should go; older entries should be dropped.
+    local cutoff_time = time - filter.timeout
+
+    -- Update invalidations, starting from the oldest entry.
+    -- Can only do this as long as at least one valid sample remains.
+    while filter.valid_samples ~= 0 do
+        -- Check the oldest timestamp.
+        if samples[filter.oldest][1] < cutoff_time then
+
+            -- Too old, invalidate and move to the next sample.
+            samples[filter.oldest][1] = nil
+            filter.sum = filter.sum - samples[filter.oldest][2]
+            filter.valid_samples = filter.valid_samples - 1
+
+            -- Inc with rollover.
+            filter.oldest = filter.oldest + 1
+            if filter.oldest > #samples then
+                filter.oldest = 1
+            end
+        else
+            -- Oldest is still valid, so stop looking.
+            break
+        end
+    end
+    
+    -- Set up the location for the new value.
+    local insert_index
+    -- Can reuse the newest+1 entry if it is present but invalid.
+    -- If newest is at the end of the array, try the first array location.
+    local post_newest = filter.newest + 1
+    if post_newest > #samples then
+        post_newest = 1
+    end
+    if samples[post_newest] and not samples[post_newest][1] then
+        insert_index = post_newest
+    -- Otherwise, if the newest is at the end of the array, can append
+    -- the new value to grow the array, or if the newest is in the middle,
+    -- can insert a location. Either way works the same.
+    else
+        insert_index = filter.newest + 1
+        -- Make a spot.
+        table.insert(samples, insert_index, nil)
+        -- Adjust the oldest index, if after this spot.
+        -- (The oldest could be before, if everything after this spot
+        -- has been invalidated, or this is at the end of the list.)
+        if filter.oldest >= insert_index then
+            filter.oldest = filter.oldest + 1
+        end
+    end
+
+    -- Store the new value.
+    samples[insert_index] = {time, sample}
+    filter.sum = filter.sum + sample
+    filter.valid_samples = filter.valid_samples + 1
+    filter.newest = insert_index
+    -- If this is the only valid sample, set it as oldest.
+    if filter.valid_samples == 1 then
+        filter.oldest = insert_index
+    end
+
+    -- Update the summary, if needed.
+    -- Based on real time.
+    local now = GetCurRealTime()
+    if now > filter.last_summary_time + filter.summary_period then
+        filter.last_summary_time = now
+
+        -- Calculate the average.
+        -- TODO: this summation might not be entirely stable over time,
+        -- so every so many samples recompute the total sum.
+        -- (This gets reset anyway when the player changes targets.)
+        filter.current = filter.sum / filter.valid_samples
+
+        -- Calculate the delta.
+        local old_sample = filter.samples[filter.oldest]
+        local new_sample = filter.samples[filter.newest]
+
+        -- Check for not having samples, or time not changing.
+        if filter.valid_samples == 0 or old_sample[1] == new_sample[1] then
+            filter.delta = nil
+        else
+            local time_delta  = new_sample[1] - old_sample[1]
+            local value_delta = new_sample[2] - old_sample[2]
+            filter.delta = value_delta / time_delta
+        end
+    end
+end
+
+
+-- Change the timeout for the filter.
+-- Sample updates occur after the next Update call.
+function Filter.Change_Timeout(filter, new_timeout)
+    -- Safety against 0, negative, or just too large.
+    if new_timeout <= 0 or new_timeout > 100 then
+        DebugError("Filter.Change_Timeout rejecting "..tostring(new_timeout))
+        return
+    end
+    filter.timeout = new_timeout
+end
+
+-- Change how often the summary 'current' and 'delta' values recompute.
+function Filter.Change_Summary_Period(filter, new_period)
+    filter.summary_period = new_period
 end
 
 ------------------------------------------------------------------------------
@@ -484,12 +660,13 @@ function L.Init_TargetMonitor()
     -- Init some extra units.
     T.units["km/s"] = T.units["km"].."/"..T.units["s"]
 
-    -- Init data objects.
-    L.filters.speed     = Filter.New()
-    L.filters.distance  = Filter.New()
-    L.filters.eta       = Filter.New()
-    L.filters.rel_speed = Filter.New()
-
+    -- Init filters.
+    -- Speed is realtime, distance is gametime.
+    -- Speed can update fast; distance will update slower to reduce jitter.
+    -- TODO: maybe go back to a depth filter for speed, if good enough.
+    L.filter_speed      = Filter.New(true, 0.03)
+    L.filter_distance   = Filter.New(false, 0.1)
+    
     -- Unused; this approach to distance capture didn't work out
     -- (patches never trigger).
     --L.Patch_GetTargetElementInfo()
@@ -855,6 +1032,7 @@ function L.Init_Specs()
     -- Relative speed.
     -- Try out delta for clarifying the label.
     -- TODO: delta doesn't display.
+    -- Note: unused in favor of distance_delta.
     rows.rel_speed = Make_Row("▲"..T.speed, "$rel_speed$")
     cols.rel_speed = Make_Spec("▲".."$rel_speed$")
 
@@ -924,6 +1102,7 @@ end
 
 -- Clean up a row list by removing nil entries, as well as any rows
 -- past the 7th.
+-- TODO: maybe remove empty rows (left/right are empty).
 function L.Sanitize_Rows(row_list)
     -- Since tables cannot be nicely traversed with nil entries,
     -- sort the table keys first.
@@ -947,7 +1126,11 @@ end
 -- Make this somewhat patchable, to easily scale out different possible
 -- layouts (eg. user monkey patching).
 -- Returns a list of row data, or nil if an unsupported object type.
-function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
+-- Also may update the targetdata table with some annotation,
+-- eg. if the target has a speed value.
+function L.Get_New_Rows(targetdata, original_rows, row_specs, col_specs)
+    -- Convenience renaming.
+    local component = targetdata.component
 
     -- Convenience renaming.
     local orig  = original_rows
@@ -1005,6 +1188,7 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
             --orig.crew,
             orig.building,
         }
+        targetdata.has_speed = true
     
     elseif IsComponentClass(component, "station") then
         new_rows = {
@@ -1025,6 +1209,7 @@ function L.Get_New_Rows(component, original_rows, row_specs, col_specs)
             Make_Row(cols.left.hull,        cols.speed),
             Make_Row("",                    cols_right_eta),
         }
+        targetdata.has_speed = true
 
     -- Objects that can't move.
     elseif IsComponentClass(component, "asteroid")
@@ -1104,7 +1289,12 @@ function L.Patch_GetTargetMonitorDetails()
         L.targetdata.component = component
         L.targetdata.component64 = component64
         L.targetdata.templateConnectionName = templateConnectionName
-        L.targetdata.triggeredConnectionName = templateConnectionName ~= "" and ffi.string(C.GetCompSlotPlayerActionTriggeredConnection(component64, templateConnectionName)) or ""
+        L.targetdata.triggeredConnectionName = (
+            templateConnectionName ~= "" 
+            and ffi.string(C.GetCompSlotPlayerActionTriggeredConnection(
+                component64, templateConnectionName)) 
+            or "")
+        L.targetdata.has_speed = false
         
         -- Quick exit when disabled or something went wrong.
         if (not L.settings.enabled) or (full_spec == nil) then
@@ -1113,10 +1303,11 @@ function L.Patch_GetTargetMonitorDetails()
 
         -- Hand off to helper functions based on object type.
         local orig = L.Categorize_Original_Rows(full_spec.text)    
-        local new_rows = L.Get_New_Rows(component, orig, L.specs.rows, L.specs.cols)
+        local new_rows = L.Get_New_Rows(L.targetdata, orig, L.specs.rows, L.specs.cols)
         if new_rows ~= nil then
             full_spec.text = L.Sanitize_Rows(new_rows)
         end
+
     
         -- Change the default fonts.
         -- TODO: maybe play around with colors dynamically.
@@ -1178,12 +1369,14 @@ function L.Patch_GetLiveData()
             if L.last_component64 ~= targetdata.component64 then
                 -- Record fresh values.
                 L.last_component64 = targetdata.component64
-                L.last_distance    = nil
+                --L.last_distance    = nil
                 L.last_update_time = nil
 
-                for key, filter in pairs(L.filters) do
-                    Filter.Clear(filter)
-                end
+                Filter.Clear(L.filter_speed)
+                Filter.Clear(L.filter_distance)
+                --for key, filter in pairs(L.filters) do
+                --    Filter.Clear(filter)
+                --end
             end
 
             if placeholder == "speed" then
@@ -1218,9 +1411,9 @@ function L.Get_Speed(targetdata)
     local componentDetails = C.GetComponentDetails(
                                     targetdata.component64, 
                                     targetdata.triggeredConnectionName)
-    -- Get speed, with smoothing.
-    local speed = Filter.Smooth(L.filters.speed, componentDetails.speed)
-    return math.floor(speed).." "..T.units["m/s"]
+    -- Get speed, with smoothing, since per-frame jitter has been observed.
+    Filter.Update(L.filter_speed, componentDetails.speed)
+    return math.floor(L.filter_speed.current).." "..T.units["m/s"]
 end
 
 ------------------------------------------------------------------------------
@@ -1249,121 +1442,112 @@ end
 -- values used in relative speed and ETA.
 function L.Get_Distance(targetdata)
 
-    -- Removed code; didn't work out.
-    ---- Look up the recorded distance for the current target.
-    --if (L.target_element_distances 
-    --and L.last_softtarget_messageID) then
-    --
-    --    local distance = L.target_element_distances[
-    --                        L.last_softtarget_messageID]
-    --    -- Suffix it.
-    --    return L.getDistanceText(distance)
-    --end
-
-    --local playertarget = ConvertIDTo64Bit(GetPlayerTarget())
-    -- Or maybe this, gives x/y/z of player target:
-    -- C.GetPlayerTargetOffset()
-    -- Note: GetPlayerTargetOffset has been observed (rarely) to return bad z
-    -- data for a superhighway when it was selected with no prior target; z data
-    -- was correct if there was a prior target. No ideas on why.
-    --local t_off = C.GetPlayerTargetOffset()
-    --local t_off = C.GetObjectPositionInSector(ConvertIDTo64Bit(GetPlayerTarget()))
-
-    -- Work off the player target object instead; more reliable in testing.
-    -- Buffer into an ffi object like menu_interactmenu does.
-    -- Note: Some targets fail at this, eg. signal leaks; is there a good way
-    -- to detect such failures here? For now, just prune it above when
-    -- selecting the rows to display.
-    local t_off = ffi.new("UIPosRot")
-    t_off = C.GetObjectPositionInSector(targetdata.component64)
+    -- Only sample a new distance when the game time has advanced.
+    local now = GetCurTime()
+    if now ~= L.last_update_time then
+        L.last_update_time = now
     
-    --if t_off then
-    --    DebugError("x "..t_off.x .." y "..t_off.y .." z "..t_off.z)
-    --end
+        --local playertarget = ConvertIDTo64Bit(GetPlayerTarget())
+        -- Or maybe this, gives x/y/z of player target:
+        -- C.GetPlayerTargetOffset()
+        -- Note: GetPlayerTargetOffset has been observed (rarely) to return bad z
+        -- data for a superhighway when it was selected with no prior target; z data
+        -- was correct if there was a prior target. No ideas on why.
+        --local t_off = C.GetPlayerTargetOffset()
+        --local t_off = C.GetObjectPositionInSector(ConvertIDTo64Bit(GetPlayerTarget()))
 
-    -- This gets pos of an object; try to get player ship or player.
-    -- Need to use player directly, so this works when outside a ship.
-    local p_off = ffi.new("UIPosRot")
-    p_off = C.GetObjectPositionInSector(C.GetPlayerObjectID())
+        -- Work off the player target object instead; more reliable in testing.
+        -- Buffer into an ffi object like menu_interactmenu does.
+        -- Note: Some targets fail at this, eg. signal leaks; is there a good way
+        -- to detect such failures here? For now, just prune it above when
+        -- selecting the rows to display.
+        local t_off = ffi.new("UIPosRot")
+        t_off = C.GetObjectPositionInSector(targetdata.component64)
+    
+        --if t_off then
+        --    DebugError("x "..t_off.x .." y "..t_off.y .." z "..t_off.z)
+        --end
 
-    if t_off and p_off then
-        local distance = ((t_off.x - p_off.x)^2
-                        + (t_off.y - p_off.y)^2
-                        + (t_off.z - p_off.z)^2 ) ^ 0.5
-        -- Note: distances seem fairly smooth floats, and should be reliable.
-        --DebugError("distance: "..tostring(distance))
+        -- This gets pos of an object; try to get player ship or player.
+        -- Need to use player directly, so this works when outside a ship.
+        local p_off = ffi.new("UIPosRot")
+        p_off = C.GetObjectPositionInSector(C.GetPlayerObjectID())
 
-        -- Note: don't round this number yet; at high framerates and slow
-        -- speeds the differences between samples can easily be well below
-        -- the decimal point.
+        if t_off and p_off then
+            local distance = ((t_off.x - p_off.x)^2
+                            + (t_off.y - p_off.y)^2
+                            + (t_off.z - p_off.z)^2 ) ^ 0.5
+            -- Note: distances seem fairly smooth floats, and should be reliable.
+            --DebugError("distance: "..tostring(distance))
 
-        -- Update filter depths based on this distance.
-        -- Further objects need more filtering. Unclear on good depths,
-        -- but 4 was too few for objects 90km out, and probably want something
-        -- even to smooth out every-other-frame oscillations.
-        local distance_km = distance / 1000
-        local filter_depth
-        -- Just hand set based on distance cuttoffs for now, to easily tune.
-        -- TODO: maybe instead adjust the sampling rate at long distance.
-        if distance_km > 80 then
-            filter_depth = 40
-        elseif distance_km > 50 then
-            filter_depth = 20
-        elseif distance_km > 30 then
-            filter_depth = 8
+            -- Note: don't round this number yet; at high framerates and slow
+            -- speeds the differences between samples can easily be well below
+            -- the decimal point.
+
+            -- Update filter timeout based on this distance.
+            -- Further objects need more filtering. Unclear on good timeouts,
+            -- but can fiddle with this until happy.
+            -- Shorter range should be more responsive.
+            local distance_km = distance / 1000
+            local filter_timeout
+            local summary_period
+            -- Just hand set based on distance cuttoffs for now, to easily tune.
+            -- Also adjust the ui update rate, slower for distance objects
+            -- that are more prone to jitter.
+            -- Unmoving objects will use a shorter timeout regardless of distance,
+            -- to quickly reflect player speed changes.
+            if not targetdata.has_speed then
+                filter_timeout = 0.1
+                summary_period = 0.03
+            elseif distance_km > 90 then
+                filter_timeout = 3.0
+                summary_period = 0.15
+            elseif distance_km > 70 then
+                filter_timeout = 2.0
+                summary_period = 0.10
+            elseif distance_km > 50 then
+                filter_timeout = 1.0
+                summary_period = 0.08
+            elseif distance_km > 30 then
+                filter_timeout = 0.4
+                summary_period = 0.05
+            else
+                filter_timeout = 0.2
+                summary_period = 0.03
+            end
+            Filter.Change_Timeout(L.filter_distance, filter_timeout)
+            Filter.Change_Summary_Period(L.filter_distance, summary_period)
+            
+            
+            -- Save it in the filter.
+            Filter.Update(L.filter_distance, distance)
+
         else
-            filter_depth = 4
+            -- Clear out data that eta uses; it should also be unknown.
+            Filter.Clear(L.filter_distance)
         end
-        for key, filter in pairs(L.filters) do
-            Filter.Change_Depth(filter, filter_depth)
-        end
+    end
 
-        -- Hand off to the update function for deltas.
-        L.Update_Relative_Speed(targetdata, distance)
-
-        -- Smooth it (after the above handoff, to not mess with time
-        -- increments; eta smooths on its own).
-        distance = Filter.Smooth(L.filters.distance, distance)
-
+    -- Grab the current value, if any.
+    local distance = L.filter_distance.current
+    if distance then        
         -- Suffix it.
         return L.Value_To_Rounded_Text(distance, T.units["m"], T.units["km"], false)
-    else
-        -- Clear out data that eta uses; it should also be unknown.
-        Filter.Clear(L.filters.distance)
-        Filter.Clear(L.filters.rel_speed)
     end
 
     return "..."
 end
 
--- Update values for the change in distance.
-function L.Update_Relative_Speed(targetdata, new_distance)
-    -- TODO: is C.GetCurrentGameTime() better?
-    local now = GetCurTime()
-
-    -- Stored values could be clear due to target change or first call
-    -- after loading.
-    -- Can compute if a distance is known, and the time has changed
-    -- (eg. don't try to compute during a pause).
-    if L.last_distance ~= nil and L.last_update_time ~= now then
-        local time_delta = now - L.last_update_time
-        -- Orient so closing is negative.
-        local distance_delta = new_distance - L.last_distance
-        -- Smooth the relative speed, in case distance is janky.
-        Filter.Smooth(L.filters.rel_speed, distance_delta / time_delta)
-    end
-
-    -- Store values for next iteration.
-    L.last_distance    = new_distance
-    L.last_update_time = now
-end
 
 -- Returns a string for the current distance delta.
 -- Ideally called after the delta was updated.
 -- "suffix" is bool, true if this is a suffix to distance (always include
 --  sign, and round if large).
 function L.Get_Relative_Speed(targetdata, suffix)
-    local rel_speed = L.filters.rel_speed.current
+
+    -- Calculate based on the total change in distance and change in time
+    -- in the distance filter.
+    local rel_speed = L.filter_distance.delta
 
     -- Skip if unknown.
     if rel_speed == nil then 
@@ -1384,19 +1568,18 @@ function L.Get_Relative_Speed(targetdata, suffix)
         ret_str = tostring(math.floor(value + 0.5)).." "..T.units["m/s"]
     end
 
-    -- Prefix with + if needed.  -Removed; above call handles it.
-    --if suffix and rel_speed >= 0 then
-    --    ret_str = "+"..ret_str
-    --end
     return ret_str
 end
 
 -- Returns a string for the ETA.
 -- Ideally runs after Get_Distance.
 function L.Get_ETA(targetdata)
+    -- Get the current distance, and change rate (rel speed).
+    local distance  = L.filter_distance.current
+    local rel_speed = L.filter_distance.delta
+
     -- Skip if distance and/or relative speed unknown.
-    if (L.filters.rel_speed.current == nil
-    or  L.filters.distance.current  == nil) then 
+    if distance  == nil or rel_speed == nil then 
         return "--" 
     end
 
@@ -1404,12 +1587,12 @@ function L.Get_ETA(targetdata)
     -- Discount the arrival_tolerance from the distance; may already be
     -- considered arrived if close.
     -- TODO: tune this based on ship sizing.
-    local remaining_distance = L.filters.distance.current - L.arrival_tolerance
+    local remaining_distance = distance - L.arrival_tolerance
     if remaining_distance <= 0 then
         return "--"
     end
     -- Relative speed is negative for closing, so flip the sign.
-    local eta = 0 - (remaining_distance / L.filters.rel_speed.current)
+    local eta = 0 - (remaining_distance / rel_speed)
 
     -- TODO: filter if needed, though distance and rel_speed filters
     -- should hopefully cover things.
