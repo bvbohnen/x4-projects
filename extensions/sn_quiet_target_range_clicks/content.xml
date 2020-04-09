@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<content 
+  author="SirNukes" 
+  date="2020-04-08" 
+  enabled="true" 
+  id="sn_quiet_target_range_clicks" 
+  name="Quiet Target Range Clicks" 
+  save="false" 
+  sync="false" 
+  version="100">
+  
+  <langugage description="" language="7"/>
+  <langugage description="" language="33"/>
+  <langugage description="" language="37"/>
+  <langugage description="" language="39"/>
+  <langugage description="Quiets the click noises that indicate if a target is in range, which play whenever a target moves from offscreen to onscreen (among other times)." language="44"/>
+  <langugage description="" language="49"/>
+  <langugage description="" language="55"/>
+  <langugage description="" language="81"/>
+  <langugage description="" language="82"/>
+  <langugage description="" language="86"/>
+  <langugage description="" language="88"/>
+</content>

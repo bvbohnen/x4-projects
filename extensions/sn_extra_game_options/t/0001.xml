@@ -16,7 +16,11 @@
   <t id="2009">Forces the map to open focused on the player location always, instead of the current target location</t>
   <t id="2010">Adjust Field of View</t>
   <t id="2011">Changes the FoV multiplier; ui will shrink</t>
-  
+  <t id="2012">Default map cam distance</t>
+  <t id="2013">When the map is opened, forces the initial camera distance; 0 is no change (default behavior), 1 is full zoom in, 100 is full zoom out</t>
+  <t id="2014">Add mouseover on truncation</t>
+  <t id="2015">For UI elements which end up truncating their text, this attempts to add a mouseover popup with the full text; may not work in all cases</t>
+
 </page>
 
 </language>

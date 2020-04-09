@@ -10,6 +10,10 @@ for %%F in (
 	sn_hotkey_collection
 	sn_interact_collection
 	sn_mod_support_apis
+	sn_quiet_target_range_clicks
+	sn_remove_blinking_lights
+	sn_remove_dirty_glass
+	sn_remove_dock_glow
 	sn_remove_dock_symbol
 	sn_station_kill_helper
 

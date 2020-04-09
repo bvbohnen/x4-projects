@@ -1,0 +1,4 @@
+<diff>
+<replace sel="//sound[@id='ui_weapon_in_range']/volume/@start">0.0</replace>
+<replace sel="//sound[@id='ui_weapon_out_range']/volume/@start">0.0</replace>
+</diff>

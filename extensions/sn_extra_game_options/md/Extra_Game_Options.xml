@@ -28,6 +28,10 @@
         <set_value exact="{68537, 2009}" name="Text.$map_menu_player_focus_mouseover" />
         <set_value exact="{68537, 2010}" name="Text.$adjust_fov_name" />
         <set_value exact="{68537, 2011}" name="Text.$adjust_fov_mouseover" />
+        <set_value exact="{68537, 2012}" name="Text.$map_menu_zoom_name" />
+        <set_value exact="{68537, 2013}" name="Text.$map_menu_zoom_mouseover" />
+        <set_value exact="{68537, 2014}" name="Text.$tooltip_on_truncation_name" />
+        <set_value exact="{68537, 2015}" name="Text.$tooltip_on_truncation_mouseover" />
       </actions>
     </library>
 
@@ -122,6 +126,34 @@
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
+            $id         = 'map_menu_zoom',
+            $name       = Text.$map_menu_zoom_name,
+            $mouseover  = Text.$map_menu_zoom_mouseover,
+            $default    = 0,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 0,
+              $max      = 100,
+              $suffix   = '',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'tooltip_on_truncation',
+            $name       = Text.$tooltip_on_truncation_name,
+            $mouseover  = Text.$tooltip_on_truncation_mouseover,
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
             $disabled   = true,
             $id         = 'adjust_fov',
             $name       = Text.$adjust_fov_name,
@@ -155,6 +187,13 @@
           name="'Simple_Menu_Options.'+$id"
           param="$value"/>
 
+
+        <!--<raise_lua_event
+          name="'Simple_Menu_Options.Set_Field'"
+          param="event.param.$id"/>
+        <raise_lua_event
+          name="'Simple_Menu_Options.Set_Value'"
+          param="event.param.$value"/>-->
       </actions>
     </cue>
 

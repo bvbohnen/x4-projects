@@ -4,8 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>
-    </StartupFile>
+    <StartupFile>sn_remove_dock_glow\Customizer_Script.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,6 +21,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_quiet_target_range_clicks\" />
+    <Folder Include="sn_quiet_target_range_clicks\libraries\" />
+    <Folder Include="sn_remove_blinking_lights\" />
+    <Folder Include="sn_remove_dirty_glass\" />
+    <Folder Include="sn_remove_dock_glow\" />
     <Folder Include="sn_friendlier_fire\" />
     <Folder Include="sn_better_target_monitor\t\" />
     <Folder Include="sn_extra_game_options\t\" />
@@ -88,6 +92,14 @@
     <Content Include="sn_mod_support_apis\lua\Text.lua" />
     <Content Include="sn_mod_support_apis\lua_interface.txt" />
     <Content Include="sn_mod_support_apis\t\0001.xml" />
+    <Content Include="sn_quiet_target_range_clicks\content.xml" />
+    <Content Include="sn_quiet_target_range_clicks\libraries\sound_library.xml" />
+    <Content Include="sn_remove_blinking_lights\.gitignore" />
+    <Content Include="sn_remove_blinking_lights\content.xml" />
+    <Content Include="sn_remove_dirty_glass\.gitignore" />
+    <Content Include="sn_remove_dirty_glass\content.xml" />
+    <Content Include="sn_remove_dock_glow\.gitignore" />
+    <Content Include="sn_remove_dock_glow\content.xml" />
     <Content Include="sn_station_kill_helper\content.xml" />
     <Content Include="sn_station_kill_helper\md\SN_Station_Kill_Helper.xml" />
     <Content Include="sn_interact_collection\change_log.md" />
@@ -159,6 +171,9 @@
   <ItemGroup>
     <Compile Include="sn_mod_support_apis\python\Send_Keys.py" />
     <Compile Include="sn_mod_support_apis\python\Time_API.py" />
+    <Compile Include="sn_remove_blinking_lights\Customizer_Script.py" />
+    <Compile Include="sn_remove_dirty_glass\Customizer_Script.py" />
+    <Compile Include="sn_remove_dock_glow\Customizer_Script.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

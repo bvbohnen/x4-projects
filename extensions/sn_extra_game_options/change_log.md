@@ -10,3 +10,6 @@ Change Log
   - Fixed player-centered map sometimes opening to a generic sector.
 * 1.3
   - Added failsafe when the map menu alpha fails to find the renderframe.
+* 1.4
+  - Added automatic map zoom out when opened.
+  - Added auto mouseover for truncated text.

@@ -62,6 +62,14 @@ ffi.cdef[[
     bool IsGameModified(void);
     UniverseID GetPlayerObjectID(void);
     UniverseID GetContextByClass(UniverseID componentid, const char* classname, bool includeself);
+    void ZoomMap(UniverseID holomapid, float zoomstep);
+    typedef struct {
+        UIPosRot offset;
+        float cameradistance;
+    } HoloMapState;
+    void GetMapState(UniverseID holomapid, HoloMapState* state);
+    void SetMapState(UniverseID holomapid, HoloMapState state);
+    float GetTextWidth(const char*const text, const char*const fontname, const float fontsize);
 ]]
 --DebugError(tostring(ffi))
 
@@ -88,15 +96,18 @@ end
 
 
 function L.Init()
+
     -- Event registration.
-    -- TODO: switch to single event, general table of args sent
-    -- through blackboard var.
-    RegisterEvent("Simple_Menu_Options.disable_animations", L.Handle_Disable_Animations)
-    RegisterEvent("Simple_Menu_Options.tooltip_fontsize"  , L.Handle_Tooltip_Font)
-    RegisterEvent("Simple_Menu_Options.map_menu_alpha"    , L.Handle_Map_alpha)
+    -- TODO: generalized handler, once figuring out a way to deal
+    -- with special logic per option (eg. limit checks, rescaling, etc.).
+    RegisterEvent("Simple_Menu_Options.disable_animations"    , L.Handle_Disable_Animations)
+    RegisterEvent("Simple_Menu_Options.tooltip_fontsize"      , L.Handle_Tooltip_Font)
+    RegisterEvent("Simple_Menu_Options.map_menu_alpha"        , L.Handle_Map_alpha)
     RegisterEvent("Simple_Menu_Options.map_menu_player_focus" , L.Handle_Map_Player_Focus)
-    RegisterEvent("Simple_Menu_Options.adjust_fov"        , L.Handle_FOV)
-    RegisterEvent("Simple_Menu_Options.disable_helptext"  , L.Handle_Hide_Helptext)
+    RegisterEvent("Simple_Menu_Options.map_menu_zoom"         , L.Handle_Map_Zoom_Distance)
+    RegisterEvent("Simple_Menu_Options.adjust_fov"            , L.Handle_FOV)
+    RegisterEvent("Simple_Menu_Options.disable_helptext"      , L.Handle_Hide_Helptext)
+    RegisterEvent("Simple_Menu_Options.tooltip_on_truncation" , L.Handle_Tooltip_On_Truncation)
     
 
     -- Testing.
@@ -606,6 +617,107 @@ function L.Handle_Map_Player_Focus(_, param)
     L.mapfocus.onplayer = param
 end
 
+------------------------------------------------------------------------------
+-- Change the default map zoom level on open.
+--[[
+    The ffi C.ZoomMap can be used for this, which accepts a zoom step.
+    Step is positive to scroll out, negative to scroll in, and 
+    appears to be relative, eg. 0 is no change.
+    Note: this will behave like mouse scrolling, with a short delay during
+    the zoom in/out animation.
+    
+    The menu initializes the holomap in onUpdate when menu.activate_map
+    is True. The artificial zoom can potentially be applied after
+    this event.
+
+    In testing, 100 steps is a full zoom out, if the map starts somewhat
+    zoomed. Though map initial zoom varies based on proximity to nearby
+    objects.
+
+    A better approach is to look at camera distance, from C.GetMapState.
+    In testing, min distance is 1,000, max is 5,000,000.
+    A dist of ~500,000 roughly covers one sector tile.
+    Start distances vary, eg. 20k to 100k+, depending on nearby objects.
+    In this case, the user can specify a fixed distance to open to, which
+    should avoid a zoom delay by using SetMapState directly.
+
+    Since this range, 1k to 5000k, is very awkwardly wide, it may make
+    sense to use a logarithmic curve.
+    Eg. use specifies value 0 to 100 (0 being disabled).
+        1  : shortest supported distance, eg. 5k.
+        100: max distance, 5 million
+    Example calculation:
+        Set min dist, max dist.
+        Scaling from user is 1 to 100.
+        Dist = min_dist + (scale/100)^2 * (max_dist - min_dist).
+        In the above, with limits 5km and 5000km:
+            1 is very close to min_dist (~4.5 km)
+            50 is ~1250 km (roughly 2 sectors tall)
+            100 is max dist
+    Example 2:
+        Dist = min_dist + (scale/100)^3 * (max_dist - min_dist).
+        In the above, with limits 5km and 5000km:
+            1 is very very close to min_dist (~5 km)
+            50 is ~625 km (roughly 1 sector tall)
+            100 is max dist
+]]
+L.mapzoom = {
+    distance = 0,
+    -- Min is >= 1k, max is <= 5000k.
+    dist_min = 1000,
+    dist_max = 5000000,
+}
+function L.Init_Map_Zoom()
+    local menu = Lib.Get_Egosoft_Menu("MapMenu")
+    
+    -- Patch onUpdate for when it creates a new holomap.
+    local ego_onUpdate = menu.onUpdate
+    local function patch_function()
+        -- Adjust the zoom level if the map just activated.
+        -- To be safe, check for the holomap being changed from its
+        -- default of 0.
+        if menu.holomap ~= 0 then
+            if L.mapzoom.distance ~= 0 then
+                -- Get current state to edit (preserves position).
+                local mapstate = ffi.new("HoloMapState")
+                C.GetMapState(menu.holomap, mapstate)
+                mapstate.cameradistance = L.mapzoom.distance
+                C.SetMapState(menu.holomap, mapstate)
+            end
+        end
+    end
+
+    menu.onUpdate = function (...)
+        -- Note if the map is getting activated on this call.
+        local activatemap = menu.activatemap
+
+        -- Call it as normal.
+        ego_onUpdate(...)
+
+        -- Call the patcher, with safety, since the game crashes if
+        -- this errors somehow otherwise.
+        if activatemap then
+            success, error = pcall(patch_function)
+            if not success then
+                DebugError("Zoom adjustment failed with error: "..tostring(error))
+            end
+        end
+    end    
+end
+L.Init_Map_Zoom()
+
+function L.Handle_Map_Zoom_Distance(_, param)
+    if debugger.verbose then
+        DebugError("Handle_Map_Zoom_Distance called with " .. tostring(param))
+    end
+    --  Adjust it to a meter value.
+    local percent = param / 100
+    -- Cube it for now.
+    local distance = L.mapzoom.dist_min + percent * percent * percent * (L.mapzoom.dist_max - L.mapzoom.dist_min)
+    --DebugError("Setting cam distance to "..tostring(distance))
+    -- Store it.
+    L.mapzoom.distance = distance
+end
 
 ------------------------------------------------------------------------------
 -- Testing cheat enables
@@ -820,6 +932,199 @@ ffi.C = setmetatable({}, {
 --  from separate ui.xml files, while these dynamic loads are all from the
 --  same Lua_Loader_API parent).
 
+
+------------------------------------------------------------------------------
+-- Testing auto-generation of mouseover text.
+--[[
+    Many of the text boxes utilize a call to CreateFontString, some
+    global function that takes various text properties, including the
+    raw test string and the display width.
+
+    Assuming this function is what does truncation, it can potentially
+    be intercepted to good effect.
+    The function returns userdata to be passed to other global
+    functions, and is not suitable for lua exploration.
+    However, the input to CreateFontString can potentially add mouseover
+    text, if it expects the text might not fit.
+
+    The above works well for text boxes, but several other widget
+    types make a separate call to TruncateText before setting up
+    their descriptor. In such cases, it will take more work to patch
+    the individual widgets to detect truncation and add the mouseover.
+
+    Some other ui elements may use TruncateText, and possibly do mouseover
+    generation (most menu_map truncations do this, for instance). Don't
+    worry about those for now.
+
+    For buttons, there are two ways to set them up:
+        Helper.createButton
+        cell:createbutton
+    The former can be patched easily enough, but the latter makes use
+    of metatables and such to eventually call:
+        widgetHelpers.button:createDescriptor
+    The above has similar TruncateText logic to Helper.createButton, but
+    unfortunately widgetHelpers is local.
+]]
+L.auto_mouseover = {
+    enabled = false,
+}
+-- Setup wrappers.
+function L.Init_Auto_Mouseover()
+
+    local ego_CreateFontString = CreateFontString
+
+    CreateFontString = function(
+            text, halignment, 
+            color_r, color_g, color_b, color_a, fontname, 
+            fontsize, wordwrap, offsetx, offsety, 
+            height, width, mouseovertext)
+
+        --Lib.Print_Table({
+        --    text          = text,
+        --    halignment    = halignment,
+        --    color_r       = color_r,
+        --    color_g       = color_g,
+        --    color_b       = color_b,
+        --    color_a       = color_a,
+        --    fontname      = fontname,
+        --    fontsize      = fontsize,
+        --    wordwrap      = wordwrap,
+        --    offsetx       = offsetx,
+        --    offsety       = offsety,
+        --    height        = height,
+        --    width         = width,
+        --    mouseovertext = mouseovertext,
+        --}, "CreateFontString_Args")
+
+        -- Ran into an issue with text being a number; convert manually.
+        text = tostring(text)
+
+        -- Check if the text width may be truncated, if all info is
+        -- specified and the mouseover is available.
+        if L.auto_mouseover.enabled 
+        and width 
+        and fontname 
+        and fontsize 
+        and not wordwrap
+        and (not mouseovertext or mouseovertext == "") then
+            local text_width = C.GetTextWidth(text, fontname, fontsize)
+            if text_width > width then
+                -- Expecting truncation.
+                mouseovertext = text
+                --DebugError("Adding mouseover to truncate text: "..text)
+            end
+        end
+
+        -- Pass to the ego function.
+        -- Note: the description is a userdata object.
+        return ego_CreateFontString(
+            text, halignment, 
+            color_r, color_g, color_b, color_a, 
+            fontname, fontsize, wordwrap, offsetx, offsety, 
+            height, width, mouseovertext)
+    end
+
+    -- Patch Helper.createButton.
+    -- Note: untested at time of this comment (nothing found to trigger it).
+    ego_createButton = Helper.createButton
+    Helper.createButton = function(
+            text, icon, noscaling, active, offsetx, offsety, 
+            width, height, color, hotkey, icon2, mouseovertext)
+
+        if text then
+            DebugError("Intercepted createButton with text "..tostring(text.text))
+        else
+            DebugError("Intercepted createButton without text ")
+        end
+
+        -- Is this likely to truncate?
+        -- (Actual ego code also subtracts some offset, but ignore for now.)
+        if L.auto_mouseover.enabled 
+        and text 
+        and width 
+        and width ~= 0 
+        and (not mouseovertext or mouseovertext == "") then
+            -- Note, next few lines are mostly copied with slight edits.
+            -- Apply scaling to the text.
+            local est_fontsize = text.fontsize
+            if not noscaling then
+                est_fontsize = text.fontsize and Helper.scaleFont(text.fontname, text.fontsize) or text.fontsize
+            end
+            -- Scale the width.
+            local est_width = width and Helper.scaleX(width) or width
+            -- Get the truncation.
+            local trunc_text = TruncateText(text.text, text.fontname, est_fontsize, est_width - (text.x and (2 * text.x) or 0))
+
+            -- Does it differ?
+            if text.text ~= trunc_text then
+                -- Add mouseover.
+                mouseovertext = text.text
+            end
+        end
+
+        -- Pass it all to the ego function.
+        return ego_createButton(
+            text, icon, noscaling, active, offsetx, offsety, 
+            width, height, color, hotkey, icon2, mouseovertext)
+    end
+
+    -- The following also relate to buttons calling TruncateText.
+    -- TODO:  widgetHelpers.button:createDescriptor()
+    -- TODO:  widgetPrototypes.frame:update()
+
+end
+L.Init_Auto_Mouseover()
+
+function L.Handle_Tooltip_On_Truncation(_, param)
+    if debugger.verbose then
+        DebugError("Handle_Tooltip_On_Truncation called with " .. tostring(param))
+    end
+
+    -- Convert param to true/false, since lua confuses 0 with true.
+    if param == 1 then param = true else param = false end
+
+    -- Store it.
+    L.auto_mouseover.enabled  = param
+end
+
+------------------------------------------------------------------------------
+--[[
+    Hiding the "modified" tag can partially be done in the t file, but that
+    leaves orange parentheses behind.
+    This orange text is buried in a private options menu lambda function.
+    However, it was observed in the above that CreateFontString is used
+    for when creating the text of interest, where the text input
+    has the color code: "#FFff8a00#" just before the modified flag,
+    eg. "#FFff8a00#(Modified)".
+    This pattern can be searched for and suppressed.
+
+    Result: succeeds initially, but then the modified tag redraws itself
+    without the help of CreateFontString, so ultimately unsuccesful.
+]]
+--[[
+function L.Init_Hide_Modified()
+    local ego_CreateFontString = CreateFontString
+
+    -- Look up the Modified text string, and construct the search string.
+    -- Note: parentheses need % escape (because lua).
+    local pattern = "#FFff8a00#%("..ReadText(1001,8901).."%)"
+    DebugError("pattern: "..pattern)
+
+    CreateFontString = function(text, ...)
+
+        -- Make sure text is a string.
+        text = tostring(text)
+        -- Do the replacement.
+        DebugError("text pre-gsub: "..text)
+        text = string.gsub(text, pattern, "")
+        DebugError("text post-gsub: "..text)
+
+        -- Pass to the ego function.
+        return ego_CreateFontString(text, ...)
+    end
+end
+L.Init_Hide_Modified()
+]]
 
 ------------------------------------------------------------------------------
 -- Final init.

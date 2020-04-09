@@ -2,7 +2,7 @@
 <content 
   id="ws_2042901274" 
   name="SirNukes Mod Support APIs" 
-  description="Collection APIs for modding support. Components include: Lua Loader API, Time API, Named Pipes API, Hotkey API, Interact Menu API, Simple Menu API." 
+  description="Collection of APIs for modding support. Components include: Lua Loader API, Time API, Named Pipes API, Hotkey API, Interact Menu API, Simple Menu API." 
   author="SirNukes" 
   version="165" 
   date="2019-07-23" 
