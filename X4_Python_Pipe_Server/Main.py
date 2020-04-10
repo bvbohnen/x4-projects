@@ -5,19 +5,31 @@ This will load in individual pipe sub-servers and run their threads.
 Initial version just runs a test server.
 '''
 '''
-TODO: dynamic imports from extension folders:
-Set up server control pipe, and have x4 lua transmit the package.path
-from lua. Example string:
-".\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?\init.lua;"
-Add md api call where user announces the relative path to their py plugin.
-Dynamically import that plugin, using package.path and relative path.
+
+Note on security:
+    Loading arbitrary python code can be unsafe.  As a light protection,
+    the pipe server will only load modules that are part of extensions
+    that have been given explicit permission to run python.
+
+    Permissions will be held in a json file, holding the extension id
+    (from content.xml) and its permission state (generally true).
+    A special exception will be made for the modding api's id, so it can
+    load without permission set up.
+    The permission file will be generated if it doesn't already exist,
+    but otherwise is left untouched to avoid overwriting user settings.
+
+    The general idea is that, if some random extension added a python
+    plugin to be loaded which may be unsafe, by default it will be rejected
+    until the user of that extension gives it explicit permission.
+
 
 TODO: maybe use multiprocessing instead of threading.
 
 TODO: think of a safe, scalable way to handle restarting threads,
 particularly subthreads that a user server thread may have started,
 which might get orphaned when that thread function exceptions out
-on pipe closure.
+on pipe closure.  (Currently pipe servers are responsible for
+restarting their own subthreads.)
 
 TODO: rethink server restart behavior; perhaps they should not auto-restart,
 but instead be fully killed when the x4 pipe closes, and then only
@@ -37,18 +49,24 @@ x4 side should automatically reconnect.
 
 # Setup include path to this package.
 import sys
+import json
 from pathlib import Path
+from collections import defaultdict
 
 # To support packages cross-referencing each other, set up this
 # top level as a package, findable on the sys path.
 # Extra 'frozen' stuff is to support pyinstaller generated exes.
-# TODO: this is a little redundant with Home_Path, but it is unclear
-# on how to import home_path before this is done, so just repeat
-# the effort for now.
+# Note:
+#  Running from python, home_path is X4_Projects (or whatever the parent
+#  folder to this package is.
+#  Running from exe, home_path is the folder with the exe itself.
+# In either case, main_path will be to Main.py or the exe.
 if getattr(sys, 'frozen', False):
     home_path = Path(sys._MEIPASS).parent
+    main_path = home_path
 else:
     home_path = Path(__file__).resolve().parents[1]
+    main_path = Path(__file__).resolve().parent
 if str(home_path) not in sys.path:
     sys.path.append(str(home_path))
 
@@ -81,6 +99,13 @@ test_python_client = 0
 # Name of the host pipe.
 pipe_name = 'x4_python_host'
 
+# Loaded permissions from pipe_permissions.json.
+permissions = None
+# Permissions can be placed alongside the exe or Main.py.
+# Or maybe in current working directory?
+# Go with the exe/main directory.
+permissions_path = main_path / 'permissions.json'
+
 
 # TODO: any interesting argparsing.
 def Main():
@@ -91,6 +116,13 @@ def Main():
     # List of relative path strings received from x4, to python server
     # modules that have been loaded before.
     module_relpaths = []
+
+    # Manually list the version for now, since packed exe won't have
+    # access to the change_log.
+    print('X4 Python Pipe Server v1.1\n')
+
+    # Load permissions, if the permissions file found.
+    Load_Permissions()
 
     # Put this into a loop, to keep rebooting the server when the
     # pipe gets disconnected (eg. x4 loaded a save).
@@ -184,11 +216,16 @@ def Main():
                             print('Module was already loaded: {}'.format(module_path))
                             continue
 
-                        # Record this path as seen.
-                        module_relpaths.append(module_path)
-
                         # Put together the full path.         
                         full_path = x4_path / module_path
+
+                        # Check if this module is part of an extension
+                        #  that has permission to run, and skip if not.
+                        if not Check_Permission(x4_path, module_path):
+                            continue
+
+                        # Record this path as seen.
+                        module_relpaths.append(module_path)
 
                         # Import the module.
                         module = Import(full_path)
@@ -328,6 +365,77 @@ def Import(full_path):
     return module
 
 
+def Load_Permissions():
+    '''
+    Loads the permissions json file, or creates one if needed.
+    '''
+    global permissions
+    if permissions_path.exists():
+        try:
+            with open(permissions_path, 'r') as file:
+                permissions = json.load(file)
+        except Exception as ex:
+            print('Error when loading permissions file')
+
+    # If nothing was loaded, write (or overwrite) the default permissions file.
+    if permissions == None:
+        permissions = {
+            'instructions': 'Set which extensions are allowed to load modules,'
+                            ' based on extension id (in content.xml).',
+            # Workshop id of the mod support apis.
+            'ws_2042901274' : True,
+            }
+        with open(permissions_path, 'w') as file:
+            json.dump(permissions, file, indent = 2)
+    return
+
+
+def Check_Permission(x4_path, module_path):
+    '''
+    Check if the module on the given path has permission to run.
+    Return True if permitted, else False with a printed message.
+    '''
+    try:
+        # Find the extension's root folder.
+        if not module_path.as_posix().startswith('extensions/'):
+            raise Exception('Module is not in extensions')
+
+        # The module_path should start with 'extensions', so find the
+        # second folder.
+        # (Note: pathlib is dump and doesn't allow negative indices on parents.)
+        ext_dir = x4_path / [x for x in module_path.parents][-3]
+
+        # Load the content.xml. Can do xml or raw text; text should
+        # be good enough for now (avoid adding lxml to the exe).
+        content_text = (ext_dir / 'content.xml').read_text()
+
+        # The first id="..." should be the extension id.
+        content_id = content_text.split('id="')[1].split('"')[0]
+
+        # Check its permission.
+        if permissions.get(content_id) == True:
+            return True
+        print('\n'.join([
+            '',
+            'Rejecting module due to missing permission:',
+            ' content_id: {}'.format(content_id),
+            ' path: {}'.format(x4_path / module_path),
+            'To allow loading, enable this content_id in {}'.format(permissions_path),
+            '',
+            ]))
+        return False
+
+    except Exception as ex:
+        print('\n'.join([
+            '',
+            'Rejecting module due to error during extension id permission check:',
+            ' path: {}'.format(x4_path / module_path),
+            '{}: {}'.format(type(ex).__name__, ex if str(ex) else 'Unspecified'),
+            '',
+            ]))
+        return False
+
+
 def Pipe_Client_Test():
     '''
     Function to mimic the x4 client.
@@ -343,8 +451,8 @@ def Pipe_Client_Test():
     # Announce module relative paths.
     # TODO: make it easy to specify an extension being tested.
     modules = [
-        "extensions/hotkey_api/Send_Keys.py",
-        #"extensions/time_api/Time_API.py",
+        "extensions/sn_mod_support_apis/python/Send_Keys.py",
+        #"extensions/sn_mod_support_apis/python/Time_API.py",
         ]
     # Separated with ';', end with a ';'.
     message = ';'.join(modules) + ';'

@@ -231,12 +231,6 @@ There are three components to this API:
 
 ### Requirements
 
-* Lua Loader API extension
-  - https://github.com/bvbohnen/x4-lua-loader-api
-* Time API extension
-  - https://github.com/bvbohnen/x4-time-api
-* Optionally, Simple Menu API
-  - https://github.com/bvbohnen/x4-simple-menu-api
 * Optionally, Python 3.6+ with the pywin32 package.
   - Only needed if running the pipe server from python source code.
   - An executable is provided as an alternative.
@@ -280,9 +274,6 @@ An external Python server is used for the key capture and combo recognition, and
 
 ### Requirements
 
-* Named Pipe API extension
-  - https://github.com/bvbohnen/x4-named-pipes-api
-  - Server should be running.
 * Optionally, if using the python pipe server, the pywin32 and pynput packages.
   - Not needed when using the prebuilt server executable.
 

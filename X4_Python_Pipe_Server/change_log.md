@@ -12,3 +12,5 @@ Change Log
   - Servers restart on receiving 'garbage_collected' pipe client messages.
 * 1.0
   - General release.
+* 1.1
+  - Restricted module loading to those extensions given explicit permission.

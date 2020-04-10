@@ -1,0 +1,2 @@
+# Ignore the permissions file, so that users can customize it.
+permissions.json
