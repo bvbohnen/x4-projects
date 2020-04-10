@@ -2,23 +2,23 @@
 <content 
   id="ws_2042915001" 
   name="Station Kill Helper" 
-  description="Forcibly destroys stations at ~0% health, as a workaround to stations refusing to die." 
+  description=" "
   author="SirNukes" 
   version="100" 
   date="2020-3-29" 
   save="false" 
   sync="false">
 
-  <langugage language="7"  description=""/>
-  <langugage language="33" description=""/>
-  <langugage language="37" description=""/>
-  <langugage language="39" description=""/>
-  <langugage language="44" />
-  <langugage language="49" description=""/>
-  <langugage language="55" description=""/>
-  <langugage language="81" description=""/>
-  <langugage language="82" description=""/>
-  <langugage language="86" description=""/>
-  <langugage language="88" description=""/>
+  <langugage language="7"  description=" "/>
+  <langugage language="33" description=" "/>
+  <langugage language="37" description=" "/>
+  <langugage language="39" description=" "/>
+  <langugage language="44" description="Forcibly destroys stations at ~0% health, as a workaround to stations refusing to die."  />
+  <langugage language="49" description=" "/>
+  <langugage language="55" description=" "/>
+  <langugage language="81" description=" "/>
+  <langugage language="82" description=" "/>
+  <langugage language="86" description=" "/>
+  <langugage language="88" description=" "/>
 
 </content>

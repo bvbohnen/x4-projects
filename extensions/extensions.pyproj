@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_remove_dock_glow\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_remove_blinking_lights\Customizer_Script.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -83,6 +83,7 @@
     <Content Include="sn_better_target_monitor\Readme.md" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
     <Content Include="sn_extra_game_options\t\0001.xml" />
+    <Content Include="sn_friendlier_fire\change_log.md" />
     <Content Include="sn_friendlier_fire\content.xml" />
     <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
@@ -92,14 +93,20 @@
     <Content Include="sn_mod_support_apis\lua\Text.lua" />
     <Content Include="sn_mod_support_apis\lua_interface.txt" />
     <Content Include="sn_mod_support_apis\t\0001.xml" />
+    <Content Include="sn_quiet_target_range_clicks\change_log.md" />
     <Content Include="sn_quiet_target_range_clicks\content.xml" />
     <Content Include="sn_quiet_target_range_clicks\libraries\sound_library.xml" />
     <Content Include="sn_remove_blinking_lights\.gitignore" />
+    <Content Include="sn_remove_blinking_lights\change_log.md" />
     <Content Include="sn_remove_blinking_lights\content.xml" />
     <Content Include="sn_remove_dirty_glass\.gitignore" />
+    <Content Include="sn_remove_dirty_glass\change_log.md" />
     <Content Include="sn_remove_dirty_glass\content.xml" />
     <Content Include="sn_remove_dock_glow\.gitignore" />
+    <Content Include="sn_remove_dock_glow\change_log.md" />
     <Content Include="sn_remove_dock_glow\content.xml" />
+    <Content Include="sn_remove_dock_symbol\change_log.md" />
+    <Content Include="sn_station_kill_helper\change_log.md" />
     <Content Include="sn_station_kill_helper\content.xml" />
     <Content Include="sn_station_kill_helper\md\SN_Station_Kill_Helper.xml" />
     <Content Include="sn_interact_collection\change_log.md" />

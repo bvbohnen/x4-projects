@@ -24,7 +24,7 @@ from X4_Python_Pipe_Server import Make_Executable
 # Grab the project specifications.
 from Release_Specs import release_specs
 
-# TODO: joint release that includes everything, maybe.
+x_tools_path = Path("E:\Steam\SteamApps\common\X Rebirth Tools\WorkshopTool.exe")
 
 
 def Make(*args):
@@ -64,6 +64,9 @@ def Make(*args):
     if args.refresh:
         print('Refreshing documentation.')
         Make_Documentation.Make()
+        # TODO: only do this when the version of the pipe server changes.
+        # (Though it is pretty quick since pyinstaller checks for changes
+        #  as well.)
         print('Refreshing executable.')
         Make_Executable.Make()
         
@@ -86,7 +89,7 @@ def Make(*args):
         Make_Zip(release_dir, zip_path, spec)
         
     if args.steam:
-        Update_Steam(release_specs, release_dir, force = args.force)
+        Upload_To_Steam(release_specs, release_dir, force = args.force)
 
     return
 
@@ -164,7 +167,7 @@ def Make_Zip(release_dir, zip_path, spec):
     return
 
 
-def Update_Steam(release_specs, release_dir, force = False):
+def Upload_To_Steam(release_specs, release_dir, force = False):
     '''
     Update the steam copy of this release, if the version has changed
     since the last update.
@@ -177,7 +180,6 @@ def Update_Steam(release_specs, release_dir, force = False):
       a dummy preview pic and publish to steam.
     '''
     json_path = Path(__file__).resolve().parent / 'steam_versions.json'
-    x_tools_path = Path("E:\Steam\SteamApps\common\X Rebirth Tools\WorkshopTool.exe")
 
     # Load the prior updated versions.
     steam_versions = defaultdict(int)
@@ -198,32 +200,90 @@ def Update_Steam(release_specs, release_dir, force = False):
         prior_version = steam_versions[spec.name]
         if prior_version != this_version or force:
 
-            # Do the update.
+            # Do the update (or publish).
             folder = release_dir / spec.name
 
-            # Catch errors.
+            # Check if this already has a steam id; if not, treat as
+            # unpublished.
             try:
-                subprocess.run(
-                    [str(x_tools_path),
-                     'update',
-                     '-path',
-                     '{}'.format(folder),
-                     '-batchmode',
-                     '-minor',
-                     '-changenote',
-                     '',
-                     ], check = True)
+                if spec.extension_id.startswith('ws_'):
+                    Steam_Update(spec, folder)
+                else:
+                    assert prior_version == 0
+                    Steam_Publish(spec, folder)
 
                 # Update the version number.
                 steam_versions[spec.name] = this_version
             except Exception as ex:
                 print('Skipping steam update of {} due to exception: {}'.format(
                     spec.name, ex))
-
             
     # Store the new versions.
     with open(json_path, 'w') as file:
         json.dump( steam_versions, file, indent=2)
+    return
+
+def Steam_Update(spec, folder):
+    'Update this mod on steam.'
+    subprocess.run(
+        [str(x_tools_path),
+            'update',
+            '-path',
+            '{}'.format(folder),
+            '-batchmode',
+            '-minor',
+            '-changenote',
+            '',
+            ], check = True)
+    return
+
+
+def Steam_Publish(spec, folder):
+    '''
+    Publish this mod on steam.
+    Assumes a preview.png image is available in the source extension folder.
+    '''
+    # There should be a preview image to use.
+    # (Let this raise an exception if not.)
+    preview_path = spec.files['preview'][0]
+
+    print('\nPublishing to steam; this may take a moment to update...\n')
+    try:
+        result = subprocess.run(
+            [str(x_tools_path),
+                'publishx4',
+                '-path',
+                '{}'.format(folder),
+                '-preview',
+                '{}'.format(preview_path),
+                '-batchmode',
+                ], 
+                # Capture the output for use below, though this means no
+                # runtime printout.
+                capture_output = True,
+                check = True)
+    except Exception as ex:
+        print(ex.stdout.decode())
+        print(ex.stderr.decode())
+        raise ex
+    
+    stdout = result.stdout.decode()
+    print(stdout)
+    print(result.stderr.decode())
+
+    # Get the assigned content id and update the extension.
+    new_ext_id = ''
+    for line in stdout.splitlines():
+        if 'ID: ' in line:
+            split_line = line.split('ID: ')
+            id_str = split_line[1].strip()
+            new_ext_id = 'ws_' + id_str
+            break
+    if new_ext_id:
+        spec.Set_Extension_ID(new_ext_id)
+    else:
+        print('Failed to set new content.xml extension id; update manually.')
+
     return
 
 

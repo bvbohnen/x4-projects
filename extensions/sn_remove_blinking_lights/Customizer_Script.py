@@ -29,11 +29,6 @@ def Remove_Blinking_Ship_Lights():
     '''
     Removes the blinking lights from ships.
     '''
-    #ship_macro_files = File_System.Get_All_Indexed_Files('macros','ship_*')
-    ship_files  = File_System.Get_All_Indexed_Files('components','ship_*')
-
-    # Test with just a kestrel
-    #ship_files = [Load_File('assets/units/size_s/ship_tel_s_scout_01.xml')]
 
     '''
     Of interest are the omni nodes that contain animations for blinking.
@@ -72,20 +67,25 @@ def Remove_Blinking_Ship_Lights():
     Note: just removing the omni nodes has no effect, for whatever reason,
     but removing the entire connection node housing them is effective.
     (Removing the part also didn't work.)
+
+    Update: the split medium miners define the anim_poslights part, but
+    without accomponying omni lights, and yet still blink.
+    Assuming the lights are defined elsewhere, removing the anim_poslights
+    connection should turn off blinking.
     '''
+    ship_files  = File_System.Get_All_Indexed_Files('components','ship_*')
+
+    # Test with just a kestrel
+    #ship_files = [Load_File('assets/units/size_s/ship_tel_s_scout_01.xml')]
 
     for game_file in ship_files:
         xml_root = game_file.Get_Root()
 
         modified = False
 
-        # Find the connection that has an omni with animation keys.
-        # Find any omni with animation keys.
-        conns = xml_root.xpath(".//connection[parts/part/lights/omni/lightanimations/lightanimation/key]")
-        if not conns:
-            continue
-
-        for conn in conns:
+        # Find the connection that has a uv_animation.
+        for conn in xml_root.xpath(".//connection[parts/part/uv_animations/uv_animation]"):
+            
             # Check the part name for anim_poslights (or a variation).
             parts = conn.xpath('./parts/part')
             # Expecting just one part.
@@ -97,9 +97,11 @@ def Remove_Blinking_Ship_Lights():
 
             # Remove it from its parent.
             conn.getparent().remove(conn)
+            modified = True
 
-        # Commit changes right away; don't bother delaying for errors.
-        game_file.Update_Root(xml_root)
+        if modified:
+            # Commit changes right away; don't bother delaying for errors.
+            game_file.Update_Root(xml_root)
     return
 
 

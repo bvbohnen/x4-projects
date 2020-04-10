@@ -70,6 +70,11 @@ ffi.cdef[[
     void GetMapState(UniverseID holomapid, HoloMapState* state);
     void SetMapState(UniverseID holomapid, HoloMapState state);
     float GetTextWidth(const char*const text, const char*const fontname, const float fontsize);
+    void SetFocusMapComponent(UniverseID holomapid, UniverseID componentid, bool resetplayerpan);
+    void SetMapPanOffset(UniverseID holomapid, UniverseID offsetcomponentid);
+    void StartPanMap(UniverseID holomapid);
+    bool StopPanMap(UniverseID holomapid);
+    void SetSelectedMapComponents(UniverseID holomapid, UniverseID* componentids, uint32_t numcomponentids);
 ]]
 --DebugError(tostring(ffi))
 
@@ -576,17 +581,45 @@ end
     Can monkey patch this to follow up by focusing on player ship,
     regardless of what was set before.
 
+    A secondary map characteristic is that the zoom is locked on the
+    initial target, eg. mousing to another part of the map and zooming
+    in will still lock the center of the map to the specific object
+    (the player ship in this case). A random click anywhere on the map
+    is necessary to enable zooming to other locations.
+    (When locked, the camera moves with the object, which is indeed nice.)
+    Could the code here be tweaked to change this behavior?
+
+    The menu onUpdate function checks for a menu.focuscomponent, and
+    if found, calls C.SetFocusMapComponent, which pans the map to
+    the target. This is only done when the map is first opened.
+    However, menu.focuscomponent needs to be set during importMenuParameters,
+    else an error occurs.
+    As such, clearing the focus component needs to be done later,
+    eg. after onUpdate when first activated.
+    However, there is no C.ClearFocusMapComponent or similar, so how is
+    the camera-lock cleared?
+
+    Test results: 
+        C.SetFocusMapComponent with pan=false does not stop the panning.
+        Giving a 0 object id just produces an error and messes up the menu.
+        C.SetMapPanOffset didn't help when set to the player.
+        Calling C.StartPanMap then C.StopPanMap didn't have any effect.
+        C.SetSelectedMapComponents to select a group had no effect.
+    Overall, giving up on this idea for now.
+
 ]]
 L.mapfocus = {
     onplayer = true,
+    --unfocus = true,
 }
 -- Setup wrappers.
 function L.Init_Map_Focus()
 
     local menu = Lib.Get_Egosoft_Menu("MapMenu")
     
-    local ego_importMenuParameters = menu["importMenuParameters"]
-    menu["importMenuParameters"] = function (...)
+    -- Change initial focus component.
+    local ego_importMenuParameters = menu.importMenuParameters
+    menu.importMenuParameters = function (...)
 
         -- Call it as normal.
         ego_importMenuParameters(...)
@@ -601,6 +634,30 @@ function L.Init_Map_Focus()
             menu.currentsector = C.GetContextByClass(menu.focuscomponent, "sector", true)
         end
     end
+    
+    -- -Removed; couldn't get this working.
+    ---- Clear default focus component on open.
+    --local ego_onUpdate = menu.onUpdate
+    --menu.onUpdate = function (...)
+    --    -- Note if the map is getting activated on this call.
+    --    local activatemap = menu.activatemap
+    --
+    --    -- Call it as normal.
+    --    ego_onUpdate(...)
+    --
+    --    -- If just activated, clear the focus.
+    --    if activatemap and L.mapfocus.unfocus and menu.holomap ~= 0 then
+    --        --C.SetFocusMapComponent(menu.holomap, C.GetPlayerObjectID(), false)
+    --        --C.SetMapPanOffset(menu.holomap, C.GetPlayerObjectID())
+    --        --C.StartPanMap(menu.holomap)
+    --        --C.StopPanMap(menu.holomap)
+    --        
+    --        --local components = ffi.new("UniverseID[?]", 1)
+    --        --components[0] = C.GetPlayerObjectID()
+    --        --C.SetSelectedMapComponents(menu.holomap, components, 1)
+    --    end
+    --end    
+
 end
 L.Init_Map_Focus()
 

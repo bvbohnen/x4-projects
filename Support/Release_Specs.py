@@ -40,19 +40,11 @@ release_specs = [
         root_path = project_dir / 'extensions/sn_extra_game_options',
         steam = True,
         ),
+
+    # TODO: friendlier fire when ready.
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_hotkey_collection',
-        steam = True,
-        ),
-    
-    Release_Spec(
-        root_path = project_dir / 'extensions/sn_remove_dock_symbol',
-        steam = True,
-        ),
-    
-    Release_Spec(
-        root_path = project_dir / 'extensions/sn_station_kill_helper',
         steam = True,
         ),
     
@@ -88,5 +80,35 @@ release_specs = [
             ],
         },
         ),
-
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_quiet_target_range_clicks',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_remove_blinking_lights',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_remove_dirty_glass',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_remove_dock_glow',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_remove_dock_symbol',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_station_kill_helper',
+        steam = True,
+        ),
+    
     ]

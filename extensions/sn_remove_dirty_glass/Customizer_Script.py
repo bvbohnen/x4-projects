@@ -168,6 +168,10 @@ def Clean_Dirty_Glass():
             No noticed effect.
         Change all bitmaps to use assets\textures\fx\transparent_diff
             Success!
+
+    Note: removing the outside glass texture means there is no
+    apparent cockpit glass when viewed from outside. So try to leave
+    the outside glass intact.
     '''
     
     if 1:
@@ -189,8 +193,8 @@ def Clean_Dirty_Glass():
         for mat_name in [
             'cockpit_glass_inside_01',
             'cockpit_glass_inside_02',
-            'cockpit_glass_outside_01',
-            'cockpit_glass_outside_02',
+            #'cockpit_glass_outside_01',
+            #'cockpit_glass_outside_02',
             'p1_window_trim_01',
             ]:
             mat_node = xml_root.xpath(".//material[@name='{}']".format(mat_name))

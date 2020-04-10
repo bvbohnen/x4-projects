@@ -3,21 +3,22 @@
   author="SirNukes" 
   date="2020-04-08" 
   enabled="true" 
-  id="sn_remove_dirty_glass" 
-  name="Clearn Dirty Windows" 
+  id="ws_2054542527" 
+  name="Remove Dirty Glass" 
+  description=" "
   save="false" 
   sync="false" 
-  version="100">
+  version="101">
   
-  <langugage description="" language="7"/>
-  <langugage description="" language="33"/>
-  <langugage description="" language="37"/>
-  <langugage description="" language="39"/>
-  <langugage description="Cleans the dirt from ship cockpit window" language="44"/>
-  <langugage description="" language="49"/>
-  <langugage description="" language="55"/>
-  <langugage description="" language="81"/>
-  <langugage description="" language="82"/>
-  <langugage description="" language="86"/>
-  <langugage description="" language="88"/>
+  <langugage description=" " language="7"/>
+  <langugage description=" " language="33"/>
+  <langugage description=" " language="37"/>
+  <langugage description=" " language="39"/>
+  <langugage description="Cleans the dirt from ship cockpit window." language="44"/>
+  <langugage description=" " language="49"/>
+  <langugage description=" " language="55"/>
+  <langugage description=" " language="81"/>
+  <langugage description=" " language="82"/>
+  <langugage description=" " language="86"/>
+  <langugage description=" " language="88"/>
 </content>

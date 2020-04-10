@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content 
-  id="ws_2042920586" 
+  id="ws_2042920586"
   name="SirNukes Hotkey Collection"
-  description="Adds a variety of new hotkeys. Requires a running named pipe server (part of the mod support APIs)." 
+  description=" "
   author="SirNukes" 
   version="100" 
   date="2020-3-25" 
   save="false" 
   sync="false">
 
-  <langugage language="7"  description=""/>
-  <langugage language="33" description=""/>
-  <langugage language="37" description=""/>
-  <langugage language="39" description=""/>
-  <langugage language="44" />
-  <langugage language="49" description=""/>
-  <langugage language="55" description=""/>
-  <langugage language="81" description=""/>
-  <langugage language="82" description=""/>
-  <langugage language="86" description=""/>
-  <langugage language="88" description=""/>
+  <langugage language="7"  description=" "/>
+  <langugage language="33" description=" "/>
+  <langugage language="37" description=" "/>
+  <langugage language="39" description=" "/>
+  <langugage language="44" description="Adds a variety of new hotkeys. Requires a running named pipe server (part of the mod support APIs)." />
+  <langugage language="49" description=" "/>
+  <langugage language="55" description=" "/>
+  <langugage language="81" description=" "/>
+  <langugage language="82" description=" "/>
+  <langugage language="86" description=" "/>
+  <langugage language="88" description=" "/>
 
   <!--Mod support APIs-->
   <dependency id="ws_2042901274" version="100" optional="false"/>

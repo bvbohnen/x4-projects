@@ -4,6 +4,7 @@ import sys
 import re
 from pathlib import Path
 from collections import defaultdict
+from lxml import etree
 
 # Set up an import from the customizer for cat packing.
 project_dir = Path(__file__).resolve().parents[1]
@@ -69,13 +70,12 @@ class Release_Spec:
         # Find standard files maybe not included above.
         self.Find_Standard_Files()
 
-        # If an extension, find its general files.
+        # If an extension, find its general files and content info.
+        self.extension_id = None
         if self.is_extension:
             self.Find_Ext_Files()
+            self.Init_Ext_Info()
             
-        # Fill this in below.
-        self.extension_id = None
-
         return
 
 
@@ -135,6 +135,11 @@ class Release_Spec:
         content_path = content_dir / 'content.xml'
         if content_path.exists():
             files['misc'].append(content_path)
+            
+        # Check for preview.png.
+        preview_path = content_dir / 'preview.png'
+        if preview_path.exists():
+            files['preview'].append(preview_path)
 
         return
             
@@ -142,12 +147,34 @@ class Release_Spec:
     def Init_Ext_Info(self):
         '''
         Loads the extension content.xml and reads some information out.
-        TODO
+        TODO: fill out more.
         '''
-        # TODO:
-        # current version
-        # id
-        # current version replacement string.
+        content_path = self.root_path / 'content.xml'
+        if not content_path.exists():
+            return
+
+        content_root = etree.parse(str(content_path)).getroot()
+        self.extension_id = content_root.get('id')
+        return
+
+
+    def Set_Extension_ID(self, new_id):
+        '''
+        Sets the content.xml id to the new id. Intended for use after
+        a steam publish.
+        '''
+        assert self.extension_id
+        assert new_id
+
+        # Use string parsing for this, to avoid changing content test.
+        content_path = self.root_path / 'content.xml'
+        if not content_path.exists():
+            return
+        text = content_path.read_text()
+        new_text = text.replace(self.extension_id, new_id)
+        content_path.write_text(new_text)
+        self.extension_id = new_id
+        return
     
 
     def Get_Version(self):
@@ -314,6 +341,11 @@ class Release_Spec:
             return
         match_content, match_version = matches
         
+        # Skip if the version is the same.
+        current_content_version = match_version[0]
+        if version == current_content_version:
+            return
+
         content_path = self.root_path / 'content.xml'
         text = content_path.read_text()
 

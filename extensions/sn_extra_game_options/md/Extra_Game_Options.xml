@@ -140,13 +140,14 @@
             $callback   = OnChange,
             ]"/>
 
+        <!--Unobtrusive, so default to on.-->
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'tooltip_on_truncation',
             $name       = Text.$tooltip_on_truncation_name,
             $mouseover  = Text.$tooltip_on_truncation_mouseover,
-            $default    = 0,
+            $default    = 1,
             $type       = 'button',
             $callback   = OnChange,
             ]"/>
