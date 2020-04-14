@@ -13,3 +13,5 @@ Change Log
 * 1.4
   - Added automatic map zoom out when opened.
   - Added auto mouseover for truncated text.
+* 1.5
+  - Prevented experimental FoV slider from having unwanted effects.

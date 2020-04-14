@@ -152,7 +152,10 @@
             $callback   = OnChange,
             ]"/>
 
-        <signal_cue_instantly
+        <!--Removed; doesn't work well. Need to comment out, since $disabled
+            only affects menu display, not applying the default, which may 
+            not be tuned right for different resolutions.-->
+        <!--<signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $disabled   = true,
@@ -168,7 +171,7 @@
               $hideMaxValue = true,
             ],
             $callback   = OnChange,
-            ]"/>
+            ]"/>-->
 
       </actions>
     </cue>

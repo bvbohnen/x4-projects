@@ -82,7 +82,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <TargetName>winpipe_64</TargetName>
-    <OutDir>$(ProjectDir)\..\named_pipes_api\lualibs\</OutDir>
+    <OutDir>$(ProjectDir)\..\Build\winpipe_api\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

@@ -358,6 +358,11 @@ end
     For now, this is disabled in the options menu pending further development
     to work around issues.
     (Would GetFOVOption be helpful at all?)
+
+    Note:
+    When accidentally applying the default 100 fov (translated to 10),
+    a user reported it changing their zoom.  The 10 value may just be
+    for 16:10 ratio, and the default might differ for other resolutions.
 ]]
 -- This will take the multiplier as a %.
 function L.Handle_FOV(_, new_mult)
