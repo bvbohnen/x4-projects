@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_remove_blinking_lights\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_measure_perf\Customizer_Script.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,6 +21,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_measure_perf\" />
+    <Folder Include="sn_measure_perf\md\" />
+    <Folder Include="sn_measure_perf\lua\" />
+    <Folder Include="sn_measure_perf\python\" />
+    <Folder Include="sn_start_with_seta\" />
     <Folder Include="sn_quiet_target_range_clicks\" />
     <Folder Include="sn_quiet_target_range_clicks\libraries\" />
     <Folder Include="sn_remove_blinking_lights\" />
@@ -33,6 +38,7 @@
     <Folder Include="sn_hotkey_collection\t\" />
     <Folder Include="sn_interact_collection\t\" />
     <Folder Include="sn_mod_support_apis\t\" />
+    <Folder Include="sn_start_with_seta\md\" />
     <Folder Include="sn_station_kill_helper\" />
     <Folder Include="sn_station_kill_helper\md\" />
     <Folder Include="sn_remove_dock_symbol\" />
@@ -88,6 +94,8 @@
     <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
     <Content Include="sn_interact_collection\t\0001.xml" />
+    <Content Include="sn_measure_perf\.gitignore" />
+    <Content Include="sn_measure_perf\lua\Measure_Perf.lua" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
     <Content Include="sn_mod_support_apis\lua\Text.lua" />
@@ -106,6 +114,9 @@
     <Content Include="sn_remove_dock_glow\change_log.md" />
     <Content Include="sn_remove_dock_glow\content.xml" />
     <Content Include="sn_remove_dock_symbol\change_log.md" />
+    <Content Include="sn_start_with_seta\change_log.md" />
+    <Content Include="sn_start_with_seta\content.xml" />
+    <Content Include="sn_start_with_seta\md\SN_Start_With_SETA.xml" />
     <Content Include="sn_station_kill_helper\change_log.md" />
     <Content Include="sn_station_kill_helper\content.xml" />
     <Content Include="sn_station_kill_helper\md\SN_Station_Kill_Helper.xml" />
@@ -117,6 +128,8 @@
     <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01_hightech.xml" />
     <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01_lowtech.xml" />
     <Content Include="sn_remove_dock_symbol\content.xml" />
+    <Content Include="sn_measure_perf\content.xml" />
+    <Content Include="sn_measure_perf\md\SN_Measure_Perf.xml" />
     <Content Include="test_hotkey_api\content.xml" />
     <Content Include="test_hotkey_api\md\Hotkey_API_Test.xml" />
     <Content Include="test_interact_menu_api\content.xml" />
@@ -181,6 +194,8 @@
     <Compile Include="sn_remove_blinking_lights\Customizer_Script.py" />
     <Compile Include="sn_remove_dirty_glass\Customizer_Script.py" />
     <Compile Include="sn_remove_dock_glow\Customizer_Script.py" />
+    <Compile Include="sn_measure_perf\python\Measure_Perf.py" />
+    <Compile Include="sn_measure_perf\Customizer_Script.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

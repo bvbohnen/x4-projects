@@ -9,12 +9,14 @@ for %%F in (
 	sn_extra_game_options
 	sn_hotkey_collection
 	sn_interact_collection
+	sn_measure_perf
 	sn_mod_support_apis
 	sn_quiet_target_range_clicks
 	sn_remove_blinking_lights
 	sn_remove_dirty_glass
 	sn_remove_dock_glow
 	sn_remove_dock_symbol
+	sn_start_with_seta
 	sn_station_kill_helper
 
 ) do (
