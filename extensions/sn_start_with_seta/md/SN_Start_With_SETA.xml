@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Start_With_SETA" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+  <cues>
+    <cue name="Add_SETA" instantiate="true">
+      <!--Condis borrowed from faction logic.-->
+      <conditions>
+        <event_cue_signalled cue="md.Setup.Start" />
+        <check_value value="player.galaxy.macro.ismacro.{macro.xu_ep2_universe_macro}"/>
+      </conditions>
+      <actions>
+        <add_inventory ware="ware.inv_timewarp" exact="1" comment="SETA"/>
+      </actions>
+    </cue>
+
+  </cues>
+
+</mdscript>

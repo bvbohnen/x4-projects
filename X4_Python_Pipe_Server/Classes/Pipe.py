@@ -184,6 +184,8 @@ class Pipe_Server(Pipe):
         #  connected), or raises an exception on other errors.
         # If the client connected first, don't consider that an error, so
         #  just ignore any error code but let exceptions get raised.
+        # TODO: this prevents ctrl-c from being captured or killing
+        # the process; why?
         win32pipe.ConnectNamedPipe(self.pipe_file, None)
         print('Connected to client')
 

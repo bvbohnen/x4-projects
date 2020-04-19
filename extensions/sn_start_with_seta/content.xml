@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content 
-  id="ws_2042920500" 
-  name="Better Target Monitor" 
+  id="sn_start_with_seta" 
+  name="Start With SETA" 
   description=" "
   author="SirNukes" 
-  version="105" 
-  date="2020-3-7" 
+  version="100" 
+  date="2020-4-17" 
   save="false" 
   sync="false">
 
@@ -13,7 +13,7 @@
   <langugage language="33" description=" "/>
   <langugage language="37" description=" "/>
   <langugage language="39" description=" "/>
-  <langugage language="44" description="Improves the target monitor, with more info and legibility."/>
+  <langugage language="44" description="Unlocks SETA immediately for the player." />
   <langugage language="49" description=" "/>
   <langugage language="55" description=" "/>
   <langugage language="81" description=" "/>
@@ -21,7 +21,4 @@
   <langugage language="86" description=" "/>
   <langugage language="88" description=" "/>
 
-  <!--Mod support APIs-->
-  <dependency id="ws_2042901274" version="100" optional="false"/>
-  <dependency version="300" />
 </content>

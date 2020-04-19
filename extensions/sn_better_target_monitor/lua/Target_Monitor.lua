@@ -541,7 +541,11 @@ function Filter.Update(filter, sample)
 
     -- Update invalidations, starting from the oldest entry.
     -- Can only do this as long as at least one valid sample remains.
-    while filter.valid_samples ~= 0 do
+    -- Update: when testing 2x job counts and the game performed at 5fps,
+    -- the refresh rate on the monitor dropped to where all samples were
+    -- timing out regularly. As a workaround, always keep a couple samples
+    -- regardless of timeout.
+    while filter.valid_samples > 2 do
         -- Check the oldest timestamp.
         if samples[filter.oldest][1] < cutoff_time then
 
@@ -1145,11 +1149,17 @@ function L.Get_New_Rows(targetdata, original_rows, row_specs, col_specs)
     -- function.  Pending tweaks, adjust their distance/eta to be
     -- hidden.
     -- TODO: maybe support some of these by checking for their container.
+    -- TODO: at least some object can still give errors, not included here,
+    -- though it hasn't been reproduceable yet (just observed errors in log).
     if     IsComponentClass(component, "turret")
     or     IsComponentClass(component, "weapon")
     or     IsComponentClass(component, "shieldgenerator")
     or     IsComponentClass(component, "engine")
     or     IsComponentClass(component, "module")
+    -- Note" "highway" covers the generated nodes along a zone highway,
+    -- as well as the gates of super highways and entry/exit points of
+    -- zone highways.
+    -- TODO: distinguish these.
     or     IsComponentClass(component, "highway") 
     or     IsComponentClass(component, "zone")
     or     IsComponentClass(component, "signalleak")
@@ -1235,9 +1245,10 @@ function L.Get_New_Rows(targetdata, original_rows, row_specs, col_specs)
                 
     -- Static objects without hull/shield.
     elseif IsComponentClass(component, "gate")
-    or     IsComponentClass(component, "highwayentrygate") 
+    -- Note: entry/exit gates never seem to be matched, just highway.
+    or     IsComponentClass(component, "highwayentrygate")
     or     IsComponentClass(component, "highwayexitgate")
-    or     IsComponentClass(component, "highway") 
+    or     IsComponentClass(component, "highway")
     or     IsComponentClass(component, "zone")
     or     IsComponentClass(component, "signalleak")
     or     IsComponentClass(component, "dockingbay")
@@ -1247,6 +1258,15 @@ function L.Get_New_Rows(targetdata, original_rows, row_specs, col_specs)
     -- Wrecks
     or not IsComponentOperational(component)
     then
+        --if IsComponentClass(component, "highwayentrygate") then
+        --    DebugError("is highwayentrygate")
+        --end
+        --if IsComponentClass(component, "highwayexitgate") then
+        --    DebugError("is highwayexitgate")
+        --end
+        --if IsComponentClass(component, "highway") then
+        --    DebugError("is highway")
+        --end
         new_rows = {
             Make_Row("",               cols_distance_delta),
             Make_Row("",               cols_right_eta),
@@ -1295,6 +1315,7 @@ function L.Patch_GetTargetMonitorDetails()
                 component64, templateConnectionName)) 
             or "")
         L.targetdata.has_speed = false
+        L.targetdata.distance_error = false
         
         -- Quick exit when disabled or something went wrong.
         if (not L.settings.enabled) or (full_spec == nil) then
@@ -1443,8 +1464,11 @@ end
 function L.Get_Distance(targetdata)
 
     -- Only sample a new distance when the game time has advanced.
+    -- Also skip if there was a GetObjectPositionInSector error on a
+    -- prior update, since in practice that function will just keep
+    -- getting errors for this target.
     local now = GetCurTime()
-    if now ~= L.last_update_time then
+    if targetdata.distance_error == false and now ~= L.last_update_time then
         L.last_update_time = now
     
         --local playertarget = ConvertIDTo64Bit(GetPlayerTarget())
@@ -1525,6 +1549,9 @@ function L.Get_Distance(targetdata)
         else
             -- Clear out data that eta uses; it should also be unknown.
             Filter.Clear(L.filter_distance)
+            -- To avoid the log getting spammed with errors, flag this
+            -- target to fail future distance checks.
+            targetdata.distance_error = true
         end
     end
 

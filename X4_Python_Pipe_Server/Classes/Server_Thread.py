@@ -53,7 +53,8 @@ class Server_Thread:
 
             # Fire up the server, listening for particular errors.
             try:
-                self.entry_function()
+                # Pass any args of interest, notably the test mode flag.
+                self.entry_function({'test' : self.test})
                 
             except (win32api.error, Client_Garbage_Collected) as ex:
                 # win32api.error exceptions have the fields:

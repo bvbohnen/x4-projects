@@ -145,7 +145,7 @@ Additionally, a simplified interface is provided for adding options to an extens
           ]"/>
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
       <signal_cue_instantly
-        cue = "md.Simple_Menu_API.Make_Label"
+        cue = "md.Simple_Menu_API.Make_Text"
         param = "table[$col=1, $text='Hello world']"/>
     </actions>
   </cue>
@@ -175,7 +175,7 @@ Additionally, a simplified interface is provided for adding options to an extens
     <actions>            
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
       <signal_cue_instantly
-        cue="md.Simple_Menu_API.Make_Label"
+        cue="md.Simple_Menu_API.Make_Text"
         param = "table[$col=1, $text='Hello world']"/>
     </actions>
   </cue>

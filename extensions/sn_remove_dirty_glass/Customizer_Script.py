@@ -196,6 +196,9 @@ def Clean_Dirty_Glass():
             #'cockpit_glass_outside_01',
             #'cockpit_glass_outside_02',
             'p1_window_trim_01',
+            # TODO: other trims?
+            #'p1_window_trim_02', - exists, unclear which ships use it.
+            # p1_window_trim_03  - Added in 3.10hf1b1, no mat entry yet?
             ]:
             mat_node = xml_root.xpath(".//material[@name='{}']".format(mat_name))
             assert len(mat_node) == 1

@@ -16,12 +16,17 @@ pipe_name = 'x4_time'
 test_python_client = 0
 
 
-def main():
+def main(args):
     '''
     Entry function for this server.
     Protocol: x4 sends some request, pipe server responds (or not) based
     on command.  The pipe server will never send messages on its own.
     '''
+    # Enable test mode if requested.
+    if args['test']:
+        global test_python_client
+        test_python_client = True
+
     # Set up the pipe and connect to x4.
     pipe = Pipe_Server(pipe_name)
         

@@ -16,6 +16,8 @@ each frame, and won't be suitable for in-frame code performance testing.
 To allow for proper in-frame timing for performance measurements or
 similar, a python pipe server is provided using a proper performance
 counter.
+
+TODO: maybe find a more reliable way to detect frame change when paused.
 ]]
 
 --[[ @doc-functions

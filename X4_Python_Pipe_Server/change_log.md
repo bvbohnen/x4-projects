@@ -14,3 +14,7 @@ Change Log
   - General release.
 * 1.1
   - Restricted module loading to those extensions given explicit permission.
+* 1.2
+  - Added command line arg for enabling test mode to aid extension development.
+  - Added command line arg for changing the permission file path.
+  - Called module main() functions must now capture one argument.

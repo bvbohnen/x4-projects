@@ -45,13 +45,20 @@ Overall, it is probably reasonably easy for developers to just shut down
 this host server and restart it, if they want to update their server code;
 x4 side should automatically reconnect.
 
+temp copy of test args:
+-t -x "C:\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_measure_perf\python\Measure_Perf.py"
 '''
+# Manually list the version for now, since packed exe won't have
+# access to the change_log.
+version = '1.2'
 
 # Setup include path to this package.
 import sys
 import json
 from pathlib import Path
 from collections import defaultdict
+import argparse
+import time
 
 # To support packages cross-referencing each other, set up this
 # top level as a package, findable on the sys path.
@@ -62,7 +69,9 @@ from collections import defaultdict
 #  Running from exe, home_path is the folder with the exe itself.
 # In either case, main_path will be to Main.py or the exe.
 if getattr(sys, 'frozen', False):
-    home_path = Path(sys._MEIPASS).parent
+    # Note: _MEIPASS gets the directory the packed exe unpacked into,
+    # eg. in appdata/temp.  Need 'executable' for the original exe path.
+    home_path = Path(sys.executable).parent
     main_path = home_path
 else:
     home_path = Path(__file__).resolve().parents[1]
@@ -107,19 +116,92 @@ permissions = None
 permissions_path = main_path / 'permissions.json'
 
 
-# TODO: any interesting argparsing.
 def Main():
     '''
+    Launch the server. This generally does not return.
     '''
+    
+    # Set up command line arguments.
+    argparser = argparse.ArgumentParser(
+        description = ('Host pipe server for X4 interprocess communication.'
+                       ' This will launch extension python modules that are'
+                       ' registered by the game through the pipe api.'),
+        )
+
+    argparser.add_argument(
+        '-p', '--permissions-path',
+        default = None,
+        help =  'Optional path to a permissions.json file specifying which'
+                ' extensions are allowed to load modules. If not given, the'
+                ' main server directory is used.' )
+    
+    argparser.add_argument(
+        '-t', '--test',
+        action='store_true',
+        help =  'Puts this server into test mode. Requires following args:'
+                ' --x4-path, --test_module' )
+    
+    argparser.add_argument(
+        '-x', '--x4-path',
+        default = None,
+        metavar = 'Path',
+        help =  'Path to the X4 installation folder. Only needed in test mode.')
+
+    argparser.add_argument(
+        '-m', '--module',
+        default = None,
+        help =  'Path to a specific python module to run in test mode,'
+                ' relative to the x4-path.' )
+    
+    #argparser.add_argument(
+    #    '-v', '--verbose',
+    #    action='store_true',
+    #    help =  'Print extra messages.' )
+       
+    args = argparser.parse_args(sys.argv[1:])
+
+    if args.permissions_path:
+        global permissions_path
+        permissions_path = Path.cwd() / (Path(args.permissions_path).resolve())
+        # The directory should exist.
+        if not permissions_path.parent.exists():
+            print('Error: permissions_path directory not found')
+            return
+
+    # Check if running in test mode.
+    if args.test:
+        global test_python_client
+        test_python_client = True
+
+        if not args.x4_path:
+            print('Error: x4_path required in test mode')
+            return
+
+        if not args.module:
+            print('Error: module required in test mode')
+            return
+
+        # Make x4 path absolute.
+        args.x4_path = Path.cwd() / (Path(args.x4_path).resolve())
+        if not args.x4_path.exists():
+            print('Error: x4_path invalid: {}'.format(args.x4_path))
+            return
+        
+        # Keep module path relative.
+        args.module = Path(args.module)
+        module_path = args.x4_path / args.module
+        if not module_path.exists():
+            print('Error: module invalid: {}'.format(module_path))
+            return
+
+
     # List of directly launched threads.
     threads = []
     # List of relative path strings received from x4, to python server
     # modules that have been loaded before.
     module_relpaths = []
 
-    # Manually list the version for now, since packed exe won't have
-    # access to the change_log.
-    print('X4 Python Pipe Server v1.1\n')
+    print('X4 Python Pipe Server v{}\n'.format(version))
 
     # Load permissions, if the permissions file found.
     Load_Permissions()
@@ -138,7 +220,7 @@ def Main():
             # For python testing, kick off a client thread.
             if test_python_client:
                 # Set up the reader in another thread.
-                reader_thread = threading.Thread(target = Pipe_Client_Test)
+                reader_thread = threading.Thread(target = Pipe_Client_Test, args = (args,))
                 reader_thread.start()
 
             # Wait for client.
@@ -175,7 +257,7 @@ def Main():
                     x4_path = None
                     for path in paths:
                         # Different ways to possibly do this.
-                        # This approach will iterate through parents to fine the
+                        # This approach will iterate through parents to find the
                         # "lua" folder, then get its parent.
                         # (The folder should not be assumed to match the default
                         # x4 installation folder name, since a user may have
@@ -374,6 +456,7 @@ def Load_Permissions():
         try:
             with open(permissions_path, 'r') as file:
                 permissions = json.load(file)
+            print('Loaded permissions file at {}\n'.format(permissions_path))
         except Exception as ex:
             print('Error when loading permissions file')
 
@@ -385,6 +468,7 @@ def Load_Permissions():
             # Workshop id of the mod support apis.
             'ws_2042901274' : True,
             }
+        print('Generating default permissions file at {}\n'.format(permissions_path))
         with open(permissions_path, 'w') as file:
             json.dump(permissions, file, indent = 2)
     return
@@ -436,23 +520,27 @@ def Check_Permission(x4_path, module_path):
         return False
 
 
-def Pipe_Client_Test():
+def Pipe_Client_Test(args):
     '''
     Function to mimic the x4 client.
     '''
     pipe = Pipe_Client(pipe_name)
 
+    if not args.x4_path or not args.x4_path.exists():
+        raise Exception('Test error: invalid x4 path')
+
     # Example lua package path.
-    package_path = r".\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?\init.lua;"
+    #package_path = r".\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?\init.lua;"
+    package_path = r".\?.lua;{0}\lua\?.lua;{0}\lua\?\init.lua;".format(args.x4_path)
 
     # Announce the package path.
     pipe.Write("package.path:" + package_path)
 
     # Announce module relative paths.
-    # TODO: make it easy to specify an extension being tested.
+    # Just one test module for now.
+    # Give as_posix style.
     modules = [
-        "extensions/sn_mod_support_apis/python/Send_Keys.py",
-        #"extensions/sn_mod_support_apis/python/Time_API.py",
+        args.module.as_posix(),
         ]
     # Separated with ';', end with a ';'.
     message = ';'.join(modules) + ';'

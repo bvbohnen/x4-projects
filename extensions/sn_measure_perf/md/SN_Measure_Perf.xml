@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Measure_Perf" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+<!--
+  Light support for performance measurements.
+-->
+<cues>
+  <!-- Register the main lua file. -->
+  <cue name="Load_Lua_Files" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                       param="'extensions.sn_measure_perf.lua.Measure_Perf'"/>
+    </actions>
+  </cue>
+  
+  <!-- Register the python server. -->
+  <cue name="Register_Pipe_Server" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Pipe_Server_Host.Register_Module"
+        param="'extensions/sn_measure_perf/python/Measure_Perf.py'"/>
+    </actions>
+  </cue>
+
+  <!--
+      Static cue for holding general state.
+    
+      * $DebugChance
+        - Int, 0 or 100.
+      * $script_sample_period
+      * $script_sample_countdown
+        - Ints, how many seconds between sampling script counts, and
+          the related counter.
+    -->
+  <cue name="Globals">
+    <actions>
+      <!-- Create storage table on first load. -->
+      <set_value name="Globals.$storage"   exact="table[]"/>
+      <include_actions ref="Reset_Globals"/>
+    </actions>
+    <cues>
+      <!-- Listen from the menu api reloading. -->
+      <cue name="Reset_On_Lua_Reload" instantiate="true">
+        <conditions>
+          <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+        </conditions>
+        <actions>
+          <include_actions ref="Reset_Globals"/>
+        </actions>
+      </cue>
+    </cues>
+  </cue>
+  <library name="Reset_Globals">
+    <actions>
+      <set_value name="Globals.$DebugChance" exact="0"/>
+      <set_value name="Globals.$script_sample_period"    exact="60" />
+      <set_value name="Globals.$script_sample_countdown" exact="$script_sample_period" />
+    </actions>
+  </library>
+  
+  
+  <!-- 
+  Sample once every second. This will bounce off lua to pick up some
+  information, eg. fps.
+  -->
+  <cue name="Trigger_Sample" instantiate="true" checkinterval="1s">
+    <!--No conditions.-->
+    <actions>
+      <raise_lua_event name="'Measure_Perf.Get_Sample'"/>
+    </actions>
+  </cue>
+
+  <!-- 
+  When lua responds, capture its message, fill in additional information,
+  and send it all to python for handling.
+  
+  Messages will be key:value pairs, semicolon separated, starting
+  with an 'update;' string.
+  -->
+  <cue name="Send_Sample" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Measure_Perf'" control="'Sample'" />
+    </conditions>
+    <actions>
+      <!-- Grab the returned value, use it to init the dict of measurements.-->
+      <set_value name="$response" exact="event.param3" />
+      
+      
+      <!--Every so many visits, add extra script counters.-->
+      <set_value name="Globals.$script_sample_countdown" operation="subtract" />
+      <do_if value="Globals.$script_sample_countdown == 0">
+        <set_value name="Globals.$script_sample_countdown" exact="Globals.$script_sample_period" />
+
+        <!--Find all ships, pull their script names.-->
+        <find_ship groupname="$ships" multiple="true" recursive="true" 
+                   masstraffic="false" space="player.galaxy"
+                   functional="true"/>
+      
+        <do_for_each name="$ship" in="$ships">
+        
+          <!--Values of interest, with prefix to use.-->
+          <!--Ship may have no pilot, or no command; check for null.-->
+          <set_value name="$values" exact="table[
+                     $aicommand     = @$ship.pilot.command.value, 
+                     $aiaction      = @$ship.pilot.commandaction.value, 
+                     $aiscript      = @$ship.pilot.$script_name,
+                     $aielement     = @$ship.pilot.$element_name,
+                     $aiscriptline  = @$ship.pilot.$script_line_name,                     
+                     ]"/>
+
+          <do_for_each name="$prefix" valuename="$value" in="$values">
+
+            <do_if value="$value != null">
+              <!--Prefix for being a table key, and clarifying message.-->
+              <set_value name="$value" exact="$prefix + '.' + $value"/>
+              <do_if value="not $response.{$value}?">
+                <set_value name="$response.{$value}" exact="0"/>
+              </do_if>
+              <set_value name="$response.{$value}" operation="add"/>
+            </do_if>
+          </do_for_each>
+          
+          <!--More complicated: sum scriptline counts from the pilot, 
+              for how often they hit the line.-->
+          <do_if value="@$ship.pilot.$script_line_counts != null">
+            <!--Loop over the counts; note: the ai table key has $ prefixed.-->
+            <do_for_each name="$scriptline" valuename="$count" in="$ship.pilot.$script_line_counts">
+              <!--Prefix again anyway, for python to pick up.-->
+              <set_value name="$key" exact="'$aiscriptlinesum.'+$scriptline"/>
+              <!--As above, start the count, then add to it.-->
+              <do_if value="not $response.{$key}?">
+                <set_value name="$response.{$key}" exact="0"/>
+              </do_if>
+              <set_value name="$response.{$key}" operation="add" exact="$count"/>
+            </do_for_each>
+          </do_if>
+        
+        </do_for_each>
+      </do_if>
+      
+      
+      <!--Construct the message string.-->
+      <set_value name="$msg" exact="'update;'" />
+      <do_for_each name="$key" valuename="$value" in="$response">
+        <set_value name="$msg" exact="'%s%s:%s;'.[$msg, $key, $value]"/>
+      </do_for_each>
+      
+      <!--Send to the pipe.-->
+      <signal_cue_instantly
+        cue="md.Named_Pipes.Write"
+        param="table[$pipe='x4_perf', $msg=$msg]"/>
+    </actions>
+  </cue>
+  
+  
+</cues>
+  
+</mdscript>
