@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+
+  <page id="68537" title="SirNukes texts" descr="0" voice="no">
+
+    <!--Start at 3000-->
+    <t id="3000">Meilleur moniteur de cibles</t>
+    <t id="3001">Activer</t>
+    <t id="3002">Active les modifications du moniteur de cibles</t>
+    <t id="3003">Utiliser la nouvelle disposition</t>
+    <t id="3004">Change la disposition des données de manière plus dense et inclut la distance, la vitesse et l'estimation d'arrivée</t>
+    <t id="3005">Boucliers et coque en gras</t>
+    <t id="3006">Pourcentage de bouclier et coque en gras</t>
+    <t id="3007">Colorer boucliers et coque</t>
+    <t id="3008">Ajoute de la couleur au pourcentage de boucliers et coques</t>
+    <t id="3009">Colorer les noms</t>
+    <t id="3010">Colorer le nom de la cible par rapport à sa faction</t>
+    <t id="3011">Eclaircir le texte</t>
+    <t id="3012">Eclaircir la couleur générale du texte pour une meilleur visibilité</t>
+    <t id="3013">Classe de vaisseau X3</t>
+    <t id="3014">Append l'équivalent X3 de la classe (eg. m3, tl) aux types de vaisseaux</t>
+
+
+  </page>
+
+</language>
+

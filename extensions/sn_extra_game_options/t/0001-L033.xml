@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+  
+<page id="68537" title="SirNukes texts" descr="0" voice="no">
+  
+  <!--Start at 2000-->
+  <t id="2000">Supprimer les animations du menu</t>
+  <t id="2001">Supprime l'animation et le délais associé à l'ouverture du menu du haut</t>
+  <t id="2002">Désactiver les popups d'aide</t>
+  <t id="2003">Empèche les fenêtres contextuelles de texte d'aides ponctuelles de s'afficher</t>
+  <t id="2004">Ajuster la taille de la police de l'info-bulle</t>
+  <t id="2005">Augmente globalement la taille de la police des info-bulles (à l'origine 9 pt)</t>
+  <t id="2006">Ajuster l'opacité de la carte</t>
+  <t id="2007">Définit la valeur alpha du menu de la carte; celle d'egosoft est à 98 par défaut, réglez sur 100 pour supprimer la transparence</t>
+  <t id="2008">Ouvrir la carte sur le joueur</t>
+  <t id="2009">Force la carte à s'ouvrir toujours sur l'emplacement du joueur, au lieu de l'emplacement cible actuel</t>
+  <t id="2010">Ajuster le champ de vision</t>
+  <t id="2011">Modifie le multiplicateur du champs de vision; l'interface utilisateur va rétrécir</t>
+  <t id="2012">Distance de caméra de carte par défaut</t>
+  <t id="2013">Lorsque la carte est ouverte, force la distance initiale de la caméra; 0 équivaut à aucun changement (comportement par défaut), 1 est un zoom avant complet, 100 est un zoom arrière complet</t>
+  <t id="2014">Ajouter le survol du curseur en cas de troncature</t>
+  <t id="2015">Pour les éléments d'interface utilisateur qui finissent par tronquer leur texte, cela tente d'ajouter une fenêtre contextuelle au survol du curseur avec le texte complet; peut ne pas fonctionner dans tous les cas</t>
+
+</page>
+
+</language>
