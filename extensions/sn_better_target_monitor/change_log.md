@@ -22,3 +22,6 @@ Change Log
   - Rewrote smoothing filter for distant objects to reduce relative speed and eta jitter.
 * 1.5
   - Stabalized relative speed and eta readout at extremely low fps.
+* 1.6
+  - ETA adjusts down when in SETA.
+  - French translation, by Anthony

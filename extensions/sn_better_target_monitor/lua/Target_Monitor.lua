@@ -1200,6 +1200,10 @@ function L.Get_New_Rows(targetdata, original_rows, row_specs, col_specs)
         }
         targetdata.has_speed = true
     
+    -- TODO: for this other stuff, also include a type field like ships,
+    -- eg. 'station', 'gate', etc., since the standard ui doesn't indicate
+    -- this in any way beyond the object name, which doesn't work for gates
+    -- which instead display a target sector.
     elseif IsComponentClass(component, "station") then
         new_rows = {
             orig.reveal,
@@ -1620,6 +1624,12 @@ function L.Get_ETA(targetdata)
     end
     -- Relative speed is negative for closing, so flip the sign.
     local eta = 0 - (remaining_distance / rel_speed)
+
+    -- When in seta, time is sped up 5x.
+    -- Account for that here.  TODO: maybe make optional.
+    if GetPlayerActivity() == "seta" then
+        eta = eta / 5
+    end
 
     -- TODO: filter if needed, though distance and rel_speed filters
     -- should hopefully cover things.

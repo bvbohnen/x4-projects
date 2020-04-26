@@ -10,3 +10,6 @@ This extension makes changes to the target monitor (lower right window) to impro
 
 ### Requirements
 * Simple_Menu_API version 1.1 or above.
+
+### Contributors
+* Anthony Bouquet - French translation

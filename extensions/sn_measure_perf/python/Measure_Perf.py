@@ -46,12 +46,14 @@ def main(args):
     # Script counter, just for organization.
     # Keys match what is sent from x4.
     ai_counters = {
-        '$aicommand'       : Count_Storage(type = 'Command'),
-        '$aiaction'        : Count_Storage(type = 'Action'),
-        '$aiscript'        : Count_Storage(type = 'Script'),
-        '$aielement'       : Count_Storage(type = 'Element'),
-        '$aiscriptline'    : Count_Storage(type = 'Script Line'),
-        '$aiscriptlinesum' : Count_Storage(type = 'Script Line Sum'),
+        '$ai_command'         : Count_Storage(type = 'AI Command'),
+        '$ai_action'          : Count_Storage(type = 'AI Action'),
+        '$ai_script'          : Count_Storage(type = 'AI Script'),
+        '$ai_element'         : Count_Storage(type = 'AI Element'),
+        '$ai_scriptline'      : Count_Storage(type = 'AI Script Line'),
+        '$ai_scriptline_hits' : Count_Storage(type = 'AI Script Blocking Line Hit'),
+        '$md_cue_hits'        : Count_Storage(type = 'MD Cue/Lib Action Hit'),
+        # TODO: process timestamps of hit start/ends.
     }
     
     while 1:        
@@ -106,7 +108,18 @@ def main(args):
                 fps_counter.Update(gametime, float(data['$fps']))
                 # Print the smoothed value.
                 fps_counter.Print()
-
+                
+                # Get the in-game systemtime.
+                print('$systemtime (H,M,S): {}'.format(data['$systemtime']))
+                #print('$systemtime2 (H,M,S): {} {}'.format(
+                #    data['$systemtime2'],
+                #    '(unchanged)' if data['$systemtime'] == data['$systemtime2'] else '(CHANGED)',
+                #    ))
+                
+            # TODO: handle generic info on script performance.
+            # Split off from above to simplify slightly.
+            elif command == 'script_info':
+                pass
 
             else:
                 print('Error:' + pipe_name + ' unrecognized command: ' + message)
@@ -218,17 +231,22 @@ class Count_Storage:
         if not self.counts:
             return
 
+        total_counts = sum(self.counts.values())
+        msg = self.type + 's: {}\n'.format(total_counts)
+        msg += self.type + ' counts (top {})\n'.format(top)
+
         lines = []
         remaining = top
-        for script, count in sorted(self.counts.items(), key = lambda x: x[1], reverse = True):
+        for name, count in sorted(self.counts.items(), key = lambda x: x[1], reverse = True):
             # Give spacing so the printout aligns somewhat.
-            lines.append('{:<40} : {:5}'.format(script, count))
+            lines.append('{:<55}:{:6.0f} ({:.2f}%)'.format(
+                name, 
+                count,
+                count / total_counts * 100))
             remaining -= 1
             if not remaining:
                 break
             
-        msg = self.type + 's: {}\n'.format(sum(self.counts.values()))
-        msg += self.type + ' counts (top {})\n'.format(top)
         for line in lines:
             msg += '  '+line+'\n'
         print(msg)

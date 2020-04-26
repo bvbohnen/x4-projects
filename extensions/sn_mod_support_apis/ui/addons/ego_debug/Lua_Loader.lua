@@ -44,10 +44,16 @@ Example dependency condition:
             control="'Loaded extensions.sn_named_pipes_api.Named_Pipes'" />
     </conditions>
     
+TODO: allow for more md arguments, including specifying dependendencies
+which are resolved at this level (eg. store and delay the require until
+all dependencies are met).
 ]]
 local function on_Load_Lua_File(_, file_path)
     require(file_path)
-    DebugError("LUA Loader API: loaded "..file_path)
+    -- Removing the debug message; if a user really wants to know,
+    -- they can listen to the ui event.
+    --DebugError("LUA Loader API: loaded "..file_path)
+
     -- Generic signal that the load completed, for use when there
     -- are inter-lua dependencies (to control loading order).
     AddUITriggeredEvent("Lua_Loader", "Loaded "..file_path)

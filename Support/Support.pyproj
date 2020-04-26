@@ -26,6 +26,9 @@
   <ItemGroup>
     <Compile Include="Make_Documentation.py" />
     <Compile Include="Make_Release.py" />
+    <Compile Include="Make_Sig_Dummies.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Release_Specs.py">
       <SubType>Code</SubType>
     </Compile>

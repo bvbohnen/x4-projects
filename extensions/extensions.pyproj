@@ -21,6 +21,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_remove_highway_blobs\" />
+    <Folder Include="test_sector_resize\" />
     <Folder Include="sn_measure_perf\" />
     <Folder Include="sn_measure_perf\md\" />
     <Folder Include="sn_measure_perf\lua\" />
@@ -78,6 +80,7 @@
     <Folder Include="sn_mod_support_apis\ui\" />
     <Folder Include="sn_mod_support_apis\ui\addons\" />
     <Folder Include="sn_mod_support_apis\ui\addons\ego_debug\" />
+    <Folder Include="test_sector_resize\md\" />
     <Folder Include="test_time_api\" />
     <Folder Include="test_time_api\md\" />
   </ItemGroup>
@@ -114,6 +117,8 @@
     <Content Include="sn_remove_dock_glow\change_log.md" />
     <Content Include="sn_remove_dock_glow\content.xml" />
     <Content Include="sn_remove_dock_symbol\change_log.md" />
+    <Content Include="sn_remove_highway_blobs\.gitignore" />
+    <Content Include="sn_remove_highway_blobs\content.xml" />
     <Content Include="sn_start_with_seta\change_log.md" />
     <Content Include="sn_start_with_seta\content.xml" />
     <Content Include="sn_start_with_seta\md\SN_Start_With_SETA.xml" />
@@ -185,6 +190,8 @@
     <Content Include="sn_mod_support_apis\content.xml" />
     <Content Include="sn_mod_support_apis\ui\addons\ego_debug\Lua_Loader.lua" />
     <Content Include="sn_mod_support_apis\ui\addons\ego_debug\ui.xml" />
+    <Content Include="test_sector_resize\content.xml" />
+    <Content Include="test_sector_resize\md\Test_Sector_Resize.xml" />
     <Content Include="test_time_api\content.xml" />
     <Content Include="test_time_api\md\Time_API_Test.xml" />
   </ItemGroup>
@@ -196,6 +203,7 @@
     <Compile Include="sn_remove_dock_glow\Customizer_Script.py" />
     <Compile Include="sn_measure_perf\python\Measure_Perf.py" />
     <Compile Include="sn_measure_perf\Customizer_Script.py" />
+    <Compile Include="sn_remove_highway_blobs\Customizer_Script.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

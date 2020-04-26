@@ -703,6 +703,11 @@ end
     In this case, the user can specify a fixed distance to open to, which
     should avoid a zoom delay by using SetMapState directly.
 
+    Note: libraries/parameters.xml/universe/camera sets these 1k/5000k limits.
+    TODO: think about how to scale to limits; or possibly mod the max
+    zoom out to something that covers the full dlc map (would need to
+    test for bugs).
+
     Since this range, 1k to 5000k, is very awkwardly wide, it may make
     sense to use a logarithmic curve.
     Eg. use specifies value 0 to 100 (0 being disabled).

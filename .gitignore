@@ -6,6 +6,9 @@
 *.cat
 *.dat
 
+# Ignore locally created sig files.
+*.sig
+
 # Ignore stuff in private/ folders.
 [Pp]rivate/
 
