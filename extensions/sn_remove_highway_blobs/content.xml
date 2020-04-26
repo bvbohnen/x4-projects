@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="sn_remove_highway_blobs" 
+  name="Remove Red Blobs from Super Highways" 
+  description=" "
+  author="SirNukes" 
+  version="001" 
+  date="2020-4-23" 
+  save="false" 
+  sync="false">
+
+  <langugage language="7"  description=" "/>
+  <langugage language="33" description=" "/>
+  <langugage language="37" description=" "/>
+  <langugage language="39" description=" "/>
+  <langugage language="44" description="Removes the red blobs flown through on super highways."/>
+  <langugage language="49" description=" "/>
+  <langugage language="55" description=" "/>
+  <langugage language="81" description=" "/>
+  <langugage language="82" description=" "/>
+  <langugage language="86" description=" "/>
+  <langugage language="88" description=" "/>
+
+</content>

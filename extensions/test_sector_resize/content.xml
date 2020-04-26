@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="test_sector_resize" 
+  name="Test Sector Resize" 
+  author="SirNukes" 
+  version="006" 
+  date="2020-04-22" 
+  save="false" 
+  sync="false" 
+  enabled="false">
+
+  <dependency id="ws_2042901274" version="100" optional="false"/>
+</content>
