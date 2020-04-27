@@ -64,7 +64,7 @@
   <library name="Reset_Globals">
     <actions>
       <set_value name="Globals.$DebugChance" exact="0"/>
-      <set_value name="Globals.$script_sample_period"    exact="2s" />
+      <set_value name="Globals.$script_sample_period"    exact="60s" />
       <set_value name="Globals.$script_sample_countdown" exact="$script_sample_period" />
       <do_if value="not @Globals.$md_cue_hits">
         <set_value name="Globals.$md_cue_hits" exact="table[]"/>        
@@ -86,8 +86,49 @@
       <set_value name="Globals.$script_sample_countdown" operation="subtract" />
       <do_if value="Globals.$script_sample_countdown == 0">
         <set_value name="Globals.$script_sample_countdown" exact="Globals.$script_sample_period" />
-        <raise_lua_event name="'Measure_Perf.Get_Script_Info'"/>
+        <!--Trigger md-side data transmit.-->
+        <signal_cue cue="Send_Script_Info"/>
+        <!--Lua will send the data directly.-->
+        <raise_lua_event name="'Measure_Perf.Send_Script_Info'"/>
       </do_if>
+    </actions>
+  </cue>
+
+  <!--Empty cue with no workload, existing purely to measure the overhead of
+  the injected systemtime gathering code.
+  TODO: expand the profiling to cover extensions, which will catch this
+  naturally, and the action block should be emptied; this is tricky to
+  do with how the customizer is designed, though, since it ignores
+  its own output folder.
+  -->
+  <cue name="Empty_Cue" instantiate="true" checkinterval="1s">
+    <actions>
+      <raise_lua_event name="'Measure_Perf.Record_Event'" param="'md.SN_Measure_Perf.Empty_Cue,entry 101,entry,' + player.systemtime.{'%Y-%j-%H-%M-%S'} "/>
+      <raise_lua_event name="'Measure_Perf.Record_Event'" param="'md.SN_Measure_Perf.Empty_Cue,exit 102,exit,' + player.systemtime.{'%Y-%j-%H-%M-%S'} "/>
+    </actions>
+  </cue>
+
+  <!--Heavily loaded cue, to verify timers pick up major in-game lag.
+      Test result: success. 100 find_ship commands made noticeable hiccups
+      in-game, and timers picked up that ~25% of the compute time was
+      processing them, which matches up.
+  -->
+  <cue name="Load_Cue" instantiate="true" checkinterval="1s">
+    <conditions>
+      <!--Disabled.-->
+      <check_value value="false"/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Measure_Perf.Record_Event'" param="'md.SN_Measure_Perf.Load_Cue,entry 114,entry,' + player.systemtime.{'%Y-%j-%H-%M-%S'} "/>
+      <!--Find_ship spam seems to work well for triggering slowdown.-->
+      <set_value name="$i" exact="100"/>
+      <do_while value="$i > 0">
+        <set_value name="$i" operation="subtract"/>
+        <find_ship groupname="$ships" multiple="true" recursive="true"
+                    masstraffic="false" space="player.galaxy"
+                    functional="true"/>
+      </do_while>
+      <raise_lua_event name="'Measure_Perf.Record_Event'" param="'md.SN_Measure_Perf.Load_Cue,exit 115,exit,' + player.systemtime.{'%Y-%j-%H-%M-%S'} "/>
     </actions>
   </cue>
 
@@ -107,8 +148,9 @@
       <set_value name="$response" exact="event.param3" />
       
       <!--Add the current time, possibly hex edited for higher precision
-          at cost of wacky overall number. (Don't use colons.)-->
-      <set_value name="$response.{'$systemtime'}" exact="player.systemtime.{'%G,%j,%H,%M,%S'}"/>
+          at cost of wacky overall number. (Don't use colons.)
+          Removed; not necessary anymore, system works well.
+      <set_value name="$response.{'$systemtime'}" exact="player.systemtime.{'%Y,%j,%H,%M,%S'}"/>-->
       
       <!--Construct the message string.-->
       <set_value name="$msg" exact="'update;'" />
@@ -125,15 +167,15 @@
   
   
   <!-- 
-  When lua responds, capture its message, fill in additional information,
-  and send it all to python for handling.
+  General script info, not including detailed timers.
   
   Messages will be key:value pairs, semicolon separated, starting
   with an 'update;' string.
   -->
   <cue name="Send_Script_Info" instantiate="true">
     <conditions>
-      <event_ui_triggered screen="'Measure_Perf'" control="'Script_Info'" />
+      <event_cue_signalled />
+      <!--<event_ui_triggered screen="'Measure_Perf'" control="'Script_Info'" />-->
     </conditions>
     <actions>
       <set_value name="$lua_data" exact="event.param3"/>
@@ -201,7 +243,7 @@
         
       
       <!--Construct the message string.-->
-      <set_value name="$msg" exact="'update;'" />
+      <set_value name="$msg" exact="'ai_metrics;'" />
       <do_for_each name="$key" valuename="$value" in="$response">
         <set_value name="$msg" exact="'%s:%s;'.[$key, $value]" operation="add"/>
       </do_for_each>
@@ -215,7 +257,7 @@
       <!--Note: below code is newer, and aiming for a different interface setup.-->
       <!--Collect lua timestamp based info.-->
       <!--TODO: is there an easy way to serialize a table of string data?-->
-      <debug_text text="'script_info;%s'.[$response]" filter="general"/>
+      <!--<debug_text text="'script_info;%s'.[$response]" filter="general"/>-->
       
     </actions>
   </cue>

@@ -189,6 +189,8 @@ local L = {
     -- Table, keyed by messageID, holding the distances from GetTargetElementInfo.
     target_element_distances = nil,
 
+    -- Link to T table below, for returning to require statements.
+    text = nil,
 }
 
 local T = {
@@ -260,8 +262,14 @@ local T = {
         scavenger = {
             ship_m = "M6",
         },
+
+        -- Make the M heavyfighter also m3+.
+        -- Le Leon comment: Reason: The only M-class heavy fighters, ive 
+        -- seen are the Khaak ships. Both are not M6 corvettes. One is a old
+        -- M4, the other is the old M3. Their firepower is same as fighter/ 
+        -- heavy fighter of S-class.
         heavyfighter = {
-            ship_m = "M6",
+            ship_m = "M3+",
             ship_s = "M3+",
         },
         fighter = {
@@ -269,16 +277,16 @@ local T = {
             ship_s = "M3",
         },
         interceptor = {
-            ship_s = "M2",
+            ship_s = "M4",
         },
         scout = {
             ship_s = "M5",
         },
         smalldrone = {
-            ship_s = "M5",
+            ship_s = "DR",
         },
         lasertower = {
-            ship_s = "M5",
+            ship_s = "OL",
         },
         personalvehicle = {
             ship_s = "CV",
@@ -325,6 +333,7 @@ local T = {
         },
     },
 }
+L.text = T
 
 ------------------------------------------------------------------------------
 -- Support object for data smoothing.
@@ -1814,4 +1823,6 @@ function L.Patch_SetSofttarget()
     end
 end
 ]]
+
+
 return L

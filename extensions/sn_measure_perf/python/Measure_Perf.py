@@ -4,6 +4,10 @@ Python side of measurement gathering.
 from X4_Python_Pipe_Server import Pipe_Server, Pipe_Client
 import time
 import threading
+import json
+from pathlib import Path
+
+this_dir = Path(__file__).resolve().parent
 
 # Name of the pipe to use.
 pipe_name = 'x4_perf'
@@ -53,8 +57,14 @@ def main(args):
         '$ai_scriptline'      : Count_Storage(type = 'AI Script Line'),
         '$ai_scriptline_hits' : Count_Storage(type = 'AI Script Blocking Line Hit'),
         '$md_cue_hits'        : Count_Storage(type = 'MD Cue/Lib Action Hit'),
-        # TODO: process timestamps of hit start/ends.
+        # New info, combines md and ai.
+        'event_counts'       : Count_Storage(type = 'Event Count'),
+        'path_times'         : Path_Metrics(type = 'Path Time'),
     }
+
+    # General dict of game state data, most recently sent.
+    # 'fps','gametime', etc.
+    state_data = {}
     
     while 1:        
         # Blocking wait for a message from x4.
@@ -71,7 +81,49 @@ def main(args):
             # First term is the command.
             command, args = message.split(';', 1)
        
+            # Generic current state update.
             if command == 'update':
+                
+                # args are key:value pairs.
+                # Semicolon separated, with an ending semicolon.
+                # Split, toss the last blank.
+                kv_pairs = args.split(';')[0:-1]
+
+                # Process them into a dict of strings.
+                # Note: keys are expected to start with $.
+                # Delay printout of fps, since gametime might show up
+                # later in the message.
+                print_fps = False
+                for kv_pair in kv_pairs:
+                    key, value = kv_pair.split(':')
+
+                    # Explicitly handle cases, for casting and clarity.
+                    # TODO: maybe just special handling for fps, generic
+                    # for others.
+                    if key == '$gametime':
+                        state_data['gametime'] = float(value)
+
+                    elif key == 'path_metrics_timespan':
+                        state_data['path_metrics_timespan'] = float(value)
+
+                    elif key == '$fps':
+                        state_data['fps'] = float(value)
+                        print_fps = True
+                        
+                    # TODO: other stuff.
+
+                if print_fps:
+                    # Update the fps counter/smoother.
+                    fps_counter.Update(state_data['gametime'], state_data['fps'])
+                    # Print the smoothed value.
+                    fps_counter.Print()
+
+                                        
+                # Get the in-game systemtime.
+                #print('$systemtime (H,M,S): {}'.format(data['$systemtime']))
+                
+
+            elif command == 'ai_metrics':
 
                 # args are key:value pairs.
                 # Semicolon separated, with an ending semicolon.
@@ -94,40 +146,57 @@ def main(args):
                         subkey = key.split('.', 1)[1]
                         ai_counters[prefix].Set(subkey, value)
                     else:
-                        data[key] = value
+                        # Skip for now. Dont want to message spam, also
+                        # don't want complete failure.
+                        pass
                         
                 # Print the scripts, if any recorded.
                 for counter in ai_counters.values():
                     counter.Print(20)
 
-                # Do data analysis.
-                # Several of these will depend on the in-game timestamp.
-                gametime = float(data['$gametime'])
 
-                # Update the fps counter/smoother.
-                fps_counter.Update(gametime, float(data['$fps']))
-                # Print the smoothed value.
-                fps_counter.Print()
+            # These ones are constructed a little differently, with
+            # less prefix spam.
+            # TODO: break apart, path_times is mostly its own thing.
+            elif command in ['event_counts', 'path_times']:
+                # Still key:value pairs, but all belong to the matching counter.
+                counter = ai_counters[command]
                 
-                # Get the in-game systemtime.
-                print('$systemtime (H,M,S): {}'.format(data['$systemtime']))
-                #print('$systemtime2 (H,M,S): {} {}'.format(
-                #    data['$systemtime2'],
-                #    '(unchanged)' if data['$systemtime'] == data['$systemtime2'] else '(CHANGED)',
-                #    ))
-                
-            # TODO: handle generic info on script performance.
-            # Split off from above to simplify slightly.
-            elif command == 'script_info':
-                pass
+                # Split, toss the last blank.
+                kv_pairs = args.split(';')[0:-1]
+                for kv_pair in kv_pairs:
+                    key, value = kv_pair.split(':')
+                    counter.Set(key, value)
+
+                # For path_times, there is an empty cue which can be used
+                # to adjust for the overhead of gathering systemtime.
+                if command == 'path_times':
+                    empty_cue_time = counter.metrics.get('md.SN_Measure_Perf.Empty_Cue,entry 101,exit 102')
+                    if empty_cue_time == None:
+                        print('Error: failed to find Empty_Cue')
+                    else:
+                        # Get the average time per visit.
+                        empty_cue_time = empty_cue_time['sum'] / empty_cue_time['count']
+                        print(f'Removing estimated sample time: {empty_cue_time}')
+                        # Subtract off this amount from all entries.
+                        counter.Apply_Offset(-empty_cue_time)
+
+                    # Specify the period over which samples were gathered.
+                    #print(f"Metrics gathered over {state_data['path_metrics_timespan']} seconds")
+                    counter.Set_Timespan(state_data['path_metrics_timespan'])
+
+                    # TODO: dump to json once testing mostly done, and
+                    # doing long sample periods.
+
+                counter.Print(20)
 
             else:
-                print('Error:' + pipe_name + ' unrecognized command: ' + message)
+                print(f'Error: {pipe_name} unrecognized command: {command} in message {message}')
 
         except Exception as ex:
             if test_python_client:
                 raise ex
-            #print(ex)
+            print(ex)
             print('Error in processing: {}'.format(message))
 
                         
@@ -211,7 +280,7 @@ class Count_Storage:
     * type
       - String, descriptive type of what's being counted, eg. command or action.
     * counts
-      - Dict, keyed by command name, holding the command count.
+      - Dict, keyed by entry name, holding the entry count.
     '''
     def __init__(self, type = ''):
         self.type = type
@@ -222,6 +291,11 @@ class Count_Storage:
 
     def Set(self, name, count):
         self.counts[name] = float(count)
+
+    def Apply_Offset(self, offset):
+        # Adjust all entries directly.
+        for key in self.counts:
+            self.counts[key] += offset
 
     def Print(self, top = 5):
         '''
@@ -243,6 +317,120 @@ class Count_Storage:
                 name, 
                 count,
                 count / total_counts * 100))
+            remaining -= 1
+            if not remaining:
+                break
+            
+        for line in lines:
+            msg += '  '+line+'\n'
+        print(msg)
+        return
+
+
+class Path_Metrics:
+    '''
+    Storage specifically for path metrics.
+    TODO: track time interval of first to last metric sample, add
+    compute for time per second and time per frame.
+    
+    * metrics
+      - Dict, keyed by entry name, holding the metrics sent over.
+      - Expected metrics: min, max, sum, count.
+    * timespan
+      - Float, period over which samples were gathered, in seconds.
+      - May mismatch with the undelying metrics units (eg. 100 ns).
+    '''
+    def __init__(self, type = ''):
+        self.type = type
+        self.metrics = {}
+        self.timespan = 0
+
+    def Clear(self):
+        self.metrics.clear()
+
+    def Set(self, name, metrics_str):
+        '''
+        Takes a comma separated string with expected metric ordering:
+        sum, min, max, count (ints), comma separated.
+        Overwrites any possible prior metrics.
+        TODO: support for summing with prior metrics.
+        '''
+        sum, min, max, count = metrics_str.split(',')
+        self.metrics[name] = {
+            'sum'   : int(sum), 
+            'min'   : int(min), 
+            'max'   : int(max), 
+            'count' : int(count),
+            }
+
+    def Apply_Offset(self, offset):
+        '''
+        Apply a universal offset to the metrics.  min/max modified by offset,
+        sum modified 'count' times of the offset. Affects all entries.
+        No entry allowed to go below 0.
+        '''
+        for key in self.metrics:
+            entry = self.metrics[key]
+            entry['min'] = max(0, entry['min'] + offset)
+            entry['max'] = max(0, entry['max'] + offset)
+            entry['sum'] = max(0, entry['sum'] + offset * entry['count'])
+
+    def Set_Timespan(self, timespan):
+        '''
+        Set the timespan over which samples were collected.
+        As a float, in seconds.
+        '''
+        self.timespan = timespan
+
+    def Dump(self):
+        '''
+        Dump metrics to a json file, using the current 'type' name,
+        in this file's directory.
+        '''
+        with open(this_dir / f'{self.type}.json', 'w') as file:
+            json.dump(self.metrics, indent = 2)
+
+    def Print(self, top = 5):
+        '''
+        Prints the top 5 (or however many) highest metrics, by sum.
+        Does nothing if no metrics known.
+        '''
+        if not self.metrics:
+            return
+
+        # Compute total sum across all, in 100ns.
+        total_sum_100ns = sum(x['sum'] for x in self.metrics.values())
+        # Convert to seconds.
+        total_sum_s = total_sum_100ns / 10000000
+
+        # Line with how many paths were recoreded.
+        msg = '\n'
+        msg += self.type + 's: {} entries\n'.format(len(self.metrics))
+        # Timespan of the gathering, and how much contribution all
+        # entries make to this (discounting offet adjustment).
+        msg += ' Timespan: {:.2f} seconds; contribution of entries: {:.2f} ({:.2f}%)\n'.format(
+            self.timespan,
+            total_sum_s,
+            total_sum_s / self.timespan * 100,
+            )
+        msg += ' Top {}:\n'.format(top)
+        
+
+        lines = []
+        remaining = top
+        # Sort by sum, high to low.
+        for name, metrics in sorted(self.metrics.items(), key = lambda x: x[1]['sum'], reverse = True):
+            # Give spacing so the printout aligns somewhat.
+            # (These tend to be floats due to the offset adjustment.)
+            lines.append('{:<80}:{:6.0f} ({:.2f}%) ({:.1f} to {:.1f}, {} visits)'.format(
+                name, 
+                metrics['sum'],
+                # Percent of all sums.
+                (metrics['sum'] / total_sum_100ns * 100) if total_sum_100ns else 0,
+                metrics['min'],
+                metrics['max'],
+                metrics['count'],
+                ))
             remaining -= 1
             if not remaining:
                 break

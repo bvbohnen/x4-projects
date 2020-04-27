@@ -90,6 +90,8 @@
     <Content Include="sn_better_target_monitor\lua\Target_Monitor.lua" />
     <Content Include="sn_better_target_monitor\md\Better_Target_Monitor.xml" />
     <Content Include="sn_better_target_monitor\Readme.md" />
+    <Content Include="sn_better_target_monitor\t\0001-L033.xml" />
+    <Content Include="sn_better_target_monitor\t\0001-L049.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
     <Content Include="sn_extra_game_options\t\0001.xml" />
     <Content Include="sn_friendlier_fire\change_log.md" />

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+
+<page id="68537" title="SirNukes texts" descr="0" voice="no">
+
+<!--Start at 3000-->
+<t id="3000">Better Target Monitor - Einstellungen</t>
+<t id="3001">Aktivieren</t>
+<t id="3002">Wenn aktiviert, wird der Inhalt des Zielinfofensters verändert.</t>
+<t id="3003">Nutze erweitertes Layout</t>
+<t id="3004">Wenn aktiviert, enthält das Zielinfofenster zusätzliche Daten des anvisierten Schiffs. Entfernung, Geschwindigkeit und ETA (Zeit, bis das anvisierte Ziel erreicht wird) kommen hinzu.</t>
+<t id="3005">Schild und Hülle hervorheben</t>
+<t id="3006">Die Schrift der Prozente von Hülle und Schild wird fett dargestellt.</t>
+<t id="3007">Schild und Hülle farbig</t>
+<t id="3008">Die Prozentzahlen beider Werte werden farbig dargestellt.</t>
+<t id="3009">Zielname farbig</t>
+<t id="3010">Der Zielname wird entsprechend seiner Fraktionszugehörigkeit eingefärbt.</t>
+<t id="3011">Schriftart dünner</t>
+<t id="3012">Für bessere Lesbarkeit wird die im Zielfenster genutzte Schrift dünn dargestellt.</t>
+<t id="3013">Schiffsklassen aus X3</t>
+<t id="3014">Fügt hinter der Schiffstypinformation die entsprechende alte X3-Schiffsklassifizierung an (etwa M3, M6, TL..)</t>
+
+
+</page>
+
+</language>
