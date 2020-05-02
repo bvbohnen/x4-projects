@@ -5,3 +5,5 @@ Change Log for overall api package.
   - Apis packaged together.
 * 1.1
   - Fixed content.xml text nodes.
+* 1.2
+  - Fixing missing dll from prior release.

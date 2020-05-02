@@ -107,9 +107,10 @@ class Release_Spec:
         paths_seen = []
         content_dir = self.root_path
 
-        # Find everything in the lua folder.
-        for path in (content_dir / 'lua').glob('**/*.lua'):
-            files['lua'].append(path)
+        # Find everything in the lua folder, lua or dll.
+        for suffix in ['.lua','.dll']:
+            for path in (content_dir / 'lua').glob(f'**/*{suffix}'):
+                files['lua'].append(path)
         # Also include special case "lua_interface.txt" files in the top
         # folder.
         lua_interface_path = content_dir / 'lua_interface.txt'
