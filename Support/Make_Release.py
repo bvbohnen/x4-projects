@@ -233,7 +233,7 @@ def Steam_Update(spec, folder):
             '-batchmode',
             '-minor',
             '-changenote',
-            '',
+            spec.change_log_notes,
             ], check = True)
     return
 

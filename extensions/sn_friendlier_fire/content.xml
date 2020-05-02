@@ -9,17 +9,17 @@
   save="false" 
   sync="false">
 
-  <langugage language="7"  description=" "/>
-  <langugage language="33" description=" "/>
-  <langugage language="37" description=" "/>
-  <langugage language="39" description=" "/>
-  <langugage language="44" description="Makes friendly fire logic more forgiving before the victim becomes hostile."/>
-  <langugage language="49" description=" "/>
-  <langugage language="55" description=" "/>
-  <langugage language="81" description=" "/>
-  <langugage language="82" description=" "/>
-  <langugage language="86" description=" "/>
-  <langugage language="88" description=" "/>
+  <text language="7"  description=" "/>
+  <text language="33" description=" "/>
+  <text language="37" description=" "/>
+  <text language="39" description=" "/>
+  <text language="44" description="Makes friendly fire logic more forgiving before the victim becomes hostile."/>
+  <text language="49" description=" "/>
+  <text language="55" description=" "/>
+  <text language="81" description=" "/>
+  <text language="82" description=" "/>
+  <text language="86" description=" "/>
+  <text language="88" description=" "/>
 
   <!--Mod support APIs-->
   <dependency id="ws_2042901274" version="100" optional="false"/>

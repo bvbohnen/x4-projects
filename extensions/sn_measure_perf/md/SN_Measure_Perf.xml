@@ -86,8 +86,8 @@
       <set_value name="Globals.$script_sample_countdown" operation="subtract" />
       <do_if value="Globals.$script_sample_countdown == 0">
         <set_value name="Globals.$script_sample_countdown" exact="Globals.$script_sample_period" />
-        <!--Trigger md-side data transmit.-->
-        <signal_cue cue="Send_Script_Info"/>
+        <!--Trigger md-side data transmit. -Removed; less interesting than lua stuff.
+        <signal_cue cue="Send_Script_Info"/>-->
         <!--Lua will send the data directly.-->
         <raise_lua_event name="'Measure_Perf.Send_Script_Info'"/>
       </do_if>
@@ -102,6 +102,10 @@
   its own output folder.
   -->
   <cue name="Empty_Cue" instantiate="true" checkinterval="1s">
+    <conditions>
+      <!--Disabled until next test. TODO: automate on/off with other script edits.-->
+      <check_value value="false"/>
+    </conditions>
     <actions>
       <raise_lua_event name="'Measure_Perf.Record_Event'" param="'md.SN_Measure_Perf.Empty_Cue,entry 101,entry,' + player.systemtime.{'%Y-%j-%H-%M-%S'} "/>
       <raise_lua_event name="'Measure_Perf.Record_Event'" param="'md.SN_Measure_Perf.Empty_Cue,exit 102,exit,' + player.systemtime.{'%Y-%j-%H-%M-%S'} "/>

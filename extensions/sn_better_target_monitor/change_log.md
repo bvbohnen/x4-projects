@@ -24,8 +24,12 @@ Change Log
   - Stabalized relative speed and eta readout at extremely low fps.
 * 1.6
   - ETA adjusts down when in SETA.
-  - French translation, by Anthony
+  - French translation, by Anthony.
 * 1.7
   - Adjusted x3 tags on interceptor M4, drone DR, lasertower OL, and Khaak medium heavy fighter as M3+.
   - Lua file now exports the text table, for users wanting to monkey-patch in alternate ship identifiers.
-  - German translation, by Le Leon
+  - German translation, by Le Leon.
+* 1.8
+  - French translation update.
+* 1.9
+  - Russian translation, by aladinaleks

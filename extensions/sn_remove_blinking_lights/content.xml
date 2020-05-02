@@ -10,15 +10,15 @@
   sync="false" 
   version="101">
   
-  <langugage description=" " language="7"/>
-  <langugage description=" " language="33"/>
-  <langugage description=" " language="37"/>
-  <langugage description=" " language="39"/>
-  <langugage description="Remove blinking navigation lights from ships." language="44"/>
-  <langugage description=" " language="49"/>
-  <langugage description=" " language="55"/>
-  <langugage description=" " language="81"/>
-  <langugage description=" " language="82"/>
-  <langugage description=" " language="86"/>
-  <langugage description=" " language="88"/>
+  <text description=" " language="7"/>
+  <text description=" " language="33"/>
+  <text description=" " language="37"/>
+  <text description=" " language="39"/>
+  <text description="Remove blinking navigation lights from ships." language="44"/>
+  <text description=" " language="49"/>
+  <text description=" " language="55"/>
+  <text description=" " language="81"/>
+  <text description=" " language="82"/>
+  <text description=" " language="86"/>
+  <text description=" " language="88"/>
 </content>

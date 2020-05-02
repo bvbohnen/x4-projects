@@ -59,8 +59,14 @@ def main(args):
         '$md_cue_hits'        : Count_Storage(type = 'MD Cue/Lib Action Hit'),
         # New info, combines md and ai.
         'event_counts'       : Count_Storage(type = 'Event Count'),
-        'path_times'         : Path_Metrics(type = 'Path Time'),
     }
+
+    # Path metrics trackers.
+    # Separate md and ai.
+    path_metrics = {
+        'ai' : Path_Metrics(type = 'AI Path Time'),
+        'md' : Path_Metrics(type = 'MD Path Time'),
+        }
 
     # General dict of game state data, most recently sent.
     # 'fps','gametime', etc.
@@ -154,41 +160,67 @@ def main(args):
                 for counter in ai_counters.values():
                     counter.Print(20)
 
+            # Event counters switched to lumping everything in one command.
+            elif command == 'event_counts':
+                counter = ai_counters['event_counts']
+                counter.Clear()
 
-            # These ones are constructed a little differently, with
-            # less prefix spam.
-            # TODO: break apart, path_times is mostly its own thing.
-            elif command in ['event_counts', 'path_times']:
-                # Still key:value pairs, but all belong to the matching counter.
-                counter = ai_counters[command]
-                
                 # Split, toss the last blank.
                 kv_pairs = args.split(';')[0:-1]
                 for kv_pair in kv_pairs:
                     key, value = kv_pair.split(':')
                     counter.Set(key, value)
+                counter.Print(20)
+                
+
+            # Path times are more complex.
+            elif command == 'path_times':
+
+                # This will hold data on both md and ai scripts.
+                # However, for nicer printout, they will get split up here.
+                # Start with resetting data.
+                for tracker in path_metrics.values():
+                    tracker.Clear()
+                
+                # Split, toss the last blank.
+                kv_pairs = args.split(';')[0:-1]
+                for kv_pair in kv_pairs:
+                    key, value = kv_pair.split(':')
+                    # Separate based on key starting with 'ai' or 'md'.
+                    if key[0] == 'a':
+                        path_metrics['ai'].Set(key, value)
+                    else:
+                        path_metrics['md'].Set(key, value)
 
                 # For path_times, there is an empty cue which can be used
                 # to adjust for the overhead of gathering systemtime.
-                if command == 'path_times':
-                    empty_cue_time = counter.metrics.get('md.SN_Measure_Perf.Empty_Cue,entry 101,exit 102')
-                    if empty_cue_time == None:
-                        print('Error: failed to find Empty_Cue')
-                    else:
-                        # Get the average time per visit.
-                        empty_cue_time = empty_cue_time['sum'] / empty_cue_time['count']
-                        print(f'Removing estimated sample time: {empty_cue_time}')
-                        # Subtract off this amount from all entries.
-                        counter.Apply_Offset(-empty_cue_time)
+                empty_cue_time = path_metrics['md'].metrics.get(
+                    'md.SN_Measure_Perf.Empty_Cue,entry 101,exit 102')
+                if empty_cue_time == None:
+                    print('Error: failed to find Empty_Cue')
+                else:
+                    # Get the average time per visit.
+                    empty_cue_time = empty_cue_time['sum'] / empty_cue_time['count']
+                    print(f'Removing estimated sample time: {empty_cue_time}')
+                    # Subtract off this amount from all entries.
+                    for tracker in path_metrics.values():
+                        tracker.Apply_Offset(-empty_cue_time)
 
-                    # Specify the period over which samples were gathered.
-                    #print(f"Metrics gathered over {state_data['path_metrics_timespan']} seconds")
-                    counter.Set_Timespan(state_data['path_metrics_timespan'])
+                # Specify the period over which samples were gathered.
+                #print(f"Metrics gathered over {state_data['path_metrics_timespan']} seconds")
+                for tracker in path_metrics.values():
+                    tracker.Set_Timespan(state_data['path_metrics_timespan'])
 
-                    # TODO: dump to json once testing mostly done, and
-                    # doing long sample periods.
+                # Json dump of current results.
+                # TODO: collect data together from the trackers and state,
+                # and regulate how often it dumps (to avoid excessive
+                # writes during quick iterative testing).
 
-                counter.Print(20)
+                # TODO: maybe accumulate metrics across multiple calls.
+                
+                for tracker in path_metrics.values():
+                    tracker.Print(20)
+
 
             else:
                 print(f'Error: {pipe_name} unrecognized command: {command} in message {message}')
@@ -382,13 +414,14 @@ class Path_Metrics:
         '''
         self.timespan = timespan
 
-    def Dump(self):
-        '''
-        Dump metrics to a json file, using the current 'type' name,
-        in this file's directory.
-        '''
-        with open(this_dir / f'{self.type}.json', 'w') as file:
-            json.dump(self.metrics, indent = 2)
+    # -Removed; expecting to do a higher level unified json dump instead.
+    #def Dump(self):
+    #    '''
+    #    Dump metrics to a json file, using the current 'type' name,
+    #    in this file's directory.
+    #    '''
+    #    with open(this_dir / f"{self.type.replace(' ','_')}.json", 'w') as file:
+    #        json.dump(self.metrics, indent = 2)
 
     def Print(self, top = 5):
         '''

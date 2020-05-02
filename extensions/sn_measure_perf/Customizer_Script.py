@@ -1,6 +1,7 @@
 
 import sys
 from lxml import etree
+from lxml.etree import Element
 from pathlib import Path
 this_dir = Path(__file__).resolve().parent
 
@@ -22,6 +23,26 @@ Settings(
     extension_name = this_dir.name,
     developer = True,
     )
+
+'''
+Note:
+    Cpu affinity can maybe be set for X4 to select ever-other core for a perf bump.
+    The measurements below were done without such a setting.
+    In a quick affinity test on 20k ships save:
+    (note: some of this may be drift in the game, since no reloads were done)
+        - 0/1/2/3/4/5/6/7: 39 fps  (default)
+        - 1/3/5/7: 38 fps
+        - 0/1: 18 fps  (verifies perf can tank, at least)
+        - 0/1/2: 26 fps
+        - 0/1/2/3/4: 36 fps
+        - 5/7: 25 fps
+        - 3/5/7: 31 fps
+        - 1/3/5/7: 35 fps
+        - 0/1/2/3/4/5/6/7: 37 fps
+        - 0/2/4/6: 37 fps
+    Could be luck based, but the above doesn't find any benefit, just
+    detriment, to restricting cores.
+'''
 
 # Note: can try testing with this removed from command line:
 #  -logfile debuglog.txt -debug general
@@ -93,6 +114,77 @@ def Remove_Debug(empty_diffs = 1):
         if changed:
             # Commit changes right away; don't bother delaying for errors.
             game_file.Update_Root(xml_root)
+    return
+
+
+@Transform_Wrapper()
+def Tweak_Escorts(empty_diffs = 0):
+    '''
+    Adjust escort scripts to fire less often.
+    Test result: negligible difference (5% at most, probably noise).
+    '''
+    game_file = Load_File('aiscripts/order.fight.escort.xml')
+    xml_root = game_file.Get_Root()
+    '''
+    These scripts run far more often than anything else, specifically
+    hitting a 500 ms wait then doing a move_to_position, even when
+    out of visibility.
+    Can try increasing the wait to eg. 5s.
+
+    Results:
+    - New game, 0.4x sector size, 3x job ships, flying 300 km above trinity
+      sanctum in warrior start ship, pointing toward the sector center.
+    - Driver set to adaptive power, adaptive vsync (60 fps cap).
+    - Game restart between tests, other major programs shut down (no firefox).
+    - With change: 37.3 fps, escort wait+move at 20% of aiscript hits.
+    - Without change: 41.3 fps, escort wait_move at 40% of aiscript hits.
+    - Retest change: 42.8 fps
+    - Retest no change: 40.8 fps
+    - Retest change: 43.1
+    Around a 2 fps boost, or 5%.
+    '''
+    if not empty_diffs:
+        wait_node = xml_root.find('./attention[@min="unknown"]/actions/wait[@exact="500ms"]')
+        wait_node.set('exact', '5s')
+    game_file.Update_Root(xml_root)
+    return
+
+
+@Transform_Wrapper()
+def Delete_Faction_Logic(empty_diffs = 0):
+    '''
+    Clears out faction logic cues entirely.
+    Test result: no change.
+    '''
+    '''
+    Testing using same setup as above (eg. 3x jobs):
+    - Baseline: 43.4 fps
+    - Changed: 45.8 fps
+    '''
+    md_files = Load_Files('md/faction*.xml')
+    
+    for game_file in md_files:
+        xml_root = game_file.Get_Root()
+
+        # Do this on every cue and library, top level.
+        changed = False
+        for tag in ['cue', 'library']:
+            nodes = xml_root.xpath("./cues/{}".format(tag))
+            if not nodes:
+                continue
+
+            changed = True
+            if empty_diffs:
+                continue
+
+            for node in nodes:
+                # Delete this node.
+                node.getparent().remove(node)
+
+        if changed:
+            # Commit changes right away; don't bother delaying for errors.
+            game_file.Update_Root(xml_root)
+
     return
 
 
@@ -267,6 +359,8 @@ def Insert_Timestamp(
 def Annotate_AI_Scripts(empty_diffs = 0):
     '''
     For every ai script, add timestamps at entry, exit, and blocking nodes.
+    Test result: ego ai scripts take ~6% of computation, at least for
+    the bodies, with a vanilla 10hr save. Condition checks not captured.
     '''
     aiscript_files = Load_Files('aiscripts/*.xml')
     #aiscript_files = [Load_File('aiscripts/masstraffic.watchdog.xml')]
@@ -498,6 +592,7 @@ def Test_Time_Deformatter():
     '''
     Runs a test on the deformatting routine for formatted time values,
     primarily focused on getting leap year handling correct.
+    Test result: success.
     '''
     from datetime import datetime
     start = datetime(1970,1,1)
@@ -551,84 +646,209 @@ def Test_Time_Deformatter():
 
 
 @Transform_Wrapper()
-def Tweak_Escorts(empty_diffs = 0):
+def Remove_Moves(empty_diffs = 0):
     '''
-    Adjust escort scripts to fire less often.
+    Replace all move commands with waits.
     '''
-    game_file = Load_File('aiscripts/order.fight.escort.xml')
-    xml_root = game_file.Get_Root()
     '''
-    These scripts run far more often than anything else, specifically
-    hitting a 500 ms wait then doing a move_to_position, even when
-    out of visibility.
-    Can try increasing the wait to eg. 5s.
+    Test on 20k ships save above trinity sanctum.
+    without edit: 32 fps
+    with edit   : 45->~60 fps (gradually climbing over time)~
+    '''
+    aiscript_files = Load_Files('aiscripts/*.xml')
+    #aiscript_files = [Load_File('aiscripts/order.fight.escort.xml')]
+    
+    for game_file in aiscript_files:
+        xml_root = game_file.Get_Root()
+        file_name = game_file.name.replace('.xml','')
+        
+        if not empty_diffs:
+            # All moves.
+            for tag in [
+                'move_approach_path',
+                'move_docking',
+                'move_undocking',
+                'move_gate',
+                'move_navmesh',
+                'move_strafe',
+                'move_target_points',
+                'move_waypoints',
+                'move_to',
+                ]:
+                nodes = xml_root.xpath(".//{}".format(tag))
+                if not nodes:
+                    continue
 
-    Results:
-    - New game, 0.4x sector size, 3x job ships, flying 300 km above trinity
-      sanctum in warrior start ship, pointing toward the sector center.
-    - Driver set to adaptive power, adaptive vsync (60 fps cap).
-    - Game restart between tests, other major programs shut down (no firefox).
-    - With change: 37.3 fps, escort wait+move at 20% of aiscript hits.
-    - Without change: 41.3 fps, escort wait_move at 40% of aiscript hits.
-    - Retest change: 42.8 fps
-    - Retest no change: 40.8 fps
-    - Retest change: 43.1
-    Around a 2 fps boost, or 5%.
+                for node in nodes:
+                    # Create a wait node, of some significant duration.
+                    wait = Element('wait', exact='30s')
+                    node.getparent().replace(node, wait)
+                    assert not wait.tail
+                    
+        game_file.Update_Root(xml_root)
+                    
+    return
+
+
+
+@Transform_Wrapper()
+def Simpler_Moves(empty_diffs = 0):
     '''
-    if not empty_diffs:
-        wait_node = xml_root.find('./attention[@min="unknown"]/actions/wait[@exact="500ms"]')
-        wait_node.set('exact', '5s')
-    game_file.Update_Root(xml_root)
+    Change all moves to use a linear flight model.
+    '''
+    '''
+    Test on 20k ships save above trinity sanctum.
+    without edit: 32 fps (reusing above)
+    with edit   : 30.5 fps (probably in the noise).
+    No real difference.
+    '''
+    
+    '''
+    Unitrader suggestion:
+    "<set_flight_control_model object="this.ship" flightcontrolmodel="flightcontrolmodel.linear"/> 
+    before every movement command (and remove all @forcesteering if present)"
+    '''
+
+    aiscript_files = Load_Files('aiscripts/*.xml')
+    #aiscript_files = [Load_File('aiscripts/order.fight.escort.xml')]
+    
+    for game_file in aiscript_files:
+        xml_root = game_file.Get_Root()
+        file_name = game_file.name.replace('.xml','')
+        
+        if not empty_diffs:
+            # All moves.
+            for tag in [
+                'move_approach_path',
+                'move_docking',
+                'move_undocking',
+                'move_gate',
+                'move_navmesh',
+                'move_strafe',
+                'move_target_points',
+                'move_waypoints',
+                'move_to',
+                ]:
+                nodes = xml_root.xpath(".//{}".format(tag))
+                if not nodes:
+                    continue
+
+                for node in nodes:
+                    # Prepend with the set_flight_control_model.
+                    flight_node = Element(
+                        'set_flight_control_model', 
+                        object = "this.ship",
+                        flightcontrolmodel = "flightcontrolmodel.linear")
+                    node.set('forcesteering', 'false')
+                    node.addprevious(flight_node)
+                    assert not flight_node.tail
+                    
+        game_file.Update_Root(xml_root)
+                    
+    return
+
+
+
+
+# Note: moved to customizer, with more polish.
+@Transform_Wrapper()
+def Increase_Waits(multiplier = 10, filter = '*', empty_diffs = 0):
+    '''
+    Multiply the duration of all wait statements.
+
+    * multiplier
+      - Float, factor to increase wait times by.
+    * filter
+      - String, possibly with wildcards, matching names of ai scripts to
+        modify; default is plain '*' to match all aiscripts.
+    '''
+    '''
+    Test on 20k ships save above trinity sanctum.
+    without edit   : 32 fps (reusing above; may be low?)
+    with 10x       : 50 fps (immediate benefit)
+    just trade 10x : 37 fps
+    with 2x        : 46 fps
+
+    Success!  (idea: can also scale wait by if seta is active)
+    '''
+    
+    # Just ai scripts; md has no load.
+    aiscript_files = Load_Files(f'aiscripts/{filter}.xml')
+    #aiscript_files = [Load_File('aiscripts/order.fight.escort.xml')]
+    
+    for game_file in aiscript_files:
+        xml_root = game_file.Get_Root()
+        file_name = game_file.name.replace('.xml','')
+        
+        if not empty_diffs:
+            nodes = xml_root.xpath(".//wait")
+            if not nodes:
+                continue
+
+            for node in nodes:
+                for attr in ['min','max','exact']:
+                    orig = node.get(attr)
+                    if orig:
+                        # Wrap the old value or expression, and multiply.
+                        node.set(attr, f'({node.get(attr)})*{multiplier}')
+                    
+        game_file.Update_Root(xml_root)
+                    
     return
 
 
 @Transform_Wrapper()
-def Delete_Faction_Logic(empty_diffs = 0):
+def Decrease_Radar(empty_diffs = 0):
     '''
-    Clears out faction logic cues entirely.
+    Reduce radar ranges, to reduce some compute load for npc ships.
     '''
     '''
-    Testing using same setup as above (eg. 3x jobs):
-    - Baseline: 43.4 fps
-    - Changed: 45.8 fps
+    Test on 20k ships save above trinity sanctum.
+    5/4    : 35 fps   (50km)
+    1/1    : 37 fps   (40km, vanilla, fresh retest)
+    3/4    : 39 fps   (30km, same as x3 triplex)
+    1/2    : 42 fps   (20km, same as x3 duplex)
+    1/4    : 46 fps   (10km, probably too short)
+
+    TODO: small ships 20k, large ships 30k, very large 40k?
     '''
-    md_files = Load_Files('md/faction*.xml')
-    
-    for game_file in md_files:
-        xml_root = game_file.Get_Root()
+    game_file = Load_File('libraries/defaults.xml')
+    xml_root = game_file.Get_Root()
 
-        # Do this on every cue and library, top level.
-        changed = False
-        for tag in ['cue', 'library']:
-            nodes = xml_root.xpath("./cues/{}".format(tag))
-            if not nodes:
-                continue
-
-            changed = True
-            if empty_diffs:
-                continue
-
-            for node in nodes:
-                # Delete this node.
-                node.getparent().remove(node)
-
-        if changed:
-            # Commit changes right away; don't bother delaying for errors.
-            game_file.Update_Root(xml_root)
-
+    for node in xml_root.xpath('.//radar'):
+        range = node.get('range')
+        if range:
+            range = float(range)
+            node.set('range', str(range * 2/4))
+    game_file.Update_Root(xml_root)
     return
+
+
 
 # TODO:
 # - Change factionlogic.EvaluateForceStrength to just return basic 1 values.
 # - Change delays on various faction logic cue loops, eg. 10s to 1 minute.
 
-#Test_Time_Deformatter()
 
 # Run the transform.
 #Tweak_Escorts()
 #Remove_Debug()
-Annotate_AI_Scripts()
-#Annotate_MD_Scripts()
 #Delete_Faction_Logic()
+
+# Profiling related. Note: causes some slowdown for timestamp gather.
+#Test_Time_Deformatter()
+#Annotate_AI_Scripts()
+#Annotate_MD_Scripts()
+
+#Remove_Moves()
+#Simpler_Moves()
+#Increase_Waits(multiplier = 10)
+#Decrease_Radar()
+
+# Just ai waits.
+#Increase_Waits(filter = '*trade.*')
+
+# Smaller wait multiplier.
+#Increase_Waits(multiplier = 2)
 
 Write_To_Extension(skip_content = True)

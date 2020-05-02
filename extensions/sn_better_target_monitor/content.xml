@@ -4,22 +4,22 @@
   name="Better Target Monitor" 
   description=" "
   author="SirNukes" 
-  version="106" 
+  version="109" 
   date="2020-3-7" 
   save="false" 
   sync="false">
 
-  <langugage language="7"  description=" "/>
-  <langugage language="33" description=" "/>
-  <langugage language="37" description=" "/>
-  <langugage language="39" description=" "/>
-  <langugage language="44" description="Improves the target monitor, with more info and legibility."/>
-  <langugage language="49" description=" "/>
-  <langugage language="55" description=" "/>
-  <langugage language="81" description=" "/>
-  <langugage language="82" description=" "/>
-  <langugage language="86" description=" "/>
-  <langugage language="88" description=" "/>
+  <language language="7" description="Мод улучшает информативность монитора цели предоставляя больше информации."/>
+  <language language="33" description=" "/>
+  <language language="37" description=" "/>
+  <language language="39" description=" "/>
+  <language language="44" description="Improves the target monitor, with more info and legibility."/>
+  <language language="49" description=" "/>
+  <language language="55" description=" "/>
+  <language language="81" description=" "/>
+  <language language="82" description=" "/>
+  <language language="86" description=" "/>
+  <language language="88" description=" "/>
 
   <!--Mod support APIs-->
   <dependency id="ws_2042901274" version="100" optional="false"/>

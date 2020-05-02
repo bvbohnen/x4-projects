@@ -131,10 +131,11 @@ function L.Send_Script_Info()
             end
             table.insert(str_table, key..":"..value..";")
         end
-        DebugError("Sending "..field..", items: "..#str_table)
-        -- No callback for now.
-        Pipes.Schedule_Write("x4_perf", nil, table.concat(str_table))
-        
+        if send then
+            DebugError("Sending "..field..", items: "..#str_table)
+            -- No callback for now.
+            Pipes.Schedule_Write("x4_perf", nil, table.concat(str_table))
+        end
         -- Clear old info (for now).
         L[field] = {}
     end
@@ -210,7 +211,7 @@ function L.Record_Event(_, message)
         -- The numbers should diverge wildly at this point; if not,
         -- something went wrong somewhere.
         -- This checks looks for the numbers being with half a rollover still.
-        else if time + rollover_halved >= prior_time then
+        else if time + L.rollover_halved >= prior_time then
             DebugError(string.format("Bad time delta; prior %d, new %d", prior_time, time))
             -- Ignore this contribution.
             time_delta = nil
