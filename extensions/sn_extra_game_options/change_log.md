@@ -15,3 +15,5 @@ Change Log
   - Added auto mouseover for truncated text.
 * 1.5
   - Prevented experimental FoV slider from having unwanted effects.
+* 1.6
+  - Fixed content.xml text nodes.

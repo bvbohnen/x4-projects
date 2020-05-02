@@ -103,6 +103,7 @@
     <Content Include="sn_interact_collection\t\0001.xml" />
     <Content Include="sn_measure_perf\.gitignore" />
     <Content Include="sn_measure_perf\lua\Measure_Perf.lua" />
+    <Content Include="sn_mod_support_apis\change_logs\package.md" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
     <Content Include="sn_mod_support_apis\lua\Text.lua" />

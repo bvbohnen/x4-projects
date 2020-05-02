@@ -33,3 +33,4 @@ Change Log
   - French translation update.
 * 1.9
   - Russian translation, by aladinaleks
+  - Fixed content.xml text nodes.
