@@ -19,6 +19,7 @@ Settings(
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
+    developer = True,
     )
 
 
@@ -29,8 +30,6 @@ def Remove_Dock_Glow():
     '''
     Removes the glow effect from station docks.
     '''
-    # Find every "dockarea" file.
-    dock_files = Load_Files('*dockarea_arg_m_station*.xml')
 
     '''
     Of interest are the connections that define the parts for the fx glow/haze.
@@ -50,7 +49,10 @@ def Remove_Dock_Glow():
         Glow is the giant blue ball effect.
         Haze is a greyish fog close to the platform.
     Remove just glow.
+
     '''
+    # Find every "dockarea" file.
+    dock_files = Load_Files('*dockarea_arg_m_station*.xml')
 
     for game_file in dock_files:
         xml_root = game_file.Get_Root()
@@ -65,6 +67,8 @@ def Remove_Dock_Glow():
 
         # Commit changes right away; don't bother delaying for errors.
         game_file.Update_Root(xml_root)
+        # Encourage a better xpath match rule.
+        game_file.Add_Forced_Xpath_Attributes("parts/part/@name='fx_glow'")
     return
 
 

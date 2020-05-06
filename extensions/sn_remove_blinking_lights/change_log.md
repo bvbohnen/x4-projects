@@ -7,3 +7,5 @@ Change Log
   - Modified more ships.
 * 1.2
   - Fixed content.xml text nodes.
+* 1.3
+  - Added some safety against game version changes.

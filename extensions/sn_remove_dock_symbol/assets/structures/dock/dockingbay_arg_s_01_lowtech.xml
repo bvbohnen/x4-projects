@@ -1,4 +1,0 @@
-<diff>
-<remove sel="//part[@name='fx_NE_base']"/>
-<remove sel="//connection[@name='Connection38']"/>
-</diff>

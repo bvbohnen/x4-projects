@@ -824,11 +824,9 @@ def Decrease_Radar(empty_diffs = 0):
     return
 
 
-
-# TODO:
-# - Change factionlogic.EvaluateForceStrength to just return basic 1 values.
-# - Change delays on various faction logic cue loops, eg. 10s to 1 minute.
-
+# TODO: mysterial found (and mewosmith reported) that stations never forget
+# targets, and get an ever expanding list of targets they constantly
+# search through.  Find such cases, fix them, check difference.
 
 # Run the transform.
 #Tweak_Escorts()

@@ -19,6 +19,7 @@ Settings(
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
+    developer = True,
     )
 
 
@@ -72,6 +73,15 @@ def Remove_Blinking_Ship_Lights():
     without accomponying omni lights, and yet still blink.
     Assuming the lights are defined elsewhere, removing the anim_poslights
     connection should turn off blinking.
+    
+    TODO: in 3.2 connection names were changed on some ships, which throws
+    off diff patches which xpath to the connection node by name. Index would
+    also fail in this case. Both are in danger of matching the wrong
+    connection, which could cause fundumental problems if stored in a save,
+    eg. disconnected components (losing shields/whatever).
+    How can the xpath creator be induced to use a child node/attribute
+    when removing a parent node?
+    (Workaround might be to match tags, though no promises on that being safe.)
     '''
     ship_files  = File_System.Get_All_Indexed_Files('components','ship_*')
 
@@ -102,6 +112,8 @@ def Remove_Blinking_Ship_Lights():
         if modified:
             # Commit changes right away; don't bother delaying for errors.
             game_file.Update_Root(xml_root)
+            # Encourage a better xpath match rule.
+            game_file.Add_Forced_Xpath_Attributes('parts/part/@name')
     return
 
 

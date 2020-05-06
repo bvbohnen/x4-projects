@@ -22,6 +22,8 @@ Note on security:
     plugin to be loaded which may be unsafe, by default it will be rejected
     until the user of that extension gives it explicit permission.
 
+TODO: change permissions to be folder name based instead of id based.
+
 
 TODO: maybe use multiprocessing instead of threading.
 

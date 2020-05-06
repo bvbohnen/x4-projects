@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_measure_perf\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_remove_blinking_lights\Customizer_Script.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -51,9 +51,6 @@
     <Folder Include="sn_better_target_monitor\" />
     <Folder Include="sn_better_target_monitor\lua\" />
     <Folder Include="sn_better_target_monitor\md\" />
-    <Folder Include="sn_remove_dock_symbol\assets\" />
-    <Folder Include="sn_remove_dock_symbol\assets\structures\" />
-    <Folder Include="sn_remove_dock_symbol\assets\structures\dock\" />
     <Folder Include="test_hotkey_api\" />
     <Folder Include="test_hotkey_api\md\" />
     <Folder Include="test_interact_menu_api\" />
@@ -134,9 +131,6 @@
     <Content Include="sn_interact_collection\content.xml" />
     <Content Include="sn_interact_collection\md\SN_Interact_Commands.xml" />
     <Content Include="sn_mod_support_apis\lua\Library.lua" />
-    <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01.xml" />
-    <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01_hightech.xml" />
-    <Content Include="sn_remove_dock_symbol\assets\structures\dock\dockingbay_arg_s_01_lowtech.xml" />
     <Content Include="sn_remove_dock_symbol\content.xml" />
     <Content Include="sn_measure_perf\content.xml" />
     <Content Include="sn_measure_perf\md\SN_Measure_Perf.xml" />
@@ -208,6 +202,7 @@
     <Compile Include="sn_remove_dock_glow\Customizer_Script.py" />
     <Compile Include="sn_measure_perf\python\Measure_Perf.py" />
     <Compile Include="sn_measure_perf\Customizer_Script.py" />
+    <Compile Include="sn_remove_dock_symbol\Customizer_Script.py" />
     <Compile Include="sn_remove_highway_blobs\Customizer_Script.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
