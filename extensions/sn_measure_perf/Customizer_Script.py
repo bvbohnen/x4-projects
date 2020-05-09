@@ -42,6 +42,17 @@ Note:
         - 0/2/4/6: 37 fps
     Could be luck based, but the above doesn't find any benefit, just
     detriment, to restricting cores.
+
+Note:
+    Cpu min performance state can be changed in windows power options
+    advanced settings.
+    Balanced profile sets this to 5%, max perf sets it to 100%.
+    In quick test, 20k ships save, maybe with factories messed up by removal
+    of sector scaling:
+        5% min cpu:  49.2 fps
+        100% min cpu: 49.5 fps
+    Basically, no difference.
+
 '''
 
 # Note: can try testing with this removed from command line:

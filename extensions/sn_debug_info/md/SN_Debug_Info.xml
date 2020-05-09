@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Debug_Info"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--
+  -->
+
+  <cues>
+
+    <!--
+    Static variables for controlling some aspects of testing.
+    Get reset when reloading the ui, to make it easier to expand with
+    more variables.
+    -->
+    <cue name="Globals">
+      <actions>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <cue name="Reset_On_Lua_Reload" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+    <library name="Reset_Globals">
+      <actions>
+        <!--TODO: vars as needed-->
+      </actions>
+    </library>
+
+    <!--
+      Register an options menu.
+      This will have two levels:
+      - Top level lists out submenus for selection.
+      - Submenus give the actual info.
+    -->
+    <cue name="Register_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+      </conditions>
+      <actions>
+        <!-- Register the parent menu. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_top',
+            $columns          = 2,
+            $title            = 'Galaxy Debug Info',
+            $onOpen           = Build_Options_Menu,
+            ]"/>
+
+        <!-- Ware supply/demand. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_supply_demand',
+            $columns          = 2,
+            $title            = 'Ware Supply/Demand',
+            $onOpen           = Build_Ware_Supply_Demand,
+            $private          = 1,
+            ]"/>
+
+        <!-- Stations/ships associated with each ware. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_ware_stations_ships',
+            $columns          = 5,
+            $title            = 'Ware Station/Ship Counts',
+            $onOpen           = Build_Ware_Stations_Ships,
+            $private          = 1,
+            ]"/>
+
+      </actions>
+    </cue>
+
+
+    <!--
+      Callback for building the options menu.
+    -->
+    <cue name="Build_Options_Menu" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <!-- Link to the child submenus. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_supply_demand',
+              $text='Ware Supply/Demand',
+              ]"/>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_ware_stations_ships',
+              $text='Ware Station/Ship Counts',
+              ]"/>
+      </actions>
+    </cue>
+
+    <!--
+      Ware supply/demand menu.
+      There are several possible metrics to show:
+      - supply capacity summed across stations creating the product.
+      - actual supply summed across stations and trader inventories; could
+        possibly use planned trade info for this.
+      - demand capacity summed across stations using the resource
+      - demand unfilled summed across stations with empty room for the resource.
+      - demand of missiles/etc. for ships using them
+      
+      This is mainly focused on finding gaps in supply chains, notably in
+      ore and other raw resource delivery, so can ignore ship-demand.
+      Thes station metrics can be gathered by looking at their trade offers,
+      which conveniently deals with how much space is allotted to each ware,
+      reservations by trade ships heading over to drop off cargo, etc.
+      
+      Note: a ware may be a resource and product if an intermediate.
+      This first version will double count such cases.
+    -->
+    <cue name="Build_Ware_Supply_Demand" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        
+        <!--Initial metrics: tables keyed by ware.
+        <set_value name="$resources_full"  exact="table[]"/>
+        <set_value name="$resources_empty" exact="table[]"/>
+        <set_value name="$products_full"   exact="table[]"/>
+        <set_value name="$products_empty"  exact="table[]"/>-->
+        <set_value name="$wares_existing"  exact="table[]"/>
+        <set_value name="$wares_wanted"    exact="table[]"/>
+        
+        
+        <!--Get all stations.-->
+        <find_station groupname="$containers" space="player.galaxy" multiple="true"/>
+        
+        <!--Add build storage modules for each station; these are also 
+            containers with their own cargo/etc data.-->
+        <do_for_each name="$cont" in="$containers">
+          <do_if value="$cont.buildstorage? and $cont.buildstorage != null">
+            <add_to_group groupname="$buildstorages" object="$cont.buildstorage"/>
+          </do_if>
+        </do_for_each>
+        <add_to_group groupname="$containers" group="$buildstorages"/>
+        
+        <!--Main loop to gather info.-->
+        <do_for_each name="$cont" in="$containers">
+
+          <!--Go through resources.-->
+          <do_for_each name="$ware" in="$cont.resources.list">
+            <!--Compare target amount with actual amount.
+            <set_value name="$resources_full.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+            <set_value name="$resources_empty.{$ware}" exact="$cont.cargo.{$ware}.target - $cont.cargo.{$ware}.count" operation="add"/>-->
+            <set_value name="$wares_existing.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+            <set_value name="$wares_wanted.{$ware}" exact="$cont.cargo.{$ware}.target" operation="add"/>
+          </do_for_each>
+
+          <!--Go through products.-->
+          <do_for_each name="$ware" in="$cont.products.list">
+            <!--Compare target amount with actual amount.
+            <set_value name="$products_full.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+            <set_value name="$products_empty.{$ware}" exact="$cont.cargo.{$ware}.target - $cont.cargo.{$ware}.count" operation="add"/>-->
+            <set_value name="$wares_existing.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+          </do_for_each>
+          
+          <!--Tradewares are those that are not product or resource.-->
+          <do_for_each name="$ware" in="$cont.tradewares.list">
+            <!--Add volume to products.
+            <set_value name="$products_full.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>-->
+            <set_value name="$wares_existing.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+          </do_for_each>
+        </do_for_each>
+
+        <!--Add all trade ships. 
+            These generally will not be docked, so don't do a recursive search.
+            TODO: how to limit to traders/miners.
+            -->
+        <find_ship groupname="$ships" multiple="true" recursive="false"
+                  masstraffic="false" space="player.galaxy"
+                  functional="true"/>
+        <do_for_each name="$ship" in="$ships">
+          <do_for_each name="$ware" valuename="$amount" in="$ship .cargo.table">
+            <!--<set_value name="$products_full.{$ware}" exact="$amount" operation="add"/>-->
+            <set_value name="$wares_existing.{$ware}" exact="$amount" operation="add"/>
+          </do_for_each>
+        </do_for_each>
+
+        <!--TODO: figure out how to sort by ware name.
+            Most wares come out sorted naturally, but it appears to be by order
+            in wares.xml, and the split dlc wares end up at the bottom.-->
+
+
+        <!--Header row.-->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 1, 
+              $text = 'Ware',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 2, 
+              $text = 'Supply (bar) vs Demand (marker)',
+              ]"/>
+        <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $colSpan = 5,
+          $height = 'Helper.borderSize',
+          $fontsize = 1,
+          $cellBGColor = 'Helper.color.transparent60',
+          ]"/>
+
+        
+        <!--Create the menu rows.-->
+        <do_for_each name="$ware" valuename="$wanted" in="$wares_wanted">
+          <set_value name="$exists" exact="$wares_existing.{$ware}"/>
+
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 1, 
+              $text = $ware.name,
+              ]"/>
+          <!--Will use a status bar.
+              Max point is the resource capacity.
+              Current value is the total existing.
+              If existing > capacity, the bar will rescale with the max point
+              marker moving inside.
+              'start' set to half of wanted, so if the universe has less
+              then half the wanted amount, the bar goes red.
+          -->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_StatusBar"
+            param = "table[
+              $col     = 2, 
+              $start   = $wanted / 2,
+              $current = $exists,
+              $max     = $wanted,
+              $mouseOverText = 'existing: %s / wanted: %s'.[$exists, $wanted],
+              ]"/>
+          
+        </do_for_each>        
+      </actions>
+    </cue>
+
+
+    <!--
+      Numbers of stations and ships involved in a ware.
+      Break down by:
+      - producer
+      - consumer
+      - trader station
+      - trader ship (miners will go here initially; empty ones will be skipped)
+    -->
+    <cue name="Build_Ware_Stations_Ships" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+
+        <set_value name="$wares_producers"  exact="table[]"/>
+        <set_value name="$wares_consumers"  exact="table[]"/>
+        <set_value name="$wares_traders"    exact="table[]"/>
+        <set_value name="$wares_ships"      exact="table[]"/>
+
+
+        <!--Get all stations.-->
+        <find_station groupname="$containers" space="player.galaxy" multiple="true"/>
+
+        <!--Add build storage modules for each station; these are also 
+            containers with their own cargo/etc data.-->
+        <do_for_each name="$cont" in="$containers">
+          <do_if value="$cont.buildstorage? and $cont.buildstorage != null">
+            <add_to_group groupname="$buildstorages" object="$cont.buildstorage"/>
+          </do_if>
+        </do_for_each>
+        <add_to_group groupname="$containers" group="$buildstorages"/>
+
+        <!--Main loop to gather info.-->
+        <do_for_each name="$cont" in="$containers">
+
+          <!--Go through resources.-->
+          <do_for_each name="$ware" in="$cont.resources.list">
+            <!--Make sure other tables have this ware entry.-->
+            <set_value name="$wares_consumers.{$ware}" exact="1" operation="add"/>
+            <set_value name="$wares_producers.{$ware}" exact="0" operation="add"/>
+            <set_value name="$wares_traders.{$ware}"   exact="0" operation="add"/>
+            <set_value name="$wares_ships.{$ware}"     exact="0" operation="add"/>
+          </do_for_each>
+
+          <!--Go through products.-->
+          <do_for_each name="$ware" in="$cont.products.list">
+            <set_value name="$wares_consumers.{$ware}" exact="0" operation="add"/>
+            <set_value name="$wares_producers.{$ware}" exact="1" operation="add"/>
+            <set_value name="$wares_traders.{$ware}"   exact="0" operation="add"/>
+            <set_value name="$wares_ships.{$ware}"     exact="0" operation="add"/>
+          </do_for_each>
+
+          <!--Tradewares are those that are not product or resource.-->
+          <do_for_each name="$ware" in="$cont.tradewares.list">
+            <set_value name="$wares_consumers.{$ware}" exact="0" operation="add"/>
+            <set_value name="$wares_producers.{$ware}" exact="0" operation="add"/>
+            <set_value name="$wares_traders.{$ware}"   exact="1" operation="add"/>
+            <set_value name="$wares_ships.{$ware}"     exact="0" operation="add"/>
+          </do_for_each>
+        </do_for_each>
+
+        
+        <!--Add all trade ships. 
+            These generally will not be docked, so don't do a recursive search.
+            TODO: how to limit to traders/miners.
+            -->
+        <find_ship groupname="$ships" multiple="true" recursive="false"
+                  masstraffic="false" space="player.galaxy"
+                  functional="true"/>
+        <do_for_each name="$ship" in="$ships">
+          <!--TODO: better info that captures ships when empty.-->
+          <do_for_each name="$ware" valuename="$amount" in="$ship .cargo.table">
+            <set_value name="$wares_consumers.{$ware}" exact="0" operation="add"/>
+            <set_value name="$wares_producers.{$ware}" exact="0" operation="add"/>
+            <set_value name="$wares_traders.{$ware}"   exact="0" operation="add"/>
+            <set_value name="$wares_ships.{$ware}"     exact="1" operation="add"/>
+          </do_for_each>
+        </do_for_each>
+
+        <!--TODO: figure out how to sort by ware name.
+            Most wares come out sorted naturally, but it appears to be by order
+            in wares.xml, and the split dlc wares end up at the bottom.-->
+
+        <!--Widen the first column.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Call_Table_Method"
+          param = "table[
+            $method = 'setColWidthPercent',
+            $col = 1,
+            $width = 40,
+            ]"/>
+        
+        <!--Header row.-->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 1, 
+              $text = 'Ware',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 2, 
+              $text = 'Producers',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 3, 
+              $text = 'Consumers',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 4, 
+              $text = 'Traders',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 5, 
+              $text = 'Ships',
+              ]"/>
+        <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $colSpan = 5,
+          $height = 'Helper.borderSize',
+          $fontsize = 1,
+          $cellBGColor = 'Helper.color.transparent60',
+          ]"/>
+
+
+        <!--Create the menu rows. Can loop on any table.-->
+        <do_for_each name="$ware" valuename="$consumers" in="$wares_consumers">
+          <set_value name="$producers" exact="$wares_producers.{$ware}"/>
+          <set_value name="$traders"   exact="$wares_traders.{$ware}"/>
+          <set_value name="$ships"     exact="$wares_ships.{$ware}"/>
+
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 1, 
+              $text = $ware.name,
+              ]"/>
+          
+          <!--
+            Broken into 4 columns for the above.
+          -->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 2, 
+              $text = '%s'.[$producers],
+              ]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 3, 
+              $text = '%s'.[$consumers],
+              ]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 4, 
+              $text = '%s'.[$traders],
+              ]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 5, 
+              $text = '%s'.[$ships],
+              ]"/>
+
+        </do_for_each>
+      </actions>
+    </cue>
+  </cues>
+
+</mdscript>

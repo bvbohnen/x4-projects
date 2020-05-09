@@ -21,6 +21,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_debug_info\" />
+    <Folder Include="sn_debug_info\md\" />
     <Folder Include="sn_remove_highway_blobs\" />
     <Folder Include="test_sector_resize\" />
     <Folder Include="sn_measure_perf\" />
@@ -92,6 +94,8 @@
     <Content Include="sn_better_target_monitor\t\0001-L033.xml" />
     <Content Include="sn_better_target_monitor\t\0001-L049.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
+    <Content Include="sn_debug_info\content.xml" />
+    <Content Include="sn_debug_info\md\sn_debug_info.xml" />
     <Content Include="sn_extra_game_options\t\0001.xml" />
     <Content Include="sn_friendlier_fire\change_log.md" />
     <Content Include="sn_friendlier_fire\content.xml" />
@@ -118,6 +122,7 @@
     <Content Include="sn_remove_dock_glow\.gitignore" />
     <Content Include="sn_remove_dock_glow\change_log.md" />
     <Content Include="sn_remove_dock_glow\content.xml" />
+    <Content Include="sn_remove_dock_symbol\.gitignore" />
     <Content Include="sn_remove_dock_symbol\change_log.md" />
     <Content Include="sn_remove_highway_blobs\.gitignore" />
     <Content Include="sn_remove_highway_blobs\content.xml" />

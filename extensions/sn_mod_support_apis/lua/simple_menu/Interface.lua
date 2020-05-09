@@ -271,11 +271,20 @@ function L._Process_Command(args)
         -- these methods are called like functions.
         local method_args = {menu_data.ftable}
         for i, field in ipairs(table_method_args[args.method]) do
+
             -- Error check; should have been given by user or defaults.
             if not args[field] then
                 error(table.format("Adjust_Table method '%s' missing field '%s'", args.method, field))
             end
-            table.insert(method_args, args[field])
+
+            -- If this is the "col", do an adjustment.
+            if field == "col" then
+                value = args.col + menu_data.col_adjust
+            else
+                value = args[field]
+            end
+        
+            table.insert(method_args, value)
         end
 
         -- Call the method.

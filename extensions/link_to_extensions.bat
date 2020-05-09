@@ -20,7 +20,7 @@ for %%F in (
 	sn_start_with_seta
 	sn_station_kill_helper
 
-	
+	sn_debug_info
 ) do (
 	mklink /J "%x4_path%\%%F" "%src_path%\%%F"
 )

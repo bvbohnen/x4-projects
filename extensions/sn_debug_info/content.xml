@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="sn_debug_info" 
+  name="Debug Info" 
+  description=" "
+  author="SirNukes" 
+  version="100" 
+  date="2020-5-8" 
+  save="false" 
+  sync="false">
+
+  <text language="7"  description=" "/>
+  <text language="33" description=" "/>
+  <text language="37" description=" "/>
+  <text language="39" description=" "/>
+  <text language="44" description="Added debug menus with info printouts on galaxy state."/>
+  <text language="49" description=" "/>
+  <text language="55" description=" "/>
+  <text language="81" description=" "/>
+  <text language="82" description=" "/>
+  <text language="86" description=" "/>
+  <text language="88" description=" "/>
+
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="100" optional="false"/>
+  <dependency version="300" />
+</content>
