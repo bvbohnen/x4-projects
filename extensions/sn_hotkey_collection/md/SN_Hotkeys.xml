@@ -27,8 +27,8 @@
         <set_value exact="{68537, 4002}" name="Text.$kc_eject_illegals_name" />
         <set_value exact="{68537, 4003}" name="Text.$kc_eject_illegals_mouseover" />
 
-        <!--<set_value exact="'Toggle SETA'" name="Text.$kc_toggle_seta_name" />
-        <set_value exact="'Toggles SETA mode, even when not piloting'" name="Text.$kc_toggle_seta_mouseover" />-->
+        <set_value exact="{68537, 4004}" name="Text.$kc_toggle_seta_name" />
+        <set_value exact="{68537, 4005}" name="Text.$kc_toggle_seta_mouseover" />
 
         <set_value exact="{68537, 4100}" name="Text.$kc_tracker_mine_name" />
         <set_value exact="{68537, 4101}" name="Text.$kc_mine_name" />
@@ -76,14 +76,14 @@
           $contexts    = ['flying'],
           ]"/>
 
-        <!-- Doesnt work when not piloting.
+        <!-- Doesnt work when not in pilot seat.-->
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
           $id          = 'kc_toggle_seta', 
           $onPress     = Toggle_Seta,
           $name        = Text.$kc_toggle_seta_name, 
           $description = Text.$kc_toggle_seta_mouseover, 
-          $contexts    = ['flying','walking','MapMenu'],
-          ]"/>-->
+          $contexts    = ['flying','menus'],
+          ]"/>
 
 
         <!--
@@ -289,14 +289,14 @@
       </actions>
     </cue>
 
-    <!--<cue name="Toggle_Seta" instantiate="true" namespace="this">
+    <cue name="Toggle_Seta" instantiate="true" namespace="this">
       <conditions>
         <event_cue_signalled/>
       </conditions>
       <actions>
         <toggle_timewarp/>
       </actions>
-    </cue>-->
+    </cue>
     
 
   </cues>

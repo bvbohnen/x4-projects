@@ -65,3 +65,4 @@ Change Log
   - Split off generic ui options to a separate extension.
 * 1.3
   - Fixed column indexing for Call_Table_Method on options menus.
+  - Added options menu onOpen signal param with $id, $echo, $columns.

@@ -7,3 +7,5 @@ Change Log
   - Additional consumable launch hotkeys.
 * 1.2
   - Fixed content.xml text nodes.
+* 1.3
+  - Added seta toggle key (that works while docked).

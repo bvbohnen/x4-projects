@@ -10,6 +10,9 @@ Handy ego reference code:
 - helper.lua
   Has scattered documentation on widget creation properties.
   Around ~2963 are default args for various widgets.
+
+TODO:
+- Check/enforce the widget/row/char limits defined in widget_fullscreen.lua.
 ]]
 
 

@@ -11,6 +11,9 @@
   <t id="4001">Turns on autopilot to follow the target, without needing to overwrite mission objective</t>
   <t id="4002">Eject Illegal Wares</t>
   <t id="4003">Eject any player inventory or piloted ship cargo that is illegal in the player zone</t>
+
+  <t id="4004">Toggle SETA</t>
+  <t id="4005">Toggles SETA mode; unlike the normal hotkey, this works while docked</t>
   
   <!--
   Launch consumables. {1004,55} is "Launch".

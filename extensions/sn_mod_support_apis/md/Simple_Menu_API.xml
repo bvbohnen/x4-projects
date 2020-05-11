@@ -652,6 +652,7 @@ Complex properties:
       - Do not call Create_Menu from this cue.
       - Widgets should be set up in the same frame; menu will display
         on the following frame.
+      - The event.param will hold a table including $id, $echo, $columns.
     * onRowChanged
       - Same as for Create_Menu.
     * onColChanged
@@ -660,7 +661,8 @@ Complex properties:
       - Same as for Create_Menu.
     * table
       - Same as for Create_Menu.
-                
+      
+      
     Call this each time the Reloaded cue is signalled. Example:
     ```xml
       <cue name="Register_Options_Menu" instantiate="true" namespace="this">
@@ -1648,10 +1650,13 @@ Complex properties:
     <actions>
       <!-- Grab the menu id requested. -->
       <set_value name="$id" exact="event.param3" />
+      
+      <!--Look up the args for this menu id. Suppress if not found.-->
+      <set_value name="$menu_properties" exact="@Globals.$options_submenu_specs.{'$'+$id}"/>
 
       <!-- Look up the callback cue for this submenu, using $ prefixed id. -->
-      <!-- Use @, so if a cue isn't found this yields null. -->
-      <set_value name="$cue" exact="@Globals.$options_submenu_specs.{'$'+$id}.$onOpen" />
+      <!-- Use @, so if a menu or cue isn't found this yields null. -->
+      <set_value name="$cue" exact="@$menu_properties.$onOpen" />
       
       <!-- Handle the callback, if found and still existing. -->
       <do_if value="$cue.exists">
@@ -1664,11 +1669,18 @@ Complex properties:
         <set_value name="Globals.$row_properties.{Globals.$next}" exact="[]" />
         <set_value name="Globals.$row.{Globals.$next}" exact="0" />
         <!-- Link menu_properties to the args registered. -->
-        <set_value name="Globals.$menu_properties.{Globals.$next}" exact="Globals.$options_submenu_specs.{'$'+$id}"/>
-        
+        <set_value name="Globals.$menu_properties.{Globals.$next}" exact="$menu_properties"/>
+
+        <!--Set up the signal param.-->
+        <set_value name="$event_param" exact="table[
+                   $id      = @$menu_properties.$id,
+                   $echo    = @$menu_properties.$echo,
+                   $columns = @$menu_properties.$columns,
+                   ]"/>
+
         <debug_text text="'Calling %s'.[$cue]" 
               chance="Globals.$DebugChance" filter="general"/>
-        <signal_cue_instantly cue="$cue"/>        
+        <signal_cue_instantly cue="$cue" param="$event_param"/>     
       </do_if>
       
       <!-- Print warning if no callback valid. -->

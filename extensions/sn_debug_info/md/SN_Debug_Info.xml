@@ -29,7 +29,7 @@
     </cue>
     <library name="Reset_Globals">
       <actions>
-        <!--TODO: vars as needed-->
+        <set_value name="$faction_selected" exact="null"/>
       </actions>
     </library>
 
@@ -54,7 +54,6 @@
             $onOpen           = Build_Options_Menu,
             ]"/>
 
-        <!-- Ware supply/demand. -->
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
@@ -65,20 +64,88 @@
             $private          = 1,
             ]"/>
 
-        <!-- Stations/ships associated with each ware. -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_ware_station_fill',
+            $columns          = 4,
+            $title            = 'Station Ware Fullness',
+            $onOpen           = Build_Ware_Station_Fill,
+            $private          = 1,
+            ]"/>
+
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
             $id               = 'sn_debug_info_ware_stations_ships',
             $columns          = 5,
-            $title            = 'Ware Station/Ship Counts',
+            $title            = 'Ware Using Station/Ship Counts',
             $onOpen           = Build_Ware_Stations_Ships,
+            $private          = 1,
+            ]"/>
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_ships',
+            $columns          = 2,
+            $title            = 'Ship Counts',
+            $onOpen           = Build_Ship_Counts,
+            $private          = 1,
+            ]"/>
+
+        <!--Ship weapons, separated into launchers, turrets, and misc weapons.
+        Note: class.weapon also matches turret and launcher, and class.launcher
+        matches some lasers and various turrets.
+        Just stick to weapons for now.
+        TODO: how to split these up.
+        -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_ship_weapons',
+            $columns          = 2,
+            $title            = 'Ship Weapon Counts',
+            $echo             = table[
+              $classes = [
+                class.weapon,
+              ]],
+            $onOpen           = Build_Component_Counts,
+            $private          = 1,
+            ]"/>
+
+        <!--Shield version.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_ship_shields',
+            $columns          = 2,
+            $title            = 'Ship Shield Counts',
+            $echo             = table[
+              $classes = [
+                class.shieldgenerator,
+              ]],
+            $onOpen           = Build_Component_Counts,
+            $private          = 1,
+            ]"/>
+
+        <!--Engine/thruster version. TODO: any way to split these up?-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id               = 'sn_debug_info_ship_engines',
+            $columns          = 2,
+            $title            = 'Ship Engine Counts',
+            $echo             = table[
+              $classes = [
+                class.engine,
+              ]],
+            $onOpen           = Build_Component_Counts,
             $private          = 1,
             ]"/>
 
       </actions>
     </cue>
-
 
     <!--
       Callback for building the options menu.
@@ -94,13 +161,263 @@
               $id='sn_debug_info_supply_demand',
               $text='Ware Supply/Demand',
               ]"/>
+        
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_ware_station_fill',
+              $text='Station Ware Fullness',
+              ]"/>
+
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
             param="table[
               $id='sn_debug_info_ware_stations_ships',
-              $text='Ware Station/Ship Counts',
+              $text='Ware Using Station/Ship Counts',
+              ]"/>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_ships',
+              $text='Ship Counts',
+              ]"/>
+        
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_ship_weapons',
+              $text='Ship Weapon Counts',
+              ]"/>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_ship_shields',
+              $text='Ship Shield Counts',
+              ]"/>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Submenu_Link"
+            param="table[
+              $id='sn_debug_info_ship_engines',
+              $text='Ship Engine Counts',
               ]"/>
       </actions>
     </cue>
+
+
+    <!--Handle any option changes, eg. dropdown selections.
+        Echo should hold:
+        - $type of the widget ('dropdown',etc.)
+        - global var $name
+        - $value to store (eg. a faction), or $option.$value for dropdown menus.
+        - $refresh as true if menu fresh wanted.
+    -->
+    <cue name="Handle_Option_Change" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$args" exact="event.param"/>
+        <do_if value="$args.$echo.$type == 'dropdown'">
+          <set_value name="Globals.{$args.$echo.$name}" exact="$args.$option.$value"/>
+        </do_if>
+        <do_else>
+          <set_value name="Globals.{$args.$echo.$name}" exact="$args.$echo.$value"/>
+        </do_else>
+        <do_if value="$args.$echo.$refresh">
+          <signal_cue_instantly cue="md.Simple_Menu_API.Refresh_Menu"/>
+        </do_if>
+      </actions>
+    </cue>
+
+    
+    <!--
+      Shared function adds a faction selection dropdown to a menu.
+      Option is stored in Globals.$faction_selected
+      
+      Input:
+        event.param.$columns
+    -->
+    <library name="Lib_Add_Faction_Dropdown">
+      <actions>
+        
+        <!--Collect all factions of interest.-->
+        <set_value name="$factions" exact="[null]"/>
+        <!--Note: lookup.faction.list has a tone of junk, including ~100 
+            visitor entries.  Need to filter.-->
+        <!--<append_list_elements name="$factions" other="lookup.faction.list" />-->
+        <do_for_each name="$faction" in="lookup.faction.list">
+          <!--
+            faction has some properties that help with filtering.
+            .iseconomic     : covers most primary friendly factions, not xenon.
+            .hasownaccount  : catpures player.
+            .isaggressive   : captures khaak, non xenon.
+            .willclaimspace : captures xenon
+            
+            TODO: swap around flag checks depending on if econ or ship data
+            is wanted.
+          -->
+          <do_if value="$faction.iseconomic or $faction.isaggressive 
+                        or $faction.willclaimspace or $faction.hasownaccount">
+            <append_to_list name="$factions" exact="$faction"/>
+          </do_if>
+        </do_for_each>
+        
+        <!--Figure out which entry is currently selected.-->
+        <set_value name="$dropdown_index" exact="$factions.indexof.{Globals.$faction_selected}"/>
+        
+        <!--Translate to list of tables, that pair factions with names.-->
+        <set_value name="$options_list" exact="[]"/>
+        <do_for_each name="$faction" in="$factions">
+          
+          <!--Get the name: 'All' for null, else faction name.-->
+          <do_if value="$faction == null">
+            <set_value name="$name" exact="'All'"/>
+          </do_if>
+          <do_else>
+            <set_value name="$name" exact="'%s'.[$faction]"/>
+          </do_else>
+          
+          <append_to_list name="$options_list" exact="table[
+                          $text = $name,
+                          $value = $faction,
+                          ]"/>
+        </do_for_each>
+        
+
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $text = 'Faction:', 
+          ]"/>
+        
+        <!--Have this stretch over extra columns.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Dropdown"
+          param = "table[
+          $col = 2, 
+          $options = $options_list,
+          $startOption = $dropdown_index,
+          $colSpan = event.param.$columns - 1,
+          $onDropDownConfirmed = Handle_Option_Change,
+          $echo = table[
+            $type  = 'dropdown',
+            $name  = '$faction_selected',
+            $refresh = true,
+            ],
+          ]"/>
+      </actions>
+    </library>
+
+    <!--
+      Shared function adds a horizontal line.
+      Inputs:
+        event.param.$columns
+        $thickness
+          - Int, thickness in pixels or helper string.
+    -->
+    <library name="Lib_Add_Horizontal_Line">
+      <actions>
+        <!-- Horizontal line, ego style: make empty text widget wide, thin,
+            and lightly colored. -->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $colSpan = event.param.$columns,
+          $height = $thickness,
+          $fontsize = 1,
+          $cellBGColor = 'Helper.color.grey',
+          ]"/>
+      </actions>
+    </library>
+
+    <!--
+      Shared function adds an empty row.
+      Inputs:
+        event.param.$columns
+    -->
+    <library name="Lib_Add_Empty_Row">
+      <actions>
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+          $col = 1, 
+          $colSpan = event.param.$columns,
+          $text = ' ',
+          ]"/>
+      </actions>
+    </library>
+
+    
+    <!--
+      Shared function returns a group of stations and their build storage.
+      Input:
+        Globals.$faction_selected
+        $include_buildstorage
+        - Bool, true to also include station buildstorage modules.
+      Output:
+        $stations
+    -->
+    <library name="Lib_Get_Stations">
+      <actions>
+        <do_if value="Globals.$faction_selected == null">
+          <find_station groupname="$stations" space="player.galaxy" 
+                        multiple="true"/>
+        </do_if>
+        <do_else>
+          <find_station_by_true_owner groupname="$stations" 
+                                      faction="Globals.$faction_selected" 
+                                      space="player.galaxy" multiple="true"/>
+        </do_else>
+        
+        <do_if value="@$include_buildstorage">
+        <!--Add build storage modules for each station; these are also 
+            containers with their own cargo/etc data.-->
+        <do_for_each name="$station" in="$stations">
+          <do_if value="$station.buildstorage? and $station.buildstorage != null">
+            <add_to_group groupname="$buildstorages" object="$station.buildstorage"/>
+          </do_if>
+        </do_for_each>
+        <add_to_group groupname="$stations" group="$buildstorages"/>          
+        </do_if>
+      </actions>
+    </library>
+
+    
+    <!--
+      Shared function returns a group of stations.
+      Input:
+        Globals.$faction_selected
+        $recursive
+          - true for recursive ship search.  Defaults false.
+      Output:
+        $ships
+    -->
+    <library name="Lib_Get_Ships">
+      <actions>
+        <do_if value="Globals.$faction_selected == null">
+          <!--MD is dumb as a brick sometimes, and cannot accept anything
+              except true/false for recursive.-->
+          <do_if value="@$recursive">
+          <find_ship groupname="$ships" multiple="true" recursive="true"
+                  masstraffic="false" space="player.galaxy"
+                  functional="true"/>
+          </do_if>
+          <do_else>
+            <find_ship groupname="$ships" multiple="true" recursive="false"
+                    masstraffic="false" space="player.galaxy"
+                    functional="true"/>
+          </do_else>
+        </do_if>
+        <do_else>
+          <find_ship_by_true_owner 
+            groupname="$ships" faction="Globals.$faction_selected"
+            multiple="true" masstraffic="false" 
+            space="player.galaxy" functional="true"/>
+        </do_else>
+      </actions>
+    </library>
+    
 
     <!--
       Ware supply/demand menu.
@@ -126,67 +443,47 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        
-        <!--Initial metrics: tables keyed by ware.
-        <set_value name="$resources_full"  exact="table[]"/>
-        <set_value name="$resources_empty" exact="table[]"/>
-        <set_value name="$products_full"   exact="table[]"/>
-        <set_value name="$products_empty"  exact="table[]"/>-->
+
         <set_value name="$wares_existing"  exact="table[]"/>
         <set_value name="$wares_wanted"    exact="table[]"/>
         
         
-        <!--Get all stations.-->
-        <find_station groupname="$containers" space="player.galaxy" multiple="true"/>
+        <!--Get all stations and their build storage. -->
+        <set_value name="$include_buildstorage" exact="true"/>
+        <include_actions ref="Lib_Get_Stations"/>
         
-        <!--Add build storage modules for each station; these are also 
-            containers with their own cargo/etc data.-->
-        <do_for_each name="$cont" in="$containers">
-          <do_if value="$cont.buildstorage? and $cont.buildstorage != null">
-            <add_to_group groupname="$buildstorages" object="$cont.buildstorage"/>
-          </do_if>
-        </do_for_each>
-        <add_to_group groupname="$containers" group="$buildstorages"/>
         
         <!--Main loop to gather info.-->
-        <do_for_each name="$cont" in="$containers">
-
+        <do_for_each name="$cont" in="$stations">
+          
           <!--Go through resources.-->
           <do_for_each name="$ware" in="$cont.resources.list">
-            <!--Compare target amount with actual amount.
-            <set_value name="$resources_full.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
-            <set_value name="$resources_empty.{$ware}" exact="$cont.cargo.{$ware}.target - $cont.cargo.{$ware}.count" operation="add"/>-->
             <set_value name="$wares_existing.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
             <set_value name="$wares_wanted.{$ware}" exact="$cont.cargo.{$ware}.target" operation="add"/>
           </do_for_each>
 
           <!--Go through products.-->
           <do_for_each name="$ware" in="$cont.products.list">
-            <!--Compare target amount with actual amount.
-            <set_value name="$products_full.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
-            <set_value name="$products_empty.{$ware}" exact="$cont.cargo.{$ware}.target - $cont.cargo.{$ware}.count" operation="add"/>-->
             <set_value name="$wares_existing.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+            <set_value name="$wares_wanted.{$ware}" exact="0" operation="add"/>
           </do_for_each>
           
           <!--Tradewares are those that are not product or resource.-->
           <do_for_each name="$ware" in="$cont.tradewares.list">
-            <!--Add volume to products.
-            <set_value name="$products_full.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>-->
             <set_value name="$wares_existing.{$ware}" exact="$cont.cargo.{$ware}.count" operation="add"/>
+            <set_value name="$wares_wanted.{$ware}" exact="0" operation="add"/>
           </do_for_each>
+          
+          <!--Supply storage has stuff like drones and such. TODO.-->
         </do_for_each>
 
-        <!--Add all trade ships. 
-            These generally will not be docked, so don't do a recursive search.
-            TODO: how to limit to traders/miners.
-            -->
-        <find_ship groupname="$ships" multiple="true" recursive="false"
-                  masstraffic="false" space="player.galaxy"
-                  functional="true"/>
+        
+        <!--Add all trade ships. -->
+        <include_actions ref="Lib_Get_Ships"/>
         <do_for_each name="$ship" in="$ships">
           <do_for_each name="$ware" valuename="$amount" in="$ship .cargo.table">
-            <!--<set_value name="$products_full.{$ware}" exact="$amount" operation="add"/>-->
             <set_value name="$wares_existing.{$ware}" exact="$amount" operation="add"/>
+            <set_value name="$wares_wanted.{$ware}" exact="0" operation="add"/>
           </do_for_each>
         </do_for_each>
 
@@ -194,6 +491,8 @@
             Most wares come out sorted naturally, but it appears to be by order
             in wares.xml, and the split dlc wares end up at the bottom.-->
 
+        <!--Faction selection row. Shared code.-->
+        <include_actions ref="Lib_Add_Faction_Dropdown"/>
 
         <!--Header row.-->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
@@ -210,18 +509,8 @@
               $col = 2, 
               $text = 'Supply (bar) vs Demand (marker)',
               ]"/>
-        <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
-                              param ="table[$selectable = false]"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Text"
-          param = "table[
-          $col = 1, 
-          $colSpan = 5,
-          $height = 'Helper.borderSize',
-          $fontsize = 1,
-          $cellBGColor = 'Helper.color.transparent60',
-          ]"/>
+        <set_value name="$thickness" exact="2"/>
+        <include_actions ref="Lib_Add_Horizontal_Line"/>
 
         
         <!--Create the menu rows.-->
@@ -257,7 +546,165 @@
       </actions>
     </cue>
 
+    
 
+    <!--
+      Fullness of stations on input or output wares.
+      4 columns total: ware, resource fullness, production fullness, trade fullness.
+      
+      This will look at ware "target" amounts.
+      An alternative approach would be to look at ware pricing, compared
+      to min/max, though that might be affected by other modifiers.
+      
+      TODO: swap over to % fills instead of total fills, so large stations
+      don't overwhelm small ones. (Maybe a minor difference for npc stuff.)
+    -->
+    <cue name="Build_Ware_Station_Fill" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+
+        <set_value name="$resources_have"  exact="table[]"/>
+        <set_value name="$resources_max"   exact="table[]"/>
+        <set_value name="$products_have"   exact="table[]"/>
+        <set_value name="$products_max"    exact="table[]"/>
+        <set_value name="$trades_have"     exact="table[]"/>
+        <set_value name="$trades_max"      exact="table[]"/>
+
+
+        <!--Get all stations. Note: buildstorage only user of some wares.-->
+        <set_value name="$include_buildstorage" exact="true"/>
+        <include_actions ref="Lib_Get_Stations"/>
+
+
+        <!--Main loop to gather info. Add dummies to unused tables.-->
+        <do_for_each name="$cont" in="$stations">
+          <!--Go through resources.-->
+          <do_for_each name="$ware" in="$cont.resources.list">
+            <set_value name="$resources_have.{$ware}" exact="$cont.cargo.{$ware}.count"  operation="add"/>
+            <set_value name="$resources_max.{$ware}"  exact="$cont.cargo.{$ware}.target" operation="add"/>
+            <set_value name="$products_have.{$ware}"  exact="0" operation="add"/>
+            <set_value name="$products_max.{$ware}"   exact="0" operation="add"/>
+            <set_value name="$trades_have.{$ware}"    exact="0" operation="add"/>
+            <set_value name="$trades_max.{$ware}"     exact="0" operation="add"/>
+          </do_for_each>
+
+          <!--Go through products.-->
+          <do_for_each name="$ware" in="$cont.products.list">
+            <set_value name="$resources_have.{$ware}" exact="0" operation="add"/>
+            <set_value name="$resources_max.{$ware}"  exact="0" operation="add"/>
+            <set_value name="$products_have.{$ware}" exact="$cont.cargo.{$ware}.count"  operation="add"/>
+            <set_value name="$products_max.{$ware}"  exact="$cont.cargo.{$ware}.target" operation="add"/>
+            <set_value name="$trades_have.{$ware}"    exact="0" operation="add"/>
+            <set_value name="$trades_max.{$ware}"     exact="0" operation="add"/>
+          </do_for_each>
+
+          <!--Tradewares are those that are not product or resource.-->
+          <do_for_each name="$ware" in="$cont.tradewares.list">
+            <set_value name="$resources_have.{$ware}" exact="0" operation="add"/>
+            <set_value name="$resources_max.{$ware}"  exact="0" operation="add"/>
+            <set_value name="$products_have.{$ware}"  exact="0" operation="add"/>
+            <set_value name="$products_max.{$ware}"   exact="0" operation="add"/>
+            <set_value name="$trades_have.{$ware}"    exact="$cont.cargo.{$ware}.count"  operation="add"/>
+            <set_value name="$trades_max.{$ware}"     exact="$cont.cargo.{$ware}.target" operation="add"/>
+          </do_for_each>
+
+          <!--Supply storage has stuff like drones and such. TODO.-->
+        </do_for_each>
+        
+
+        <!--Faction selection row. Shared code.-->
+        <include_actions ref="Lib_Add_Faction_Dropdown"/>
+
+        <!--Header row.-->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                              param ="table[$selectable = false]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 1, 
+              $text = 'Ware',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 2, 
+              $text = 'Producers',
+              $mouseover = 'Overall fullness of producing stations',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 3, 
+              $text = 'Consumers',
+              $mouseover = 'Overall fullness of consuming stations',
+              ]"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 4, 
+              $text = 'Traders',
+              $mouseover = 'Overall fullness of trading stations',
+              ]"/>
+        <set_value name="$thickness" exact="2"/>
+        <include_actions ref="Lib_Add_Horizontal_Line"/>
+
+
+        <!--Create the menu rows.-->
+        <do_for_each name="$ware" in="$resources_have.keys.list">
+
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = 1, 
+              $text = $ware.name,
+              ]"/>
+          
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_StatusBar"
+            param = "table[
+              $col     = 2, 
+              $start   = 0,
+              $current = $products_have.{$ware},
+              $max     = $products_max.{$ware},
+              $mouseOverText = 'holding: %s / target: %s'.[
+                                $products_have.{$ware}, 
+                                $products_max.{$ware}],
+              ]"/>
+
+          <!--Ideally make red if above 1/4, but no clear way to do it.-->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_StatusBar"
+            param = "table[
+              $col     = 3, 
+              $start   = 0,
+              $current = $resources_have.{$ware},
+              $max     = $resources_max.{$ware},
+              $mouseOverText = 'holding: %s / target: %s'.[
+                                $resources_have.{$ware}, 
+                                $resources_max.{$ware}],
+              ]"/>
+
+          <!--Never red; not critical.-->
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_StatusBar"
+            param = "table[
+              $col     = 4, 
+              $start   = 0,
+              $current = $trades_have.{$ware},
+              $max     = $trades_max.{$ware},
+              $mouseOverText = 'holding: %s / target: %s'.[
+                                $trades_have.{$ware}, 
+                                $trades_max.{$ware}],
+              ]"/>
+
+        </do_for_each>
+      </actions>
+    </cue>
+    
+    
     <!--
       Numbers of stations and ships involved in a ware.
       Break down by:
@@ -278,20 +725,12 @@
         <set_value name="$wares_ships"      exact="table[]"/>
 
 
-        <!--Get all stations.-->
-        <find_station groupname="$containers" space="player.galaxy" multiple="true"/>
-
-        <!--Add build storage modules for each station; these are also 
-            containers with their own cargo/etc data.-->
-        <do_for_each name="$cont" in="$containers">
-          <do_if value="$cont.buildstorage? and $cont.buildstorage != null">
-            <add_to_group groupname="$buildstorages" object="$cont.buildstorage"/>
-          </do_if>
-        </do_for_each>
-        <add_to_group groupname="$containers" group="$buildstorages"/>
+        <!--Get all stations; also their build storage for now. -->
+        <set_value name="$include_buildstorage" exact="true"/>
+        <include_actions ref="Lib_Get_Stations"/>
 
         <!--Main loop to gather info.-->
-        <do_for_each name="$cont" in="$containers">
+        <do_for_each name="$cont" in="$stations">
 
           <!--Go through resources.-->
           <do_for_each name="$ware" in="$cont.resources.list">
@@ -320,13 +759,8 @@
         </do_for_each>
 
         
-        <!--Add all trade ships. 
-            These generally will not be docked, so don't do a recursive search.
-            TODO: how to limit to traders/miners.
-            -->
-        <find_ship groupname="$ships" multiple="true" recursive="false"
-                  masstraffic="false" space="player.galaxy"
-                  functional="true"/>
+        <!--Add all trade ships. -->
+        <include_actions ref="Lib_Get_Ships"/>
         <do_for_each name="$ship" in="$ships">
           <!--TODO: better info that captures ships when empty.-->
           <do_for_each name="$ware" valuename="$amount" in="$ship .cargo.table">
@@ -335,6 +769,15 @@
             <set_value name="$wares_traders.{$ware}"   exact="0" operation="add"/>
             <set_value name="$wares_ships.{$ware}"     exact="1" operation="add"/>
           </do_for_each>
+          
+          <!--Check trade orders.-->
+          <do_for_each name="$order" in="$ship.tradeorders">
+            <!--TODO-->
+          </do_for_each>
+          
+
+          <!--Check mining orders.-->
+          
         </do_for_each>
 
         <!--TODO: figure out how to sort by ware name.
@@ -349,7 +792,11 @@
             $col = 1,
             $width = 40,
             ]"/>
+
         
+        <!--Faction selection row. Shared code.-->
+        <include_actions ref="Lib_Add_Faction_Dropdown"/>
+
         <!--Header row.-->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
                               param ="table[$selectable = false]"/>
@@ -383,18 +830,8 @@
               $col = 5, 
               $text = 'Ships',
               ]"/>
-        <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
-        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
-                              param ="table[$selectable = false]"/>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Make_Text"
-          param = "table[
-          $col = 1, 
-          $colSpan = 5,
-          $height = 'Helper.borderSize',
-          $fontsize = 1,
-          $cellBGColor = 'Helper.color.transparent60',
-          ]"/>
+        <set_value name="$thickness" exact="2"/>
+        <include_actions ref="Lib_Add_Horizontal_Line"/>
 
 
         <!--Create the menu rows. Can loop on any table.-->
@@ -442,6 +879,250 @@
         </do_for_each>
       </actions>
     </cue>
-  </cues>
 
+
+    <!--
+      Shared lib for printing out class component/macro counters.
+      Inputs:
+        $reverse
+        - Bool, if true then print classes in reverse.
+        $class_component_counts
+        - Table, keyed by class, then by object, holding counts.
+        $class_labels
+        - Table matching outer keys to labels.
+        event.param.$columns
+        - Int, column count to spread over.
+    -->
+    <library name="Lib_Print_Counts">
+      <actions>
+        
+        <!--Header row.-->
+        <!-- -Removed, don't really need; would need to customize anyway.-->
+        <do_if value="false">
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
+                                param ="table[$selectable = false]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                $col = 1, 
+                $text = 'Object',
+                ]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                $col = 2, 
+                $text = 'Count',
+                ]"/>
+          <set_value name="$thickness" exact="2"/>
+          <include_actions ref="Lib_Add_Horizontal_Line"/>
+        </do_if>
+
+        <!--TODO: how to sort.-->
+
+
+        <!--Total of all objects. Skip if just one entry.-->
+        <do_if value="$class_component_counts.keys.list.count > 1">
+
+          <!--Sum them, nested loops.-->
+          <set_value name="$total_count" exact="0"/>
+          <do_for_each name="$class" valuename="$comp_counts" in="$class_component_counts">
+            <do_for_each name="$comp" valuename="$count" in="$comp_counts">
+              <set_value name="$total_count" exact="$count" operation="add"/>
+            </do_for_each>
+          </do_for_each>
+
+          <!--Print the line.-->
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                  $col = 1, 
+                  $text = 'Total',
+                  ]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                  $col = 2, 
+                  $text = '%s'.[$total_count],
+                  ]"/>
+
+          <!--Spacing before subheader.-->
+          <include_actions ref="Lib_Add_Empty_Row"/>
+
+        </do_if>
+
+
+        <!--
+          Create the menu rows.
+          Organize by class in the outer loop.
+          Handle sorting first.
+        -->
+        <!--Can't put reverse="$var" because md is dumb as a snail, so pre-reverse.-->
+        <set_value name="$classes_sorted" exact="$class_component_counts.keys.list"/>
+        
+        <do_if value="@$reverse">
+          <set_value name="$classes_sorted2" exact="[]"/>
+          <do_for_each name="$temp" in="$classes_sorted" reverse="true">
+            <append_to_list name="$classes_sorted2" exact="$temp"/>
+          </do_for_each>
+          <set_value name="$classes_sorted" exact="$classes_sorted2"/>
+        </do_if>
+
+        
+        <do_for_each name="$class" in="$classes_sorted">
+          <set_value name="$comp_counts" exact="$class_component_counts.{$class}"/>
+
+          <!--Total of this type.-->
+          <set_value name="$comp_count" exact="0"/>
+          <do_for_each name="$comp" valuename="$count" in="$comp_counts">
+            <set_value name="$comp_count" exact="$count" operation="add"/>
+          </do_for_each>
+
+          <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                $col = 1, 
+                $text = '%s Total'.[$class_labels.{$class}],
+                ]"/>
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+                $col = 2, 
+                $text = '%s'.[$comp_count],
+                ]"/>
+          <set_value name="$thickness" exact="1"/>
+          <include_actions ref="Lib_Add_Horizontal_Line"/>
+
+          <!--Sort by count, ascending.-->
+          <set_value name="$comps_sorted" exact="$comp_counts.keys.sorted"/>
+          
+          <!--Loop over them descending.-->
+          <do_for_each name="$comp" in="$comps_sorted" reverse="true">
+            <set_value name="$count" exact="$comp_counts.{$comp}"/>
+
+            <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+            <signal_cue_instantly
+              cue="md.Simple_Menu_API.Make_Text"
+              param = "table[
+                $col = 1, 
+                $text = $comp.name,
+                ]"/>
+            <signal_cue_instantly
+              cue="md.Simple_Menu_API.Make_Text"
+              param = "table[
+                $col = 2, 
+                $text = '%s'.[$count],
+                ]"/>
+          </do_for_each>
+
+          <!--Spacing before next subheader.-->
+          <include_actions ref="Lib_Add_Empty_Row"/>
+
+        </do_for_each>        
+      </actions>
+    </library>
+    
+    <!--
+      Counts of each ship macro, per faction.
+    -->
+    <cue name="Build_Ship_Counts" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+
+        <!--Organize by ship size.-->
+        <set_value name="$class_component_counts"  exact="table[
+                    {class.ship_xl} = table[],
+                    {class.ship_l}  = table[],
+                    {class.ship_m}  = table[],
+                    {class.ship_s}  = table[],
+                    {class.ship_xs} = table[],
+                   ]"/>
+        <!--Titles for each class (unclear if there is a good natural way).-->
+        <set_value name="$class_labels"  exact="table[
+                    {class.ship_xl} = 'XL',
+                    {class.ship_l}  = 'L',
+                    {class.ship_m}  = 'M',
+                    {class.ship_s}  = 'S',
+                    {class.ship_xs} = 'XS',
+                   ]"/>
+
+        <set_value name="$recursive" exact="true"/>
+        <include_actions ref="Lib_Get_Ships"/>
+        <do_for_each name="$ship" in="$ships">
+          <set_value name="$class_component_counts.{$ship.class}.{$ship.macro}" exact="1" operation="add"/>
+        </do_for_each>
+
+        
+        <!--Faction selection row. Shared code.-->
+        <include_actions ref="Lib_Add_Faction_Dropdown"/>
+
+        <!--Print it all, reversing the classes to get xl to xs.-->
+        <set_value name="$reverse" exact="true"/>
+        <include_actions ref="Lib_Print_Counts"/>
+      </actions>
+    </cue>
+
+
+    <!--
+      Counts of each weapon, turret, or other component in use.
+      Call event.param should have $echo table with:
+        $classes
+          - List of component classes to include in this menu.
+          - If an object belongs to multiple classes, it will add to the first
+            match found in this list.
+    -->
+    <cue name="Build_Component_Counts" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+
+        <set_value name="$class_component_counts"  exact="table[]"/>
+
+        <!--Add initial empty tables for each class.-->
+        <do_for_each name="$class" in="event.param.$echo.$classes">
+          <set_value name="$class_component_counts.{$class}" exact="table[]"/>
+        </do_for_each>
+        
+        <!--Titles for each class (unclear if there is a good natural way).
+          This can be specified for all expected classes that will be used.
+        -->
+        <set_value name="$class_labels"  exact="table[
+                    {class.weapon}           = 'Weapon',
+                    {class.turret}           = 'Turret',
+                    {class.launcher}         = 'Launcher',
+                    {class.shieldgenerator}  = 'Shield Generator',
+                    {class.engine}           = 'Engine/Thruster',
+                   ]"/>
+        
+        <!--Look through all ships. TODO: recursive-->
+        <set_value name="$recursive" exact="true"/>
+        <include_actions ref="Lib_Get_Ships"/>
+        <do_for_each name="$ship" in="$ships">
+
+          <!--Loop over classes of interest.-->
+          <do_for_each name="$class" in="$class_component_counts.keys.list">
+            <!--Find the components.-->
+            <find_object_component name="$comps" object="$ship" class="$class" multiple="true"/>
+            <do_for_each name="$comp" in="$comps">
+              <set_value name="$class_component_counts.{$class}.{$comp.macro}" exact="1" operation="add"/>
+            </do_for_each>
+          </do_for_each>
+          
+        </do_for_each>
+
+        <!--TODO: merge a lot of this code with the above ship stuff.-->
+
+        <!--Faction selection row. Shared code.-->
+        <include_actions ref="Lib_Add_Faction_Dropdown"/>
+
+        <!--Print it all.-->
+        <include_actions ref="Lib_Print_Counts"/>
+      </actions>
+    </cue>
+    
+  </cues>
 </mdscript>
