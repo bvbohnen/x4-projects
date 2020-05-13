@@ -13,7 +13,7 @@ local debug = {
     -- If extra status messages should print to the chat window.
     print_to_chat = false,
     -- If status messages should print to the debuglog.
-    print_to_log = false,    
+    print_to_log = false,
     }
     
 
@@ -68,9 +68,12 @@ Each entry is a subtable with these fields:
 * suppress_reads_when_paused
   - Bool, if true then messages read during a game pause are thrown away.
 * read_fifo
-  - FIFO of callback IDs or function handles for read completions.
+  - FIFO of lists of [callback IDs or function handles, continuous_read]
+    for read completions.
   - Callback ID is a string.
   - Function handle is for any lua function, taking 1 argument.
+  - continuous_read is a bool, if true then the current read request at the
+    top of the fifo will not be removed by normal read messages.
   - Entries removed as reads complete.
   - When empty, stop trying to read this pipe.
 * write_fifo
@@ -114,12 +117,17 @@ end
 -- Scheduling reads/writes.
 
 -- Schedule a pipe to be read.
-function L.Schedule_Read(pipe_name, callback)
+function L.Schedule_Read(pipe_name, callback, continuous_read)
     -- Declare the pipe, if needed.
     L.Declare_Pipe(pipe_name)
+
+    if continuous_read and debug.print_to_log then
+        DebugError("Schedule_Read set for continuous_read of pipe "..pipe_name)
+    end
     
-    -- Add the id to the fifo.
-    FIFO.Write(pipes[pipe_name].read_fifo, callback)
+    -- Add the callback and continuous_read flag to the fifo.
+    FIFO.Write(pipes[pipe_name].read_fifo, {callback, continuous_read})
+
 
     -- If the read polling function isn't currently active, activate it.
     if L.read_polling_active == false then
@@ -173,11 +181,14 @@ end
 
 -- Deschedule pending pipe reads, triggering error callbacks.
 function L.Deschedule_Reads(pipe_name)
+    if pipes[pipe_name] == nil then
+        return
+    end
     local read_fifo  = pipes[pipe_name].read_fifo
 
     while not FIFO.Is_Empty(read_fifo) do
         -- Grab the callback out of the fifo.
-        local callback = FIFO.Read(read_fifo)
+        local callback, continuous_read = unpack(FIFO.Read(state.read_fifo))
         
         -- Send back to md or lua with an error.
         if type(callback) == "string" then
@@ -190,6 +201,9 @@ end
 
 -- Deschedule pending pipe writes, triggering error callbacks.
 function L.Deschedule_Writes(pipe_name)
+    if pipes[pipe_name] == nil then
+        return
+    end
     local write_fifo  = pipes[pipe_name].write_fifo
     
     while not FIFO.Is_Empty(write_fifo) do    
@@ -300,7 +314,7 @@ function L.Declare_Pipe(pipe_name)
             retry_allowed = false,
             suppress_reads_when_paused = false,
             write_fifo = FIFO.new(),
-            read_fifo  = FIFO.new()
+            read_fifo  = FIFO.new(),
         }
         
         -- Attach the garbage collector function.
@@ -427,7 +441,7 @@ function L.Close_Pipe(pipe_name)
     
     while not FIFO.Is_Empty(read_fifo) do
         -- Grab the callback out of the fifo.
-        local callback = FIFO.Read(read_fifo)
+        local callback, continuous_read = unpack(FIFO.Read(state.read_fifo))
         
         -- Send back to md or lua with an error.
         if type(callback) == "string" then
@@ -476,7 +490,11 @@ function L.Poll_For_Reads()
                     -- Obtained a message.
                 
                     -- Grab the read_id out of the fifo.
-                    local callback = FIFO.Read(state.read_fifo)
+                    -- Don't remove if in continuous read mode.
+                    local callback, continuous_read = unpack(FIFO.Next(state.read_fifo))
+                    if not continuous_read then
+                        FIFO.Read(state.read_fifo)
+                    end
                     
                     -- Debug print.
                     if debug.print_to_chat then
@@ -572,6 +590,10 @@ function L.Poll_For_Writes()
                     if debug.print_to_chat then
                         CallEventScripts("directChatMessageReceived", pipe_name..";Wrote: "..message)
                     end
+                    if debug.print_to_log then
+                        DebugError(pipe_name.." Wrote: '"..message.."' with callback "..tostring(callback))
+                    end
+                    
                 
                     -- Remove the entry from the fifo.
                     FIFO.Read(state.write_fifo)

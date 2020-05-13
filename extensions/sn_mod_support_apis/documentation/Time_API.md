@@ -14,6 +14,9 @@ Other lua modules may require() this module to access these api functions:
   - Callback function is given the current engine time.
 * Unregister_NewFrame_Callback(function)
   - Remove a per-frame callback function that was registered.
+* Set_Alarm(id, time, function)
+  - Sets a single-fire alarm to trigger after the given time elapses.
+  - Callback function is called with args: (id, alarm_time), where the alarm_time is the original scheduled time of the alarm, which will generally be sometime earlier than the current time (due to frame boundaries).
 
 An MD ui event is raised on every frame, which MD cues may listen to. The event.param3 will be the current engine time. Example: `<event_ui_triggered screen="'Time'" control="'Frame_Advanced'" />`
 

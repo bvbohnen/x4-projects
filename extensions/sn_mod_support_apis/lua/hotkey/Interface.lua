@@ -5,6 +5,29 @@ to leverage existing code for allowing players to customize hotkeys.
 
 Patches the OptionsMenu.
 
+Notes on edit boxes:
+    The external hotkey detection has no implicit knowledge of the in-game
+    context of the keys.
+    Contexts are resolved partially below and in md by detecting if the
+    player is flying, on foot, or in a menu (and which menu).
+    However, complexity arises when the player is trying to type into
+    an edit box (or similar), where hotkeys should be suppressed.
+    Edit box activation and deactivation callbacks can be difficult to
+    get at, notably the chat window that is present in a flying context.
+
+    As a possible workaround, registerForEvent can be used on the ui to
+    catch directtextinput events, which fire once per key press for an
+    edit box. This can potentially be used to suppress key events.
+
+    Functionality: on direct input key, set an alarm for some time in the
+    future.  Immediately signal the md to suppress keys. After the alarm
+    goes off, signal md to reenable keys. If more direct inputs come in
+    during this period, have them just reset the alarm time.
+    The alarm should be long enough to cover the latency from the external
+    python code through the pipe to the game. That is not well measured,
+    but some generous delay should handle the large majority of cases,
+    unless there was some odd hiccup on key processing.
+
 TODO: split apart md interface stuff from the menu plugin stuff,
 to reduce file sizes.
 ]]
@@ -26,6 +49,7 @@ ffi.cdef[[
 
 -- Imports.
 local Lib = require("extensions.sn_mod_support_apis.lua.Library")
+local Time = require("extensions.sn_mod_support_apis.lua.time.Interface")
 local T = require("extensions.sn_mod_support_apis.lua.Text")
 local Tables = require("extensions.sn_mod_support_apis.lua.hotkey.Tables")
 local config = Tables.config
@@ -48,6 +72,13 @@ local L = {
 
     -- Status of the pipe connection, updated from md.
     pipe_connected = false,
+
+    -- How long to wait after a direct input before reenabling hotkeys.
+    direct_input_suppress_time = 0.5,
+    -- Id to use for the alarm.
+    alarm_id = "hotkey_directinput_timeout",
+    -- If input currently disabled. Used to suppress some excess signals.
+    alarm_pending = false,
     }
 
 
@@ -66,10 +97,17 @@ end
 
 local function Init()
 
+    -- Set up ui linkage to listen for text entry state changes.
+    -- (Goal is to suppress hotkeys when entering text.)
+    L.scene            = getElement("Scene")
+    L.contract         = getElement("UIContract", L.scene)
+    registerForEvent("directtextinput"          , L.contract, L.onEvent_directtextinput)
+
     -- MD triggered events.
     RegisterEvent("Hotkey.Update_Actions", L.Update_Actions)
     RegisterEvent("Hotkey.Update_Player_Keys", L.Read_Player_Keys)
     RegisterEvent("Hotkey.Update_Connection_Status", L.Update_Connection_Status)
+    RegisterEvent("Hotkey.Process_Message", L.Process_Message)
     
     -- Cache the player component id.
     L.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
@@ -78,7 +116,120 @@ local function Init()
     -- This will also trigger md to send over its stored list of
     -- player assigned keys.
     Raise_Signal("reloaded")
+
+    -- Run the menu init stuff.
+    L.Init_Menu()
+end
+
+-------------------------------------------------------------------------------
+-- Handle direct input detection.
+
+-- Handler for direct input key presses.
+-- Fires once for each key.
+function L.onEvent_directtextinput(some_userdata, char_entered)
+    -- Note: to get number of vargs, use: select("#",...)
+    -- This appears to receive 3 args according to the "...", but when trying
+    -- to capture them only get 2 args.
+    -- First arg is some userdata object, second is the key pressed (not
+    -- as a keycode).
+
+    --DebugError("Caught directtextinput event; starting disable")
+
+    -- Signal md to suppress hotkeys, if not already disabled.
+    if not L.alarm_pending then
+        Raise_Signal("disable")
+        L.alarm_pending = true
+    end
+
+    -- Start or reset the timer.
+    Time.Set_Alarm(L.alarm_id, L.direct_input_suppress_time, L.Reenable_Hotkeys)
+end
+
+function L.Reenable_Hotkeys()
+    --DebugError("directtextinput event timed out; ending disable")
+    Raise_Signal("enable")
+    L.alarm_pending = false
+end
+
+
+-------------------------------------------------------------------------------
+-- MD -> Lua signal handlers
+
+-- Process a pipe message, a series of matched hotkey event names
+-- semicolon separated.
+function L.Process_Message(_, message)
+    -- Split it.
+    local events = Lib.Split_String_Multi(message, ";")
+    -- Add '$' prefixes and return.
+    for i, event in ipairs(events) do
+        events[i] = "$"..event
+    end
+    -- Send back.
+    Raise_Signal("handle_events", events)
+end
+
+-- Handle md pipe connection status update. Param is 0 or 1.
+function L.Update_Connection_Status(_, connected)
+    -- Translate the 0 or 1 to false/true.
+    if connected == 0 then 
+        L.pipe_connected = false 
+    else 
+        L.pipe_connected = true 
+    end
+end
+
+-- Handle md requests to update the action registry.
+-- Reads data from a player blackboard var.
+function L.Update_Actions()
+    -- Args are attached to the player component object.
+    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_actions")
+
+    -- Note: md may have sent several of these events on the same frame,
+    -- in which case the blackboard var has just the args for the latest
+    -- event, and later events processed will get nil.
+    -- Skip those nil cases.
+    if not md_table then return end
+    L.action_registry = md_table
+
+    -- Clear the md var by writing nil.
+    SetNPCBlackboard(L.player_id, "$hotkey_api_actions", nil)
     
+    --Lib.Print_Table(L.action_registry, "Update_Actions action_registry")
+end
+
+-- Read in the stored list of player action keys.
+-- Generally md will send this on init.
+function L.Read_Player_Keys()
+    -- Args are attached to the player component object.
+    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md")
+    -- This shouldn't get getting nil values since the md init is
+    -- sent just once, but play it safe.
+    if not md_table then return end
+    L.player_action_keys = md_table
+
+    -- Clear the md var by writing nil.
+    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md", nil)
+    
+    --Lib.Print_Table(L.player_action_keys, "Read_Player_Keys player_action_keys")
+end
+
+-- Write to the list of player action keys to be stored in md.
+-- This could be integrated into remapInput, but kept separate for now.
+function L.Write_Player_Keys()
+    -- Args are attached to the player component object.
+    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_lua", L.player_action_keys)
+    Raise_Signal("Store_Player_Keys")
+    
+    --Lib.Print_Table(L.player_action_keys, "Write_Player_Keys player_action_keys")
+end
+
+
+
+-------------------------------------------------------------------------------
+-- Menu setup.
+-- TODO: break into more init subfunctions for organization.
+
+function L.Init_Menu()
     -- Look up the menu, store in this module's local.
     menu = Lib.Get_Egosoft_Menu("OptionsMenu")
     
@@ -262,6 +413,9 @@ local function Init()
 
 end
 
+-------------------------------------------------------------------------------
+-- Menu open/close handlers.
+
 -- Note: TopLevelMenu is the default when no other menus are open, and will
 -- generally be ignored here.
 -- This is called when menus are closed in Helper.
@@ -333,62 +487,6 @@ end
 -- Fire it off.
 L.Input_Listener()
 ]]
-
--- Handle md pipe connection status update. Param is 0 or 1.
-function L.Update_Connection_Status(_, connected)
-    -- Translate the 0 or 1 to false/true.
-    if connected == 0 then 
-        L.pipe_connected = false 
-    else 
-        L.pipe_connected = true 
-    end
-end
-
--- Handle md requests to update the action registry.
--- Reads data from a player blackboard var.
-function L.Update_Actions()
-    -- Args are attached to the player component object.
-    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_actions")
-
-    -- Note: md may have sent several of these events on the same frame,
-    -- in which case the blackboard var has just the args for the latest
-    -- event, and later events processed will get nil.
-    -- Skip those nil cases.
-    if not md_table then return end
-    L.action_registry = md_table
-
-    -- Clear the md var by writing nil.
-    SetNPCBlackboard(L.player_id, "$hotkey_api_actions", nil)
-    
-    --Lib.Print_Table(L.action_registry, "Update_Actions action_registry")
-end
-
--- Read in the stored list of player action keys.
--- Generally md will send this on init.
-function L.Read_Player_Keys()
-    -- Args are attached to the player component object.
-    local md_table = GetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md")
-    -- This shouldn't get getting nil values since the md init is
-    -- sent just once, but play it safe.
-    if not md_table then return end
-    L.player_action_keys = md_table
-
-    -- Clear the md var by writing nil.
-    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_md", nil)
-    
-    --Lib.Print_Table(L.player_action_keys, "Read_Player_Keys player_action_keys")
-end
-
--- Write to the list of player action keys to be stored in md.
--- This could be integrated into remapInput, but kept separate for now.
-function L.Write_Player_Keys()
-    -- Args are attached to the player component object.
-    SetNPCBlackboard(L.player_id, "$hotkey_api_player_keys_from_lua", L.player_action_keys)
-    Raise_Signal("Store_Player_Keys")
-    
-    --Lib.Print_Table(L.player_action_keys, "Write_Player_Keys player_action_keys")
-end
-
 
 
 -- Patch to add custom keys to the control remap menu.

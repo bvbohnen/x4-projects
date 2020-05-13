@@ -114,6 +114,9 @@ function L.Init()
     RegisterEvent("Simple_Menu_Options.disable_helptext"      , L.Handle_Hide_Helptext)
     RegisterEvent("Simple_Menu_Options.tooltip_on_truncation" , L.Handle_Tooltip_On_Truncation)
     
+    RegisterEvent("Simple_Menu_Options.traffic_density"       , L.Handle_Set_Traffic_Density)
+    RegisterEvent("Extra_Game_Options.get_lua_values"         , L.Handle_Get_Lua_Values)
+    
 
     -- Testing.
     --Lib.Print_Table(_G, "_G")
@@ -130,6 +133,27 @@ function L.Init()
     -- Global config table.
     --Lib.Print_Table(config, "global_config")
 end
+
+-- Return some lua accessible values to md during setup.
+function L.Handle_Get_Lua_Values()
+    local ret_table = {}
+
+    -- Traffic density lookup from config.xml.
+    local value = GetTrafficDensityOption()
+    -- Adjust to percent.
+    value = math.floor(value * 100 + 0.5)
+    value = math.max(0, value)
+    value = math.min(100, value)
+    ret_table['traffic_density'] = value
+    
+    -- Fov lookup from config.xml.
+    -- No adjustments.
+    -- Removed for now due to fov drift problems.
+    --ret_table['adjust_fov'] = GetFOVOption()
+
+    AddUITriggeredEvent("Extra_Game_Options", "return_lua_values", ret_table)
+end
+
 
 ------------------------------------------------------------------------------
 -- Testing edits to map menu opacity.
@@ -341,11 +365,16 @@ end
     There is an unused global function for changing field of view.
     By experiment, its input appears to be a multiplier on the default
     fov, upscaled 10x.  Eg. '10' is nominal, '13' adds 30%, etc.
+    The baseline value varies by resolution; not always 10.
+
     SetFOVOption(mult_x10)
 
     The ui gets squished or stretched with the fov adjustment, so it
     doesn't make sense to go smaller (cuts off ui) or much higher
-    (ui hard to read). This will limit to 1x to 1.3x for now.
+    (ui hard to read). Though going smaller could be useful for a
+    zoom feature.
+    Update: a some point (3.0 betas probably), this was fixed and the
+    ui now scales with fov properly.
 
     In testing:
         Works okay initially.
@@ -354,29 +383,48 @@ end
         Eg. if fov was changed to 12 (+20%), and player gets in a spacesuit,
         then 12 will become standard fov, and getting back the +20% would
         require setting fov to 14.4.
+        This is still the case in v3.2.
 
-    For now, this is disabled in the options menu pending further development
-    to work around issues.
-    (Would GetFOVOption be helpful at all?)
+    Go back to disabling this md-side as unsafe.
 
-    Note:
-    When accidentally applying the default 100 fov (translated to 10),
-    a user reported it changing their zoom.  The 10 value may just be
-    for 16:10 ratio, and the default might differ for other resolutions.
 ]]
--- This will take the multiplier as a %.
-function L.Handle_FOV(_, new_mult)
-    -- Validate within reasonable size limits.
-    if new_mult < 100 or new_mult > 130 then
-        error("Handle_FOV received unsupported size: "..tostring(new_mult))
-    end
+function L.Handle_FOV(_, new_fov)
     if debugger.verbose then
-        DebugError("Handle_FOV called with " .. tostring(new_mult))
+        DebugError("Handle_FOV called with " .. tostring(new_fov))
     end
-
-    -- Adjust the % to center around 10.
-    SetFOVOption(new_mult / 10)
+    SetFOVOption(new_fov)
 end
+
+
+------------------------------------------------------------------------------
+--[[
+    Mass traffic density is an option in the config file, apparently 
+    functional, but not exposed in the options. There are, however,
+    lua globals for modifying it.
+
+    In spot checking, the value is a float, 0 to 1. Eg. 0.5 for half.
+    Note: unlike other options, this one isn't saved in the md, but
+    is part of the player config.xml. This will send the current config
+    value back to md at startup.
+
+    Note: md-side option will be in percent 0 to 100, converted to float
+    0.0 to 1.0 here.
+]]
+
+function L.Handle_Set_Traffic_Density(_, new_value)
+    if debugger.verbose then
+        DebugError("Handle_Traffic_Density called with " .. tostring(new_value))
+    end
+    -- Reduce from percent to float.
+    new_value = new_value / 100
+
+    -- Verify in bounds.
+    new_value = math.max(0, new_value)
+    new_value = math.min(1.0, new_value)
+
+    SetTrafficDensityOption(new_value)
+end
+
 
 ------------------------------------------------------------------------------
 -- Support for disabling tips
@@ -1031,6 +1079,7 @@ ffi.C = setmetatable({}, {
         widgetHelpers.button:createDescriptor
     The above has similar TruncateText logic to Helper.createButton, but
     unfortunately widgetHelpers is local.
+
 ]]
 L.auto_mouseover = {
     enabled = false,
@@ -1044,7 +1093,7 @@ function L.Init_Auto_Mouseover()
             text, halignment, 
             color_r, color_g, color_b, color_a, fontname, 
             fontsize, wordwrap, offsetx, offsety, 
-            height, width, mouseovertext)
+            height, width, mouseovertext, ...)
 
         --Lib.Print_Table({
         --    text          = text,
@@ -1088,21 +1137,20 @@ function L.Init_Auto_Mouseover()
             text, halignment, 
             color_r, color_g, color_b, color_a, 
             fontname, fontsize, wordwrap, offsetx, offsety, 
-            height, width, mouseovertext)
+            height, width, mouseovertext, ...)
     end
 
     -- Patch Helper.createButton.
-    -- Note: untested at time of this comment (nothing found to trigger it).
     ego_createButton = Helper.createButton
     Helper.createButton = function(
             text, icon, noscaling, active, offsetx, offsety, 
             width, height, color, hotkey, icon2, mouseovertext)
 
-        if text then
-            DebugError("Intercepted createButton with text "..tostring(text.text))
-        else
-            DebugError("Intercepted createButton without text ")
-        end
+        --if text then
+        --    DebugError("Intercepted createButton with text "..tostring(text.text))
+        --else
+        --    DebugError("Intercepted createButton without text ")
+        --end
 
         -- Is this likely to truncate?
         -- (Actual ego code also subtracts some offset, but ignore for now.)

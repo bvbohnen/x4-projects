@@ -42,5 +42,7 @@ Change Log
   - Fixed problem with key remap and deletion remembering the old key.
 * 1.2
   - Added $echo support for callbacks.
+* 1.3
+  - Tweaked server to process acks faster.
 
 

@@ -265,6 +265,7 @@
       
     </actions>
   </cue>
+
   
   <!--Testing using open_menu, intercepted by lua, to do direct calls that
       resolve within the md node, not after actions finish.
@@ -324,6 +325,379 @@
     </actions>
   </cue>-->
 
+  
+  <!--Test how many bounces can be done between lua/md in a frame.
+      Mostly lua side; just bounce a count here.
+      Test result: always 1 frame delay going from lua to md, 0 delay md to lua.
+  -->
+  <cue name="Lua_Bounce_Test" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Measure_Perf'" control="'Bounce_Test'" />
+    </conditions>
+    <actions>
+      <debug_text text="'%s'.[player.age]" filter="general"/>
+      <raise_lua_event name="'Measure_Perf.Bounce_Test'" param="event.param3"/>
+    </actions>
+  </cue>
+
+  <!--Test how many bounces can be done between two md cues in a frame.
+      Goal is to detect if the game prevents the same cue firing twice
+      in a frame (eg. to prevent infinite loops).
+      
+      Test result: no frame delay, but md engine gives up after 64 steps
+      with a log error:
+      "Too many recursive cue actions! Skipping actions of cue md.SN_Measure_Perf.Bounce_MD_2"
+      Suggests inter-cue signalling can only go 64 deep in a frame.
+      
+      Alt test: copy/paste out 65 cues and see what happens (eg. does this
+      depend on cues looping, or just a depth problem?).
+      Result: still get recursion error with separate cues.
+      
+      Test: what is the cues use signal_cue instead of signal_cue_instantly?
+      Result: no depth error.
+      
+      Test: what about signal_cue with two cues in a loop?
+      Result: no depth error, all cues processed in the same frame.
+  -->
+  <cue name="Bounce_MD_Start"  instantiate="true" checkinterval="5s">
+    <conditions>
+      <check_value value="false"/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Test;started'"/>
+      <!--<signal_cue_instantly cue="Bounce_MD_a" param="100"/>-->
+      <!--<signal_cue_instantly cue="Chain_MD_0" param="100"/>-->
+      <!--<signal_cue_instantly cue="Chain_MD_delay_0" param="100"/>-->
+
+    </actions>
+    <cues>
+      <cue name="Keep_Alive" checktime="player.age + 1s" checkinterval="1s">
+        <actions>
+          <cancel_cue cue="parent"/>
+        </actions>
+      </cue>
+      <!--Child cues, using parent namespace to avoid needing param passing.-->
+      <cue name="Bounce_MD_delay_Start">
+        <actions>
+          <set_value name="$count" exact="100"/>
+          <signal_cue cue="Bounce_MD_delay_a"/>          
+        </actions>
+      </cue>
+      <cue name="Bounce_MD_delay_a" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <actions>
+          <debug_text text="'Bounce_MD_delay_a %s at %s'.[$count, player.age]" filter="general"/>
+          <do_if value="$count gt 0">
+            <set_value name="$count" exact="1" operation="subtract"/>
+            <signal_cue cue="Bounce_MD_delay_b"/>
+          </do_if>
+        </actions>
+      </cue>
+      <cue name="Bounce_MD_delay_b" instantiate="true">
+        <conditions>
+          <event_cue_signalled/>
+        </conditions>
+        <actions>
+          <debug_text text="'Bounce_MD_delay_b %s at %s'.[$count, player.age]" filter="general"/>
+          <do_if value="$count gt 0">
+            <set_value name="$count" exact="1" operation="subtract"/>
+            <signal_cue cue="Bounce_MD_delay_a"/>
+          </do_if>
+        </actions>
+      </cue>      
+    </cues>
+  </cue>
+  
+  <cue name="Bounce_MD_a" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Bounce_MD_a %s at %s'.[event.param, player.age]" filter="general"/>
+      <do_if value="event.param gt 0">
+        <signal_cue_instantly cue="Bounce_MD_b" param="event.param -1"/>
+      </do_if>
+    </actions>
+  </cue>
+  <cue name="Bounce_MD_b" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Bounce_MD_b %s at %s'.[event.param, player.age]" filter="general"/>
+      <do_if value="event.param gt 0">
+        <signal_cue_instantly cue="Bounce_MD_a" param="event.param -1"/>
+      </do_if>
+    </actions>
+  </cue>
+  
+  <cue name="Chain_MD_0"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_1"/></actions></cue>
+  <cue name="Chain_MD_1"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_2"/></actions></cue>
+  <cue name="Chain_MD_2"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_3"/></actions></cue>
+  <cue name="Chain_MD_3"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_4"/></actions></cue>
+  <cue name="Chain_MD_4"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_5"/></actions></cue>
+  <cue name="Chain_MD_5"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_6"/></actions></cue>
+  <cue name="Chain_MD_6"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_7"/></actions></cue>
+  <cue name="Chain_MD_7"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_8"/></actions></cue>
+  <cue name="Chain_MD_8"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_9"/></actions></cue>
+  <cue name="Chain_MD_9"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_10"/></actions></cue>  
+  <cue name="Chain_MD_10" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_11"/></actions></cue>
+  <cue name="Chain_MD_11" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_12"/></actions></cue>
+  <cue name="Chain_MD_12" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_13"/></actions></cue>
+  <cue name="Chain_MD_13" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_14"/></actions></cue>
+  <cue name="Chain_MD_14" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_15"/></actions></cue>
+  <cue name="Chain_MD_15" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_16"/></actions></cue>
+  <cue name="Chain_MD_16" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_17"/></actions></cue>
+  <cue name="Chain_MD_17" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_18"/></actions></cue>
+  <cue name="Chain_MD_18" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_19"/></actions></cue>
+  <cue name="Chain_MD_19" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_20"/></actions></cue>  
+  <cue name="Chain_MD_20" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_21"/></actions></cue>
+  <cue name="Chain_MD_21" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_22"/></actions></cue>
+  <cue name="Chain_MD_22" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_23"/></actions></cue>
+  <cue name="Chain_MD_23" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_24"/></actions></cue>
+  <cue name="Chain_MD_24" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_25"/></actions></cue>
+  <cue name="Chain_MD_25" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_26"/></actions></cue>
+  <cue name="Chain_MD_26" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_27"/></actions></cue>
+  <cue name="Chain_MD_27" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_28"/></actions></cue>
+  <cue name="Chain_MD_28" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_29"/></actions></cue>
+  <cue name="Chain_MD_29" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_30"/></actions></cue>  
+  <cue name="Chain_MD_30" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_31"/></actions></cue>
+  <cue name="Chain_MD_31" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_32"/></actions></cue>
+  <cue name="Chain_MD_32" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_33"/></actions></cue>
+  <cue name="Chain_MD_33" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_34"/></actions></cue>
+  <cue name="Chain_MD_34" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_35"/></actions></cue>
+  <cue name="Chain_MD_35" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_36"/></actions></cue>
+  <cue name="Chain_MD_36" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_37"/></actions></cue>
+  <cue name="Chain_MD_37" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_38"/></actions></cue>
+  <cue name="Chain_MD_38" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_39"/></actions></cue>
+  <cue name="Chain_MD_39" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_40"/></actions></cue>  
+  <cue name="Chain_MD_40" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_41"/></actions></cue>
+  <cue name="Chain_MD_41" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_42"/></actions></cue>
+  <cue name="Chain_MD_42" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_43"/></actions></cue>
+  <cue name="Chain_MD_43" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_44"/></actions></cue>
+  <cue name="Chain_MD_44" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_45"/></actions></cue>
+  <cue name="Chain_MD_45" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_46"/></actions></cue>
+  <cue name="Chain_MD_46" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_47"/></actions></cue>
+  <cue name="Chain_MD_47" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_48"/></actions></cue>
+  <cue name="Chain_MD_48" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_49"/></actions></cue>
+  <cue name="Chain_MD_49" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_50"/></actions></cue>  
+  <cue name="Chain_MD_50" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_51"/></actions></cue>
+  <cue name="Chain_MD_51" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_52"/></actions></cue>
+  <cue name="Chain_MD_52" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_53"/></actions></cue>
+  <cue name="Chain_MD_53" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_54"/></actions></cue>
+  <cue name="Chain_MD_54" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_55"/></actions></cue>
+  <cue name="Chain_MD_55" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_56"/></actions></cue>
+  <cue name="Chain_MD_56" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_57"/></actions></cue>
+  <cue name="Chain_MD_57" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_58"/></actions></cue>
+  <cue name="Chain_MD_58" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_59"/></actions></cue>
+  <cue name="Chain_MD_59" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_60"/></actions></cue>  
+  <cue name="Chain_MD_60" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_61"/></actions></cue>
+  <cue name="Chain_MD_61" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_62"/></actions></cue>
+  <cue name="Chain_MD_62" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_63"/></actions></cue>
+  <cue name="Chain_MD_63" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_64"/></actions></cue>
+  <cue name="Chain_MD_64" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_65"/></actions></cue>
+  <cue name="Chain_MD_65" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_66"/></actions></cue>
+  <cue name="Chain_MD_66" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_67"/></actions></cue>
+  <cue name="Chain_MD_67" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_68"/></actions></cue>
+  <cue name="Chain_MD_68" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue_instantly cue="Chain_MD_69"/></actions></cue>
+  <cue name="Chain_MD_69" instantiate="true"><conditions><event_cue_signalled/></conditions><actions></actions></cue>
+  
+  <cue name="Chain_MD_delay_0"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_1"/></actions></cue>
+  <cue name="Chain_MD_delay_1"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_2"/></actions></cue>
+  <cue name="Chain_MD_delay_2"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_3"/></actions></cue>
+  <cue name="Chain_MD_delay_3"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_4"/></actions></cue>
+  <cue name="Chain_MD_delay_4"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_5"/></actions></cue>
+  <cue name="Chain_MD_delay_5"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_6"/></actions></cue>
+  <cue name="Chain_MD_delay_6"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_7"/></actions></cue>
+  <cue name="Chain_MD_delay_7"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_8"/></actions></cue>
+  <cue name="Chain_MD_delay_8"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_9"/></actions></cue>
+  <cue name="Chain_MD_delay_9"  instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_10"/></actions></cue>  
+  <cue name="Chain_MD_delay_10" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_11"/></actions></cue>
+  <cue name="Chain_MD_delay_11" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_12"/></actions></cue>
+  <cue name="Chain_MD_delay_12" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_13"/></actions></cue>
+  <cue name="Chain_MD_delay_13" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_14"/></actions></cue>
+  <cue name="Chain_MD_delay_14" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_15"/></actions></cue>
+  <cue name="Chain_MD_delay_15" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_16"/></actions></cue>
+  <cue name="Chain_MD_delay_16" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_17"/></actions></cue>
+  <cue name="Chain_MD_delay_17" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_18"/></actions></cue>
+  <cue name="Chain_MD_delay_18" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_19"/></actions></cue>
+  <cue name="Chain_MD_delay_19" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_20"/></actions></cue>  
+  <cue name="Chain_MD_delay_20" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_21"/></actions></cue>
+  <cue name="Chain_MD_delay_21" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_22"/></actions></cue>
+  <cue name="Chain_MD_delay_22" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_23"/></actions></cue>
+  <cue name="Chain_MD_delay_23" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_24"/></actions></cue>
+  <cue name="Chain_MD_delay_24" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_25"/></actions></cue>
+  <cue name="Chain_MD_delay_25" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_26"/></actions></cue>
+  <cue name="Chain_MD_delay_26" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_27"/></actions></cue>
+  <cue name="Chain_MD_delay_27" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_28"/></actions></cue>
+  <cue name="Chain_MD_delay_28" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_29"/></actions></cue>
+  <cue name="Chain_MD_delay_29" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_30"/></actions></cue>  
+  <cue name="Chain_MD_delay_30" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_31"/></actions></cue>
+  <cue name="Chain_MD_delay_31" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_32"/></actions></cue>
+  <cue name="Chain_MD_delay_32" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_33"/></actions></cue>
+  <cue name="Chain_MD_delay_33" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_34"/></actions></cue>
+  <cue name="Chain_MD_delay_34" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_35"/></actions></cue>
+  <cue name="Chain_MD_delay_35" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_36"/></actions></cue>
+  <cue name="Chain_MD_delay_36" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_37"/></actions></cue>
+  <cue name="Chain_MD_delay_37" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_38"/></actions></cue>
+  <cue name="Chain_MD_delay_38" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_39"/></actions></cue>
+  <cue name="Chain_MD_delay_39" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_40"/></actions></cue>  
+  <cue name="Chain_MD_delay_40" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_41"/></actions></cue>
+  <cue name="Chain_MD_delay_41" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_42"/></actions></cue>
+  <cue name="Chain_MD_delay_42" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_43"/></actions></cue>
+  <cue name="Chain_MD_delay_43" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_44"/></actions></cue>
+  <cue name="Chain_MD_delay_44" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_45"/></actions></cue>
+  <cue name="Chain_MD_delay_45" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_46"/></actions></cue>
+  <cue name="Chain_MD_delay_46" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_47"/></actions></cue>
+  <cue name="Chain_MD_delay_47" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_48"/></actions></cue>
+  <cue name="Chain_MD_delay_48" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_49"/></actions></cue>
+  <cue name="Chain_MD_delay_49" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_50"/></actions></cue>  
+  <cue name="Chain_MD_delay_50" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_51"/></actions></cue>
+  <cue name="Chain_MD_delay_51" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_52"/></actions></cue>
+  <cue name="Chain_MD_delay_52" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_53"/></actions></cue>
+  <cue name="Chain_MD_delay_53" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_54"/></actions></cue>
+  <cue name="Chain_MD_delay_54" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_55"/></actions></cue>
+  <cue name="Chain_MD_delay_55" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_56"/></actions></cue>
+  <cue name="Chain_MD_delay_56" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_57"/></actions></cue>
+  <cue name="Chain_MD_delay_57" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_58"/></actions></cue>
+  <cue name="Chain_MD_delay_58" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_59"/></actions></cue>
+  <cue name="Chain_MD_delay_59" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_60"/></actions></cue>  
+  <cue name="Chain_MD_delay_60" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_61"/></actions></cue>
+  <cue name="Chain_MD_delay_61" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_62"/></actions></cue>
+  <cue name="Chain_MD_delay_62" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_63"/></actions></cue>
+  <cue name="Chain_MD_delay_63" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_64"/></actions></cue>
+  <cue name="Chain_MD_delay_64" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_65"/></actions></cue>
+  <cue name="Chain_MD_delay_65" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_66"/></actions></cue>
+  <cue name="Chain_MD_delay_66" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_67"/></actions></cue>
+  <cue name="Chain_MD_delay_67" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_68"/></actions></cue>
+  <cue name="Chain_MD_delay_68" instantiate="true"><conditions><event_cue_signalled/></conditions><actions><signal_cue cue="Chain_MD_delay_69"/></actions></cue>
+  <cue name="Chain_MD_delay_69" instantiate="true"><conditions><event_cue_signalled/></conditions><actions></actions></cue>
+  
+
+  <!--
+    Testing ordering of signal_cue and signal_cue_instantly.
+    Above recursion test suggests the "instantly" version is processed ahead
+    of pending cues, but what if multiple "instantly"s are queued?
+    
+    Test result:
+    - "signal_cue_instantly" is indeed instant, being performed before
+      any subsequent actions (eg. not queued or delayed at all).
+    - "signal_cue" gets put at the end of the cue queue that exists when
+      this command is seen (maybe).
+  -->
+  <cue name="Signal_Order_Test" instantiate="true"  checkinterval="3s">
+    <conditions>
+      <check_value value="false"/>
+    </conditions>
+    <actions>
+      <raise_lua_event name="'directChatMessageReceived'" param="'Test;started'"/>
+
+      <debug_text text="'signal_cue Order_Test_del_a'" filter="general"/>
+      <signal_cue cue="Order_Test_del_a"/>
+      <debug_text text="'signal_cue_instantly Order_Test_inst_a'" filter="general"/>
+      <signal_cue_instantly cue="Order_Test_inst_a"/>
+      <debug_text text="'signal_cue_instantly Order_Test_inst_b'" filter="general"/>
+      <signal_cue_instantly cue="Order_Test_inst_b"/>
+      <debug_text text="'signal_cue Order_Test_del_b'" filter="general"/>
+      <signal_cue cue="Order_Test_del_b"/>
+    </actions>
+  </cue>
+
+  <cue name="Order_Test_del_a" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_del_a at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_del_b" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_del_b at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_del_c" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_del_c at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_del_d" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_del_d at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_inst_a" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_inst_a at %s'.[player.age]" filter="general"/>
+      <!--Note: this gets processed before Order_Test_del_b-->
+      <debug_text text="'signal_cue Order_Test_del_c'" filter="general"/>
+      <signal_cue cue="Order_Test_del_c"/>
+      <debug_text text="'signal_cue_instantly Order_Test_inst_a0'" filter="general"/>
+      <signal_cue_instantly cue="Order_Test_inst_a0"/>
+      <debug_text text="'signal_cue_instantly Order_Test_inst_a1'" filter="general"/>
+      <signal_cue_instantly cue="Order_Test_inst_a1"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_inst_b" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_inst_b at %s'.[player.age]" filter="general"/>
+      <debug_text text="'signal_cue Order_Test_del_d'" filter="general"/>
+      <signal_cue cue="Order_Test_del_d"/>
+      <debug_text text="'signal_cue_instantly Order_Test_inst_b0'" filter="general"/>
+      <signal_cue_instantly cue="Order_Test_inst_b0"/>
+      <debug_text text="'signal_cue_instantly Order_Test_inst_b1'" filter="general"/>
+      <signal_cue_instantly cue="Order_Test_inst_b1"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_inst_a0" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_inst_a0 at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_inst_a1" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_inst_a1 at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_inst_b0" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_inst_b0 at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
+  <cue name="Order_Test_inst_b1" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'Order_Test_inst_b1 at %s'.[player.age]" filter="general"/>
+    </actions>
+  </cue>
   
 </cues>
   

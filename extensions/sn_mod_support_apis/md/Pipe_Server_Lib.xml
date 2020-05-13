@@ -53,15 +53,15 @@ Notes on server access looping cues:
         
     Parameters:
     * Actions_On_Reload
-      - Library of actions to take when reloading after a pipe
+      - Library of actions to perform when reloading after a pipe
         disconnect, savegame reload, ui reload, as well as initial creation.
       - Should set attributes: Pipe_Name, and optionally DebugChance.
       - May add other variables to the library instance, if desired.
     * Actions_On_Connect
-      - Optional library of actions to take upon connecting to the server.
+      - Optional library of actions to perform upon connecting to the server.
       - May signal $Start_Reading to begin passive reading of the pipe.
     * Actions_On_Read
-      - Optional library of actions to take when reading a message from 
+      - Optional library of actions to perform when reading a message from 
         the server.
       - The message will be in event.param.
       
@@ -211,12 +211,15 @@ Notes on server access looping cues:
             <include_actions ref="$Actions_On_Reload"/>
           </do_if>
           
-          <!-- Send a signal that all users listen to. 
-               TODO: maybe do this before user actions. -->
-          <signal_cue_instantly cue="Reloaded"/>
-          
           <debug_text text="'reload triggered.'" 
                       chance="$DebugChance" filter="general"/>
+          
+          <!--Send a signal that all users listen to. 
+              Do this instantly; don't want it getting delayed until after
+              Server_Access_Loops are started.
+              TODO: maybe do this before user actions. -->
+          <signal_cue_instantly cue="Reloaded"/>
+          
         </actions>
       </cue>
       
@@ -257,6 +260,8 @@ Notes on server access looping cues:
           <!-- Dummy cue, no conditions, calls Ping_Server right away. -->
           <cue name="Init_Ping_Server">
             <actions>
+              <debug_text text="'Init_Ping_Server triggered for ' + $Pipe_Name"
+                          chance="$DebugChance" filter="general"/>
               <signal_cue_instantly cue="Ping_Server"/>
             </actions>        
           </cue>
@@ -272,6 +277,8 @@ Notes on server access looping cues:
               <event_cue_signalled cue="Reloaded" />
             </conditions>
             <actions>
+              <debug_text text="'Reload_Listener triggered for ' + $Pipe_Name"
+                          chance="$DebugChance" filter="general"/>
               <!-- Do not reset flags; they are handled by generic reload code. -->
               <cancel_cue cue="parent"/>
             </actions>        
@@ -284,8 +291,14 @@ Notes on server access looping cues:
           -->
           <library name="Cancel_Server_Access_Loop">
             <actions>
+              <!--Cancel any pending read request.-->
+              <signal_cue_instantly 
+                cue="md.Named_Pipes.Cancel_Reads" 
+                param="table[$pipe=$Pipe_Name]"/>
+              
               <!-- Clear any necessary flags. -->
               <set_value name="$server_connected" exact="0"/>
+              
               <!-- Cancel the namespace, which is the instanced parent 
                   (not the static parent). -->
               <cancel_cue cue="namespace"/>
@@ -299,11 +312,11 @@ Notes on server access looping cues:
               <event_cue_signalled/>
             </conditions>
             <actions>
+              <debug_text text="'Pinging ' + $Pipe_Name"
+                          chance="$DebugChance" filter="general"/>
               <signal_cue_instantly 
                 cue="md.Named_Pipes.Write" 
                 param="table[$pipe=$Pipe_Name, $msg='ping', $cue=Ping_Callback]"/>
-              <debug_text text="'Pinging ' + $Pipe_Name"
-                          chance="$DebugChance" filter="general"/>
             </actions>
           </cue>
           
@@ -406,6 +419,9 @@ Notes on server access looping cues:
               TODO: maybe a lua level option to reduce how often the pipe 
               reads are attempted; every frame is probably unnecessary 
               (though perhaps has no noticeable overhead).
+              
+              This will be set to continuous read mode, so multiple messages
+              can be read per frame.
           -->
           <cue name="Read_Message" instantiate="true">
             <conditions>
@@ -414,7 +430,7 @@ Notes on server access looping cues:
             <actions>
               <signal_cue_instantly 
                 cue="md.Named_Pipes.Read" 
-                param="table[$pipe=$Pipe_Name, $cue=Read_Callback]"/>
+                param="table[$pipe=$Pipe_Name, $cue=Read_Callback, $continuous=true]"/>
             </actions>
           </cue>
           
@@ -424,6 +440,8 @@ Notes on server access looping cues:
               On timeout, loops to another read.
               Currently not expecting control messages, but they may be added
               in the future.
+              
+              Note: this will be at least 1 frame after Read_Message.
               
               Note: the lua api will raise a disconnect signal if it sees the
               host server disconnect, which triggers Reloaded and hence cancels
@@ -459,12 +477,11 @@ Notes on server access looping cues:
                 <!-- The parent cue is getting killed by other logic, so do nothing. -->
               </do_elseif>
               
-              <!-- On timeout, try another read. -->
+              <!-- On timeout, try another read. 
+                  -Removed, timeouts not in use.
               <do_elseif value="event.param == 'TIMEOUT'">
-                <signal_cue_instantly cue="Read_Message"/>
-                <!--TODO: maybe a way to check if loop should stop, 
-                    with a flag or user actions.-->            
-              </do_elseif>
+                <signal_cue_instantly cue="Read_Message"/>        
+              </do_elseif> -->
                     
               <do_else>
                 <!-- Read succeeded with some message. -->
@@ -474,8 +491,9 @@ Notes on server access looping cues:
                   <include_actions ref="$Actions_On_Read"/>
                 </do_if>
                 
-                <!-- Request the next key to be read, looping. -->
-                <signal_cue cue="Read_Message"/>        
+                <!-- Request the next key to be read, looping. 
+                    -Removed, using continuos reads.
+                <signal_cue_instantly cue="Read_Message"/> -->
               </do_else>    
             </actions>
           </cue>

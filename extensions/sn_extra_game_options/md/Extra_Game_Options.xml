@@ -32,9 +32,11 @@
         <set_value exact="{68537, 2013}" name="Text.$map_menu_zoom_mouseover" />
         <set_value exact="{68537, 2014}" name="Text.$tooltip_on_truncation_name" />
         <set_value exact="{68537, 2015}" name="Text.$tooltip_on_truncation_mouseover" />
+        <set_value exact="{68537, 2016}" name="Text.$traffic_density_name" />
+        <set_value exact="{68537, 2017}" name="Text.$traffic_density_mouseover" />
+        
       </actions>
     </library>
-
 
 
     <!-- Register the main lua file. -->
@@ -48,7 +50,8 @@
       </actions>
     </cue>
 
-    <!-- Listen from the menu api reloading. -->
+    
+    <!--Listen from the menu api reloading. -->
     <cue name="Reset_On_Reload" instantiate="true">
       <conditions>
         <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
@@ -152,30 +155,76 @@
             $callback   = OnChange,
             ]"/>
 
-        <!--Removed; doesn't work well. Need to comment out, since $disabled
-            only affects menu display, not applying the default, which may 
-            not be tuned right for different resolutions.-->
-        <!--<signal_cue_instantly
+        <!--This one is special: value is stored in config.xml, read from lua.
+            Default taken from lua response.
+        -->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'traffic_density',
+            $name       = Text.$traffic_density_name,
+            $mouseover  = Text.$traffic_density_mouseover,
+            $default    = 100,
+            $skip_initial_callback = 1,
+            $type       = 'slidercell',
+            $args       = table[
+              $min      = 0,
+              $max      = 100,
+              $suffix   = '%',
+              $hideMaxValue = true,
+            ],
+            $callback   = OnChange,
+            ]"/>
+
+        
+        <!--Removed; doesn't work well. See lua for comments on why, but
+            in short: the fov value to actual angle scaling isn't const,
+            and keeps resetting on camera changes (eg. hopping into spacesuit),
+            leading to drift and general instability.
+        <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $disabled   = true,
             $id         = 'adjust_fov',
             $name       = Text.$adjust_fov_name,
             $mouseover  = Text.$adjust_fov_mouseover,
-            $default    = 100,
+            $default    = 10,
             $type       = 'slidercell',
             $args       = table[
-              $min      = 100,
-              $max      = 130,
-              $suffix   = ' %',
+              $min      = 1,
+              $max      = 20,
+              $suffix   = '',
               $hideMaxValue = true,
             ],
             $callback   = OnChange,
             ]"/>-->
 
+        <!--Load lua-stored values.-->
+        <raise_lua_event name="'Extra_Game_Options.get_lua_values'"/>
+        
       </actions>
     </cue>
 
+    <!--Bounce values from lua to md options. -->
+    <cue name="Init_Lua_Values" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Extra_Game_Options'" control="'return_lua_values'" />
+      </conditions>
+      <actions>
+        <do_for_each name="$id" valuename="$value" in="event.param3">
+          <signal_cue_instantly
+            cue="md.Simple_Menu_Options.Write_Option_Value"
+            param = "table[
+                $id         = $id,
+                $value      = $value,
+                ]"/>
+        </do_for_each>
+      </actions>
+    </cue>
+
+    
+    
+    
     <!--
       Signal lua with value changes.
     -->

@@ -97,6 +97,13 @@ function Init()
     -- "year,day,hour,minute,second"
     -- format, where a "second" is actually 100 ns.
     RegisterEvent("Measure_Perf.Record_Event", L.Record_Event)
+    
+    -- Test: how many times can a lua-md-lua signal bounce in a frame?
+    RegisterEvent("Measure_Perf.Bounce_Test", L.Bounce_Test)
+    -- Kick off the test, so many bounces.
+    -- Test result: 1 frame of delay going from lua to md (no delay md to lua).
+    -- Comment out now that test is done.
+    --AddUITriggeredEvent("Measure_Perf", "Bounce_Test", 10)
 
     L.path_gather_start_time = GetCurTime()
 end
@@ -107,6 +114,13 @@ function L.Get_Sample()
         gametime     = GetCurTime(),
         fps          = C.GetFPS().fps,
     })
+end
+
+function L.Bounce_Test(_, count)
+    DebugError("bounce "..count.." at "..GetCurTime())
+    if count ~= 0 then
+        AddUITriggeredEvent("Measure_Perf", "Bounce_Test", count - 1)
+    end
 end
 
 -- Send collacted data straight to the pipe.

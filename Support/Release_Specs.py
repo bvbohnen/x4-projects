@@ -37,6 +37,11 @@ release_specs = [
         ),
     
     Release_Spec(
+        root_path = project_dir / 'extensions/sn_debug_info',
+        steam = False,
+        ),
+    
+    Release_Spec(
         root_path = project_dir / 'extensions/sn_extra_game_options',
         steam = True,
         ),
@@ -64,7 +69,6 @@ release_specs = [
                 'md/Named_Pipes.xml',
                 'md/Pipe_Server_Host.xml',
                 'md/Pipe_Server_Lib.xml',
-                'lua/named_pipes/Interface.lua',
             ],
             'documentation/Hotkey_API.md':[
                 'md/Hotkey_API.xml',
@@ -78,6 +82,7 @@ release_specs = [
             'documentation/Time_API.md':[
                 'lua/time/Interface.lua',
             ],
+            # TODO: context menu.
         },
         ),
     
@@ -103,6 +108,16 @@ release_specs = [
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_remove_dock_symbol',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_remove_highway_blobs',
+        steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_start_with_seta',
         steam = True,
         ),
     

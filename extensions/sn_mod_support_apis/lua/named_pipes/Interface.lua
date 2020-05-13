@@ -1,6 +1,5 @@
--- @doc-title MD to Lua Pipe API
-
---[[ @doc-overview
+--[[
+MD to Lua Pipe API
 
 Lua support for communicating through windows named pipes with
 an external process, with the help of the winpipe api dll, which
@@ -14,7 +13,7 @@ worry about these lua details.
 
 Behavior:
 - MD triggers lua functions using raise_lua_event.
-- Lua responds to MD by signalling the galaxy object with specific names.
+- Lua responds to MD by signalling a ui event.
 - When loaded, sends the signal "lua_named_pipe_api_loaded".
 - Requested reads and writes will be tagged with a unique <id> string,
   used to uniquify the signal raised when the request has completed.
@@ -39,161 +38,14 @@ Behavior:
 - The pipe file handle will (should) be closed properly on UI/game reload,
   triggering a closed pipe error on the server, which the server should deal
   with reasonably (eg. restarting the server side pipe).
-]]
-   
---[[ @doc-functions
-* Reading a pipe from MD:
 
-  Start with a trigger:
-  ```xml
-    <raise_lua_event 
-        name="'pipeRead'" 
-        param="'<pipe_name>;<id>'"/>
-  ```
-  Example:
-  ```xml
-    <raise_lua_event 
-        name="'pipeRead'" 
-        param="'myX4pipe;1234'"/>
-  ```
-      
-  Capture completion with a new subcue (don't instantiate if already inside
-  an instance), conditioned on response signal:
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'pipeRead_complete_<id>'" />
-  ```
-      
-  The returned value will be in "event.param3":
-  ```xml
-    <set_value 
-        name="$pipe_read_value" 
-        exact="event.param3" />
-  ```
-      
-  `<pipe_name>` should be the unique name of the pipe being connected to.
-  Locally, this name is prefixed with `\\.\pipe\`.
+- Complex request args will be passed from md to lua using a player
+  blackboard var $pipe_api_args.
+- A Process_Command signal may accompany multiple command args due to
+  md->lua latency in a frame.
+- Each Process_Command will consume only one command args entry, just in
+  case ordering of these lua signals matters relative to something elsewhere.
 
-  `<id>` is a string that uniquely identifies this read from other accesses
-  that may be pending in the same time frame.
-  
-  If the read fails due to a closed pipe, a return signal will still be sent,
-  but param2 will contain "ERROR".
-    
-    
-* Writing a pipe from MD:
-
-  The message to be sent will be suffixed to the pipe_name and id, separated
-  by semicolons.
-  ```xml
-    <raise_lua_event 
-        name="'pipeWrite'" 
-        param="'<pipe_name>;<id>;<message>'"/>
-  ```
-            
-  Example:
-  ```xml
-    <raise_lua_event 
-        name="'pipeWrite'" 
-        param="'myX4pipe;1234;hello'"/>
-  ```
-        
-  Optionally capture the response signal, indicating success or failure.
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'pipeWrite_complete_<id>'" />
-  ```
-    
-  The returned status is "ERROR" on an error, else "SUCCESS".
-  ```xml
-    <set_value name="$status" exact="event.param3" />
-  ```
-        
-        
-* Special writes:
-
-  Certain write messages will be mapped to special values to be written,
-  determined lua side.  This uses "pipeWriteSpecial" as the event name,
-  and the message is the special command.
-  
-  Currently, the only such command is "package.path", sending the current
-  value in lua for that.
-  
-  ```xml
-    <raise_lua_event 
-        name="'pipeWriteSpecial'" 
-        param="'myX4pipe;1234;package.path'"/>
-  ```
-        
-    
-* Checking pipe status:
-
-  Test if the pipe is connected in a similar way to reading:
-  ```xml
-    <raise_lua_event 
-        name="'pipeCheck'" 
-        param="'<pipe_name>;<id>'" />
-  ```
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'pipeCheck_complete_<id>'" />
-  ```
-          
-  In this case, event.param2 holds SUCCESS if the pipe appears to be
-  succesfully opened, ERROR if not. Note that this does not robustly
-  test the pipe, only if the File is open, so it will report success
-  even if the server has disconnected if no operations have been
-  performed since that disconnect.
-    
-    
-* Close pipe:
-  ```xml
-    <raise_lua_event 
-        name="'pipeClose'" 
-        param="'<pipe_name>'" />
-  ```
-    
-  Closing out a pipe has no callback.
-  This will close the File handle, and will force all pending reads
-  and writes to signal errors.
-        
-      
-* Set a pipe to throw away reads during a pause:
-  ```xml
-    <raise_lua_event 
-        name="'pipeSuppressPausedReads'" 
-        param="'<pipe_name>'" />
-  ```
-    
-* Undo this with:
-  ```xml
-    <raise_lua_event 
-        name="'pipeUnsuppressPausedReads'" 
-        param="'<pipe_name>'" />
-  ```
-        
-
-* Detect a pipe closed:
-
-  When there is a pipe error, this api will make one attempt to reconnect
-  before returning an ERROR. Since the user may need to know about these
-  disconnect events, a signal will be raised when they happen.
-  The signal name is tied to the pipe name.
-  
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'<pipe_name>_disconnected'" />
-  ```
-
-]]
-
--- @doc-title Lua to Lua Pipe API
-
---[[ @doc-overview
 
 Other lua modules may use this api to access pipes as well. Behavior is
 largely the same as for the MD interface, except that results will be
@@ -202,8 +54,7 @@ It may be imported using a require statement:
 ```lua
   local pipes_api = require('extensions.sn_named_pipes_api.lua.Interface')
 ```
-]]
---[[ @doc-functions
+
 See named_pipes_api/lua/Pipes.lua for everything available. Basic
 writing and reading functions are shown here.
 
@@ -222,123 +73,135 @@ writing and reading functions are shown here.
     - Optional, lua function to call, taking one argument.
 ]]
 
+
+-- Set up any used ffi functions.
+local ffi = require("ffi")
+local C = ffi.C
+ffi.cdef[[
+    typedef uint64_t UniverseID;
+    UniverseID GetPlayerID(void);   
+]]
+
 -- Import lib functions and pipe management.
 local Lib = require("extensions.sn_mod_support_apis.lua.named_pipes.Library")
 local Pipes = require("extensions.sn_mod_support_apis.lua.named_pipes.Pipes")
+local Print_Table = require("extensions.sn_mod_support_apis.lua.Library").Print_Table
 
 
--- Table of local functions.
-local L = {}
+-- Table of local functions or data.
+local L = {
+    -- Any command arguments not yet processed.
+    queued_args = {},
+    -- Fields holding booleans.
+    bool_fields = {'continuous'},
+}
 
 
 -- Handle initial setup.
 local function Init()
-    -- Connect the events to the matching functions.
-    RegisterEvent("pipeRead",                  L.Handle_pipeRead)
-    RegisterEvent("pipeWrite",                 L.Handle_pipeWrite)
-    RegisterEvent("pipeWriteSpecial",          L.Handle_pipeWrite)    
-    RegisterEvent("pipeCheck",                 L.Handle_pipeCheck)
-    RegisterEvent("pipeClose",                 L.Handle_pipeClose)
-    RegisterEvent("pipeCancelReads",           L.Handle_pipeCancelReads)
-    RegisterEvent("pipeCancelWrites",          L.Handle_pipeCancelWrites)
-    RegisterEvent("pipeSuppressPausedReads",   L.Handle_pipeSuppressPausedReads)
-    RegisterEvent("pipeUnsuppressPausedReads", L.Handle_pipeUnsuppressPausedReads)
+    -- Generic command handler.
+    RegisterEvent("pipeProcessCommand", L.Process_Command)
+    
+    -- Cache the player component id.
+    L.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
                 
+    -- Clear any old command args.
+    SetNPCBlackboard(L.player_id, "$pipe_api_args", nil)
+
     -- Signal to MD that the lua has reloaded.
     Lib.Raise_Signal('reloaded')
 end
 
 
--- Read a message from a pipe.
--- Input is one term, semicolon separated string with pipe name, callback id.
-function L.Handle_pipeRead(_, pipe_name_id)
-
-    -- Isolate the pipe_name and access id.
-    local pipe_name, callback = Lib.Split_String(pipe_name_id, ";")
-       
-    -- Pass to the scheduler.
-    Pipes.Schedule_Read(pipe_name, callback)
-end
-
-
-
--- Write to a pipe.
--- Input is one term, semicolon separates string with pipe name, callback id,
--- and message.
--- If signal_name was "pipeWriteSpecial", this message is treated as
--- a special command that is used to determine what to write.
-function L.Handle_pipeWrite(signal_name, pipe_name_id_message)
-
-    -- Isolate the pipe_name, id, value.
-    -- TODO: maybe use Split_String_Multi if ; not allows in message.
-    local pipe_name, temp = Lib.Split_String(pipe_name_id_message, ";")
-    local callback, message = Lib.Split_String(temp, ";")
+-- Get args from the player blackboard, and return the next entry.
+function L.Get_Next_Args()
+    -- If the list of queued args is empty, grab more from md.
+    if #L.queued_args == 0 then
     
-    -- Handle special commands.
-    -- Note: if the command not recognized, it just gets sent as-is.
-    if signal_name == "pipeWriteSpecial" then
-        -- Table of commands to consider.
-        if message == "package.path" then
-            -- Want to write out the current package.path.
-            message = "package.path:"..package.path
+        -- Args are attached to the player component object.
+        local args_list = GetNPCBlackboard(L.player_id, "$pipe_api_args")
+        
+        -- Loop over it and move entries to the queue.
+        for i, v in ipairs(args_list) do
+            table.insert(L.queued_args, v)
+        end
+        
+        -- Clear the md var by writing nil.
+        SetNPCBlackboard(L.player_id, "$pipe_api_args", nil)
+    end
+    --DebugError("num args: "..tostring(#L.queued_args))
+    
+    -- Pop the first table entry.
+    local args = table.remove(L.queued_args, 1)
+
+    -- Check args for any 0 entries on bool fields, convert to false.
+    for _, field in ipairs(L.bool_fields) do
+        if args[field] == 0 then
+            args[field] = false
         end
     end
-        
-    -- Pass to the scheduler.
-    Pipes.Schedule_Write(pipe_name, callback, message) 
+
+    return args
 end
 
+-- Generic command handler.
+-- When this is signalled, there may be multiple commands queued.
+function L.Process_Command()
+    local args = L.Get_Next_Args()
 
--- Cancel a read or write requests on the pipe.
-function L.Handle_pipeCancelReads(_, pipe_name)
-    -- Pass to the descheduler.
-    Pipes.Deschedule_Reads(pipe_name)
-end
-
-function L.Handle_pipeCancelWrites(_, pipe_name)
-    -- Pass to the descheduler.
-    Pipes.Deschedule_Writes(pipe_name)
-end
-
-
--- Check if a pipe is connected.
--- While id isn't important for this, it is included for interface
--- consistency and code reuse in the MD.
-function L.Handle_pipeCheck(_, pipe_name_id)
-    -- Use find/sub for splitting instead.
-    local pipe_name, callback = Lib.Split_String(pipe_name_id, ";")
+    if Lib.debug.print_to_log then
+        Print_Table(args, "Pipes.Interface.Process_Command args")
+    end
     
-    local success = pcall(L.Connect_Pipe, pipe_name)
-    -- Translate to strings that match read/write returns.
-    local message
-    if success then
-        message = "SUCCESS"
-    else
-        message = "ERROR"
+    if args.command == "Read" then
+        Pipes.Schedule_Read(args.pipe_name, args.access_id, args.continuous)
+
+    elseif args.command == "Write" then
+        Pipes.Schedule_Write(args.pipe_name, args.access_id, args.message)
+
+    elseif args.command == "WriteSpecial" then    
+        -- Handle special commands.
+        -- Note: if the command not recognized, it just gets sent as-is.
+        if args.message == "package.path" then
+            -- Want to write out the current package.path.
+            args.message = "package.path:"..package.path
+        end        
+        -- Pass to the scheduler.
+        Pipes.Schedule_Write(args.pipe_name, args.access_id, args.message) 
+
+    elseif args.command == "CancelReads" then
+        Pipes.Deschedule_Reads(args.pipe_name)
+
+    elseif args.command == "CancelWrites" then
+        Pipes.Deschedule_Writes(args.pipe_name)
+
+    elseif args.command == "Check" then    
+        -- Check if a pipe is connected.
+    
+        local success = pcall(Pipes.Connect_Pipe, args.pipe_name)
+        -- Translate to strings that match read/write returns.
+        local message
+        if success then
+            message = "SUCCESS"
+        else
+            message = "ERROR"
+        end
+        -- Send back to md.
+        if type(args.callback) == "string" then
+            L.Raise_Signal('pipeCheck_complete_'..args.callback, message)
+        end
+
+    elseif args.command == "Close" then
+        Pipes.Close_Pipe(args.pipe_name)
+        
+    elseif args.command == "SuppressPausedReads" then
+        Pipes.Set_Suppress_Paused_Reads(args.pipe_name, true)
+
+    elseif args.command == "UnsuppressPausedReads" then
+        Pipes.Set_Suppress_Paused_Reads(args.pipe_name, false)
     end
-    -- Send back to md or lua.
-    if type(callback) == "string" then
-        L.Raise_Signal('pipeCheck_complete_'..callback, message)
-    elseif type(callback) == "function" then
-        callback(message)
-    end
 end
 
-
--- Close a pipe.
--- This will not signal back, for now.
-function L.Handle_pipeClose(_, pipe_name)
-    Pipes.Close_Pipe(pipe_name)
-end
-
--- Flag a pipe to suppress paused reads.
-function L.Handle_pipeSuppressPausedReads(_, pipe_name)
-    Pipes.Set_Suppress_Paused_Reads(pipe_name, true)
-end
-
-function L.Handle_pipeUnsuppressPausedReads(_, pipe_name)
-    Pipes.Set_Suppress_Paused_Reads(pipe_name, false)
-end
 
 -- Finalize initial setup.
 Init()

@@ -33,6 +33,12 @@ Other lua modules may require() this module to access these api functions:
   - Callback function is given the current engine time.
 * Unregister_NewFrame_Callback(function)
   - Remove a per-frame callback function that was registered.
+* Set_Alarm(id, time, function)
+  - Sets a single-fire alarm to trigger after the given time elapses.
+  - Callback function is called with args: (id, alarm_time), where the
+    alarm_time is the original scheduled time of the alarm, which will
+    generally be sometime earlier than the current time (due to frame
+    boundaries).
 
 An MD ui event is raised on every frame, which MD cues may listen to.
 The event.param3 will be the current engine time. Example:
@@ -143,16 +149,23 @@ local L = {
     -- Last frame update engine time.
     last_frame_time = 0,
     -- Lua functions registered to be called every frame.
-    frame_callbacks = {}
+    frame_callbacks = {},
+    
+    -- Table of timers, keyed by id.
+    -- Subtables have the fields: {last_start, total, running}
+    timers = {},
+
+    -- Table of alarms scheduled. Values are the realtime the alarm
+    -- will go off. Keyed by id.
+    alarms = {},
+
+    -- Table of lua callbacks per id, for alarms.
+    -- These are used for the lua interface alarms, which use callback
+    -- functions instead of signals.
+    -- Key ids should match those in "alarms" above.
+    alarm_callbacks = {},
     }
 
--- Table of timers, keyed by id.
--- Subtables have the fields: {last_start, total, running}
-L.timers = {}
-
--- Table of alarms scheduled. Values are the realtime the alarm
--- will go off.
-L.alarms = {}
 
 function Init()
     -- Set up all unique events.
@@ -170,6 +183,9 @@ function Init()
     -- Init loading frame time.
     L.last_frame_time = GetCurRealTime()
     -- Start listening to onUpdate events.
+    -- TODO: switch to a more direct hook-in with the widget contract stuff,
+    -- if it would be more reliable.
+    -- eg. registerForEvent("frameupdate", private.contract, L.New_Frame_Detector)
     SetScript("onUpdate", L.New_Frame_Detector)
 end
 
@@ -285,6 +301,18 @@ end
 ------------------------------------------------------------------------------
 -- Alarm related functions.
 
+-- Start the alarm poller, if not started yet.
+function L.Start_Alarm_Polling()
+    if not L.checking_alarms then
+        --SetScript("onUpdate", L.Poll_For_Alarm)
+        E.Register_NewFrame_Callback(L.Poll_For_Alarm)
+        L.checking_alarms = true
+        if L.debug then
+            DebugError("Time.Set_Alarm started polling")
+        end
+    end    
+end
+
 function L.Set_Alarm(_, id_time)
     if L.debug then
         DebugError("Time.Set_Alarm got: "..tostring(id_time))
@@ -300,14 +328,18 @@ function L.Set_Alarm(_, id_time)
     L.alarms[id] = GetCurRealTime() + time
 
     -- Start polling if not already.
-    if not L.checking_alarms then
-        --SetScript("onUpdate", L.Poll_For_Alarm)
-        E.Register_NewFrame_Callback(L.Poll_For_Alarm)
-        L.checking_alarms = true
-        if L.debug then
-            DebugError("Time.Set_Alarm started polling")
-        end
-    end    
+    L.Start_Alarm_Polling()
+end
+
+-- Lua callable, with lua callback.
+function E.Set_Alarm(id, time, callback)
+    -- Schedule the alarm.
+    L.alarms[id] = GetCurRealTime() + time
+    -- Record the callback.
+    L.alarm_callbacks[id] = callback
+    
+    -- Start polling if not already.
+    L.Start_Alarm_Polling()
 end
 
 
@@ -327,7 +359,12 @@ function L.Poll_For_Alarm()
             -- Time reached.
             -- Send back the id and the time that was scheduled, not the
             -- current time, so that alarms can be chained to make clocks.
-            L.Raise_Signal(id, time)
+            -- Use a lua callback if known, else an MD signal.
+            if L.alarm_callbacks[id] ~= nil then
+                pcall(L.alarm_callbacks[id], id, time)
+            else
+                L.Raise_Signal(id, time)
+            end
 
             -- Note this id for list removal.
             table.insert(ids_to_remove, id)
@@ -357,7 +394,7 @@ end
 -- Split a string on the first colon.
 -- Note: works on the MD passed arrays of characters.
 -- Returns two substrings.
--- TODO: a good way to share string helper code across extensions.
+-- TODO: reuse the shared lib function.
 function L.Split_String(this_string)
     -- Get the position of the separator.
     local position = string.find(this_string, ":")

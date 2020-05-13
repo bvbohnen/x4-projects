@@ -15,6 +15,7 @@ Operation notes:
  - The actual OS level pipe connections are handled in lua.
  - Minimal global state is tracked here; each access cue is self-sufficient.
  - Read/Write requests kick off cue instances that schedule the operation with the lua code, and then listen for a lua callback, ui reload (which wipes lua state), or timeout.
+ - At least 1 frame of delay occurs on returning an operation result from lua back to md.
  - A user-supplied callback cue is called when access completes.
  - Any access error returns a special message to the callback cue.
  - Any pipe error will trigger an error on all pending accesses.
@@ -25,6 +26,7 @@ Usage:
  - User code should expect errors to occur often, and handle as needed.
  - Exact message protocol and transaction behavior depends on the external server handling a specific pipe.
  - If the OS pipe gets broken, the server should shutdown and remake the pipe, as the lua client cannot reconnect to the old pipe (in testing so far).
+ - If passing rapid messages, recommend finding a way to join them together into one, or else have multiple read requests in flight at once, to avoid throttling due to the 1 frame lua->md delay.
     
 Note on timeouts:
  - If an access times out in the MD, it will still be queued for service in the lua until the pipe is closed.
@@ -84,13 +86,17 @@ Note on timeouts:
     
 * **Read**
   
-  User function to read a pipe.
+  User function to read a pipe. Note: the lua-to-md frame delay means that read responses will always be delayed by at least one frame.
       
   Param: Table with the following items:
   * pipe
     - Name of the pipe being written, without OS path prefix.
   * cue
     - Callback, optional, the cue to call when the read completes.
+  * continuous
+    - Bool, optional, if True then this read will continuously run, returning messages read but not ending the request.
+    - This allows a pipe to be read multiple times in a single frame with a single read request (otherwise multiple parallel read requests would be needed).
+    - Should not be used with timeout.
   * time
     - Timeout, optional, the time until a pending read is cancelled.
     - After a timeout, the pipe will still listen for the message and throw it away when it arrives. This behavior can be changed with the next arg.
@@ -136,6 +142,19 @@ Note on timeouts:
         </do_else>
       </actions>
     </cue>
+  ```
+    
+* **Cancel_Reads**
+  
+  User function to cancel pending reads of a pipe. Does nothing if the pipe does not exist. Can be used to stop a continuous read.
+      
+  Param: Name of the pipe being opened.
+            
+  Usage example:
+  ```xml
+    <signal_cue_instantly 
+      name="md.Named_Pipes.Cancel_Reads" 
+      param="'mypipe'">
   ```
     
 * **Check**
@@ -204,6 +223,9 @@ Note on timeouts:
       - Defaults false.
       - This will trigger error responses on all cancelled accesses except for this one that timed out.
       - Intended for use with reads when the timed-out access is not expecting any response, eg. was passively reading.
+    * $continuous
+      - Bool, optional, if True and this is a Read, then this read will continuously run, returning messages read but not ending the request.
+      - Should not be used with timeout.
         
   Returns: Value is is sent as event.param to the callback cue. Writes and Checks receive 'SUCCESS' or 'ERROR'. Reads receive pipe response or 'ERROR' or 'TIMEOUT' or 'CANCELLED'.
     
@@ -281,14 +303,14 @@ Usage:
           
   Parameters:
   * Actions_On_Reload
-    - Library of actions to take when reloading after a pipe disconnect, savegame reload, ui reload, as well as initial creation.
+    - Library of actions to perform when reloading after a pipe disconnect, savegame reload, ui reload, as well as initial creation.
     - Should set attributes: Pipe_Name, and optionally DebugChance.
     - May add other variables to the library instance, if desired.
   * Actions_On_Connect
-    - Optional library of actions to take upon connecting to the server.
+    - Optional library of actions to perform upon connecting to the server.
     - May signal $Start_Reading to begin passive reading of the pipe.
   * Actions_On_Read
-    - Optional library of actions to take when reading a message from the server.
+    - Optional library of actions to perform when reading a message from the server.
     - The message will be in event.param.
         
   Attributes (write these in Actions_On_Reload):
@@ -349,187 +371,3 @@ Usage:
   
       ```
           
-
-### MD to Lua Pipe API Overview
-
- 
-
-Lua support for communicating through windows named pipes with an external process, with the help of the winpipe api dll, which wraps select windows OS functions.
-
-The external process will be responsible for serving pipes. X4 will act purely as a client.
-
-Note: if you are using the higher level MD API, you don't need to worry about these lua details.
-
-Behavior:
-- MD triggers lua functions using raise_lua_event.
-- Lua responds to MD by signalling the galaxy object with specific names.
-- When loaded, sends the signal "lua_named_pipe_api_loaded".
-- Requested reads and writes will be tagged with a unique <id> string, used to uniquify the signal raised when the request has completed.
-- Requests are queued, and will be served as the pipe becomes available.
-- Multiple requests may be serviced within the same frame.
-- Pipe access is non-blocking; reading an empty pipe will not error, but instead kicks off a polling loop that will retry the pipe each frame until the request succeeds or the pipe goes bad (eg. server disconnect).
-- If the write buffer to the server fills up and doesn't have room for a new message, or the new message is larger than the entire buffer, the pipe will be treated as bad and closed. (This is due to windows not properly distinguishing these cases from broken pipes in its error codes.)
-- Pipe file handles are opened automatically when handling requests.
-- If a prior opened file handle goes bad when processing a request, one attempt will be made to reopen the file before the request will error out.
-- Whenever the UI is reloaded, all queued requests and open pipes will be destroyed, with no signals to MD.  The MD is responsible for cancelling out such requests on its end, and the external server is responsible for resetting its provided pipe in this case.
-- The pipe file handle will (should) be closed properly on UI/game reload, triggering a closed pipe error on the server, which the server should deal with reasonably (eg. restarting the server side pipe).
-
-### MD to Lua Pipe API Functions
-
- 
-* Reading a pipe from MD:
-
-  Start with a trigger:
-  ```xml
-    <raise_lua_event 
-        name="'pipeRead'" 
-        param="'<pipe_name>;<id>'"/>
-  ``` Example:
-  ```xml
-    <raise_lua_event 
-        name="'pipeRead'" 
-        param="'myX4pipe;1234'"/>
-  ```
-      
-  Capture completion with a new subcue (don't instantiate if already inside an instance), conditioned on response signal:
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'pipeRead_complete_<id>'" />
-  ```
-      
-  The returned value will be in "event.param3":
-  ```xml
-    <set_value 
-        name="$pipe_read_value" 
-        exact="event.param3" />
-  ```
-      
-  `<pipe_name>` should be the unique name of the pipe being connected to. Locally, this name is prefixed with `\\.\pipe\`.
-
-  `<id>` is a string that uniquely identifies this read from other accesses that may be pending in the same time frame.
-  
-  If the read fails due to a closed pipe, a return signal will still be sent, but param2 will contain "ERROR".
-    
-    
-* Writing a pipe from MD:
-
-  The message to be sent will be suffixed to the pipe_name and id, separated by semicolons.
-  ```xml
-    <raise_lua_event 
-        name="'pipeWrite'" 
-        param="'<pipe_name>;<id>;<message>'"/>
-  ```
-            
-  Example:
-  ```xml
-    <raise_lua_event 
-        name="'pipeWrite'" 
-        param="'myX4pipe;1234;hello'"/>
-  ```
-        
-  Optionally capture the response signal, indicating success or failure.
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'pipeWrite_complete_<id>'" />
-  ```
-    
-  The returned status is "ERROR" on an error, else "SUCCESS".
-  ```xml
-    <set_value name="$status" exact="event.param3" />
-  ```
-        
-        
-* Special writes:
-
-  Certain write messages will be mapped to special values to be written, determined lua side.  This uses "pipeWriteSpecial" as the event name, and the message is the special command.
-  
-  Currently, the only such command is "package.path", sending the current value in lua for that.
-  
-  ```xml
-    <raise_lua_event 
-        name="'pipeWriteSpecial'" 
-        param="'myX4pipe;1234;package.path'"/>
-  ```
-        
-    
-* Checking pipe status:
-
-  Test if the pipe is connected in a similar way to reading:
-  ```xml
-    <raise_lua_event 
-        name="'pipeCheck'" 
-        param="'<pipe_name>;<id>'" />
-  ```
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'pipeCheck_complete_<id>'" />
-  ```
-          
-  In this case, event.param2 holds SUCCESS if the pipe appears to be succesfully opened, ERROR if not. Note that this does not robustly test the pipe, only if the File is open, so it will report success even if the server has disconnected if no operations have been performed since that disconnect.
-    
-    
-* Close pipe:
-  ```xml
-    <raise_lua_event 
-        name="'pipeClose'" 
-        param="'<pipe_name>'" />
-  ```
-    
-  Closing out a pipe has no callback. This will close the File handle, and will force all pending reads and writes to signal errors.
-        
-      
-* Set a pipe to throw away reads during a pause:
-  ```xml
-    <raise_lua_event 
-        name="'pipeSuppressPausedReads'" 
-        param="'<pipe_name>'" />
-  ```
-    
-* Undo this with:
-  ```xml
-    <raise_lua_event 
-        name="'pipeUnsuppressPausedReads'" 
-        param="'<pipe_name>'" />
-  ```
-        
-
-* Detect a pipe closed:
-
-  When there is a pipe error, this api will make one attempt to reconnect before returning an ERROR. Since the user may need to know about these disconnect events, a signal will be raised when they happen. The signal name is tied to the pipe name.
-  
-  ```xml
-    <event_ui_triggered 
-        screen="'Named_Pipes'" 
-        control="'<pipe_name>_disconnected'" />
-  ```
-
-### Lua to Lua Pipe API Overview
-
- 
-
-Other lua modules may use this api to access pipes as well. Behavior is largely the same as for the MD interface, except that results will be returned to lua callback functions instead of being signalled to MD. It may be imported using a require statement:
-```lua
-  local pipes_api = require('extensions.sn_named_pipes_api.lua.Interface')
-```
-
-### Lua to Lua Pipe API Functions
-
- 
-See named_pipes_api/lua/Pipes.lua for everything available. Basic writing and reading functions are shown here.
-
-* Schedule_Write(pipe_name, callback, message)
-  - pipe_name
-    - String, name of the pipe.
-  - callback
-    - Optional, lua function to call, taking one argument.
-  - message
-    - String, message to write.
-
-* Schedule_Read(pipe_name, callback)
-  - pipe_name
-    - String, name of the pipe.
-  - callback
-    - Optional, lua function to call, taking one argument.

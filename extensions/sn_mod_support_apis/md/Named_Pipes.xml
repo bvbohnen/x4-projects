@@ -24,6 +24,8 @@ Operation notes:
  - Read/Write requests kick off cue instances that schedule the operation
    with the lua code, and then listen for a lua callback, ui reload (which
    wipes lua state), or timeout.
+ - At least 1 frame of delay occurs on returning an operation result from
+   lua back to md.
  - A user-supplied callback cue is called when access completes.
  - Any access error returns a special message to the callback cue.
  - Any pipe error will trigger an error on all pending accesses.
@@ -37,6 +39,9 @@ Usage:
  - If the OS pipe gets broken, the server should shutdown and remake
    the pipe, as the lua client cannot reconnect to the old pipe
    (in testing so far).
+ - If passing rapid messages, recommend finding a way to join them together
+   into one, or else have multiple read requests in flight at once, to
+   avoid throttling due to the 1 frame lua->md delay.
     
 Note on timeouts:
  - If an access times out in the MD, it will still be queued for service
@@ -94,6 +99,11 @@ TODO:
       - Int, number of accesses performed, with some rollover.
       - Used to tag each new access, so that the lua can suffix its
         completion signals to match them to the right callback cue.
+        
+    * reserved_ids
+      - Table of reserved access ids. Values are dummy 1s.
+      - Continuous reads will reserve their id to avoid conflict after
+        rollover.
                 
     * $pipe_name_prefix
       - String, prefix to add to all pipe names to construct the OS path.
@@ -120,6 +130,7 @@ TODO:
       
       <!-- Counter reset is optional, but include for init. -->
       <set_value name="Globals.$access_counter" exact="0"/>
+      <set_value name="Globals.$reserved_ids" exact="table[]"/>
       <!-- Prefix to add to all pipe names. -->
       <set_value name="Globals.$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
       <set_value name="Globals.$pipe_status_cues" exact="[]"/>
@@ -142,7 +153,9 @@ TODO:
     <actions>
       <!-- Make sure the global registry is reset. -->
       <include_actions ref="Reset_Globals"/>
-      <!-- Send a signal that all users listen to, to repopulate the table. -->
+      <!--Send a signal that all users listen to, to repopulate the table. 
+          Instant, to avoid possible problems with delaying this.
+      -->
       <signal_cue_instantly cue="Reloaded"/>
     </actions>
   </cue>  
@@ -173,16 +186,47 @@ TODO:
   <library name="Get_Next_Access_ID">
     <actions>
       <!-- Inc with rollover. -->
-      <set_value name="Globals.$access_counter" exact="Globals.$access_counter + 1"/>
+      <set_value name="Globals.$access_counter" exact="1" operation="add"/>
       <do_if value="Globals.$access_counter >= 10000">
         <set_value name="Globals.$access_counter" exact="0"/>
       </do_if>
+      <!--If this is reserved, keep going.-->
+      <do_while value="Globals.$reserved_ids.{Globals.$access_counter}?">
+        <set_value name="Globals.$access_counter" exact="1" operation="add"/>
+        <do_if value="Globals.$access_counter >= 10000">
+          <set_value name="Globals.$access_counter" exact="0"/>
+        </do_if>        
+      </do_while>
       <!-- Assign the new count to the access_id, as a string. -->
       <set_value name="$access_id" exact="'' + Globals.$access_counter"/>
     </actions>
   </library>
-    
+
   
+  <!--
+    Send a command to lua, storing args in the player blackboard.
+    The blackboard will use a list to queue multiple args for the same
+    frame, since lua will process them in the latter part of the frame.
+  -->
+  <cue name="Send_Command" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <!-- Args are transmitted to lua using a blackboard var. -->
+      <!-- Create the blackboard list if it doesn't exist. -->
+      <do_if value="not player.entity.$pipe_api_args?">
+        <set_value name="player.entity.$pipe_api_args" exact="[]" />
+      </do_if>
+      <append_to_list name="player.entity.$pipe_api_args" exact="event.param"/>
+
+      <debug_text text="'Sending %s to %s'.[event.param.$command, event.param.$pipe_name]"
+                  chance="Globals.$DebugChance" filter="general"/>
+      <raise_lua_event name="'pipeProcessCommand'"/>
+    </actions>
+  </cue>
+
+
   <!--@doc-cue
     
     User function to write a pipe.
@@ -256,13 +300,21 @@ TODO:
   
   
   <!--@doc-cue
-    User function to read a pipe.
+    User function to read a pipe. Note: the lua-to-md frame delay means
+    that read responses will always be delayed by at least one frame.
     
     Param: Table with the following items:
     * pipe
       - Name of the pipe being written, without OS path prefix.
     * cue
       - Callback, optional, the cue to call when the read completes.
+    * continuous
+      - Bool, optional, if True then this read will continuously run,
+        returning messages read but not ending the request.
+      - This allows a pipe to be read multiple times in a single frame
+        with a single read request (otherwise multiple parallel read
+        requests would be needed).
+      - Should not be used with timeout.
     * time
       - Timeout, optional, the time until a pending read is cancelled.
       - After a timeout, the pipe will still listen for the message and
@@ -322,6 +374,35 @@ TODO:
       <!-- Add the command to the param table, and pass it along. -->
       <set_value name="event.param.{'$command'}" exact="'Read'" />
       <signal_cue_instantly cue="Access_Handler" param="event.param"/>
+    </actions>
+  </cue>
+
+  <!--@doc-cue
+    User function to cancel pending reads of a pipe.
+    Does nothing if the pipe does not exist.
+    Can be used to stop a continuous read.
+    
+    Param: Name of the pipe being opened.
+          
+    Usage example:
+    ```xml
+      <signal_cue_instantly 
+        name="md.Named_Pipes.Cancel_Reads" 
+        param="'mypipe'">
+    ```
+  -->
+  <cue name="Cancel_Reads" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <debug_text text="'%s cancelling reads.'.[event.param]"
+                  chance="Globals.$DebugChance" filter="general"/>
+      <!-- Just need to send down the pipe name. -->
+      <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = event.param,
+                 $command    = 'CancelReads',
+                 ]" />
     </actions>
   </cue>
 
@@ -390,7 +471,10 @@ TODO:
       <debug_text text="'%s closing if open.'.[event.param, $command]"
                   chance="Globals.$DebugChance" filter="general"/>
       <!-- Just need to send down the pipe name. -->
-      <raise_lua_event name="'pipeClose'" param="event.param"/>
+      <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = event.param,
+                 $command    = 'Close',
+                 ]" />
     </actions>
   </cue>
 
@@ -413,7 +497,10 @@ TODO:
       <event_cue_signalled/>
     </conditions>
     <actions>
-      <raise_lua_event name="'pipeSuppressPausedReads'" param="event.param"/>
+      <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = event.param,
+                 $command    = 'SuppressPausedReads',
+                 ]" />
     </actions>
   </cue>
 
@@ -436,10 +523,13 @@ TODO:
       <event_cue_signalled/>
     </conditions>
     <actions>
-      <raise_lua_event name="'pipeUnsuppressPausedReads'" param="event.param"/>
+      <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = event.param,
+                 $command    = 'UnsuppressPausedReads',
+                 ]" />
     </actions>
   </cue>
-
+  
 
   <!--@doc-cue
     Start a new pipe access.
@@ -474,6 +564,11 @@ TODO:
           except for this one that timed out.
         - Intended for use with reads when the timed-out access is not
           expecting any response, eg. was passively reading.
+      * $continuous
+        - Bool, optional, if True and this is a Read, then this read will
+          continuously run, returning messages read but not ending
+          the request.
+        - Should not be used with timeout.
       
     Returns:
       Value is is sent as event.param to the callback cue.
@@ -487,17 +582,12 @@ TODO:
     
     <actions>      
       <!-- Parse inputs. Record some stuff for subcues. -->
-      <set_value name="$pipe_name"    exact="event.param.{'$pipe'}" />
-      <set_value name="$command"      exact="event.param.{'$command'}" />
-      
-      <!-- Message doesn't need to be created for non-writes. -->
-      <do_if value="event.param.{'$msg'}?">
-        <set_value name="$message"      exact="event.param.{'$msg'}" />
-      </do_if>
+      <set_value name="$pipe_name"    exact="event.param.$pipe" />
+      <set_value name="$command"      exact="event.param.$command" />
       
       <!-- Callback defaults to null. -->
-      <do_if value="event.param.{'$cue'}?">
-        <set_value name="$callback_cue"      exact="event.param.{'$cue'}" />
+      <do_if value="event.param.$cue?">
+        <set_value name="$callback_cue"      exact="event.param.$cue" />
       </do_if>
       <do_else>
         <set_value name="$callback_cue"      exact="null" />
@@ -505,16 +595,20 @@ TODO:
 
       <!-- Timeout cancellation defaults to false for now.-->
       <do_if value="event.param.{'$cancel_on_timeout'}?">
-        <set_value name="$cancel_on_timeout"      exact="event.param.{'$cancel_on_timeout'}" />
+        <set_value name="$cancel_on_timeout"      exact="event.param.$cancel_on_timeout" />
       </do_if>
       <do_else>
         <set_value name="$cancel_on_timeout"      exact="false" />
       </do_else>
+      
+      <!--Continuous mode storage for later check.-->
+      <set_value name="$continuous" exact="@event.param.$continuous" />
+      
 
       <!-- Calculate the real time of the timeout, by adding to current age. -->
       <!-- TODO: switch to using realtime api. -->
-      <do_if value="event.param.{'$time'}?">
-        <set_value name="$scheduled_timeout"  exact="player.age + event.param.{'$time'}" />
+      <do_if value="event.param.$time?">
+        <set_value name="$scheduled_timeout"  exact="player.age + event.param.$time" />
       </do_if>
       <do_else>
         <!--Set something super large; don't want this triggering since 
@@ -524,6 +618,11 @@ TODO:
             
       <!-- Get a new access id to use. Adds $access_id -->
       <include_actions ref="Get_Next_Access_ID"/>
+
+      <!--In continuous mode, reserve the id.-->
+      <do_if value="$continuous">
+        <set_value name="Globals.$reserved_ids.{'$'+$access_id}" exact="1"/>
+      </do_if>
       
       <!--Preconstruct the signal name that lua will use.
           Eg. "pipeRead_complete_123"
@@ -531,29 +630,14 @@ TODO:
       -->
       <set_value name="$lua_signal" exact="'pipe'+ $command +'_complete_'+$access_id"/>
 
-      <!-- Handle the command, passing off to lua. -->
-      <do_if value="$command == 'Write' or $command == 'WriteSpecial'">
-        <!-- Debug announcement. -->
-        <debug_text text="'%s %s started: %s'.[$pipe_name, $command, $message]" chance="Globals.$DebugChance" filter="general"/>
-        <!--Trigger the lua handler.
-            Awakwardly, this only accepts one param, so the pipename, id,
-            and message need to be squished together.
-            TODO: maybe code reuse on the first part of string construction. -->
-        <raise_lua_event name="'pipe'+$command" param="$pipe_name + ';' + $access_id + ';' + $message"/>
-      </do_if>
-      
-      <do_if value="$command == 'Read'">
-        <!-- Debug announcement. -->
-        <debug_text text="'%s Read started'.[$pipe_name]" chance="Globals.$DebugChance" filter="general"/>
-        <raise_lua_event name="'pipeRead'" param="$pipe_name + ';' + $access_id"/>
-      </do_if>
-      
-      <do_if value="$command == 'Check'">
-        <!-- Debug announcement. -->
-        <debug_text text="'%s Check started'.[$pipe_name]" chance="Globals.$DebugChance" filter="general"/>
-        <raise_lua_event name="'pipeCheck'" param="$pipe_name + ';' + $access_id"/>
-      </do_if>
-      
+      <!--Send the command.-->
+      <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = $pipe_name,
+                 $command    = $command,
+                 $access_id  = $access_id,
+                 $message    = @event.param.$msg,
+                 $continuous = $continuous,
+                 ]" />
     </actions>
     
     <cues>
@@ -567,6 +651,9 @@ TODO:
           
         Call with include_actions:
         <include_actions ref="Complete_Access"/>
+        
+        Note: if this is a continuous read, and the response isn't an
+        error (or timeout, but that shouldn't happen), then don't cancel.
       -->
       <library name="Complete_Access">
         <actions>
@@ -578,18 +665,33 @@ TODO:
           <!--Stop other subcues by cancelling the parent.
               Note: this had trouble with "parent" still leaving subcues
               running, so try "namespace" (which should be the root instance).
-              (TODO: revisit this to verify it works correctly.)
+              (TODO: revisit this to verify it works correctly, but seems to.)
+              
+              Skip if continuous read and not an error.
           -->
-          <cancel_cue cue="namespace"/>
+          <do_if value="not $continuous 
+                 or $response == 'ERROR' 
+                 or $response == 'CANCELLED' 
+                 or $response == 'TIMEOUT'">
+            <!--Clear id reservation, if still present. 
+                (May not be after a reload.)-->
+            <do_if value="$continuous and Globals.$reserved_ids.{'$'+$access_id}?">
+              <remove_value name="Globals.$reserved_ids.{'$'+$access_id}"/>
+            </do_if>
+            
+            <cancel_cue cue="namespace"/>
+          </do_if>
         </actions>
       </library>
-      
+
       
       <!--
         Listen for the lua completion signal, get result.
         Services both reads and writes.
+        This should only fire once (don't instantiate), except for 
+        continuous reads which will reset it directly.
       -->
-      <cue name="Capture_Lua_Response" >
+      <cue name="Capture_Lua_Response">
         <conditions>
             <event_ui_triggered screen="'Named_Pipes'" control="$lua_signal" />
         </conditions>
@@ -598,6 +700,11 @@ TODO:
           <!-- Grab the returned value. -->
           <!-- An ERROR may have been returned. Ignore for now. -->
           <set_value name="$response" exact="event.param3" />
+
+          <!--If continuous, reset self.-->
+          <do_if value="$continuous">
+            <reset_cue cue="this"/>
+          </do_if>
           
           <!-- Debug announcement.  -->
           <debug_text text="'%s %s returned: %s'.[@$pipe_name, @$command, @$response]" chance="Globals.$DebugChance" filter="general"/>
@@ -652,10 +759,16 @@ TODO:
               should be ignored safely if other logic works right. -->
           <do_if value="$cancel_on_timeout">
             <do_if value="$command == 'Write' or $command == 'WriteSpecial'">
-              <raise_lua_event name="'pipeCancelWrites'" param="$pipe_name"/>
+              <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = $pipe_name,
+                 $command    = 'CancelWrites',
+                 ]" />
             </do_if>
             <do_elseif value="$command == 'Read'">
-              <raise_lua_event name="'pipeCancelReads'"  param="$pipe_name"/>
+              <signal_cue_instantly cue="Send_Command" param="table[
+                 $pipe_name  = $pipe_name,
+                 $command    = 'CancelReads',
+                 ]" />
             </do_elseif>
           </do_if>
           

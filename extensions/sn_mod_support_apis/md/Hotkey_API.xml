@@ -13,7 +13,6 @@ which in turn handles callbacks to user specified cues.
 -->
   <!--
 TODO:
-  - Turn off server if all keys unregistered (can do this server side).
   - Option to hide an action (make private) from the menu.
 -->
 <cues>
@@ -143,6 +142,10 @@ TODO:
       are disabled globally.
     - Currently used for OptionsMenu, to menu-enabled actions causing
       problems when remapping keys.
+  * disabled
+    - Bool, true when the lua has requested hotkeys be disabled following
+      a direct input event (eg. edit box text).
+    - This will cause callbacks to be suppressed.
   -->
   <cue name="Globals">
     <!-- When first created, set up globals. -->
@@ -178,7 +181,8 @@ TODO:
       <set_value name="$key_event_substrings" exact="table[]"/>      
       <set_value name="$menu_states" exact="table[]"/>
       <set_value name="$in_menu" exact="false"/>
-      <set_value name="$in_protected_menu" exact="false"/>      
+      <set_value name="$in_protected_menu" exact="false"/>
+      <set_value name="$disabled" exact="false"/>
 
       <!-- TODO: somehow bounce this over to Server_Reader reliably.-->
       <set_value name="$DebugChance" exact="0" />
@@ -235,15 +239,20 @@ TODO:
       <!-- Announce the wanted keys to the server. -->
       <signal_cue_instantly cue="md.Hotkey_API.Register_Keys_With_Server"/>
       <!-- Enable the menu plugin. -->
-      <raise_lua_event name="'Hotkey.Update_Connection_Status'" param="1"/>      
+      <raise_lua_event name="'Hotkey.Update_Connection_Status'" param="1"/>
     </actions>
   </library>
 
   <!--TODO: break out the key handling from the pipe cue.-->
   <library name="Actions_On_Read">
     <actions>
-      <!-- Hand off to hotkey_api module cue. -->
-      <signal_cue_instantly cue="md.Hotkey_API.Handle_Key" param="event.param"/>
+      <!-- Bounce back to lua to separate the message. 
+          TODO: somehow avoid the lua bounce and related frame delay;
+          perhaps extend the pipe api to support a generic lua processing
+          function automated as part of the read?
+      -->
+      <raise_lua_event name="'Hotkey.Process_Message'" param="event.param"/>
+      <!--<signal_cue_instantly cue="md.Hotkey_API.Handle_Message" param="event.param"/>-->
 
       <!--Acknowledge this key was read.
         Note: this will not bother to check for errors. If the pipe dies,
@@ -707,6 +716,42 @@ TODO:
   <!-- ################################################################## -->
   <!--                          Lua events                                -->
   <!-- ################################################################## -->
+  
+  <!--
+    Capture lua signal on a direct-input event key press.
+    This happens when the player is entering text into a text box,
+    eg. the chat window, ship renaming, etc.
+    
+    The lua side will first send a "disable" event, wait some period of
+    time, then send an "enable" event. The goal is that any corresponding
+    hotkey matches should be received in the window and suppressed.
+    
+    Note: this solution isn't perfect, and may suppress a legit hotkey
+    entered right after finishing with an edit box (relatively low impact),
+    or may allow a direct input key to match a hotkey if there is a large
+    latency hiccup between server and local handler.
+    TODO: think about more robust ways to suppress keys under latency.
+  -->
+  <cue name="Capture_Lua_Disable" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Hotkey'" control="'disable'" />
+    </conditions>
+    <actions>
+      <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;disabling...'"/>-->
+      <set_value name="Globals.$disabled" exact="true"/>
+    </actions>
+  </cue>
+
+  <cue name="Capture_Lua_Enable" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Hotkey'" control="'enable'" />
+    </conditions>
+    <actions>
+      <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;enabling...'"/>-->
+      <set_value name="Globals.$disabled" exact="false"/>
+    </actions>
+  </cue>
+  
 
   <!--
     Capture lua signals when the player assigns a new key.
@@ -817,124 +862,136 @@ TODO:
   <!-- ################################################################## -->
   <!--                         Key Press Handling                         -->
   <!-- ################################################################## -->
-
+  
   <!--
-    Handle a key press event.
-    The key code should be in event.param.
+    Handle key press events.
+    The python originally packaged these together to reduce signal overhead
+    (after key repetition got sluggish as separate messages), so a single
+    message handles all keys in a period of time.
+    A list of key combos should be in the event.param3.
   -->
-  <cue name="Handle_Key" instantiate="true" namespace="this">
+  <cue name="Handle_Events" instantiate="true" namespace="this">
     <conditions>
-      <event_cue_signalled/>
+      <event_ui_triggered screen="'Hotkey'" control="'handle_events'" />
     </conditions>
-    <actions>      
+    <actions>
       <!-- Read succeeded with at least one key. -->
       <!-- Handle callback cues. -->
-      <!-- TODO: support multiple keys returned, with some separator. -->
+      <do_for_each name="$key_event" in="event.param3">
+        <!-- Start by prefixing the key combo with a '$' for table lookups.
+            Removed; done in lua.
+        <set_value name="$key_event" exact="'$' + event.param"/> -->              
 
-      <!-- Start by prefixing the key combo with a '$' for table lookups. -->
-      <set_value name="$key_event" exact="'$' + event.param"/>
-      <debug_text text="'Received key event %s'.[$key_event]"
-                  chance="Globals.$DebugChance" filter="general"/>
-      <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Received key event %s'.[$key_event]"/>-->
+        <debug_text text="'Received key event %s'.[$key_event]"
+                    chance="Globals.$DebugChance" filter="general"/>
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Received key event %s'.[$key_event]"/>-->
       
-      <!-- Ignore if currently in a protected menu. -->
-      <do_if value="Globals.$in_protected_menu">
-        <debug_text text="'Ignoring key; protected menu open'"
-                    chance="Globals.$DebugChance" filter="general"/>
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ignoring key; protected menu open'"/>-->
-      </do_if>
-
-      <!-- Is the key returned actually registered? -->
-      <do_elseif value="Globals.$key_event_action_registry.{$key_event}?">
-        
-        <!-- Determine the current player context. -->
-        <!-- TODO: maybe pack into chained if/then/else expression. -->
-        <!-- If any menu is open, then in a menu. -->
-        <do_if value="Globals.$in_menu">
-          <set_value name="$context" exact="'menus'"/>
+        <!-- Ignore if currently in a protected menu. -->
+        <do_if value="Globals.$in_protected_menu">
+          <debug_text text="'Ignoring key; protected menu open'"
+                      chance="Globals.$DebugChance" filter="general"/>
+          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ignoring key; protected menu open'"/>-->
         </do_if>
-        <!-- Otherwise if piloting a ship, then flying. -->
-        <do_elseif value="player.occupiedship">
-          <set_value name="$context" exact="'flying'"/>
+      
+        <!--Ignore if disabled after direct input.-->
+        <do_elseif value="Globals.$disabled">
+          <debug_text text="'Ignoring key; temporarily disabled after direct text input'"
+                      chance="Globals.$DebugChance" filter="general"/>
+          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ignoring key; direct input disabled'"/>-->
         </do_elseif>
-        <!-- Otherwise walking around. -->
-        <do_else>
-          <set_value name="$context" exact="'walking'"/>
-        </do_else>
 
-        <debug_text text="'Context of key: %s'.[$context]"
-                    chance="Globals.$DebugChance" filter="general"/>
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Context of key: %s'.[$context]"/>-->
+        <!-- Is the key returned actually registered? -->
+        <do_elseif value="Globals.$key_event_action_registry.{$key_event}?">
         
-        <!-- Get the event associated with this key/event, matching its suffix. -->
-        <set_value name="$key" exact ="Globals.$key_event_substrings.{$key_event}.{1}"/>
-        <set_value name="$event" exact ="Globals.$key_event_substrings.{$key_event}.{2}"/>
-        
-        <!-- Loop over the action ids. -->
-        <do_for_each name="$id" in="Globals.$key_event_action_registry.{$key_event}">
-          
-          <!-- Get the actual action info. -->
-          <set_value name="$action" exact="Globals.$action_registry.{'$' + $id}"/>
-          
-          <!-- Determine if this action is valid at this time. -->
-          <set_value name="$valid" exact="false"/>
-          
-          <!-- General context check. -->
-          <do_if value="$action.$contexts.indexof.{$context} != 0">
-            <set_value name="$valid" exact="true"/>
+          <!-- Determine the current player context. -->
+          <!-- TODO: maybe pack into chained if/then/else expression. -->
+          <!-- If any menu is open, then in a menu. -->
+          <do_if value="Globals.$in_menu">
+            <set_value name="$context" exact="'menus'"/>
           </do_if>
-          
-          <!-- If in menu and menu names were given, check specific name. -->
-          <do_elseif value="Globals.$in_menu and ($action.$menu_names?)">
-            <!-- Go through all menu names and see if any are open. -->
-            <do_for_each name="$menu_name" in="$action.$menu_names">
-              <!--Check this is a tracked menu, and in an open state.-->
-              <do_if value="Globals.$menu_states.{$menu_name}? and Globals.$menu_states.{$menu_name}">
-                <!-- This menu is open, so flag as valid. -->
-                <set_value name="$valid" exact="true"/>
-                <!-- Update the context for cue callback. -->
-                <set_value name="$context" exact="$menu_name"/>
-                <break/>
-              </do_if>
-            </do_for_each>
+          <!-- Otherwise if piloting a ship, then flying. -->
+          <do_elseif value="player.occupiedship">
+            <set_value name="$context" exact="'flying'"/>
           </do_elseif>
-          
-          <!-- Skip if not a valid context. -->
-          <do_if value="not $valid">
-            <debug_text text="'Skipping due to context mismatch'"
-                        chance="Globals.$DebugChance" filter="general"/>
-            <continue/>
-          </do_if>
-          
-          <!-- Look up the cue to callback to. -->
-          <!-- (In the current setup, the cue should always be found.) -->
-          <set_value name="$cue" exact="@$action.{'$'+$event}"/>
-          
-          <!-- Call it if it still exists. -->
-          <do_if value="$cue.exists">
-            <debug_text text="'Signalling cue: %s'.[$cue]"
-                        chance="Globals.$DebugChance" filter="general"/>
-            <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Signalling cue: %s'.[$cue]"/>-->
-            <!-- Call the cue, with return values. -->
-            <signal_cue_instantly cue="$cue" param="table[
-                                  $key     = $key,
-                                  $id      = $id,
-                                  $context = $context,
-                                  $event   = $event,
-                                  $echo    = $action.$echo
-                                  ]"/>
-          </do_if>
-          <!-- TODO: delink keys from non-existent actions/cues. -->
-          <!--Could do this by removing the $event from the action, 
-              unregistering, and reregistering.-->          
-        </do_for_each>
-      </do_elseif>
+          <!-- Otherwise walking around. -->
+          <do_else>
+            <set_value name="$context" exact="'walking'"/>
+          </do_else>
 
-      <do_else>
-        <!-- Key not registered. TODO: error message. -->
-        <debug_text text="'Ignoring key; no registered events'"
-                    chance="Globals.$DebugChance" filter="general"/>
-      </do_else>
+          <debug_text text="'Context of key: %s'.[$context]"
+                      chance="Globals.$DebugChance" filter="general"/>
+          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Context of key: %s'.[$context]"/>-->
+        
+          <!-- Get the event associated with this key/event, matching its suffix. -->
+          <set_value name="$key" exact ="Globals.$key_event_substrings.{$key_event}.{1}"/>
+          <set_value name="$event" exact ="Globals.$key_event_substrings.{$key_event}.{2}"/>
+        
+          <!-- Loop over the action ids. -->
+          <do_for_each name="$id" in="Globals.$key_event_action_registry.{$key_event}">
+          
+            <!-- Get the actual action info. -->
+            <set_value name="$action" exact="Globals.$action_registry.{'$' + $id}"/>
+          
+            <!-- Determine if this action is valid at this time. -->
+            <set_value name="$valid" exact="false"/>
+          
+            <!-- General context check. -->
+            <do_if value="$action.$contexts.indexof.{$context} != 0">
+              <set_value name="$valid" exact="true"/>
+            </do_if>
+          
+            <!-- If in menu and menu names were given, check specific name. -->
+            <do_elseif value="Globals.$in_menu and ($action.$menu_names?)">
+              <!-- Go through all menu names and see if any are open. -->
+              <do_for_each name="$menu_name" in="$action.$menu_names">
+                <!--Check this is a tracked menu, and in an open state.-->
+                <do_if value="Globals.$menu_states.{$menu_name}? and Globals.$menu_states.{$menu_name}">
+                  <!-- This menu is open, so flag as valid. -->
+                  <set_value name="$valid" exact="true"/>
+                  <!-- Update the context for cue callback. -->
+                  <set_value name="$context" exact="$menu_name"/>
+                  <break/>
+                </do_if>
+              </do_for_each>
+            </do_elseif>
+          
+            <!-- Skip if not a valid context. -->
+            <do_if value="not $valid">
+              <debug_text text="'Skipping due to context mismatch'"
+                          chance="Globals.$DebugChance" filter="general"/>
+              <continue/>
+            </do_if>
+          
+            <!-- Look up the cue to callback to. -->
+            <!-- (In the current setup, the cue should always be found.) -->
+            <set_value name="$cue" exact="@$action.{'$'+$event}"/>
+          
+            <!-- Call it if it still exists. -->
+            <do_if value="$cue.exists">
+              <debug_text text="'Signalling cue: %s'.[$cue]"
+                          chance="Globals.$DebugChance" filter="general"/>
+              <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Signalling cue: %s'.[$cue]"/>-->
+              <!-- Call the cue, with return values. -->
+              <signal_cue_instantly cue="$cue" param="table[
+                                    $key     = $key,
+                                    $id      = $id,
+                                    $context = $context,
+                                    $event   = $event,
+                                    $echo    = $action.$echo
+                                    ]"/>
+            </do_if>
+            <!-- TODO: delink keys from non-existent actions/cues. -->
+            <!--Could do this by removing the $event from the action, 
+                unregistering, and reregistering.-->          
+          </do_for_each>
+        </do_elseif>
+
+        <do_else>
+          <!-- Key not registered. TODO: error message. -->
+          <debug_text text="'Ignoring key; no registered events'"
+                      chance="Globals.$DebugChance" filter="general"/>
+        </do_else>
+      </do_for_each>
     </actions>
   </cue>
 

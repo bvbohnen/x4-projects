@@ -137,10 +137,15 @@
           attached to the callback cue param for convenience.
       * $callback
         - Cue to call when the player changes the option.
+        - This is also called once during setup, after the existing md stored
+          value is applied to the option.
         - Event.param will be a table of [$id, $echo, $value], where the
           value depends on the widget type.
         - "button" returns 0 (off) or 1 (on).
         - "slidercell" returns the slider value.
+      * $skip_initial_callback
+        - Optional, 0 or 1; if the initial callback during setup is skipped.
+        - Defaults 0.
       * $disabled = 0
         - Optional, 0 or 1; if the option will not be displayed in the menu.
     -->
@@ -188,8 +193,12 @@
                        exact="$option.$default"/>
           </do_if>
           
-          <!--Do an initial call with the default or current value.-->
-          <do_if value="$option.$callback? and $option.$callback.exists">
+          <!--Do an initial call with the default or current value.
+              Skip this if disabled, or skipping initial callback.
+          -->
+          <do_if value="$option.$callback? and $option.$callback.exists 
+                        and not @$option.$disabled 
+                        and not @$option.$skip_initial_callback">
             <signal_cue_instantly
               cue="$option.$callback"
               param="table[
@@ -205,6 +214,55 @@
       </actions>
     </cue>
 
+
+    <!--@doc-cue
+        User cue to write a new value for an option, overwriting what is
+        stored in this lib. The callback cue will not be signalled.
+        
+      Input is a table with the following fields:
+      * $id
+        - String, unique identifier for this option.
+      * $value
+        - The new value to store.
+    -->
+    <cue name="Write_Option_Value" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$id" exact="'$' + event.param.$id" />
+        <debug_text text="'id %s updating to %s (type %s)'.[
+                    event.param.$id, 
+                    event.param.$value, 
+                    typeof event.param.$value]"
+                  chance="Globals.$DebugChance" filter="general"/>
+        <!--For now, don't validate the id, just store blindly.-->
+        <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+      </actions>
+    </cue>
+
+    <!--@doc-cue
+        User cue to read a value stored for an option.
+        
+      Input is a table with the following fields:
+      * $id
+        - String, unique identifier for this option.
+      * $callback
+        - Cue that will be signalled with a table holding $id and $value.
+    -->
+    <cue name="Read_Option_Value" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$id" exact="'$' + event.param.$id" />
+        <signal_cue_instantly cue="event.param.$callback" param="table[
+                              $id = event.param.$id,
+                              $value = Globals.$storage.{$id},
+                              ]"/>
+      </actions>
+    </cue>
+    
     <!--
       Library to call when setting or updating the value of widget.
       Inputs:
@@ -306,7 +364,7 @@
           <do_for_each name="$option" in="Globals.$options.{$category}">
 
             <!-- Don't list disabled options. -->
-            <do_if value="$option.$disabled? and $option.$disabled">
+            <do_if value="@$option.$disabled">
               <continue/>
             </do_if>
           

@@ -17,3 +17,6 @@ Change Log
   - Prevented experimental FoV slider from having unwanted effects.
 * 1.6
   - Fixed content.xml text nodes.
+* 1.7
+  - Added mass traffic density option.
+  - Fixed auto mousover text losing some formatting (eg. underlines).

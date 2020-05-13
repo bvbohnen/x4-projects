@@ -13,7 +13,19 @@
   -->
 
   <cues>
-    
+
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.sn_hotkey_collection.lua.Hotkeys'"/>
+      </actions>
+    </cue>
+
+
     <!--
       Text storage cue, for easier lookup in general.
       Members are descriptive names of the text strings, prefixed with $.
@@ -29,6 +41,9 @@
 
         <set_value exact="{68537, 4004}" name="Text.$kc_toggle_seta_name" />
         <set_value exact="{68537, 4005}" name="Text.$kc_toggle_seta_mouseover" />
+
+        <set_value exact="{68537, 4006}" name="Text.$kc_zoom_in_name" />
+        <set_value exact="{68537, 4007}" name="Text.$kc_zoom_in_mouseover" />
 
         <set_value exact="{68537, 4100}" name="Text.$kc_tracker_mine_name" />
         <set_value exact="{68537, 4101}" name="Text.$kc_mine_name" />
@@ -173,6 +188,16 @@
           $echo        = [macro.weapon_gen_mine_03_macro, 1],
           ]"/>
 
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id          = 'kc_zoom_in', 
+          $onPress     = Zoom_In,
+          $onRepeat    = Zoom_In,
+          $onRelease   = Zoom_In,
+          $name        = Text.$kc_zoom_in_name, 
+          $description = Text.$kc_zoom_in_mouseover,
+          $contexts    = ['flying'],
+          ]"/>
+
 
         <!--Debug keys. TODO: move elsewhere.
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
@@ -297,7 +322,21 @@
         <toggle_timewarp/>
       </actions>
     </cue>
+
+    <!--
+      Zoom logic will be handled mostly by lua.
+      This will pass over the event data.
+    -->
+    <cue name="Zoom_In" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>    
+        <raise_lua_event name="'SN_Hotkeys.zoom_in'" param="event.param.$event"/>
+      </actions>
+    </cue>
     
+
 
   </cues>
 

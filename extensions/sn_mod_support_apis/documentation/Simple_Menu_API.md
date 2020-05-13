@@ -323,6 +323,7 @@ Complex properties:
     - This cue should use addRow and Make_ functions to build the menu.
     - Do not call Create_Menu from this cue.
     - Widgets should be set up in the same frame; menu will display on the following frame.
+    - The event.param will hold a table including $id, $echo, $columns.
   * onRowChanged
     - Same as for Create_Menu.
   * onColChanged
@@ -331,7 +332,8 @@ Complex properties:
     - Same as for Create_Menu.
   * table
     - Same as for Create_Menu.
-                  
+        
+        
   Call this each time the Reloaded cue is signalled. Example:
   ```xml
     <cue name="Register_Options_Menu" instantiate="true" namespace="this">

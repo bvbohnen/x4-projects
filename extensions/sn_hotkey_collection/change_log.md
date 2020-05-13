@@ -9,3 +9,4 @@ Change Log
   - Fixed content.xml text nodes.
 * 1.3
   - Added seta toggle key (that works while docked).
+  - Added zoom key (2x, 4x); experimental.

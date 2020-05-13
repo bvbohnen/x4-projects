@@ -5,11 +5,7 @@ signal them to x4 accordingly, to be bound x4-side to MD cues.
 Uses the pynput package (not included with anaconda or standard python).
 
 '''
-'''
-TODO:
-    Repack much of this functionality into a class or two, instead
-    of messy global vars and such.
-'''
+
 '''
 Keyboard capture example here:
 https://pynput.readthedocs.io/en/latest/keyboard.html
@@ -25,6 +21,7 @@ for unknown keys."
 That page also advises doing very little in the listener callback functions,
 since long running callbacks can cause problems with new input capture.
 '''
+
 '''
 Note:
     The various keys map to keycodes, found in pynput source in _win32.py
@@ -158,8 +155,12 @@ def main(args):
             
 
             # Try to read any data.
+            # This will grab as much as it can get, so response handling
+            # doesn't bog down when a lot of acks come back (since this
+            # is checked on a timer, where each interval can send several
+            # key events, eg. when keys are held down).
             message = pipe.Read()
-            if message != None:
+            while message != None:
                 print('Received: ' + message)
 
                 # Ignore pings; they were just testing the pipe.
@@ -181,6 +182,9 @@ def main(args):
                     # Would just need to check for empty combo specs, and
                     # throw a pipe error exception (as expected by
                     # Server_Thread to reboot this module).
+
+                # Try to get another message.
+                message = pipe.Read()
                 
 
             # If anything is in the key_buffer, process into key combos.
@@ -192,15 +196,20 @@ def main(args):
                 # Process the keys, updating what is pressed and getting any
                 # matched combos.
                 matched_combos = combo_processor.Process_Key_Events(key_buffer)
-            
-                # Start transmitting.
-                for combo in matched_combos:
-                    # Transmit to x4.
-                    # Note: this doesn't put the '$' back for now, since that
-                    # is easier to add in x4 than remove afterwards.
-                    if verbosity >= 1:
+                # Lump into a single message, to reduce overhead on the x4
+                # side (since it limits signals per frame and can lag when
+                # handling key repetitions).
+                # Note: this doesn't put the '$' back for now, since that
+                # is easier to add in x4 than remove afterwards.
+                message = ';'.join(matched_combos)
+
+                # Debug printout.
+                if verbosity >= 1:
+                    for combo in matched_combos:
                         print('Sending: ' + combo)
-                    pipe.Write(combo)
+
+                # Transmit to x4.
+                pipe.Write(message)
 
 
             # General pause between checks.
@@ -614,7 +623,7 @@ class Key_Combo_Processor:
         '''
         Processes raw key presses/releases captured into key_buffer,
         updating keys_down and matching to combos in combo_specs.
-        Returns a list of combos names matched, using the original
+        Returns a list of combo names matched, using the original
         names from x4.
 
         * key_buffer

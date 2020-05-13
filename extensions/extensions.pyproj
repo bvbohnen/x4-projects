@@ -23,6 +23,7 @@
   <ItemGroup>
     <Folder Include="sn_debug_info\" />
     <Folder Include="sn_debug_info\md\" />
+    <Folder Include="sn_hotkey_collection\lua\" />
     <Folder Include="sn_remove_highway_blobs\" />
     <Folder Include="test_sector_resize\" />
     <Folder Include="sn_measure_perf\" />
@@ -57,7 +58,7 @@
     <Folder Include="test_hotkey_api\md\" />
     <Folder Include="test_interact_menu_api\" />
     <Folder Include="test_interact_menu_api\md\" />
-    <Folder Include="sn_mod_support_apis\change_logs\" />
+    <Folder Include="sn_mod_support_apis\old_change_logs\" />
     <Folder Include="sn_mod_support_apis\python\" />
     <Folder Include="test_named_pipes_api\" />
     <Folder Include="test_named_pipes_api\md\" />
@@ -100,15 +101,21 @@
     <Content Include="sn_friendlier_fire\change_log.md" />
     <Content Include="sn_friendlier_fire\content.xml" />
     <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
+    <Content Include="sn_hotkey_collection\lua\Hotkeys.lua" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
     <Content Include="sn_interact_collection\t\0001.xml" />
     <Content Include="sn_measure_perf\.gitignore" />
     <Content Include="sn_measure_perf\lua\Measure_Perf.lua" />
-    <Content Include="sn_mod_support_apis\change_logs\package.md" />
+    <Content Include="sn_mod_support_apis\change_log.md" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
     <Content Include="sn_mod_support_apis\lua\Text.lua" />
     <Content Include="sn_mod_support_apis\lua_interface.txt" />
+    <Content Include="sn_mod_support_apis\old_change_logs\interact_menu_api.md" />
+    <Content Include="sn_mod_support_apis\old_change_logs\lua_loader_api.md" />
+    <Content Include="sn_mod_support_apis\old_change_logs\named_pipes_api.md" />
+    <Content Include="sn_mod_support_apis\old_change_logs\simple_menu_api.md" />
+    <Content Include="sn_mod_support_apis\old_change_logs\time_api.md" />
     <Content Include="sn_mod_support_apis\t\0001.xml" />
     <Content Include="sn_quiet_target_range_clicks\change_log.md" />
     <Content Include="sn_quiet_target_range_clicks\content.xml" />
@@ -159,20 +166,16 @@
     <Content Include="sn_mod_support_apis\Readme.md">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="sn_mod_support_apis\change_logs\time_api.md" />
     <Content Include="sn_mod_support_apis\lua\time\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\time\Pipe_Time.lua" />
     <Content Include="sn_mod_support_apis\md\Time_API.xml" />
-    <Content Include="sn_mod_support_apis\change_logs\simple_menu_api.md" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_API.md" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Library.lua" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Options_Menu.lua" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Standalone_Menu.lua" />
     <Content Include="sn_mod_support_apis\lua\simple_menu\Tables.lua" />
-    <Content Include="sn_mod_support_apis\change_logs\lua_loader_api.md" />
-    <Content Include="sn_mod_support_apis\change_logs\interact_menu_api.md" />
-    <Content Include="sn_mod_support_apis\change_logs\hotkey_api.md" />
+    <Content Include="sn_mod_support_apis\old_change_logs\hotkey_api.md" />
     <Content Include="sn_mod_support_apis\lua\hotkey\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\interact_menu\Interface.lua" />
     <Content Include="sn_hotkey_collection\md\SN_Hotkeys.xml" />
@@ -181,7 +184,6 @@
     <Content Include="sn_mod_support_apis\md\Lua_Loader.xml" />
     <Content Include="sn_mod_support_apis\md\Simple_Menu_API.xml" />
     <Content Include="sn_mod_support_apis\md\Simple_Menu_Options.xml" />
-    <Content Include="sn_mod_support_apis\change_logs\named_pipes_api.md" />
     <Content Include="sn_mod_support_apis\documentation\Hotkey_API.md" />
     <Content Include="sn_mod_support_apis\lua\c_library\winpipe.lua" />
     <Content Include="sn_mod_support_apis\lua\named_pipes\Interface.lua" />
