@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+  
+<page id="68537" title="SirNukes texts" descr="0" voice="no">
+  
+  <!--Start at 2000-->
+  <t id="2000">Menüanimationen abschalten</t>
+  <t id="2001">Entfernt die verzögernde Animation beim Öffnen der oberen Menüebenen</t>
+  <t id="2002">Hilfe-Popups abschalten</t>
+  <t id="2003">Unterdrückt die einmaligen Hilfe-Popups</t>
+  <t id="2004">Fontgröße der Kurzinfos</t>
+  <t id="2005">Verändert die Fontgröße für Kurzinfos (Originalgröße 9 pt)</t>
+  <t id="2006">Deckkraft der Karte einstellen</t>
+  <t id="2007">Ändert die Deckkraft der Kartenübersicht; Egosoft-Standard ist 98, der Wert 100 entfernt die Transparenz</t>
+  <t id="2008">Karte öffnet zentriert auf Spieler</t>
+  <t id="2009">Erzwingt beim Öffnen der Karte die Zentrierung auf den Spieler, anstatt auf das aktuelle Ziel</t>
+  <t id="2010">Field of View ändern</t>
+  <t id="2011">Ändert die FoV-Skalierung</t>
+  <t id="2012">Standard-Kartenkameraentfernung</t>
+  <t id="2013">Wird die Karte geöffnet, wird die eingestellte Kameraentfernung erzwungen; 0 bedeutet keine Änderung (Standardverhalten). 1 = voll eingezoomt, 100 = voll herausgezoomt</t>
+  <t id="2014">Mouseover-Effekt für lange Texte</t>
+  <t id="2015">Wird auf UI-Elemente angewendet, deren Textende abgeschnitten wird. Diese Funktion versucht ein Mouseover-Popup mit dem vollen Text anzuzeigen; funktioniert möglicherweise nicht überall</t>
+  <t id="2016">Massenverkehrsdichte</t>
+  <t id="2017">Ändert die Menge des zivilen Massenverkehrs um Stationen herum. Verändert die spielstandseigene config.xml. Könnte das Neuladen des Spielstands voraussetzen, um richtig zu funktionieren.</t>
+</page>
+ 
+</language>
