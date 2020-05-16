@@ -38,7 +38,7 @@ release_specs = [
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_debug_info',
-        steam = False,
+        steam = True,
         ),
     
     Release_Spec(
@@ -82,7 +82,9 @@ release_specs = [
             'documentation/Time_API.md':[
                 'lua/time/Interface.lua',
             ],
-            # TODO: context menu.
+            'documentation/Interact_Menu_API.md':[
+                'md/Interact_Menu_API.xml',
+            ],
         },
         ),
     

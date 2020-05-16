@@ -222,28 +222,15 @@ function L._Process_Command(args)
         DebugError("Processing command: "..args.command)
         Lib.Print_Table(args, "Args")
     end
+
+    -- Check the command names, roughly in most to least frequent order.
     
-    -- Create a new menu; does not display immediately.
-    if args.command == "Create_Menu" then
-        -- Hand off to the standalone menu.
-        Standalone_Menu.Open(args)
-    
-    -- Close the menu if open.
-    elseif args.command == "Close_Menu" then
-        -- Hand off to the standalone menu.
-        Standalone_Menu.Close()
-        
-    elseif args.command == "Register_Options_Menu" then
-        -- Validate all needed args are present.
-        Lib.Validate_Args(args, {
-            {n="id"},
-            {n="title"}, 
-            {n="columns", t='int'},
-            {n="private", t='boolean', d=false},
-        })
-        -- Hand off.
-        Options_Menu.Register_Options_Menu(args)
-        
+    -- Handle widget update requests.
+    -- Check this early, since when in use, it may be used at a high rate.
+    if args.command == "Update_Widget" then
+        -- Hand off to another function, since code is potentially long.
+        L.Update_Widget(args)
+
     elseif args.command == "Refresh_Menu" then
         -- Just skip for now if in wrong mode.
         if menu_data.mode ~= "options" then
@@ -251,6 +238,35 @@ function L._Process_Command(args)
         end
         Options_Menu.Refresh(args)
 
+
+    elseif args.command == "Make_Widget" then
+        -- Hand off to the widget maker local function.
+        L.Make_Widget(args)    
+
+    -- Add a new row.
+    elseif args.command == "Add_Row" then
+        -- Filter for row properties, defaults, fix bools.
+        local properties = Lib.Filter_Table(args, widget_properties["row"])
+        Lib.Fill_Defaults(properties, menu_data.custom_widget_defaults["row"])
+        Lib.Fill_Complex_Defaults(properties, widget_defaults["row"])
+        Lib.Fix_Bool_Args(properties, widget_defaults["row"])
+
+        -- This also supports a custom "selectable" flag, which wasn't fixed
+        -- by bool handling above.
+        Lib.Validate_Args(args, {
+            {n="selectable", t="boolean", d=true},
+        })
+
+        -- Add one generic row.
+        -- First arg is rowdata; must not be nil/false for the row to
+        --  be selectable.
+        -- TODO: set up row event callbacks; maybe use rowdata, given
+        --  to callbacks, to specify details (eg. row index) to avoid
+        --  having to look it up.
+        local new_row = menu_data.ftable:addRow(args.selectable, properties)
+        -- Store in user row table for each reference.
+        table.insert(menu_data.user_rows, new_row)
+        
 
     -- Adjust table aspects.
     elseif args.command == "Call_Table_Method" then
@@ -292,31 +308,6 @@ function L._Process_Command(args)
 
         -- Call the method.
         menu_data.ftable[args.method](table.unpack(method_args))
-
-
-    -- Add a new row.
-    elseif args.command == "Add_Row" then
-        -- Filter for row properties, defaults, fix bools.
-        local properties = Lib.Filter_Table(args, widget_properties["row"])
-        Lib.Fill_Defaults(properties, menu_data.custom_widget_defaults["row"])
-        Lib.Fill_Complex_Defaults(properties, widget_defaults["row"])
-        Lib.Fix_Bool_Args(properties, widget_defaults["row"])
-
-        -- This also supports a custom "selectable" flag, which wasn't fixed
-        -- by bool handling above.
-        Lib.Validate_Args(args, {
-            {n="selectable", t="boolean", d=true},
-        })
-
-        -- Add one generic row.
-        -- First arg is rowdata; must not be nil/false for the row to
-        --  be selectable.
-        -- TODO: set up row event callbacks; maybe use rowdata, given
-        --  to callbacks, to specify details (eg. row index) to avoid
-        --  having to look it up.
-        local new_row = menu_data.ftable:addRow(args.selectable, properties)
-        -- Store in user row table for each reference.
-        table.insert(menu_data.user_rows, new_row)
         
         
     -- Add a submenu link, for options menus.
@@ -340,15 +331,27 @@ function L._Process_Command(args)
         Options_Menu.Add_Submenu_Link(args)
         
     
-    elseif args.command == "Make_Widget" then
-        -- Hand off to the widget maker local function.
-        L.Make_Widget(args)
+    -- Create a new menu; does not display immediately.
+    elseif args.command == "Create_Menu" then
+        -- Hand off to the standalone menu.
+        Standalone_Menu.Open(args)
     
-    -- Handle widget update requests.
-    elseif args.command == "Update_Widget" then
-        -- Hand off to another function, since code is potentially long.
-        L.Update_Widget(args)
-
+    -- Close the menu if open.
+    elseif args.command == "Close_Menu" then
+        -- Hand off to the standalone menu.
+        Standalone_Menu.Close()
+        
+    elseif args.command == "Register_Options_Menu" then
+        -- Validate all needed args are present.
+        Lib.Validate_Args(args, {
+            {n="id"},
+            {n="title"}, 
+            {n="columns", t='int'},
+            {n="private", t='boolean', d=false},
+        })
+        -- Hand off.
+        Options_Menu.Register_Options_Menu(args)
+        
     else
         -- If here, the command wasn't recognized.
         error("Simple_Menu.Process_Command: unknown command: "..args.command)

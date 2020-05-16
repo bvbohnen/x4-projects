@@ -9,3 +9,7 @@ Adds several new game options, accessible through the Extension Options page of 
 
 ### Requirements
 * Simple_Menu_API
+
+### Contributors
+* Anthony Bouquet - French translation
+* Le Leon - German translation

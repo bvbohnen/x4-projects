@@ -95,8 +95,11 @@
     <Content Include="sn_better_target_monitor\t\0001-L033.xml" />
     <Content Include="sn_better_target_monitor\t\0001-L049.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
+    <Content Include="sn_debug_info\change_log.md" />
     <Content Include="sn_debug_info\content.xml" />
     <Content Include="sn_debug_info\md\sn_debug_info.xml" />
+    <Content Include="sn_extra_game_options\t\0001-L033.xml" />
+    <Content Include="sn_extra_game_options\t\0001-L049.xml" />
     <Content Include="sn_extra_game_options\t\0001.xml" />
     <Content Include="sn_friendlier_fire\change_log.md" />
     <Content Include="sn_friendlier_fire\content.xml" />
@@ -107,6 +110,7 @@
     <Content Include="sn_measure_perf\.gitignore" />
     <Content Include="sn_measure_perf\lua\Measure_Perf.lua" />
     <Content Include="sn_mod_support_apis\change_log.md" />
+    <Content Include="sn_mod_support_apis\documentation\Interact_Menu_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
     <Content Include="sn_mod_support_apis\lua\Text.lua" />

@@ -18,7 +18,7 @@
     - Optional string, category name under which this option will be placed, along with any others of the same category.
     - If not given, or given as "General" will be set to General.
   * $mouseover
-    - String, text to display on menu widget mouseover.
+    - Optional string, text to display on menu widget mouseover.
   * $type
     - String, name of the type of widget to create.
     - "button": an on/off button.

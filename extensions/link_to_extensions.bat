@@ -21,14 +21,15 @@ for %%F in (
 	sn_station_kill_helper
 
 	sn_debug_info
+
 ) do (
 	mklink /J "%x4_path%\%%F" "%src_path%\%%F"
 )
 
 
+REM test_interact_menu_api
+REM test_simple_menu_api
 REM	test_hotkey_api
-REM	test_interact_menu_api
 REM	test_named_pipes_api
-REM	test_simple_menu_api
 REM	test_time_api
 REM test_sector_resize

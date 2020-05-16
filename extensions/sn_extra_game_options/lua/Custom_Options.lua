@@ -15,7 +15,7 @@ blackboard table instead of using signal params (limited to string/int/nil).
 TODO: possible future options
 - Reduce config.startAnimation.duration for faster open animations.
 - Increase ui scaling factor beyond 1.5 (needs monkeypatch).
-- Remove modified tag entirely.
+- Remove modified tag entirely (text and parenthesis).
     Requires accessing gameoptions config.optionDefinitions (private),
     or monkeypatching wherever it gets used with a custom copy/pasted
     version with the modified text function removed.
@@ -29,9 +29,7 @@ TODO: possible future options
     a debug menu.
 
 - Try out some global functions:
-    GetTrafficDensityOption / SetTrafficDensityOption
     GetCharacterDensityOption
-    ClearLogbook
 
 - Remove the egosoft station announcement
     On page {10099,1014}.
@@ -45,11 +43,10 @@ TODO: possible future options
     Note: most interesting stuff is in ui/core, but those don't see to be
     exported despite being globals.
 
-- Edit helptext.lua to suppress display of help messages. Should be simple
-    to intercept onShowHelp and onShowHelpMulti calls with doing nothing.
-    Main problem is that testing the edit would be annoying; need to find
-    a situation that consistently pops up the text. Probably will be
-    correct on first try, though.
+- Higher ui scaling values
+    menu.valueGameUIScale, menu.callbackGameUIScaleReset()
+    Normally limited to 1.5x.
+    Maybe of little use; ui is already problematic at 1.5 with text cuttoffs.
 
 ]]
 
@@ -498,18 +495,19 @@ end
 
 -- This gets checked on each onUpdate, looking for a time change.
 L.helptext.delay_func = function()
-    if L.helptext.start_time ~= GetCurTime() then
+    if L.helptext.start_time ~= GetCurRealTime() then
         L.helptext.clear_text_func()
     end
 end
 
 -- Set up the onUpdate script, and record the start time.
+-- TODO: switch to Time api for 1 frame delay alarm.
 L.helptext.setup_func = function()
     -- Note: several helptext calls may be done at once, seemingly,
     -- so prevent excess calls to SetScript (clean up log).
     if L.helptext.polling_active == false then
         L.helptext.polling_active = true
-        L.helptext.start_time = GetCurTime()
+        L.helptext.start_time = GetCurRealTime()
         SetScript("onUpdate", L.helptext.delay_func)
     end
 end

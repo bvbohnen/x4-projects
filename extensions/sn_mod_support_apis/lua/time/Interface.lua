@@ -39,8 +39,11 @@ Other lua modules may require() this module to access these api functions:
     alarm_time is the original scheduled time of the alarm, which will
     generally be sometime earlier than the current time (due to frame
     boundaries).
+* Set_Frame_Alarm(id, frames, function)
+  - As above, but measures time in frame switches.
 
 An MD ui event is raised on every frame, which MD cues may listen to.
+This differs from a cue firing every 1ms in that this works when paused.
 The event.param3 will be the current engine time. Example:
 `<event_ui_triggered screen="'Time'" control="'Frame_Advanced'" />`
 
@@ -158,11 +161,14 @@ local L = {
     -- Table of alarms scheduled. Values are the realtime the alarm
     -- will go off. Keyed by id.
     alarms = {},
+    -- As above, but holding 2-element lists with 
+    -- {realtime when alarm set up, pending frames until alarm}.
+    frame_alarms = {},
 
     -- Table of lua callbacks per id, for alarms.
     -- These are used for the lua interface alarms, which use callback
     -- functions instead of signals.
-    -- Key ids should match those in "alarms" above.
+    -- Key ids should match those in "alarms" or "frame_alarms" above.
     alarm_callbacks = {},
     }
 
@@ -304,7 +310,6 @@ end
 -- Start the alarm poller, if not started yet.
 function L.Start_Alarm_Polling()
     if not L.checking_alarms then
-        --SetScript("onUpdate", L.Poll_For_Alarm)
         E.Register_NewFrame_Callback(L.Poll_For_Alarm)
         L.checking_alarms = true
         if L.debug then
@@ -313,6 +318,8 @@ function L.Start_Alarm_Polling()
     end    
 end
 
+
+-- Set up a new time based alarm, from md.
 function L.Set_Alarm(_, id_time)
     if L.debug then
         DebugError("Time.Set_Alarm got: "..tostring(id_time))
@@ -331,7 +338,8 @@ function L.Set_Alarm(_, id_time)
     L.Start_Alarm_Polling()
 end
 
--- Lua callable, with lua callback.
+
+-- Lua callable, with lua callback, time based alarm.
 function E.Set_Alarm(id, time, callback)
     -- Schedule the alarm.
     L.alarms[id] = GetCurRealTime() + time
@@ -343,6 +351,29 @@ function E.Set_Alarm(id, time, callback)
 end
 
 
+-- Lua callable, alarm based on frame count.
+function E.Set_Frame_Alarm(id, frames, callback)
+
+    -- Schedule the alarm for some frames in the future.
+    -- Note: New_Frame_Detector may have already run this frame, or may have
+    -- yet to run, or may get skipped this frame entirely (if not started
+    -- yes). If it is going to still run this frame, then the below timer
+    -- will need to have an extra +1 offset. While it can be determined
+    -- if it already ran, it cannot be determined if it will run.
+    -- The solution: record the current real time, and frames remaining;
+    -- the polling loop will count down frames, but only once the original
+    -- time has passed (eg. not on the same frame as registered).
+    L.frame_alarms[id] = {GetCurRealTime(), frames}
+
+    -- Record the callback.
+    L.alarm_callbacks[id] = callback    
+    -- Start polling if not already.
+    L.Start_Alarm_Polling()
+end
+
+
+-- Alarm polling, called once each frame while alarms are active,
+-- possibly skipping the first frame the first alarm was scheduled.
 function L.Poll_For_Alarm()
     local now = GetCurRealTime()
 
@@ -351,11 +382,10 @@ function L.Poll_For_Alarm()
     -- Flag to indicate there is an alarm that didn't fire yet.
     local alarms_still_pending = false
 
-    -- Check all alarms.
+    -- Check all alarms for triggers.
     for id, time in pairs(L.alarms) do
 
         if now >= time then
-
             -- Time reached.
             -- Send back the id and the time that was scheduled, not the
             -- current time, so that alarms can be chained to make clocks.
@@ -374,11 +404,51 @@ function L.Poll_For_Alarm()
             alarms_still_pending = true
         end
     end
-
     -- Remove any alarms that fired.
     for i, id in ipairs(ids_to_remove) do
         L.alarms[id] = nil
     end
+
+    -- Check all frame alarms.
+    ids_to_remove = {}
+    for id, alarm_data in pairs(L.frame_alarms) do
+
+        -- Unpack the alarm data.
+        local alarm_start_time, pending_frames = unpack(alarm_data)
+
+        -- If time has advanced since the alarm was set up, count down
+        -- a frame.
+        if alarm_start_time ~= now then
+
+            -- If this was the last frame, trigger the alarm.
+            if pending_frames == 1 then
+                -- Frame reached.
+                -- Send back the id only; frame count doesn't make sense.
+                -- Use a lua callback if known, else an MD signal.
+                if L.alarm_callbacks[id] ~= nil then
+                    pcall(L.alarm_callbacks[id], id)
+                else
+                    L.Raise_Signal(id)
+                end
+
+                -- Note this id for list removal.
+                table.insert(ids_to_remove, id)
+            else
+                -- Otherwise count down the frames.
+                alarm_data[2] = alarm_data[2] - 1
+                -- Note the alarm didn't fire.
+                alarms_still_pending = true
+            end
+        else
+            -- Note the alarm didn't fire.
+            alarms_still_pending = true
+        end
+    end
+    -- Remove any alarms that fired.
+    for i, id in ipairs(ids_to_remove) do
+        L.frame_alarms[id] = nil
+    end
+
 
     -- If no alarms remaining, stop polling.
     if not alarms_still_pending then
@@ -421,7 +491,8 @@ function L.New_Frame_Detector()
     local now = GetCurRealTime()
     -- Skip if this frame already handled.
     if L.last_frame_time == now then return end
-    -- Update recorded time and continue.
+
+    -- Update recorded time.
     L.last_frame_time = now
 
     -- Signal MD listeners, returning time for convenience.
@@ -441,6 +512,12 @@ function E.Register_NewFrame_Callback(callback)
     if type(callback) ~= "function" then
         DebugError("Register_Frame_Callback got a non-function: "..type(callback))
         return
+    end
+    -- Ignore if already registered.
+    for index, value in ipairs(L.frame_callbacks) do
+        if value == callback then
+            return
+        end
     end
     table.insert(L.frame_callbacks, callback)
 end

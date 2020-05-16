@@ -132,9 +132,8 @@ function L.Schedule_Read(pipe_name, callback, continuous_read)
     -- If the read polling function isn't currently active, activate it.
     if L.read_polling_active == false then
         -- Do this by hooking into the onUpdate signal, which appears to
-        -- run every frame.
+        -- run every frame. Use the time api, which has extra robustness.
         -- TODO: move this to Poll_For_Reads, and call it once.
-        --SetScript("onUpdate", L.Poll_For_Reads)
         Time.Register_NewFrame_Callback(L.Poll_For_Reads)
         
         -- Debug printout.
@@ -161,9 +160,7 @@ function L.Schedule_Write(pipe_name, callback, message)
 
     -- If the write polling function isn't currently active, activate it.
     if L.write_polling_active == false then
-        -- Do this by hooking into the onUpdate signal, which appears to
-        -- run every frame.
-        --SetScript("onUpdate", L.Poll_For_Writes)
+        -- Check every frame.
         Time.Register_NewFrame_Callback(L.Poll_For_Writes)
         
         -- Debug printout.

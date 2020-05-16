@@ -9,11 +9,6 @@ the player can pick a specific mod and edit its settings.
 This solves the question of how mod users will make their menus easily
 accessible to the player (without relying on the hotkey api or similar).
 
-TODO: hooks to modify stock menu parameters of interest.
-    - menu.valueGameUIScale, menu.callbackGameUIScaleReset()
-      for higher scaling (above 1.5)
-    - menu.valueGfxAA to unlock higher ssaa (probably not useful)
-
 ]]
 
 
@@ -31,6 +26,7 @@ local T = require("extensions.sn_mod_support_apis.lua.Text")
 
 -- Import library functions for strings and tables.
 local Lib = require("extensions.sn_mod_support_apis.lua.simple_menu.Library")
+local Time = require("extensions.sn_mod_support_apis.lua.time.Interface")
 
 -- Container for local functions that will be exported.
 local menu = {}
@@ -578,21 +574,12 @@ function menu.Display_Custom_Menu_PostShell(menu_spec, frame, ftable)
     
     -- To allow users to make widgets without having to say when to
     -- display the menu, an automated 1-frame delayed display() can
-    -- be used.
-    SetScript("onUpdate", menu.Handle_Delayed_Display)
-    -- Record the start time of the delay, otherwise the onUpdate may
-    -- happen in this frame before widgets are set up.
-    menu.opened_time = GetCurRealTime()
+    -- be used. This covers the frame gap between lua and md.
+    Time.Set_Frame_Alarm('options_menu_delay', 1, menu.Handle_Delayed_Display)
+
 end
 
 function menu.Handle_Delayed_Display()
-    -- Make sure a frame has passed.
-    if menu.opened_time == GetCurRealTime() then return end
-
-    --DebugError("Handle_Delayed_Display called")
-
-    -- Stop listening to updates.
-    RemoveScript("onUpdate", menu.Handle_Delayed_Display)
 
     -- In testing, a user that sets up the options menu onOpen event to
     -- create a standalone menu caused some confusion here.
@@ -622,8 +609,7 @@ function menu.Handle_Delayed_Display()
     if menu_data.currentTableCol then
         menu_data.ftable:setSelectedCol(menu_data.currentTableCol)
         menu_data.currentTableCol = nil
-    end
-        
+    end        
     
     -- Do the final display call.
     menu_data.frame:display()
@@ -634,9 +620,8 @@ return menu
 
 
 
-
 --[[
-Development notes:
+Old development notes:
 
 menu.submenuHandler(optionParameter)
     This function picks which submenu to open, based on what the player clicked

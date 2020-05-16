@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content 
-  id="sn_debug_info" 
+  id="ws_2097904592" 
   name="Debug Info" 
   description=" "
   author="SirNukes" 
-  version="100" 
+  version="101" 
   date="2020-5-8" 
   save="false" 
   sync="false">

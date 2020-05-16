@@ -3,13 +3,16 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
   <!--Note: keep the MD name convenient for users.-->
 
-  <!--
-  MD side api for registering context menu actions.
-  
-  TODO: export to md documentation.
-  TODO: Move the follow-target command elsewhere.
-  -->
+  <!-- @doc-title MD Interact Menu API -->
 
+  <!-- @doc-overview
+  MD API support for working with interaction menus (eg. right-click context
+  menus). Listen for Get_Actions being signalled when a menu opens,
+  check conditions and add relevant actions with Add_Actions, wait for
+  callbacks if a player selects a custom action.
+  -->
+  
+    
   <cues>
 
     <!-- Register the main lua file. -->
@@ -22,6 +25,83 @@
                          param="'extensions.sn_mod_support_apis.lua.interact_menu.Interface'"/>
       </actions>
     </cue>
+
+    <!--
+      Text storage cue, for easier lookup in general.
+      Members are descriptive names of the text strings, prefixed with $.
+    -->
+    <cue name="Text"/>
+    <library name="Load_Text">
+      <actions>
+        <set_value exact="{68537, 1010}" name="Text.$Debug" />
+        <set_value exact="{68537, 1040}" name="Text.$option_disable_name" />
+
+        <set_value exact="{68537, 1041}" name="Text.$option_debug_enable" />
+        <set_value exact="{68537, 1012}" name="Text.$option_debug_enable_mouseover" />
+      </actions>
+    </library>
+    
+    
+    <!--Set up extension options.-->
+    <cue name="Setup_Options" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+      </conditions>
+      <actions>
+        <include_actions ref="Load_Text"/>
+
+        <!--Logging enable.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = Text.$Debug,
+            $id         = 'debug_interact_api',
+            $name       = Text.$option_debug_enable,
+            $mouseover  = Text.$option_debug_enable_mouseover,
+            $default    = 0,
+            $type       = 'button',
+            $callback   = On_Option_Change,
+            ]"/>
+        
+        <!--Disable the api, in case a patch breaks it.-->
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $category   = Text.$Debug,
+            $id         = 'disable_interact_api',
+            $echo       = 'disabled',
+            $name       = Text.$option_disable_name,
+            $default    = 0,
+            $type       = 'button',
+            $callback   = On_Option_Change,
+            ]"/>
+      </actions>
+    </cue>
+    
+    <!--Handle option changes.-->
+    <cue name="On_Option_Change" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!--Handle md-level options.-->
+        <do_if value="event.param.$id == 'debug_interact_api'">
+          <set_value name="Globals.$DebugChance"
+                     exact ="if (event.param.$value) then 100 else 0"/>
+        </do_if>
+
+        <do_else>
+          <!--Pass down to any matching lua level option.
+            $echo is the setting name in lua. -->
+          <set_value name="$args" exact="table[
+                   $command  = 'Update_Settings',
+                   $setting  = event.param.$echo,
+                   $value    = event.param.$value,
+                   ]"/>
+          <include_actions ref="Send_Command"/>
+        </do_else>      
+      </actions>
+    </cue>
     
     <!--
       Static cue for holding general state.
@@ -31,7 +111,11 @@
       * $actions
         - Table of subtables, actions recorded in registration order.
         - Keyed by action id.
-        - Action subtable contents described in Register_Action.
+        - Action subtable contents described in Register_Action or Add_Action.
+      * $menu_params
+        - Table of polished data sent from lua to md holding various menu
+          params set when a menu was opened.
+        - Used for temporary storage between menu opening and a user callback.
     -->
     <cue name="Globals">
       <actions>
@@ -55,15 +139,265 @@
       <actions>
         <set_value name="Globals.$DebugChance" exact="0"/>
         <set_value name="Globals.$actions" exact="table[]" />
+        <set_value name="Globals.$menu_params" exact="table[]"/>
         <!-- Send a signal that all users listen to. -->
         <signal_cue_instantly cue="Reloaded"/>        
       </actions>
     </library>
 
+    <!--Shared code for sending a command to lua.
+        Input:
+        * $args
+          - Table with any command args, as well as the $command string.
+    -->
+    <library name="Send_Command">
+      <actions>
+        <!-- Args are transmitted to lua using a blackboard var. -->
+        <!-- Create the blackboard list if it doesn't exist. -->
+        <do_if value="not player.entity.$interact_menu_args?">
+          <set_value name="player.entity.$interact_menu_args" exact="[]" />
+        </do_if>
+        <append_to_list name="player.entity.$interact_menu_args" exact="$args"/>
+
+        <debug_text text="'Sending %s with args: %s'.[$args.$command, $args]"
+                  chance="Globals.$DebugChance" filter="general"/>
+
+        <!-- Signal the lua function. -->
+        <raise_lua_event name="'Interact_Menu.Process_Command'"/>
+      </actions>
+    </library>
+
+    <!--Shared code for recording an action, and passing to lua.
+        Input:
+        * $action
+    -->
+    <library name="Record_Action">
+      <actions>
+        <!--Record the args, mainly for callbacks.-->
+        <set_value name="Globals.$actions.{'$' + $action.$id}" exact="$action"/>
+        <set_value name="$args" exact="$action"/>
+        <!--TODO: debug print it.-->
+        <include_actions ref="Send_Command"/>
+      </actions>
+    </library>
+
+
+    <!-- ################################################################## -->
+    <!--                             User Cues                              -->
+    <!-- ################################################################## -->
+
+
+    <!--@doc-cue
+      Cue used to signal when a new menu is being opened, and actions
+      may be added.
+      
+      The cue event.param holds a table with target data:
+      * $object
+        - The object the action was selected for, eg. a ship. 
+      * $texts
+        - Table with several text strings used in context menus.
+        - Possible fields are described further below, in the Texts section.
+      * <various params>
+        - Other menu parameters are included and described further below,
+          in the Params section.
+    -->
+    <cue name="Get_Actions" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+      </actions>
+    </cue>
+
+    
+    <!--@doc-cue
+    
+    Add an action to a newly created interact menu. This should be called
+    just following a menu opening event, signalled from lua, holding
+    info on the target object. These actions are removed from the menu
+    after it closes, and need to be re-added on the next menu opening.
+    
+    This should be called whenever the API signals 
+    md.Interact_Menu_API.Get_Actions with target data.
+      
+    Input to this cue is a table with the following fields:
+      * $id
+        - String, unique identifier for this action.
+      * $text
+        - String, text to display in the action menu, left column.
+      * $icon
+        - String, optional name of an icon to prefix before the text.
+      * $text2
+        - String, optional text to display in the right column.
+        - Support for this varies with $section. Eg. 'main' supports text2
+          while 'interaction' does not.
+      * $mouseover
+        - String, optional text to display on menu widget mouseover.
+      * $mouseover_icon
+        - String, optional name of an icon to prefix before the mouseover text.
+      * $section = 'main'
+        - Optional string, the menu section this action will go under.
+        - Should be one from menu_interactmenu.lua config.sections.
+        - TODO: Document these somewhat.
+        - For now, just use "main" or "interaction".
+      * $callback
+        - Cue to call when the player selects the action.
+        - See below for event.param contents.
+      * $keep_open
+        - Bool, if the menu should be left open after this action is selected.
+        - Defaults false, closing the menu.
+      * $active
+        - Bool, if false then the action will be greyed out and unselectable.
+        - Defaults true.
+      * $echo
+        - Optional, anything (string, value, table, etc.), data to be
+          attached to the callback cue param for convenience.
+        
+        
+    The callback cue returns an event.param table with the following:
+      * $id
+        - Same as $id above.
+      * $echo
+        - Same as $echo above.
+      * $object
+        - The object the action was selected for, eg. a ship.
+        - Possibly null.
+        - This is the same as in Get_Actions.
+      * [params]
+        - Other menu parameters are included and described further below,
+          in the Params section.
+        - These are the same as in Get_Actions.
+      * $texts
+        - Table with several text strings used in context menus.
+        - Possible fields are described further below, in the Texts section.
+        - These are the same as in Get_Actions.
+    
+    Example:
+    ```xml
+    <cue name="Add_Interact_Actions" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
+      </conditions>
+      <actions>
+        <set_value name="$target" exact="event.param.$object"/>
+        <do_if value="$target.isclass.{class.ship}">
+          <signal_cue_instantly
+            cue="md.Interact_Menu_API.Add_Action"
+            param = "table[
+                $id         = 'my_action_id',
+                $text       = 'Do Something',
+                $icon       = 'order_follow',
+                $callback   = Interact_Callback,
+              ]"/>
+        </do_if>
+      </actions>
+    </cue>
+    ```
+    -->
+    <cue name="Add_Action" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$action" exact="event.param.clone" />
+
+        <!--Error if no id given.-->
+        <do_if value="not $action.$id?">
+          <debug_text text="'Error: missing $id in action with args: %s'.[$action]"
+                    chance="100" filter="general"/>
+        </do_if>
+
+        <do_else>
+          <!--Add the lua command.-->
+          <set_value name="$action.$command" exact="'Add_Action'"/>
+
+          <!--Default args.-->
+          <do_if value="not $action.$text?">
+            <set_value name="$action.$text" exact="$action.$id"/>
+          </do_if>
+          <do_if value="not $action.$echo?">
+            <set_value name="$action.$echo" exact="null"/>
+          </do_if>
+          <do_if value="not $action.$section?">
+            <set_value name="$action.$section" exact="'main'"/>
+          </do_if>
+          <do_if value="not $action.$keep_open?">
+            <set_value name="$action.$keep_open" exact="false"/>
+          </do_if>
+          <do_if value="not $action.$mouseover?">
+            <set_value name="$action.$mouseover" exact="''"/>
+          </do_if>
+          
+          <!--Record it.-->
+          <include_actions ref="Record_Action"/>
+        </do_else>
+      </actions>
+    </cue>
+
+
+    <!--@doc-cue
+    
+    Updates fields of a currently recorded action. Note: currently this
+    will not update a displayed menu's actions, since those are determined
+    when the  menu is first drawn.
+      
+    Input to this cue is a table with the following fields:
+      * $id
+        - String, unique identifier matching an existing action.
+      * [params]
+        - Other params should match existing ones, and will overwrite them.
+    
+    Example:
+    ```xml
+    <signal_cue_instantly
+      cue="md.Interact_Menu_API.Update_Action"
+      param = "table[
+          $id         = 'my_action_id',
+          $callback   = Other_Callback_Cue,
+        ]"/>
+    ```
+    -->
+    <cue name="Update_Action" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$args" exact="event.param" />
+
+        <!--Error if no id given, or doesn't match a recording.-->
+        <do_if value="not $args.$id?">
+          <debug_text text="'Error: missing $id in action with args: %s'.[$args]"
+                    chance="100" filter="general"/>
+        </do_if>
+        <do_else>
+          <set_value name="$key" exact="'$' + $args.$id"/>
+          <do_if value="not Globals.$actions.{$key}?">
+            <debug_text text="'Error: Update_Action $id %s does not match existing actions.'.[$args.$id]"
+                      chance="100" filter="general"/>
+          </do_if>
+          <do_else>        
+            <!--Update md stored values, eg. if a callback changes.-->
+            <do_for_each name="$field" valuename="$value" in="$args">
+              <set_value name="Globals.$actions.{$key}.{$field}" exact="$value"/>
+            </do_for_each>
+        
+            <!--Pass the updated values to lua, after attaching a command.-->
+            <set_value name="$args.$command" exact="'Update_Action'"/>
+            <include_actions ref="Send_Command"/>
+          </do_else>
+        </do_else>
+      </actions>
+    </cue>
+
+    <!-- ################################################################## -->
+    <!--                       Depricated Static Action                     -->
+    <!-- ################################################################## -->
+
     <!--@doc-cue
     Dummy cue used for signalling that this api reloaded.
     Users that are registering options should listen to this
     cue being signalled.
+    Somewhat depricated in favor of Get_Actions.
     -->
     <cue name="Reloaded" instantiate="true">
       <conditions>
@@ -76,19 +410,25 @@
       </actions>
     </cue>
 
-    
     <!--@doc-cue
     
     Register a new context menu action. If the action already exists,
-    it will be updated with the new arguments.
+    it will be updated with the new arguments. These actions are persistent,
+    and will be checked every time the menu options for condition matches.
+    
+    Note: slightly depricated in favor of Add_Action.
       
     This should be called whenever the API signals md.Interact_Menu_API.Reloaded
       
     Input is a table with the following fields:
       * $id
         - String, unique identifier for this action.
-      * $name
+      * $text
         - String, text to display in the action menu.
+      * $icon
+        - String, optional name of an icon to prefix before the name.
+        - Typical order icons are 32x32, though any icon given will be
+          scaled to 32 height.
       * $section = 'main'
         - Optional string, the menu section this action will go under.
         - Should be one from menu_interactmenu.lua config.sections.
@@ -122,7 +462,7 @@
     
     
     The flags available for matching include the following. All are strings,
-    and maybe be negated by a prefixed '~', eg. '~isenemy'.
+    and may be negated by a prefixed '~', eg. '~isenemy'.
       * Component class
         - class_controllable
         - class_destructible
@@ -170,7 +510,7 @@
             $name       = 'My Action',
             $callback   = My_Callback_Cue,
             $mouseover  = '',
-            $enabled_conditions  = [],
+            $enabled_conditions  = ['show_PlayerInteractions'],
             $disabled_conditions = [],
             ]"/>
       </actions>
@@ -186,7 +526,7 @@
 
         <!--Error if no id given.-->
         <do_if value="not $action.$id?">
-          <debug_text text="'Error: missing $id in Register_Action with args: %s'.[$action]"
+          <debug_text text="'Error: missing $id in action with args: %s'.[$action]"
                     chance="100" filter="general"/>
         </do_if>
 
@@ -195,14 +535,21 @@
           <set_value name="$action.$command" exact="'Register_Action'"/>
 
           <!--Default args.-->
-          <do_if value="not $action.$name?">
-            <set_value name="$action.$name" exact="$action.$id"/>
+          <!--This used to take $name instead of $text.-->
+          <do_if value="$action.$name? and not $action.$text?">
+            <set_value name="$action.$text" exact="$action.$name"/>
+          </do_if>
+          <do_if value="not $action.$text?">
+            <set_value name="$action.$text" exact="$action.$id"/>
           </do_if>
           <do_if value="not $action.$echo?">
             <set_value name="$action.$echo" exact="null"/>
           </do_if>
           <do_if value="not $action.$section?">
             <set_value name="$action.$section" exact="'main'"/>
+          </do_if>
+          <do_if value="not $action.$keep_open?">
+            <set_value name="$action.$keep_open" exact="false"/>
           </do_if>
           <do_if value="not $action.$disabled?">
             <set_value name="$action.$disabled" exact="0"/>
@@ -216,35 +563,142 @@
           <do_if value="not $action.$mouseover?">
             <set_value name="$action.$mouseover" exact="''"/>
           </do_if>
-        
 
-          <!--Record the args, mainly for callbacks.-->
-          <set_value name="Globals.$actions.{'$' + $action.$id}" exact="$action"/>
-
-          <!-- Args are transmitted to lua using a blackboard var. -->
-          <!-- Create the blackboard list if it doesn't exist. -->
-          <do_if value="not player.entity.$interact_menu_args?">
-            <set_value name="player.entity.$interact_menu_args" exact="[]" />
-          </do_if>
-          <append_to_list name="player.entity.$interact_menu_args" exact="$action"/>
-
-          <debug_text text="'Sending Register_Action with args: %s'.[$action]"
-                    chance="Globals.$DebugChance" filter="general"/>
-
-          <!-- Signal the lua function. -->
-          <raise_lua_event name="'Interact_Menu.Process_Command'"/>
-          
+          <!--Record it.-->
+          <include_actions ref="Record_Action"/>
         </do_else>
       </actions>
     </cue>
 
+    <!-- ################################################################## -->
+    <!--                          Lua callbacks                             -->
+    <!-- ################################################################## -->
 
+    <!--
+    Listen for the lua signals when the menu is opened.
+    -->
+    <cue name="Capture_Lua_Display" instantiate="true" namespace="this">
+      <conditions>
+        <event_ui_triggered screen="'Interact_Menu_API'" control="'onDisplay'" />
+      </conditions>
+      <actions>
+        <!--The table will largely be used as-is.-->
+        <set_value name="$menu_params" exact="event.param3"/>
+        
+        <!--Convert select lua object ids to their md components.-->
+        <do_for_each name="$field" in="['$object', '$offsetcomponent', '$construction']">
+          <do_if value="$menu_params.{$field}?">
+            <!--Convert 0 to null explicitly. (Component lookup will also 
+                return null, but with a log error)-->
+            <do_if value="$menu_params.{$field} == 0">
+              <set_value name="$menu_params.{$field}" exact="null"/>
+            </do_if>
+            <do_else>
+              <set_value name="$menu_params.{$field}" exact="component.{$menu_params.{$field}}"/>
+            </do_else>
+          </do_if>
+        </do_for_each>
+        
+        <!--Loop over lists, if present.-->
+        <do_for_each name="$field" in="['$selectedplayerships', '$selectedplayerdeployables', '$selectedotherobjects']">
+          <do_if value="$menu_params.{$field}?">
+            <do_for_each name="$ship_id" in="$menu_params.{$field}">
+              <set_value name="$menu_params.{$field}.{loop.index}" exact="component.{$ship_id}"/>
+            </do_for_each>                         
+          </do_if>
+        </do_for_each>
+        
+        <!--Convert an offset position to an md Position.-->
+        <do_if value="$menu_params.$offset?">
+          <set_value name="$menu_params.$offset" exact="position.[
+                     $menu_params.$offset.$x,
+                     $menu_params.$offset.$y,
+                     $menu_params.$offset.$z,
+                     ]"/>
+        </do_if>
+        
+        <!--Convert 0/1 to bool true/false.-->
+        <do_for_each name="$field" in="['$isshipconsole', '$isdockedship', '$showPlayerInteractions', '$hasPlayerShipPilot']">
+          <set_value name="$menu_params.{$field}" exact="if $menu_params.{$field} == 1 then true else false"/>
+        </do_for_each>
+        
+        <!--TODO: what other conversions are needed?-->
+        
+        <!--Store this data to repeat later for a possible callback cue, so
+            the lua doesn't have to send it twice.-->
+        <set_value name="Globals.$menu_params" exact="$menu_params"/>
+        
+        <do_if value="Globals.$DebugChance">
+          <signal_cue_instantly cue="Debug_Print_Params"/>
+        </do_if>
+        
+        <!--Signal this locally to a dummy cue, that users can listen to.-->
+        <signal_cue_instantly cue="Get_Actions" param="$menu_params"/>
+      </actions>
+    </cue>
+
+    <!--
+      For debug, print out the menu parameters received.
+    -->
+    <cue name="Debug_Print_Params" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$msg" exact="'Menu Params:'"/>
+        
+        <!--Loop over the fields.-->
+        <do_for_each name="$key" valuename="$value" in="Globals.$menu_params">
+          
+          <!--Expand lists to get object names.-->
+          <do_if value="typeof $value == datatype.list">
+            <do_for_each name="$value2" in="$value">
+              <set_value name="$msg" exact="'\n  %s[%s] : %s (%s%s)'.[
+                        $key, 
+                        loop.index, 
+                        if $value2.name? then $value2.name else $value2,
+                        typeof $value2,
+                        if $value2.class? then ', %s'.[$value2.class] else '',
+                        ]"
+                        operation="add"/>
+            </do_for_each>
+          </do_if>
+
+          <!--Expand tables similarly.-->
+          <do_elseif value="typeof $value == datatype.table">
+            <do_for_each name="$key2" valuename="$value2" in="$value">
+              <set_value name="$msg" exact="'\n  %s[%s] : %s (%s%s)'.[
+                          $key, 
+                          $key2, 
+                          if $value2.name? then $value2.name else $value2,
+                          typeof $value2,
+                          if $value2.class? then ', %s'.[$value2.class] else '',
+                          ]"
+                          operation="add"/>
+            </do_for_each>
+          </do_elseif>
+          
+          <!--Loose fields.-->
+          <do_else>
+            <set_value name="$msg" exact="'\n  %s : %s (%s%s)'.[$key, 
+                      if $value.name? then $value.name else $value,
+                      typeof $value,
+                      if $value.class? then ', %s'.[$value.class] else '',
+                      ]"
+                         operation="add"/>
+          </do_else>
+        </do_for_each>
+
+        <debug_text text="$msg + '\n'" filter="general"/>
+      </actions>
+    </cue>
+    
     <!--
     Listen for the lua signals when an option is selected.
     -->
     <cue name="Capture_Lua_Callback" instantiate="true" namespace="this">
       <conditions>
-        <event_ui_triggered screen="'Interact_Menu'" control="'Selected'" />
+        <event_ui_triggered screen="'Interact_Menu_API'" control="'Selected'" />
       </conditions>
       <actions>        
         <!--Look up the action by id to get the callback.-->
@@ -252,22 +706,236 @@
 
         <debug_text text="'Action: %s on %s'.[
                             event.param3.$id, 
-                            event.param3.$component,]"
+                            Globals.$menu_params.$object,]"
                   chance="Globals.$DebugChance" filter="general"/>
-        
+
         <!--Handle the callback, if it is still valid.-->
         <!--Note: need to cast the object into an MD suitable component.-->
         <do_if value="$action.$callback? and $action.$callback.exists">
-          <signal_cue_instantly
-            cue="$action.$callback"
-            param="table[
-                $id     = $action.$id,
-                $echo   = $action.$echo,
-                $object = component.{event.param3.$component},
-                ]"/>
+          
+          <!--Make a copy of the menu params to return.
+              These params may be used again, eg. if the action doesn't
+              close the menu, so the copy is safe against user edits.-->
+          <set_value name="$params" exact="Globals.$menu_params.clone"/>
+          
+          <!--Populate with id and echo.-->
+          <set_value name="$params.$id" exact="$action.$id"/>
+          <set_value name="$params.$echo" exact="$action.$echo"/>
+          
+          <signal_cue_instantly cue="$action.$callback" param="$params"/>
         </do_if>
       </actions>
     </cue>
+
+    <!-- ################################################################## -->
+    <!--                             Extra Docs                             -->
+    <!-- ################################################################## -->
+    <!--Note: put these inside cues, due to doc gen parsing top level then cue level.-->
+
+    <!--@doc-section    
+    #### Params
+    
+    When an interact menu is opened, various parameters on the target object
+    and the source object(s) are populated, and used to guide which actions
+    will show and what to do when actions are taken. A version of these
+    params will be polished for MD usage, and passed to the event.param
+    of Get_Actions and any action callback cues.
+    
+    The possible params are as follows. Not all of these will exist for
+    every target type.
+         
+    * $object
+      - Target object, or possibly a parent of the target.
+      - When selecting a spot on a map, may be a sector.
+      - May be null, eg. when opening a context menu for a mission.
+    * $isshipconsole
+      - Bool, True if the target is a ship console.
+      - This includes when the player selects the console at a docking pad.
+    * $isdockedship
+      - Bool, True if a ship console is open at a dock with a docked ship.
+      - If True, the $object will be the docked ship.
+      - If False for a ship console, it indicates the console is for an empty
+        dock, and $object is that dock.
+    * $selectedplayerships
+      - List of player ships that are currently selected.
+      - This is often populated by default with the player-piloted ship
+        if the $object isn't the player ship.
+    * $showPlayerInteractions
+      - Bool, True if the menu wants to show player interactions with the object.
+      - Convenience term that gets set when $selectedplayerships is a list
+        with only the player occupied ship in it.
+      - Typically true when the player opens an interact menu on another
+        object while flying.
+    * $hasPlayerShipPilot
+      - Bool, True if a ship in $selectedplayerships has an assigned pilot
+        and is not the player occupied ship.
+      - This will always be False if $showPlayerInteractions is True.
+    * $selectedplayerdeployables
+      - List of player deployables that are currently selected.
+    * $selectedotherobjects
+      - List of other objects that are currently selected, eg. ships
+        and stations.
+    * $order_queueidx
+      - Int, index of an order in the queue, if target is an order.
+      - May be unspecified.
+    * $subordinategroup
+      - Int, 1-24, matches the corresponding greek letter of a selected
+        subordinate group.
+      - May be unspecified.
+    * $construction
+      - Object under construction, which the menu opened on.
+      - This occurs in the map view, looking at a shipyard, right clicking
+        on a ship under construction, in which case the $object is the
+        shipyard and $construction is the ship.
+      - May be unspecified.
+    * $mission
+      - ID of an active mission.
+      - May be unspecified.
+    * $missionoffer
+      - ID of a mission offer.
+      - May be unspecified.
+    * $componentMissions
+      - Potentially a list of mission ids (untested).
+      - Not verified in game as ever being populated, though the table will
+        exist when opening a menu for a station from the map.
+      - May be unspecified.
+    * $offsetcomponent
+      - Reference object for a position targeted, often a sector.
+      - May be unspecified.
+    * $offset
+      - Position offset from $offsetcomponent of a target.
+      - May be unspecified.
+    -->
+
+    <!--@doc-section
+    #### Texts
+    
+    In lua, various potentially useful text strings are created based on
+    the target and selected objects. They are passed over to md in the
+    Get_Actions event.param, and listed here. Note: many of these fields
+    may not exist for a given target.
+    
+    * $targetShortName
+      - Name of the target.
+      - This should always be present.
+      - Missions and mission offers will lack any other text.
+    * $targetName
+      - Name of the target with color prefix, object id, and other fields
+        as applicable (eg. gate destination).
+    * $targetBaseName
+      - Ships only, the short base ship name.
+    * $targetBaseOrShortName
+      - Either $targetBaseName if defined, else $targetShortName.
+      - This should always be present.
+      - Vanilla actions often use $targetBaseName if available,
+        else $targetShortName, as text2; this is a convenience
+        term added to mimic that behavior.
+    * $commanderShortName
+      - Objects with commanders only, commander name.
+    * $commanderName
+      - Objects with commanders only, command name with sector prefix
+        and if, as applicable.
+    * $selectedName
+      - If player ships selected, the name of the ship (if one) or
+        an indicator of number of ships selected.
+    * $selectedFullNames
+      - If player ships selected, names of all ships separated by
+        newlines, suitable for mouseover.
+    * $selectedNameAll
+      - If object is player owned ship, the count of selected ships
+        including the menu target.
+    * $selectedFullNamesAll
+      - As $selectedFullNames, but including the target object.
+    * $otherName
+      - As $selectedName, but for selected other objects (not ships).
+    * $otherFullNames
+      - As $selectedFullNames, but for selected other objects (not ships).
+    * $constructionName
+      - Construction only, name of the construction.
+    * $buildstorageName
+      - Build storage only, name of the build storage.
+    
+    -->
+    
+    <!--@doc-section    
+    #### Sections and subsections
+    
+    The following is a quick listing of the different context menu sections
+    and subsections an action can be added to. Actions in a subsection will
+    show in the expanded menu on mouseover.
+    
+    * main
+    * interaction
+    * hiringbuilderoption
+      - hiringbuilder
+    * trade
+    * playersquad_orders
+    * main_orders
+    * formationshapeoption
+      - formationshape
+    * main_assignments
+    * main_assignments_subsections
+      - main_assignments_defence
+      - main_assignments_attack
+      - main_assignments_interception
+      - main_assignments_supplyfleet
+      - main_assignments_mining
+      - main_assignments_trade
+      - main_assignments_tradeforbuildstorage
+    * order
+    * guidance
+    * player_interaction
+    * consumables
+      - consumables_civilian
+      - consumables_military
+    * cheats
+    * selected_orders_all
+    * selected_orders
+    * mining_orders
+      - mining
+    * venturedockoption
+      - venturedock
+    * trade_orders
+    * selected_assignments_all
+    * selected_assignments
+      - selected_assignments_defence
+      - selected_assignments_attack
+      - selected_assignments_interception
+      - selected_assignments_supplyfleet
+      - selected_assignments_mining
+      - selected_assignments_trade
+      - selected_assignments_tradeforbuildstorage
+    * selected_consumables
+      - selected_consumables_civilian
+      - selected_consumables_military
+    * shipconsole
+    
+    Sections have a couple special properties, which relate to when a
+    section's actions will be shown. They are listed here, to better
+    indicate when each section will be shown.
+    
+    * isorder
+      - Relates to if a section is shown when player ships are selected.
+      - true:
+        - selected_orders_all, selected_orders, mining_orders, 
+          venturedockoption, trade_orders, selected_assignments_all,
+          selected_assignments, selected_consumables
+      - false:
+        - main, interaction, hiringbuilderoption, trade, playersquad_orders,
+          main_orders, formationshapeoption, main_assignments, 
+          main_assignments_subsections, player_interaction, consumables, 
+          cheats, shipconsole
+      - undefined:
+        - order, guidance
+    * isplayerinteraction
+      - Shown when a single player-owned ship is selected, and the player
+        occupies it.
+      - true:
+        - guidance, player_interaction
+      - undefined:
+        - all other categories
+    
+    -->
     
   </cues>
 

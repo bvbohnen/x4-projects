@@ -15,25 +15,34 @@
     </actions>
   </library>
 
-  <!-- Listen from the menu api reloading. -->
-  <cue name="Reset_On_Reload" instantiate="true">
+  <cue name="Add_Interact_Actions" instantiate="true">
     <conditions>
-      <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
+      <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
     </conditions>
     <actions>
+      <set_value name="$texts" exact="event.param.$texts"/>
+      <set_value name="$target" exact="event.param.$object"/>
+      
+      <!--TODO: load text on reloads or lua load.-->
       <include_actions ref="Load_Text"/>
-      
-      <signal_cue_instantly
-        cue="md.Interact_Menu_API.Register_Action"
-        param = "table[
-          $id         = 'target_follow',
-          $section    = 'interaction',
-          $name       = Text.$Follow,
-          $callback   = Target_Follow,
-          $enabled_conditions  = ['player_is_piloting'],
-          $disabled_conditions = ['~show_PlayerInteractions'],
-          ]"/>
-      
+
+      <!--Check that the player is piloting, and target is followable.-->
+      <!--TODO: maybe show_PlayerInteractions check.-->
+      <!--TODO: interaction doesn't support text2?-->
+      <do_if value="event.param.$showPlayerInteractions and $target.isclass.{class.destructible} ">
+        <signal_cue_instantly
+          cue="md.Interact_Menu_API.Add_Action"
+          param = "table[
+            $id         = 'target_follow',
+            $section    = 'interaction',
+            $text       = Text.$Follow,
+            $text2      = $texts.$targetBaseOrShortName,
+            $mouseover  = '%s %s'.[Text.$Follow, $target.name],
+            $icon       = 'order_follow',
+            $mouseover_icon = 'order_follow',
+            $callback   = Target_Follow,
+            ]"/>        
+      </do_if>      
     </actions>
   </cue>
 
@@ -52,7 +61,7 @@
       <start_player_autopilot destination="event.param.$object"/>
     </actions>
   </cue>
-    
+
 </cues>
 
 </mdscript>
