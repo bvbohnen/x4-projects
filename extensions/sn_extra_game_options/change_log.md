@@ -17,6 +17,10 @@ Change Log
   - Prevented experimental FoV slider from having unwanted effects.
 * 1.6
   - Fixed content.xml text nodes.
+  - French translation, by Anthony.
 * 1.7
   - Added mass traffic density option.
   - Fixed auto mousover text losing some formatting (eg. underlines).
+* 1.8
+  - Adjusted help text suppression to work during a pause.
+  - German translation, by Le Leon.

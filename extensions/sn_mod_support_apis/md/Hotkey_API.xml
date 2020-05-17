@@ -1027,7 +1027,7 @@ TODO:
 
       <do_if value="$id == 'debug_hotkey_api'">
         <!-- Change the debug chance in the main md file. -->
-        <set_value name="md.Hotkey_API.Globals.$DebugChance"
+        <set_value name="Globals.$DebugChance"
                    exact ="if ($value) then 100 else 0"/>
       </do_if>
     </actions>

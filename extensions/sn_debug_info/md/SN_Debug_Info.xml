@@ -723,6 +723,13 @@
         <set_value name="$wares_consumers"  exact="table[]"/>
         <set_value name="$wares_traders"    exact="table[]"/>
         <set_value name="$wares_ships"      exact="table[]"/>
+        
+        <!--Counts of stations involved in each category.
+            Each station counts once, regardless of wares it uses.-->
+        <set_value name="$total_producers"  exact="0"/>
+        <set_value name="$total_consumers"  exact="0"/>
+        <set_value name="$total_traders"    exact="0"/>
+        <set_value name="$total_ships"      exact="0"/>        
 
 
         <!--Get all stations; also their build storage for now. -->
@@ -731,6 +738,17 @@
 
         <!--Main loop to gather info.-->
         <do_for_each name="$cont" in="$stations">
+          
+          <!--Update counts.-->
+          <do_if value="$cont.products.list.count >= 1">
+            <set_value name="$total_producers"  exact="1" operation="add"/>
+          </do_if>
+          <do_if value="$cont.resources.list.count >= 1">
+            <set_value name="$total_consumers"  exact="1" operation="add"/>
+          </do_if>
+          <do_if value="$cont.tradewares.list.count >= 1">
+            <set_value name="$total_traders"  exact="1" operation="add"/>
+          </do_if>
 
           <!--Go through resources.-->
           <do_for_each name="$ware" in="$cont.resources.list">
@@ -762,6 +780,7 @@
         <!--Add all trade ships. -->
         <include_actions ref="Lib_Get_Ships"/>
         <do_for_each name="$ship" in="$ships">
+          
           <!--TODO: better info that captures ships when empty.-->
           <do_for_each name="$ware" valuename="$amount" in="$ship .cargo.table">
             <set_value name="$wares_consumers.{$ware}" exact="0" operation="add"/>
@@ -769,16 +788,19 @@
             <set_value name="$wares_traders.{$ware}"   exact="0" operation="add"/>
             <set_value name="$wares_ships.{$ware}"     exact="1" operation="add"/>
           </do_for_each>
+
+          <do_if value="$ship.cargo.table.keys.list.count >= 1">
+            <set_value name="$total_ships"  exact="1" operation="add"/>
+          </do_if>
           
           <!--Check trade orders.-->
           <do_for_each name="$order" in="$ship.tradeorders">
             <!--TODO-->
-          </do_for_each>
-          
+          </do_for_each>          
 
-          <!--Check mining orders.-->
-          
+          <!--Check mining orders. TODO-->          
         </do_for_each>
+        
 
         <!--TODO: figure out how to sort by ware name.
             Most wares come out sorted naturally, but it appears to be by order
@@ -832,6 +854,50 @@
               ]"/>
         <set_value name="$thickness" exact="2"/>
         <include_actions ref="Lib_Add_Horizontal_Line"/>
+        
+        
+        <!--Row with summed values.-->
+        <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Make_Text"
+          param = "table[
+              $col = 1, 
+              $text = 'Totals',
+              ]"/>        
+        <!--Loop over the four totals, each filling a column, 2-5.-->
+        <set_value name="$col" exact="2"/>
+        <do_for_each name="$total_count"
+                     in="[$total_producers, $total_consumers,
+                          $total_traders, $total_ships]">
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = $col, 
+              $text = '%s'.[$total_count],
+              ]"/>
+          <set_value name="$col" exact="1" operation="add"/>
+        </do_for_each>
+        
+        <!--Removed in favor of actual overal station counts, as a station
+            can use multiple wares and so would multi-count in this approach.
+        <set_value name="$col" exact="2"/>
+        <do_for_each name="$ware_counts"
+                     in="[$wares_producers, $wares_consumers,
+                          $wares_traders, $wares_ships]">
+          
+          <set_value name="$total_count" exact="0"/>
+          <do_for_each name="$ware" valuename="$count" in="$ware_counts">
+            <set_value name="$total_count" exact="$count" operation="add"/>
+          </do_for_each>
+          
+          <signal_cue_instantly
+            cue="md.Simple_Menu_API.Make_Text"
+            param = "table[
+              $col = $col, 
+              $text = '%s'.[$total_count],
+              ]"/>
+          <set_value name="$col" exact="1" operation="add"/>          
+        </do_for_each>-->
 
 
         <!--Create the menu rows. Can loop on any table.-->

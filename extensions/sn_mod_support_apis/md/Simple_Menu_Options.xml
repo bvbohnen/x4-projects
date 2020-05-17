@@ -118,7 +118,7 @@
           placed, along with any others of the same category.
         - If not given, or given as "General" will be set to General.
       * $mouseover
-        - String, text to display on menu widget mouseover.
+        - Optional string, text to display on menu widget mouseover.
       * $type
         - String, name of the type of widget to create.
         - "button": an on/off button.
@@ -155,15 +155,20 @@
       </conditions>
       <actions>
         <set_value name="$option" exact="event.param.clone" />
+
         
         <!--TODO: variety of goodness checks on input args.-->
-        <do_if value="$option.$id?">          
+        <do_if value="$option.$id? and $option.$name? and $option.$type? and $option.$default?">          
           
           <!--Defaults.-->
           <do_if value="not $option.$echo?">
             <set_value name="$option.$echo" exact="null" />
           </do_if>
+          <do_if value="not $option.$mouseover?">
+            <set_value name="$option.$mouseover" exact="''" />
+          </do_if>
           
+
           <do_if value="not $option.$category?">
             <set_value name="$option.$category" exact="Text.$General" />
           </do_if>

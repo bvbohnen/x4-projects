@@ -13,7 +13,7 @@
   <!--Simple menu options debug on/off button.-->
   <t id="1011">Enable menu api debug logs</t>
   <t id="1012">Prints extra api status info to the debug log, general category</t>
-
+  
   <t id="1021">Enable hotkey api debug logs</t>
 
   <t id="1030">Named Pipes API</t>
@@ -23,6 +23,10 @@
   <t id="1034">Status</t>
   <t id="1035">Name of the pipe</t>
   <t id="1036">If the pipe is connected</t>
+
+  <t id="1040">Disable interact menu api</t>
+  <t id="1041">Enable interact api debug logs</t>
+  
 </page>
 
 </language>

@@ -642,7 +642,7 @@ TODO:
     
     <cues>
       <!--
-        Support funcion to complete this access.
+        Support function to complete this access.
         Handles the callback, if necessary.
         Cancels other subcues and the parent.
         Uses these variables:
@@ -668,14 +668,16 @@ TODO:
               (TODO: revisit this to verify it works correctly, but seems to.)
               
               Skip if continuous read and not an error.
+              (Put @ on $continuous to catch older versions that didn't
+              have the var.)
           -->
-          <do_if value="not $continuous 
+          <do_if value="not @$continuous 
                  or $response == 'ERROR' 
                  or $response == 'CANCELLED' 
                  or $response == 'TIMEOUT'">
             <!--Clear id reservation, if still present. 
                 (May not be after a reload.)-->
-            <do_if value="$continuous and Globals.$reserved_ids.{'$'+$access_id}?">
+            <do_if value="@$continuous and Globals.$reserved_ids.{'$'+$access_id}?">
               <remove_value name="Globals.$reserved_ids.{'$'+$access_id}"/>
             </do_if>
             
@@ -693,7 +695,7 @@ TODO:
       -->
       <cue name="Capture_Lua_Response">
         <conditions>
-            <event_ui_triggered screen="'Named_Pipes'" control="$lua_signal" />
+          <event_ui_triggered screen="'Named_Pipes'" control="$lua_signal" />
         </conditions>
         
         <actions>
@@ -719,13 +721,15 @@ TODO:
       <!--
         Detect if the LUA/pipe interface was reloaded.
         This will cancel out the pending access as an error.
+        In case something goes wrong in development, this will be instanced,
+        so it can fire again on another reload (eg. after a bug is fixed).
       -->
-      <cue name="Reload_Listener" >      
+      <cue name="Reload_Listener" instantiate="true" >
         <conditions>
           <event_cue_signalled cue="Reloaded"/>
         </conditions>
         
-        <actions>          
+        <actions>
           <!-- Debug announcement. -->
           <debug_text text="'%s %s cancelled on reload'.[@$pipe_name, @$command]" chance="Globals.$DebugChance" filter="general"/>
                     
@@ -733,8 +737,7 @@ TODO:
           <set_value name="$response" exact="'CANCELLED'" />
           
           <!-- Handle the callback. -->
-          <include_actions ref="Complete_Access"/>
-          
+          <include_actions ref="Complete_Access"/>          
         </actions>
       </cue>
       

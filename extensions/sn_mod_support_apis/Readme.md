@@ -73,12 +73,6 @@ Two types of menus are supported: options menus that are integrated with the sta
 
 Additionally, a simplified interface is provided for adding options to an extension. These options are simple buttons and sliders that display in the main Extension Options menu.
 
-
-### Requirements
-
-* Lua Loader API extension
-  - https://github.com/bvbohnen/x4-lua-loader-api.git
-
 ### Usage
 
 * Basic extension options
@@ -184,26 +178,31 @@ Additionally, a simplified interface is provided for adding options to an extens
 # X4 Interact Menu API
 This extension implements a generic mission-director level api for adding custom interact menu actions (eg. the right-click menu).  A lua backend interfaces with the egosoft menu code; api users may work purely with mission director scripts.
 
-Warning: this api is in an early version. The method of selecting when an action is valid, and the format of the object returned to the callback cue, are likely to change.
+When a menu is first opened, information is gathered from lua and passed to the md.Interact_Menu_API.Get_Actions cue. Users may listen to this cue, check the menu parameters, and on wanted conditions add a new action using Add_Action, which defines a callback cue if the player selects the action.
 
 ### Example Usage
 
 This code adds a generic "Follow" action to any target.
 ```xml
-<cue name="Reset_On_Reload" instantiate="true">
+<cue name="Add_Interact_Actions" instantiate="true">
   <conditions>
-    <event_cue_signalled cue="md.Interact_Menu_API.Reloaded"/>
+    <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
   </conditions>
   <actions>
-    <signal_cue_instantly
-      cue="md.Interact_Menu_API.Register_Action"
-      param = "table[
-            $id         = 'target_follow',
-            $section    = 'interaction',
-            $name       = 'Follow',
-            $callback   = Target_Follow,
-            $enabled_conditions = [],
-            ]"/>
+    <set_value name="$target" exact="event.param.$object"/>
+    <do_if value="event.param.$showPlayerInteractions and $target.isclass.{class.destructible} ">
+      <signal_cue_instantly
+        cue="md.Interact_Menu_API.Add_Action"
+        param = "table[
+          $id         = 'target_follow',
+          $section    = 'interaction',
+          $text       = 'Follow',
+          $mouseover  = '%s %s'.[Text.$Follow, $target.name],
+          $icon       = 'order_follow',
+          $mouseover_icon = 'order_follow',
+          $callback   = Target_Follow,
+          ]"/>
+    </do_if>
   </actions>
 </cue>
 <cue name="Target_Follow" instantiate="true" namespace="this">
@@ -231,16 +230,14 @@ There are three components to this API:
 
 ### Requirements
 
-* Optionally, Python 3.6+ with the pywin32 package.
-  - Only needed if running the pipe server from python source code.
+* Windows
+  - Currently, pipes are only set for Windows, not Linux.
+* The X4_Python_Pipe_Server (exe or python source code version).
+  - Run this pipe server alongside X4.
+* Optionally, Python 3.6+ with the pywin32 package if running from source.
+  - Only needed if not using the standalone exe.
   - An executable is provided as an alternative.
   - The pywin32 package is part of the Anaconda distribution of python by default.
-
-### Installation
-
-* Place the named_pipes_api folder in extensions.
-* Place the X4_Python_Pipe_Server (exe or py) anywhere convenient.
-  - Run this pipe server alongside X4.
 
 ### Components
 
@@ -274,8 +271,8 @@ An external Python server is used for the key capture and combo recognition, and
 
 ### Requirements
 
-* Optionally, if using the python pipe server, the pywin32 and pynput packages.
-  - Not needed when using the prebuilt server executable.
+* If running the python pipe server from source, the pywin32 and pynput packages.
+  - Not needed when using the server exe (which includes these packages).
 
 
 ### Usage
@@ -312,33 +309,21 @@ Example direct key mapping:
 
 Limitations:
 * The windows backend confuses numpad enter and numpad / with their non-numpad counterparts.  If one of these keys is used, both the numpad and normal key will trigger the hotkey callback.
-* Currently only supports keyboard inputs.
-
-See "API Functions.md" for full details.
-
-
+* Currently only supports keyboard inputs, not mouse or joystick.
   
 
 # X4 Time API
 
-This api provides additional real-time timing functions to mission director scripts. These timers will continue to run while the game is paused.
+This api provides additional timing functions to mission director scripts and lua modules. These timers will continue to run while the game is paused.
 
 Timing is done using two sources:
 * The lua function GetCurRealTime(), which measures the seconds since X4 booted up, advancing each frame while X4 is active (eg. not while minimized).
-* Python 'time' module, accessed through the Named Pipes API, providing sub-frame timing.
+* Optionally, the python 'time' module, accessed through the Named Pipes API, which can track time changes while the game is paused and minimized.
 
 Example uses:
 - In-menu delays, eg. a blinking cursor.
 - Timing for communication through a pipe with an external process.
 - Code profiling.
-
-
-### Requirements
-
-* Optionally, Named Pipes API extension
-  - https://github.com/bvbohnen/x4-named-pipes-api
-  - Needed for the commands that utilize external python timing.
-
 
 ### Usage
 
@@ -347,6 +332,8 @@ Since multiple users may be accessing the timer during the same period,
 each command will take an [id] unique string parameter.
 Responses (if any) are captured using event_ui_triggered with screen "Time" and control [id].
 Return values will be in "event.param3".
+
+Note: the X4 engine processes MD scripts earlier in a frame than lua scripts. Any responses from lua back to md will have a 1 frame delay.
 
 Warning: when a game is saved and reloaded, all active timers will be destroyed and any pending alarms will not go off.
 
@@ -380,7 +367,7 @@ Standard Commands:
     creating clocks or similar.
   - Note: precision based on game framerate.
 
-High precision commands (require Named Pipes API and running host server):
+External timer commands (requires a running named pipes host server):
 
 - getSystemTime ([id])
   - Returns the system time reported by python through a pipe.
@@ -393,6 +380,7 @@ High precision commands (require Named Pipes API and running host server):
   - Stops the timer associated with tic, returns the time measured,
     and prints the time to the debug log.
 
+Additional lua commands are documented in the time interface.lua file.
 
 * Example: get engine time.
   ```xml
@@ -414,7 +402,7 @@ High precision commands (require Named Pipes API and running host server):
   </cue>
   ```
   
-- Example: set an alarm.
+- Example: set an alarm (works while paused).
   ```xml
   <cue name="Delay_5s" instantiate="true">
     <conditions>

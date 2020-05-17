@@ -20,3 +20,5 @@ Change Log for overall api package.
   - simple_menu:
     - Fixed column indexing for Call_Table_Method on options menus.
     - Added options menu onOpen signal param with $id, $echo, $columns.
+* 1.71
+  - Large expansion of the Interact Menu API, including dynamic condition checking in md to determine which actions should show, better control over action display (icons, left/right text, etc), and providing much more information on the context in which a menu is opened.

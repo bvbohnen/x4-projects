@@ -30,7 +30,7 @@ Change Log
   - Lua file now exports the text table, for users wanting to monkey-patch in alternate ship identifiers.
   - German translation, by Le Leon.
 * 1.8
-  - French translation update.
+  - French translation update, by Anthony.
 * 1.9
   - Russian translation, by aladinaleks
   - Fixed content.xml text nodes.

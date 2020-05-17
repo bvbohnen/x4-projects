@@ -17,8 +17,10 @@ Other lua modules may require() this module to access these api functions:
 * Set_Alarm(id, time, function)
   - Sets a single-fire alarm to trigger after the given time elapses.
   - Callback function is called with args: (id, alarm_time), where the alarm_time is the original scheduled time of the alarm, which will generally be sometime earlier than the current time (due to frame boundaries).
+* Set_Frame_Alarm(id, frames, function)
+  - As above, but measures time in frame switches.
 
-An MD ui event is raised on every frame, which MD cues may listen to. The event.param3 will be the current engine time. Example: `<event_ui_triggered screen="'Time'" control="'Frame_Advanced'" />`
+An MD ui event is raised on every frame, which MD cues may listen to. This differs from a cue firing every 1ms in that this works when paused. The event.param3 will be the current engine time. Example: `<event_ui_triggered screen="'Time'" control="'Frame_Advanced'" />`
 
 
 MD commands are sent using raise_lua_event of the form "Time.<command>", and responses (if any) are captured in screen "Time" with control "id". Return values will be in "event.param3". Note: since multiple users may be accessing the timer during the same period, each command will take an id unique string parameter.

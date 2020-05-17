@@ -264,7 +264,7 @@ Complex properties:
     * backgroundColor = 'Helper.color.white'
       - Color of the background texture.
             
-  onCloseElement event event returns:
+  onCloseElement event returns:
   * echo, event, id
   * reason 
     - String, reason for the closure.
