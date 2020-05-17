@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+<!--Default text, as an alternative to 0001-l044.xml -->
+<!--Using phone-style code for "nukes"-->
+<page id="68537" title="SirNukes texts" descr="0" voice="no">
+  
+  <!--Mod apis start at 1000-->
+  <!--TODO: reconstruct some of these with refs to base language entries.-->
+  <t id="1000">Erweiterungsoptionen</t>
+  <t id="1001">Allgemeine Optionen</t>
+
+  <t id="1010">Debug</t>
+  <!--Simple menu options debug on/off button.-->
+  <t id="1011">Aktiviere Menü-API Debug Log</t>
+  <t id="1012">Gibt zusätzliche Statusinformationen im Debug Log aus. </t>
+
+  <t id="1021">Aktiviere Hotkey für API Debug Logs</t>
+
+  <t id="1030">Named Pipes API</t>
+  <t id="1031">connected</t>
+  <t id="1032">disconnected</t>
+  <t id="1033">Pipe</t>
+  <t id="1034">Status</t>
+  <t id="1035">Name of the pipe</t>
+  <t id="1036">If the pipe is connected</t>
+  
+  <t id="1040">Deaktiviere "Interact Menu API"</t>
+  <t id="1041">Aktiviere "Interact API" Debug Logs</t>
+
+</page>
+
+</language>
