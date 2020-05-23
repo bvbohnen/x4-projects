@@ -9,6 +9,10 @@ import winerror
 import win32pipe
 # This reads/writes the pipe file.
 import win32file
+# This provides support for changing access permissions (for users where
+# the defaults don't work). Note: defaults work for most users.
+import win32security
+import ntsecuritycon as con
 
 from .Misc import Client_Garbage_Collected
 
@@ -64,6 +68,9 @@ class Pipe:
         '''
         # Get byte data, up to the size of the buffer.
         # Non-blocking reads raise ERROR_NO_DATA if the pipe is empty.
+        # TODO: maybe find a way to interrupt blocking reads on a ctrl-c
+        # keyboard interrupt. Currently, ctrl-c does nothing during readfile,
+        # though ctrl-pause still works.
         try:
             error, data = win32file.ReadFile(self.pipe_file, self.buffer_size)
             # Default decode (utf8) into a string to return.
@@ -140,6 +147,55 @@ class Pipe_Server(Pipe):
     def __init__(self, pipe_name, buffer_size = None):
         super().__init__(pipe_name, buffer_size)
         
+        
+        # Note: at least one user had access_denied errors from the x4
+        # lua code, not resolved by running x4 as admin, possibly linked
+        # to pipe permissions.
+        # Documentation on setting up security is very sparse. The only
+        # solid python example found is here:
+        # http://timgolden.me.uk/python/win32_how_do_i/add-security-to-a-file.html
+        # This edits permissions after creation, though in testing this
+        # approach requires a separate read connection to the pipe, and
+        # would prevent nMaxInstances==1 from working.
+        # As such, it would be possible for x4 to connect twice to the same
+        # pipe after the security permissions are done, which is undesirable.
+
+        # Security attributes have a SECURITY_DESCRIPTOR member to modify.
+        sec_attr = win32security.SECURITY_ATTRIBUTES()
+        sec_desc = sec_attr.SECURITY_DESCRIPTOR
+        
+        
+        # Create a new dacl ("discretionary access control list").
+        dacl = win32security.ACL ()
+        
+        # Look up windows users.
+        # Note: for the person with perm problems, "Everyone" and 
+        # "Administrators" lookups failed (1332 error), but the user lookup
+        # worked, and  just setting read/write for the user was sufficient.
+        perms_set = False
+        for account_name in [win32api.GetUserName()]:
+            try:
+                account_id, domain, type = win32security.LookupAccountName (None, account_name)
+                # Set read/write permission (execute doesn't make sense).
+                dacl.AddAccessAllowedAce(win32security.ACL_REVISION, 
+                                         con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE, 
+                                         account_id)
+                perms_set = True
+            except win32api.error as ex:
+                print(f'Failed to set read/write permission for account '
+                      f'"{account_name}"; error code {ex.winerror} in '
+                      f'{ex.funcname} : {ex.strerror}')
+                continue
+
+        if perms_set:
+            # Apply to the security object.
+            # Args are: (1 if dacle used, dacl, 1 if using defaults)
+            sec_desc.SetSecurityDescriptorDacl(1, dacl, 0)
+            # Leave user/group/etc. at defaults (eg. unspecified).
+        else:
+            # If all perms failed, just clear this and used defaults.
+            sec_desc = None
+
         # Create the pipe in server mode.
         self.pipe_file = win32pipe.CreateNamedPipe(
             # Note: for some dumb reason, this doesn't use keyword args,
@@ -168,8 +224,20 @@ class Pipe_Server(Pipe):
             self.buffer_size,
             # nDefaultTimeOut
             300,
-            # sa
-            None)
+
+            # sa, security access.
+            # If set to None, will use some system defaults, with rd/wr
+            # access for the owner and rd for others (maybe, unclear).
+            sec_attr,
+            )
+        
+        # -Removed; requires nMaxInstances > 1 (or does it? maybe some other problem)
+        ## Get the existing file security to be modified, dacl information.
+        #sd = win32security.GetFileSecurity (self.pipe_path, win32security.DACL_SECURITY_INFORMATION)
+        ## Apply the dacl.
+        #sd.SetSecurityDescriptorDacl (1, dacl, 0)
+        #win32security.SetFileSecurity (self.pipe_path, win32security.DACL_SECURITY_INFORMATION, sd)
+
         print('Started serving: ' + self.pipe_path)
         return
 
@@ -184,8 +252,6 @@ class Pipe_Server(Pipe):
         #  connected), or raises an exception on other errors.
         # If the client connected first, don't consider that an error, so
         #  just ignore any error code but let exceptions get raised.
-        # TODO: this prevents ctrl-c from being captured or killing
-        # the process; why?
         win32pipe.ConnectNamedPipe(self.pipe_file, None)
         print('Connected to client')
 

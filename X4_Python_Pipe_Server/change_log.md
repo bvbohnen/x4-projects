@@ -18,3 +18,5 @@ Change Log
   - Added command line arg for enabling test mode to aid extension development.
   - Added command line arg for changing the permission file path.
   - Called module main() functions must now capture one argument.
+* 1.3
+  - Gave explicit pipe read/write security permission to the current user, to help avoid "access denied" errors on pipe opening in x4 for some users.

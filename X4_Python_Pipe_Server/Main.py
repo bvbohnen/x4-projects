@@ -24,6 +24,7 @@ Note on security:
 
 TODO: change permissions to be folder name based instead of id based.
 
+TODO: maybe permissions from json to ini format.
 
 TODO: maybe use multiprocessing instead of threading.
 
@@ -52,7 +53,7 @@ temp copy of test args:
 '''
 # Manually list the version for now, since packed exe won't have
 # access to the change_log.
-version = '1.2'
+version = '1.3'
 
 # Setup include path to this package.
 import sys
@@ -235,6 +236,9 @@ def Main():
             # Listen to runtime messages, announcing relative paths to
             # python modules to load from extensions.
             while 1:
+                # TODO: put this loop into try/except to catch some error
+                # types without needing a full reboot, eg. keyboard interrupt.
+                # Blocking read.
                 message = pipe.Read()
                 print('Received: ' + message)
 
@@ -355,11 +359,18 @@ def Main():
             elif ex.winerror == winerror.ERROR_BROKEN_PIPE:
                 # Keep running the server.
                 print('Pipe client disconnected.')
+
+            else:
+                print(f'Unhandled win32api error: {ex.winerror} in {ex.funcname} : {ex.strerror}')
+                shutdown = True
                 
             # This should now loop back and restart the pipe, if
             # shutdown wasn't set.
             if not shutdown:
                 print('Restarting host.')
+            else:
+                # Pause before closing, so user can see the error.
+                input('Press <enter> to finish exiting...')
                 
         except Exception as ex:
             # Any other exception, reraise for now.
