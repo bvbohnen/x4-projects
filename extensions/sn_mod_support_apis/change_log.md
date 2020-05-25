@@ -25,3 +25,5 @@ Change Log for overall api package.
 * 1.72
   - Menu api: added update support for slider values.
   - Pipes api: added extra error detection print for denied access errors.
+* 1.73
+  - German translation, by Le Leon.

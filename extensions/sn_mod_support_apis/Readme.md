@@ -16,6 +16,10 @@ This is a collection of APIs developed to ease mod creation in a variety of ways
   - Real-time delays
 
 
+### Contributors
+* Le Leon - German translation
+
+
 # X4 LUA Loader API
 This extension implements a generic method of loading custom lua files into X4, working around a bug in the intended method of loading lua code.
 

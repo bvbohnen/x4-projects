@@ -124,6 +124,7 @@
     <Content Include="sn_mod_support_apis\old_change_logs\named_pipes_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\simple_menu_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\time_api.md" />
+    <Content Include="sn_mod_support_apis\t\0001-L049.xml" />
     <Content Include="sn_mod_support_apis\t\0001.xml" />
     <Content Include="sn_quiet_target_range_clicks\change_log.md" />
     <Content Include="sn_quiet_target_range_clicks\content.xml" />
