@@ -1,0 +1,7 @@
+*.json
+plugin_log.txt
+# Everything in aiscripts (generated)
+aiscripts/*
+# Everything in md except one specific file.
+md/*
+!md/SN_Measure_Perf.xml

@@ -2,17 +2,21 @@
 <mdscript name="SN_Start_With_SETA" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
   <cues>
-    <cue name="Add_SETA" instantiate="true">
+    <cue name="Add_SETA">
       <!--Condis borrowed from faction logic.-->
       <conditions>
+        <!--TODO: does this fire every save reload?  seems to.-->
         <event_cue_signalled cue="md.Setup.Start" />
         <check_value value="player.galaxy.macro.ismacro.{macro.xu_ep2_universe_macro}"/>
       </conditions>
       <actions>
-        <add_inventory ware="ware.inv_timewarp" exact="1" comment="SETA"/>
+        <!--Verify this is skipped if seta already present.-->
+        <do_if value="not player.entity.inventory.table.{ware.inv_timewarp}? 
+                      or  player.entity.inventory.table.{ware.inv_timewarp} == 0">
+          <add_inventory ware="ware.inv_timewarp" exact="1" comment="SETA"/>
+        </do_if>        
       </actions>
     </cue>
-
   </cues>
 
 </mdscript>

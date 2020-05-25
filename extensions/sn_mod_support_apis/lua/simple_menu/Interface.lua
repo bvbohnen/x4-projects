@@ -75,6 +75,7 @@ ffi.cdef[[
     void SetShieldHullBarShieldPercent(const int shieldhullbarid, float shieldpercent);
     void SetSliderCellMaxSelectValue(const int slidercellid, double value);
     void SetSliderCellMaxValue(const int slidercellid, double value);
+    void SetSliderCellValue(const int slidercellid, double value);
     void SetStatusBarCurrentValue(const int statusbarid, float value);
     void SetStatusBarMaxValue(const int statusbarid, float value);
     void SetStatusBarStartValue(const int statusbarid, float value);    
@@ -687,7 +688,11 @@ function L.Update_Widget(args)
         end
         
     -- Sliders don't appear fleshed out; just can change max side.
+    -- TODO: SetSliderCellMaxFactor (what is this?)
     elseif cell.type == "slider" then
+        if args.value then
+            C.SetSliderCellValue(cell.id, args.value)        
+        end
         if args.max then
             C.SetSliderCellMaxValue(cell.id, args.max)
         end

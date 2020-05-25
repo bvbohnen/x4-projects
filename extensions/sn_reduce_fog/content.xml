@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<content 
+  author="SirNukes" 
+  date="2020-05-23" 
+  enabled="true" 
+  id="ws_2108202077" 
+  name="Reduce Fog Density" 
+  description=" "
+  save="false" 
+  sync="false" 
+  version="100">
+  
+  <text description=" " language="7"/>
+  <text description=" " language="33"/>
+  <text description=" " language="37"/>
+  <text description=" " language="39"/>
+  <text description="Reduce non-resource fog density by up to 80% to improve framerates." language="44"/>
+  <text description=" " language="49"/>
+  <text description=" " language="55"/>
+  <text description=" " language="81"/>
+  <text description=" " language="82"/>
+  <text description=" " language="86"/>
+  <text description=" " language="88"/>
+</content>

@@ -13,7 +13,7 @@ if x4_customizer_dir not in sys.path:
         
 # Import all transform functions.
 from Plugins import *
-from Framework import Transform_Wrapper, Load_File, Load_Files
+from Framework import Transform_Wrapper, Load_File, Load_Files, Get_All_Indexed_Files
 
 Settings(
     # Set the path to the X4 installation folder.
@@ -199,6 +199,7 @@ def Delete_Faction_Logic(empty_diffs = 0):
     return
 
 
+# TODO: remove this script timing stuff, since it is moved to another extension.
 def Get_First_Source_Line(node):
     'Returns a sourceline int, or empty string, the first for a node.'
     return node.sourceline if node.sourceline else ''
@@ -834,6 +835,141 @@ def Decrease_Radar(empty_diffs = 0):
     game_file.Update_Root(xml_root)
     return
 
+# TODO: remove; moved to separate extension.
+@Transform_Wrapper()
+def Decrease_Fog(empty_diffs = 0):
+    '''
+    Try methods of reducing fog impact on fps.
+    '''
+    '''
+    Test in heart of acrymony fog cloud, cockpit hidden.
+    Baseline: 9.5fps
+    Fog removed: 91 fps
+
+    Note:
+        heart of acrynomy uses fog_outside_set1_whiteblue which uses
+        p1fogs.fog_04_alpha_dim.
+
+    Attempt 1:
+        Edit the material draw distance to reduce it.
+        Fog fades in at 45-55km normally.
+        Can reduce way down, eg. 10-15km, to see if that reduces the number
+        of fog effects drawn.
+
+        Result: no noticeable fps change (maybe +0.25).
+
+    Attempt 2:
+        Switch texture to a transparent one; maybe no load?
+
+        Result: still 9.5, fog is white, but much more opaque and with
+        obvious texture boundaries (so uglier).
+        
+    Attempt 3:
+        Delete the fog component file connection to the material entry.
+
+        Result: 91 fps.  Success, but no fog left.
+        
+    Attempt 4:
+        Reduce density of the region. Heart of acrymony is notably density 1
+        where most fog effects are much lower density.
+
+        Result: 
+            0.3:  fps
+            0.2:  fps
+            0.1:  fps
+
+    Attempt ?:
+        TODO
+        Swap in cheaper fog material files?
+    '''
+    # These didnt help.
+    if 0:
+        material_file = Load_File('libraries/material_library.xml')
+        xml_root = material_file.Get_Root()
+
+        fade_distance_mult = 0.2
+    
+        # Search all materials.
+        # TODO: maybe pick selective fogs that are the most expensive.
+        for node in xml_root.xpath('.//material'):
+            # Skip anything without fog in the name.
+            if 'fog_' not in node.get('name'):
+                continue
+
+            # Edit the fades.
+            if 0:
+                for attr in [
+                    'camera_fade_range_far_start', 
+                    # Why is this sometimes end and sometimes stop?
+                    'camera_fade_range_far_end',
+                    'camera_fade_range_far_stop']:
+                    # Find the param.
+                    property = node.find(f'./properties/property[@name="{attr}"]')
+                    if property == None:
+                        continue
+                    value = float(property.get('value'))
+                    # Reduce it.
+                    # TODO: maybe dont reduce stuff already close range.
+                    new_value = value * fade_distance_mult
+                    property.set('value', f'{new_value:.1f}')
+            
+            if 0:
+                # Change all bitmaps to use assets\textures\fx\transparent_diff
+                for bitmap in node.xpath("./properties/property[@type='BitMap']"):
+                    bitmap.set('value', r'assets\textures\fx\transparent_diff')
+            
+        material_file.Update_Root(xml_root)
+
+    # Great, but removes all fog.
+    if 0:
+        # Look up fog components.
+        for game_file in Get_All_Indexed_Files('components', 'fog_outside_*'):
+            xml_root = game_file.Get_Root()
+            # Find the connections with the materials (probably just one).
+            for conn in xml_root.xpath('./component/connections/connection[.//material]'):
+                conn.getparent().remove(conn)
+            game_file.Update_Root(xml_root)
+
+    if 1:
+        game_file = Load_File('libraries/region_definitions.xml')
+        xml_root = game_file.Get_Root()
+
+        # Different scalings are possible.
+        # This will try to somewhat preserve relative fog amounts.
+
+        for positional in xml_root.xpath('.//positional'):
+            # Skip non-fog
+            if not positional.get('ref').startswith('fog_outside_'):
+                continue
+            # Density is between 0 and 1.
+            density = float(positional.get('densityfactor'))
+
+            # Rescale. Dont touch below 10%.
+            if 0:
+                if density < 0.1:
+                    continue
+                diff = density - 0.1
+                new_diff = diff / 4
+                new_density = new_diff + 0.1
+            if 0:
+                new_density = ((density * 100)**0.5) / 100
+            if 0:
+                # In case density was >1, add some safety here, capping
+                # at -80%.
+                reduction_factor = min(0.8, 0.8 * density)
+                new_density = density *(1 - reduction_factor)
+            if 1:
+                max_size = 0.0
+                if density < max_size:
+                    continue
+                new_density = max_size
+
+            positional.set('densityfactor', f'{new_density:.4f}')
+
+        game_file.Update_Root(xml_root)
+
+    return
+
 
 # TODO: mysterial found (and mewosmith reported) that stations never forget
 # targets, and get an ever expanding list of targets they constantly
@@ -859,5 +995,7 @@ def Decrease_Radar(empty_diffs = 0):
 
 # Smaller wait multiplier.
 #Increase_Waits(multiplier = 2)
+
+#Decrease_Fog()
 
 Write_To_Extension(skip_content = True)

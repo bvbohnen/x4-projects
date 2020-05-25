@@ -659,6 +659,10 @@ Complex properties:
     - Bool, hides the max value.
   * start = 0
     - Initial value
+  * value
+    - The current value of the slider.
+    - Not used during setup (which instead uses start), but can be used to update the slider after creation.
+    - Updateable
   * step = 1
     - Step size between slider points
   * suffix = ""

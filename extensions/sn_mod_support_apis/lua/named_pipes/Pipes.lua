@@ -48,6 +48,9 @@ local L = {
     -- to run each frame or not.
     write_polling_active = false,
     read_polling_active  = false,
+
+    -- Flag indicating an OS access-denied error occurred on accessing a pipe.
+    pipe_access_denied = false,
 }
 
 
@@ -185,7 +188,7 @@ function L.Deschedule_Reads(pipe_name)
 
     while not FIFO.Is_Empty(read_fifo) do
         -- Grab the callback out of the fifo.
-        local callback, continuous_read = unpack(FIFO.Read(state.read_fifo))
+        local callback, continuous_read = unpack(FIFO.Read(read_fifo))
         
         -- Send back to md or lua with an error.
         if type(callback) == "string" then
@@ -341,10 +344,26 @@ function L.Connect_Pipe(pipe_name)
 
     -- Check if a file is not open.
     if pipes[pipe_name].file == nil then
-
+    
         if winpipe ~= nil then
             -- Add a prefix to the pipe_name to get the path to use.
             pipes[pipe_name].file = winpipe.open_pipe(L.pipe_path_prefix .. pipe_name)
+        
+            if pipes[pipe_name].file == nil then
+                local error_code = winpipe.GetLastError()
+                if debug.print_connect_errors then
+                    DebugError(pipe_name.."; winpipe.open_pipe returned nil, last windows error code: "..tostring(error_code))
+                end
+                -- One-time error regardless of debug for access denied, code 5.
+                if error_code == 5 and not L.pipe_access_denied then
+                    L.pipe_access_denied = true
+                    DebugError(pipe_name.."; winpipe.open_pipe error reason: access denied by OS")
+                end
+            end
+        else
+            if debug.print_connect_errors then
+                DebugError(pipe_name.."; winpipe not loaded")
+            end
         end
 
         -- If the entry is still nil, the open failed.
@@ -438,7 +457,7 @@ function L.Close_Pipe(pipe_name)
     
     while not FIFO.Is_Empty(read_fifo) do
         -- Grab the callback out of the fifo.
-        local callback, continuous_read = unpack(FIFO.Read(state.read_fifo))
+        local callback, continuous_read = unpack(FIFO.Read(read_fifo))
         
         -- Send back to md or lua with an error.
         if type(callback) == "string" then

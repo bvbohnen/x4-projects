@@ -182,9 +182,10 @@ class Pipe_Server(Pipe):
                                          account_id)
                 perms_set = True
             except win32api.error as ex:
-                print(f'Failed to set read/write permission for account '
-                      f'"{account_name}"; error code {ex.winerror} in '
-                      f'{ex.funcname} : {ex.strerror}')
+                # -Removed; don't really need this print except for debugging.
+                #print(f'Failed to set read/write permission for account '
+                #      f'"{account_name}"; error code {ex.winerror} in '
+                #      f'{ex.funcname} : {ex.strerror}')
                 continue
 
         if perms_set:
