@@ -376,7 +376,7 @@ Complex properties:
     
 * **Add_Row**
   
-    Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 130 rows.
+    Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 130 rows (150 as of x4 3.2 beta 2).
       
     Param: Table with the following items.
     * id, echo
