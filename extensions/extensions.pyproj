@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_reduce_fog\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_asteroid_fade\Customizer_Script.py</StartupFile>
     <SearchPath>..\..\X4_Customizer</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -20,6 +20,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_asteroid_fade\" />
     <Folder Include="sn_reduce_fog\" />
     <Folder Include="sn_script_profiler\" />
     <Folder Include="sn_debug_info\" />
@@ -89,6 +90,9 @@
     <Folder Include="test_time_api\md\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="sn_asteroid_fade\.gitignore" />
+    <Content Include="sn_asteroid_fade\change_log.md" />
+    <Content Include="sn_asteroid_fade\content.xml" />
     <Content Include="sn_better_target_monitor\change_log.md" />
     <Content Include="sn_better_target_monitor\content.xml" />
     <Content Include="sn_better_target_monitor\lua\Target_Monitor.lua" />
@@ -220,6 +224,7 @@
     <Content Include="test_time_api\md\Time_API_Test.xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="sn_asteroid_fade\Customizer_Script.py" />
     <Compile Include="sn_mod_support_apis\python\Send_Keys.py" />
     <Compile Include="sn_mod_support_apis\python\Time_API.py" />
     <Compile Include="sn_reduce_fog\Customizer_Script.py" />

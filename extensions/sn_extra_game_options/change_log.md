@@ -24,3 +24,5 @@ Change Log
 * 1.8
   - Adjusted help text suppression to work during a pause.
   - German translation, by Le Leon.
+* 1.9
+  - Bug fix for x4 3.2 beta2.

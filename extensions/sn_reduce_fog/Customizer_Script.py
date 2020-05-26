@@ -26,7 +26,7 @@ Settings(
 @Transform_Wrapper()
 def Decrease_Fog(empty_diffs = 0):
     '''
-    Try methods of reducing fog impact on fps.
+    Reduce fog density to increase fps.
     '''
     '''
     Test in heart of acrymony fog cloud, cockpit hidden, which has

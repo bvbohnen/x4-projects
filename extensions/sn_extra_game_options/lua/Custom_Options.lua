@@ -173,66 +173,75 @@ function L.Init_Menu_Alpha()
     local original_createMainFrame = map_menu.createMainFrame
     map_menu.createMainFrame = function (...)
 
-        -- This normally calls frame:display() before returning.
-        -- Suppress the call by intercepting the frame object, returned
-        -- from Helper.
-        local ego_createFrameHandle = Helper.createFrameHandle
-        -- Store the frame and its display function.
-        local frame
-        local frame_display
-        Helper.createFrameHandle = function(...)
-            -- Build the frame.
-            frame = ego_createFrameHandle(...)
-            -- Record its display function.
-            frame_display = frame.display
-            -- Replace it with a dummy.
-            frame.display = function() return end
-            -- Return the edited frame to displayControls.
-            return frame
-            end
+        -- If the using default value, don't attach extra code, as a safety
+        -- if an x4 patch breaks the logic.
+        if L.menu_alpha.alpha == 98 then            
+            -- Build the menu.
+            original_createMainFrame(...)
 
-        -- Build the menu.
-        original_createMainFrame(...)
-        
-        -- Reconnect the createFrameHandle function, to avoid impacting
-        -- other menu pages.
-        Helper.createFrameHandle = ego_createFrameHandle
+        else
+            -- This normally calls frame:display() before returning.
+            -- Suppress the call by intercepting the frame object, returned
+            -- from Helper, to get the frame handle.
+            -- Note: createFrameHandle can be called multiple times; only
+            -- want to record the first returned frame (the main menu frame).
+            local ego_createFrameHandle = Helper.createFrameHandle
+            -- Store the frame and its display function.
+            local frame
+            local frame_display
+            Helper.createFrameHandle = function(...)
+                -- Build the frame.
+                frame = ego_createFrameHandle(...)
+                -- Record its display function.
+                frame_display = frame.display
+                -- Replace it with a dummy.
+                frame.display = function() return end
+                -- Reconnect the createFrameHandle function, to avoid
+                -- impacting other menu pages.
+                Helper.createFrameHandle = ego_createFrameHandle
+                -- Return the edited frame to displayControls.
+                return frame
+                end
 
-        if L.menu_alpha.alpha ~= nil then
-            -- Look for the rendertarget member of the mainFrame.
-            local rendertarget = nil
-            for i=1,#map_menu.mainFrame.content do
-                if map_menu.mainFrame.content[i].type == "rendertarget" then
-                    rendertarget = map_menu.mainFrame.content[i]
+            -- Build the menu.
+            original_createMainFrame(...)
+
+            if L.menu_alpha.alpha ~= nil then
+                -- Look for the rendertarget member of the mainFrame.
+                local rendertarget = nil
+                for i=1,#map_menu.mainFrame.content do
+                    if map_menu.mainFrame.content[i].type == "rendertarget" then
+                        rendertarget = map_menu.mainFrame.content[i]
+                    end
+                end
+                if rendertarget == nil then
+                    -- Note, this was seen printed a few times; unclear on cause.
+                    DebugError("Custom Options Map alpha: Failed to find map_menu rendertarget")
+                else
+                    -- Try to directly overwrite the alpha.
+                    --DebugError("alpha: "..tostring(rendertarget.properties.alpha))
+                    rendertarget.properties.alpha = L.menu_alpha.alpha
                 end
             end
-            if rendertarget == nil then
-                -- Note, this was seen printed a few times; unclear on cause.
-                DebugError("Custom Options Map alpha: Failed to find map_menu rendertarget")
-            else
-                -- Try to directly overwrite the alpha.
-                --DebugError("alpha: "..tostring(rendertarget.properties.alpha))
-                rendertarget.properties.alpha = L.menu_alpha.alpha
-            end
-        end
 
-        -- Try a full frame background if alpha doesn't work.
-        -- (Alpha seems to work fine; don't need this.)
-        --map_menu.mainFrame.backgroundID = "solid"
+            -- Try a full frame background if alpha doesn't work.
+            -- (Alpha seems to work fine; don't need this.)
+            --map_menu.mainFrame.backgroundID = "solid"
 
-        -- -Removed; display done smarter.
-        -- Redisplay the menu to refresh it.
-        -- (Clear existing scripts before the refresh.)
-        -- Layer taken from config of menu_map.lua.
-        -- TODO: replace this with the new method that suppresses the
-        -- original frame:display temporarily.
-        --local mainFrameLayer = 5
-        --Helper.removeAllWidgetScripts(map_menu, mainFrameLayer)
-        --map_menu.mainFrame:display()
+            -- -Removed; display done smarter.
+            -- Redisplay the menu to refresh it.
+            -- (Clear existing scripts before the refresh.)
+            -- Layer taken from config of menu_map.lua.
+            -- TODO: replace this with the new method that suppresses the
+            -- original frame:display temporarily.
+            --local mainFrameLayer = 5
+            --Helper.removeAllWidgetScripts(map_menu, mainFrameLayer)
+            --map_menu.mainFrame:display()
         
-        -- Re-attach the original frame display, and call it.
-        frame.display = frame_display
-        frame:display()
+            -- Re-attach the original frame display, and call it.
+            frame.display = frame_display
+            frame:display()
+        end
 
     end    
 end
