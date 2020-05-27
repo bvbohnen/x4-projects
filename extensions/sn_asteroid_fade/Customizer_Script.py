@@ -33,258 +33,177 @@ Settings(
     developer = True,
     )
 
-@Transform_Wrapper()
-def Patch_Asteroid_Shader(empty_diffs = 0):
-    'Edit asteroid shader to support transparency.'    
+
+def Patch_Shader_Files(shader_names, testmode = False):
+    '''
+    Edit asteroid shader to support transparency.
+
+    * shader_names
+       - Names of shader ogl files to edit.
+    * testmode
+      - Sets asteroid color to white when unfaded, black when fully faded,
+        for testing purposes.
+    '''    
     '''
     The asteroid shader, and ogl file linking to v/vh/etc., doesn't normally
     support camera fade. However, fading rules are in the common.v file,
     and fade parameters can be added to the shaer ogl.
     Note: ogl is xml format.
+
+    Note:
+    .v : vertex shader
+    .f : fragment shader (most logic is here)
+
+    Read shaders from the materials edited.
+    For now, here is a list of used materials:
+        p1_asteroid
+        p1_complex_surface
+        xu_asteroid
+        xu_asteroid_glow
+        p1_complex_surface_translucent  (crystals; maybe skip)
+        xu_glass (maybe skip?)
+        xu_distortion
+        xu_surface_layered
+
+    Note: multiple ogl files can link to the same f shader file.
+    Ensure a) that each shader file is modified once, and b) that each ogl
+    file using a shader is also modified to fill in fade range defaults.
+
+    Note: some ogl files are empty; skip them (will have load_error flagged).
+
+    TODO: maybe be more restrictive on f files edited; probably only 2 or 3
+    actually matter (not glass/crystal stuff).
     '''
-    # TODO: other shaders?
-    # If an xl roid, it also uses P1_complex_surface ?
+    # From ogl files, get their fragment shaders.
+    shader_f_names = []
+    for shader_name in shader_names:
+        shader_ogl_file = Load_File(f'shadergl/high_spec/{shader_name}')
+        # Skip empty files.
+        if shader_ogl_file.load_error:
+            continue
+        xml_root = shader_ogl_file.Get_Root_Readonly()
+        shader_f_name = xml_root.find('./shader[@type="fragment"]').get('name')
+        if shader_f_name not in shader_f_names:
+            shader_f_names.append(shader_f_name)
 
-    shader_ogl_file = Load_File('shadergl/high_spec/p1_asteroid.ogl')
-    xml_root = shader_ogl_file.Get_Root()
-    properties = xml_root.find('./properties')
 
-    # Add defines for the camera distance and fade.
-    # Put these at the top, with other defines (maybe doesn't matter).
-    for field in ['ABSOLUTE_CAMERA_FADE_DISTANCE', 'FADING_HARDCODED']:#'FADING_CAMERA_FADE_RANGE']:
-        property = etree.Element('define', name = field, value = '/*def*/')
-        properties.insert(0, property)
-        assert property.tail == None
+    # Search all ogl files using these shaders.
+    # Edit them to insert default fade params.
+    for shader_ogl_file in Load_Files(f'shadergl/high_spec/*.ogl'):
+        if shader_ogl_file.load_error:
+            continue
+        xml_root = shader_ogl_file.Get_Root()
 
-    # Give dummy default values; hopefully the definition is enough.
-    # These can go at the end.
-    for field, value in [('camera_fade_range_start', '1000.0'), 
-                         ('camera_fade_range_stop' , '270000.0')]:
-        property = etree.Element('float', name = field, value = value)
-        properties.append(property)
-        assert property.tail == None
-    shader_ogl_file.Update_Root(xml_root)
+        # Skip if not using one of the shaders.
+        shader_f_name = xml_root.find('./shader[@type="fragment"]').get('name')
+        if shader_f_name not in shader_f_names:
+            continue
+
+        # Want to add to the properties list.
+        properties = xml_root.find('./properties')
+
+        # -Removed; these defines don't seem to work, and may be undesirable
+        # anyway since they might conflict with existing logic/defines,
+        # eg. doubling up fade multipliers.
+        # Add defines for the camera distance and fade.
+        # Put these at the top, with other defines (maybe doesn't matter).
+        #for field in ['ABSOLUTE_CAMERA_FADE_DISTANCE', 'FADING_CAMERA_FADE_RANGE']:
+        #    property = etree.Element('define', name = field, value = '/*def*/')
+        #    properties.insert(0, property)
+        #    assert property.tail == None
+
+        # The fade calculation will use these properties.
+        # Assign them initial defaults in the shader (which also covers possible
+        # cases where the shader is used by materials that weren't customized).
+        # Defaults should be lenient; edited shaders might get used in
+        # planets and such.
+        # Try out custom names, for safety; eg. "ast_" prefix
+        for field, value in [('ast_camera_fade_range_start', '19900000.0'), 
+                             ('ast_camera_fade_range_stop' , '20000000.0')]:
+            property = etree.Element('float', name = field, value = value)
+            properties.append(property)
+            assert property.tail == None
+
+        # Modify the file right away.
+        shader_ogl_file.Update_Root(xml_root)
+
 
 
     # Need to update the .f file that holds the actual shader logic.
-    # (The above just sets up common code to define IO_Fade.)
-    shader_f_file = Load_File('shadergl/shaders/p1/high/asteroid.f')
-    # Do raw text editing on this.
-    text = shader_f_file.Get_Text()
-    new_text = text
+    for shader_f_name in shader_f_names:
+        shader_f_file = Load_File(f'shadergl/shaders/{shader_f_name}')
+        # Do raw text editing on this.
+        text = shader_f_file.Get_Text()
+        new_text = text
+    
+        '''
+        Various attempts were made to access proper transparency through
+        the alpha channel, but none worked.
+        Observations:
+        - Out_color controls reflectivity (using low-res alt backdrop).
+        - Out_color2 controls actual color.
+        - Vulkan lookups suggest transparency might depend on an alpha channel,
+          and would be super expensive to compute anyway.
 
-    # Why are there two OUT_Color settings, second a dummy?
-    # The DEFERRED_OUTPUT macro, if used, overwrites OUT_Color.
-    # TODO: introducing a syntax error makes asteroids stop drawing with
-    # no log error. But other attempts to change results had no effect.
-    
-    #new_text = new_text.replace(
-    #    'OUT_Color = half4(finalColor.rgb, ColorBaseDiffuse.a * F_alphascale);',
-    #    'ColorBaseDiffuse.rgb = ColorBaseDiffuse.rgb * 0.5;\n'
-    #    'ColorBaseDiffuse.a = ColorBaseDiffuse.a * 0.5;\n'
-    #    'OUT_Color = half4(finalColor.rgb, ColorBaseDiffuse.a * F_alphascale);'
-    #    )
-    #new_text = new_text.replace(
-    #    'OUT_Color = half4(finalColor.rgb, ColorBaseDiffuse.a * F_alphascale);',
-    #    'OUT_Color = half4(finalColor.rgb, ColorBaseDiffuse.a * F_alphascale);')
-    #new_text = new_text.replace(
-    #    'OUT_Color = half4(1, 0, 0, 1);',
-    #    'OUT_Color = half4(1, 0, 0, 1 * IO_Fade);')
-    #new_text = new_text.replace(
-    #    'DEFERRED_OUTPUT(Normal.xyz, ColorBaseDiffuse.rgb, MetalnessVal, SmoothnessVal, ColorGlow.rgb+fade_val*U_color_emissive.rgb);',
-    #    'DEFERRED_OUTPUT(Normal.xyz, ColorBaseDiffuse.rgb * IO_Fade, MetalnessVal, SmoothnessVal, ColorGlow.rgb * IO_Fade + fade_val * U_color_emissive.rgb * IO_Fade);')
+        Instead, use a dithering approach, showing more pixels as it gets closer.
+        Can use the "discard" command to throw away a fragment.
 
-    # This does something.
-    # - makes the asteroid reflect the background, with no particular
-    #   color of its own.
-    #new_code = 'OUT_Color = half4(1.0, 1.0, 1.0, 1.0);'
+        gl_FragCoord gives the screen pixel coordinates of the fragment.
+        Vanilla code divides by V_viewportpixelsize to get a Percentage coordinate,
+        but that should be unnecessary.
 
-    # This does nothing.
-    #new_code = 'OUT_Color.a *= 0.1;'
+        Want to identify every 1/alpha'th pixel.
+        Eg. alpha 0.5, want every 2nd pixel.
+            v * a = pix_selected + fraction
+            If this just rolled over, pick this pixel.
+            if( fract(v*a) >= a) discard;
+            If a == 1, fract will always be 0, 0 >= 1, so discards none.
+            If a == 0, fract will always be 0, 0 >= 0, so discards all.
+        '''
     
-    # This does nothing.
-    #new_code = 'OUT_Color.a = 0.1;\n  OUT_Color.rgb *= 0.1;'
-    
-    # Makes the asteroid invisible, but still has collision.
-    #new_code = 'OUT_Color.a = 0;\n  OUT_Color.rgb = 0;'
-    
-    # This does nothing.
-    #new_code = 'OUT_Color.a = ColorBaseDiffuse.a * F_alphascale * 0.5;'
-    
-    # This does nothing.
-    #new_code = 'OUT_Color.a = saturate(ColorBaseDiffuse.a * F_alphascale) * 0.1;'
-    
-    # This does nothing.
-    #new_code = 'OUT_Color.a = 0;'
-    
-    # Makes the asteroid invisible.
-    #new_code = 'OUT_Color.rgb = 0;'
-    
-    # This does nothing.
-    #new_code = 'OUT_Color.rgb *= 0.1;'
-    
-    # Makes the asteroid invisible.
-    #new_code = 'OUT_Color.rgb = 1;\n  OUT_Color.a = 0;'
-    
-    # This does nothing.
-    #new_code = 'OUT_Color.rgb *= 0.00001f;\n  OUT_Color.a = 0;'
-    
-    # This does nothing.
-    #new_code = 'OUT_Color = vec4(OUT_Color.rgb, 0.0f);'
-    
-    # Partially reflective-ish.
-    #new_code = 'OUT_Color.rgb = vec3(0.5, 0.5, 0.5);'
-    
-    # Darkish bland hue.
-    #new_code = 'OUT_Color = half4(0.0, 0.0, 0.0, 0.5);'    
-    # As above.
-    #new_code = 'OUT_Color = half4(0.0, 0.0, 0.0, 0.0);'
+        # Copy over the IO_Fade calculation from the common.v file, since it
+        # apparently doesn't get included properly.
+        # TODO: recheck this; IO_Fade is available, though appears to be 0.
+        # Note: ast_fade is live through the function in testmode, so give
+        # it a name likely to be unique.
+        new_code = '''
+            float ast_cameradistance = abs(distance(V_cameraposition.xyz, IO_world_pos.xyz));
+            float ast_faderange = U_ast_camera_fade_range_stop - U_ast_camera_fade_range_start;
+            float ast_fade = 1.0 - clamp(abs(ast_cameradistance) - U_ast_camera_fade_range_start, 0.0, ast_faderange) / ast_faderange;
 
-    # Black asteroids, and red glowy bits gone. So color1/color2 in use.
-    #new_code = 'OUT_Color = half4(0.0, 0.0, 0.0, 0.0);\n OUT_Color1 = vec4(0);\n OUT_Color2 = vec4(0);'
+        '''
+        # Add in the discard check if not in test mode.
+        if not testmode:
+            new_code += '''
+                if( fract((gl_FragCoord.x + gl_FragCoord.y) * ast_fade) >= ast_fade)
+                    discard;
+                '''
+        # Replace a line near the start of main, for fast discard (maybe slightly
+        # more performant).
+        # TODO: make the ref line more robust.
+        ref_line = 'main()\n{'
+        assert new_text.count(ref_line) == 1
+        new_text = new_text.replace(ref_line, ref_line + new_code)
     
-    # Makes the asteroid invisible.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(0);', 
-    #    'OUT_Color3 = vec4(0);', 
-    #    'OUT_Color4 = vec4(0);', 
-    #    'OUT_Color5 = vec4(0);',])
-    
-    # Makes the asteroid invisible.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0, 0, 0, 1);',
-    #    'OUT_Color1 = vec4(0, 0, 0, 1);', 
-    #    'OUT_Color2 = vec4(0, 0, 0, 1);', 
-    #    'OUT_Color3 = vec4(0, 0, 0, 1);', 
-    #    'OUT_Color4 = vec4(0, 0, 0, 1);', 
-    #    'OUT_Color5 = vec4(0, 0, 0, 1);',])
-    
-    # Asteroids are a muted greyish bland color.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0, 0, 0, 1);',
-    #    'OUT_Color1 = vec4(0, 0, 0, 1);', 
-    #    'OUT_Color2 = vec4(0, 0, 0, 1);', 
-    #    ])
-    
-    # Asteroids are extremely white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(1);',
-    #    'OUT_Color1 = vec4(1);', 
-    #    'OUT_Color2 = vec4(1);', 
-    #    ])
-    
-    # Asteroids are extremely white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(1,1,1,0.5);',
-    #    'OUT_Color1 = vec4(1,1,1,0.5);', 
-    #    'OUT_Color2 = vec4(1,1,1,0.5);', 
-    #    ])
-    
-    # Asteroids are extremely white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(1,1,1,0.0);',
-    #    'OUT_Color1 = vec4(1,1,1,0.0);', 
-    #    'OUT_Color2 = vec4(1,1,1,0.0);', 
-    #    ])
-    
-    # Asteroids are black (still not transparent).
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(0);', 
-    #    ])
-    
-    # Reflective
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(1);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(0);', 
-    #    ])
-    
-    # Darkly reflective
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(1,1,1,0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(0);', 
-    #    ])
-    
-    # Asteroids are black
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(1);', 
-    #    'OUT_Color2 = vec4(0);', 
-    #    ])
-    
-    # Asteroids are white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(1);', 
-    #    ])
-    
-    # Asteroids are white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(1,1,1,0);', 
-    #    ])
-    
-    # Asteroids are white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(1,1,1,0);', 
-    #    'OUT_Color3 = vec4(1,1,1,0);', 
-    #    ])
-    
-    # Asteroids are white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(1,1,1,0);', 
-    #    'OUT_Color3 = vec4(0);', 
-    #    'OUT_Color4 = vec4(0);', 
-    #    ])
-    
-    # Asteroids are white.
-    #new_code = '\n'.join([
-    #    'OUT_Color  = half4(0);',
-    #    'OUT_Color1 = vec4(0);', 
-    #    'OUT_Color2 = vec4(1,1,1,0);', 
-    #    'OUT_Color3 = vec4(0);', 
-    #    'OUT_Color4 = vec4(0);', 
-    #    'OUT_Color5 = vec4(0);', 
-    #    ])
 
-    '''
-    Observations:
-    - Errors lead to transparency.
-    - color   appears to control reflectivity
-      - Full reflectivity means base color is fully suppressed.
-      - Reflection is some low res alternate skybox, and does have a sun.
-      - Depending on angle, reflection can blend nicely, or can really stand
-        out, expecially with sun reflection.
-    - color.a does nothing
-    - color1  does nothing?
-    - color2  appears to control the actual asteroid color.
-    - color2.a does nothing?
-    - color3+ does nothing?
-    '''
+        # In test mode, shortcut the ast_fade to the asteroid color.
+        # Close asteroids will be white, far away black (ideally).
+        # This overwrites the normal asteroid output result.
+        if testmode:
+            new_code = '''
+                OUT_Color  = half4(0);
+                OUT_Color1 = vec4(0);
+                OUT_Color2 = vec4(ast_fade,ast_fade,ast_fade,0); 
+                '''
+            
+            # Replace a late commented line, overriding out_color.
+            # TODO: more robust way to catch close of main.
+            ref_line = '}'
+            #new_text = new_text.replace(ref_line, ref_line + new_code)
+            new_text = (new_code + ref_line).join(new_text.rsplit(ref_line, 1))
 
-    # TODO: figure this out.
-    
-    # Replace a late commented line, overriding out_color.
-    new_text = new_text.replace(
-        '//	OUT_Color = half4(Occl.xxx, 1.0);',	
-        new_code,
-        )
-    shader_f_file.Set_Text(new_text)
-
-    # TODO: complex_surface.f
-
-
+        shader_f_file.Set_Text(new_text)
+        
     return
 
 
@@ -506,35 +425,22 @@ def Fadein_Asteroids(empty_diffs = 0):
             if ast_size >= minsize:
                 render_dist = dist
                 break
-
+            
         # Fade should end at render_dist, start somewhat closer.
         # How much closer is harder to define, but vanilla files are
-        # often around 20%.
-        fade_end = render_dist
-        # Test: set really close to see if fade even works.
-        fade_start = min(1000, render_dist * 0.8)
+        # often around 20%, and even a small amount would be enough to
+        # offset pop-in.
+        # Note: render_dist is for the asteroid center point when it shows
+        # up, but camera distance is per-pixel and will be closer, so have
+        # fade end a little sooner. Go with 1% for now.
+        fade_end   = render_dist * 0.99
+        fade_start = render_dist * 0.8
         
         # Apply these to the material properties.
         for material in materials:
             for prop_name, value in [
-                ('camera_fade_range_start', fade_start),
-                ('camera_fade_range_stop', fade_end),
-                # Keep trying stuff to see any ingame effect.
-                #('camera_fade_range_far_stop', fade_end),
-                #('camera_fade_range_near_start', 10),
-                #('camera_fade_range_near_end', 1000),
-                #('angle_fade', 0.1),                
-                #('angle_fade_speed', 1.0),
-                #('angle_fade_offset', 0.0),
-                
-                # Note: these bitmap changes do update in game, even
-                # if fade seems broken.
-                #('diffuse_map',       r"assets\textures\environments\asteroids\icepattern_02_new_diff"),
-                #('smooth_map',        r"assets\textures\environments\asteroids\icepattern_02_smooth"),
-                #('normal_map',        r"assets\textures\environments\asteroids\ast_holeypattern_01_bump"),
-                #('normal_detail_map', r"assets\textures\environments\asteroids\icepattern_bump"),
-                #('color_glow_map',    r"assets\textures\environments\asteroids\icepattern_02_new_diff"),
-                
+                ('ast_camera_fade_range_start', fade_start),
+                ('ast_camera_fade_range_stop', fade_end),                
                 ]:
 
                 # Check if there is already a matching property.
@@ -553,6 +459,16 @@ def Fadein_Asteroids(empty_diffs = 0):
                     value = f'{value:.0f}'
                 property.set('value', value)
 
+    # Collect from all materials the shaders used.
+    shader_names = []
+    for materials in asteroid_materials.values():
+        for material in materials:
+            shader_name = material.get('shader').replace('.fx','.ogl')
+            if shader_name not in shader_names:
+                shader_names.append(shader_name)
+
+    # Send them over for updating.
+    Patch_Shader_Files(shader_names)
 
     material_file.Update_Root(material_root)
     for game_file, xml_root in game_file_xml_roots.items():
@@ -562,6 +478,5 @@ def Fadein_Asteroids(empty_diffs = 0):
 
 
 # Run the transform.
-Patch_Asteroid_Shader()
-#Fadein_Asteroids()
+Fadein_Asteroids()
 Write_To_Extension(skip_content = True)

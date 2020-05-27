@@ -1,3 +1,4 @@
 *.json
 plugin_log.txt
 */*
+subst*
