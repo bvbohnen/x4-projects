@@ -30,3 +30,5 @@ Change Log for overall api package.
 * 1.74
   - Interact api: fixed loss of action ordering.
   - Japanese translation by Arkblade.
+* 1.75
+  - Fixing action table error from prior version.

@@ -527,13 +527,13 @@ function L.Add_Actions()
         -- Skip if flag check fails.
         elseif not L.Check_Flags(action) then
         else
-            table.insert(action_specs[id], action)
+            table.insert(action_specs, action)
         end
     end
     -- All temp actions; should have been filtered md-side.
     for _, id in ipairs(L.temp_actions_order) do
         local action = L.temp_actions[id]
-        table.insert(action_specs[id], action)
+        table.insert(action_specs, action)
     end
 
     -- pcall the handler for each individual action, so one bad
