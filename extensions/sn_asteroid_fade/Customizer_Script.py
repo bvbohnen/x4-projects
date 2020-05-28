@@ -449,10 +449,8 @@ def Fadein_Asteroids(empty_diffs = 0):
     of 25km. In testing, bumping this to 100km made an asteroid that popped
     up 42km away instead be visible out to 163km (where it is still plenty
     large on screen).
-    Can bump this value way way up.
-    TODO: turn down the region_lodvalues or the dbglodrule_asteroidxl in
-    renderparam_library distance for large asteroids, to offset their
-    extra visibility from zones.
+    Can bump this value way way up.  250km should safely load all
+    wanted asteroids.
     '''
     #for component in component_nodes.values():
     #    for connection in component.xpath('./connections/connection'):
@@ -467,7 +465,7 @@ def Fadein_Asteroids(empty_diffs = 0):
     defaults_file = Load_File('libraries/defaults.xml')
     defaults_root = defaults_file.Get_Root()
     vis_node = defaults_root.find('./dataset[@class="zone"]/properties/visible')
-    vis_node.set('distance', '500000')
+    vis_node.set('distance', '250000')
     
     # Handle the specs for when asteroids draw, by size.
     lodvalues_file = Load_File('libraries/region_lodvalues.xml')
@@ -692,5 +690,5 @@ def Fadein_Asteroids(empty_diffs = 0):
 
 
 # Run the transform.
-#Fadein_Asteroids()
+Fadein_Asteroids()
 Write_To_Extension(skip_content = True)
