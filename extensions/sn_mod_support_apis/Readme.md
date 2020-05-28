@@ -18,6 +18,7 @@ This is a collection of APIs developed to ease mod creation in a variety of ways
 
 ### Contributors
 * Le Leon - German translation
+* Arkblade - Japanese translation
 
 
 # X4 LUA Loader API

@@ -10,3 +10,5 @@ Change Log
 * 1.3
   - Added seta toggle key (that works while docked).
   - Added zoom key (2x, 4x); experimental.
+* 1.4
+  - Japanese translation by Arkblade.

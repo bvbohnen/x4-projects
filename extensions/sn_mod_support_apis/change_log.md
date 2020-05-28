@@ -26,4 +26,7 @@ Change Log for overall api package.
   - Menu api: added update support for slider values.
   - Pipes api: added extra error detection print for denied access errors.
 * 1.73
-  - German translation, by Le Leon.
+  - German translation by Le Leon.
+* 1.74
+  - Interact api: fixed loss of action ordering.
+  - Japanese translation by Arkblade.

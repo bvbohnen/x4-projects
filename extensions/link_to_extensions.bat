@@ -4,6 +4,7 @@ SET "x4_path=C:\Steam\steamapps\common\X4 Foundations\extensions"
 SET "src_path=%~dp0"
 
 for %%F in (
+    sn_asteroid_fade
     sn_better_target_monitor
     sn_friendlier_fire
     sn_extra_game_options

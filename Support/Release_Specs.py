@@ -32,6 +32,11 @@ release_specs = [
         ),
     
     Release_Spec(
+        root_path = project_dir / 'extensions/sn_asteroid_fade',
+        steam = False,
+        ),
+
+    Release_Spec(
         root_path = project_dir / 'extensions/sn_better_target_monitor',
         steam = True,
         ),

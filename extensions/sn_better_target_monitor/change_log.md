@@ -34,3 +34,5 @@ Change Log
 * 1.9
   - Russian translation, by aladinaleks
   - Fixed content.xml text nodes.
+* 2.0
+  - Japanese translation by Arkblade.

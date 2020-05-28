@@ -15,3 +15,4 @@ This extension makes changes to the target monitor (lower right window) to impro
 * Anthony Bouquet - French translation
 * Le Leon - German translation
 * aladinaleks - Russian translation
+* Arkblade - Japanese translation

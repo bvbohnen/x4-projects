@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_asteroid_fade\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_reduce_fog\Customizer_Script.py</StartupFile>
     <SearchPath>..\..\X4_Customizer</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -102,6 +102,7 @@
     <Content Include="sn_better_target_monitor\t\0001-L007.xml" />
     <Content Include="sn_better_target_monitor\t\0001-L033.xml" />
     <Content Include="sn_better_target_monitor\t\0001-L049.xml" />
+    <Content Include="sn_better_target_monitor\t\0001-L081.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
     <Content Include="sn_debug_info\change_log.md" />
     <Content Include="sn_debug_info\content.xml" />
@@ -113,6 +114,8 @@
     <Content Include="sn_friendlier_fire\content.xml" />
     <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
     <Content Include="sn_hotkey_collection\lua\Hotkeys.lua" />
+    <Content Include="sn_hotkey_collection\Readme.md" />
+    <Content Include="sn_hotkey_collection\t\0001-L081.xml" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
     <Content Include="sn_interact_collection\t\0001.xml" />
     <Content Include="sn_measure_perf\.gitignore" />
@@ -129,6 +132,7 @@
     <Content Include="sn_mod_support_apis\old_change_logs\simple_menu_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\time_api.md" />
     <Content Include="sn_mod_support_apis\t\0001-L049.xml" />
+    <Content Include="sn_mod_support_apis\t\0001-L081.xml" />
     <Content Include="sn_mod_support_apis\t\0001.xml" />
     <Content Include="sn_quiet_target_range_clicks\change_log.md" />
     <Content Include="sn_quiet_target_range_clicks\content.xml" />

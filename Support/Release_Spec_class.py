@@ -35,7 +35,7 @@ class Release_Spec:
     * files
       - Dict of lists of files, where keys are category strings.
       - Categories include: lua, python, ext_cat, subst_cat, documentation,
-        change_logs, misc.
+        change_logs, misc, prior_subst_cat.
     * doc_specs
       - Dict, keyed by relative path from root to the doc file name, holding
         a list of files to include in the automated documentation generation,
@@ -123,9 +123,17 @@ class Release_Spec:
 
         # Find everything in the ui folder to pack into a subst cat.
         # Should just be xml and lua.
+        # TODO: move this packing to the api mod explicitly.
         for suffix in ['.xml','.lua']:
             for path in (content_dir / 'ui').glob(f'**/*{suffix}'):
                 files['subst_cat'].append(path)
+
+        # Grab any existing subst file. Expect at most one.
+        subst_cat_path = content_dir / 'subst_01.cat'
+        if subst_cat_path.exists():
+            subst_dat_path = content_dir / 'subst_01.dat'
+            files['prior_subst_cat'].append(subst_cat_path)
+            files['prior_subst_cat'].append(subst_dat_path)
 
         # Extended docs are in documentation. (Simple stuff is just in the readme.)
         for path in (content_dir / 'documentation').glob('**/*.md'):
@@ -594,8 +602,10 @@ class Release_Spec:
 
             # Collect files for cat/dat packing.
             cat_dat_paths = []
+            # Offset subst based on existing subst (/2 since cat+dat recorded).
+            subst_index = (len(files['prior_subst_cat']) // 2) + 1
             for game_files, cat_name in [(ext_game_files  , 'ext_01.cat'),
-                                         (subst_game_files, 'subst_01.cat')]:
+                                         (subst_game_files, f'subst_0{subst_index}.cat')]:
                 # Skip if there are no files to pack.
                 if not game_files:
                     continue
@@ -628,6 +638,10 @@ class Release_Spec:
                     path_binaries[path] = file_text_dict[path].encode('utf-8')
                 else:
                     path_binaries[path] = path.read_bytes()
+
+            # Existing subst copy directly.
+            for path in files['prior_subst_cat']:
+                path_binaries[path] = path.read_bytes()
 
             # Lua/Py files copy over from their edited text, using their new path.
             for old_path, new_path in lua_py_path_newpath_dict.items():
