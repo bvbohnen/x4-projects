@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Test_Hotkeys" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <cues>
+
+    <!-- Register keys with the hotkey api. -->
+    <cue name="Register_Keys" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Hotkey_API.Reloaded" />
+      </conditions>
+      <actions>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'sn_test_print_combined_skill', 
+          $onPress = Print_Combined_Skill,
+          $name = 'Print Combined Skill', 
+          $category = 'Debug',
+          $description = 'Prints the combined skill of the current target',
+          $contexts = ['flying','walking'],
+          ]"/>
+
+        
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'sn_test_print_attention', 
+          $onPress = Print_Attention,
+          $name = 'Print Attention', 
+          $category = 'Debug',
+          $description = 'Prints the attention level of the current target',
+          $contexts = ['flying','walking'],
+          ]"/>
+
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'sn_test_print_macro', 
+          $onPress = Print_Macro,
+          $name = 'Print Macro', 
+          $category = 'Debug',
+          $description = 'Prints the object macro of the current target',
+          $contexts = ['flying','walking'],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+          $id = 'sn_test_print_class', 
+          $onPress = Print_Class,
+          $name = 'Print Class', 
+          $category = 'Debug',
+          $description = 'Prints the object component class of the current target',
+          $contexts = ['flying','walking'],
+          ]"/>
+
+        <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[
+            $id = 'sn_test_print_position', 
+            $onPress = Print_Position,
+            $name = 'Print Position', 
+            $description = 'Prints the player position to the debug log',
+            $contexts = ['flying', 'walking'],
+            ]"/>
+        
+      </actions>
+    </cue>
+    
+    <!--For the current target, return the combined skill value.-->
+    <cue name="Print_Combined_Skill" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <!-- Verify the player has a target selected. -->
+        <check_value value="player.target"/>
+      </conditions>
+      <actions>
+        <show_notification text="'Skill: '+player.target.combinedskill"/>
+      </actions>
+    </cue>
+
+    <cue name="Print_Attention" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <check_value value="player.target"/>
+      </conditions>
+      <actions>
+        <show_notification text="'Att: '+player.target.attention"/>
+      </actions>
+    </cue>
+
+    <cue name="Print_Macro" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <check_value value="player.target"/>
+      </conditions>
+      <actions>
+        <show_notification text="'Macro: '+player.target.macro"/>
+      </actions>
+    </cue>
+
+    <cue name="Print_Class" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+        <check_value value="player.target"/>
+      </conditions>
+      <actions>
+        <show_notification text="'Class: '+player.target.class"/>
+      </actions>
+    </cue>
+
+    <cue name="Print_Position" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!--Get data on the sectors. Too much for one print.
+      <find_sector name="$sectors" space="player.galaxy" multiple="true"/>
+      <do_for_each name="$sector" in="$sectors">
+        <debug_text filter="general" 
+                    text="'name: %s\n  size: %s\n  coresize: %s\n  corepos: %s\n'.[
+                          $sector.macro,
+                          $sector.size,
+                          $sector.coresize,
+                          $sector.coreposition ]"/>
+      </do_for_each>-->
+
+        <!--Report player position.-->
+        <debug_text filter="general" text="'player pos: %s (%s), %s'.[
+                  player.sector,
+                  player.sector.macro,
+                  position.[
+                    player.container.position.x + player.zone.position.x,
+                    player.container.position.y + player.zone.position.y,
+                    player.container.position.z + player.zone.position.z,
+                    ],
+                  ]"/>
+        
+        <!--TODO: notification version.-->
+
+      </actions>
+    </cue>
+  </cues>
+
+</mdscript>

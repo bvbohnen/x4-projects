@@ -93,6 +93,20 @@ def Decrease_Fog(empty_diffs = 0):
 
         positional.set('densityfactor', f'{new_density:.4f}')
 
+    # Testing a fix for second contact 2 fog cutting out.
+    # Note: tests failed to help. TODO: move this off to a testing mod.
+    if 0:
+        # Try removing the minnoise from the region.
+        second_contact_region =  xml_root.find('./region[@name="region_cluster_13_sector_001"]')
+        second_contact_region.set('minnoisevalue', '0')
+        # The above doesnt prevent cutout. Try the falloff values.
+        for step in second_contact_region.xpath('./falloff/lateral/step'):
+            if step.get('value') == '0.0':
+                step.set('value', '0.1')
+        for step in second_contact_region.xpath('./falloff/radial/step'):
+            if step.get('value') == '0.0':
+                step.set('value', '0.1')
+
     game_file.Update_Root(xml_root)
 
     return

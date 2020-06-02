@@ -25,6 +25,7 @@ for %%F in (
     sn_debug_info
     sn_script_profiler
 
+
 ) do (
     mklink /J "%x4_path%\%%F" "%src_path%\%%F"
 )
@@ -35,4 +36,4 @@ REM test_simple_menu_api
 REM	test_hotkey_api
 REM	test_named_pipes_api
 REM	test_time_api
-REM test_sector_resize
+REM sn_test_misc

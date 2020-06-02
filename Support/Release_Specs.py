@@ -33,7 +33,7 @@ release_specs = [
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_asteroid_fade',
-        steam = False,
+        steam = True,
         ),
 
     Release_Spec(
