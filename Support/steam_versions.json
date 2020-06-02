@@ -13,5 +13,6 @@
   "sn_remove_highway_blobs": "0.1",
   "sn_start_with_seta": "1.1",
   "sn_debug_info": "1.1",
-  "sn_reduce_fog": "1.0"
+  "sn_reduce_fog": "1.0",
+  "sn_asteroid_fade": "1.1"
 }
