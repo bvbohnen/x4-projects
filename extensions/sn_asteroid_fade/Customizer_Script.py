@@ -1,5 +1,6 @@
 
 import sys
+import math
 from pathlib import Path
 this_dir = Path(__file__).resolve().parent
 from collections import defaultdict
@@ -276,8 +277,15 @@ def Fadein_Asteroids(empty_diffs = 0):
         # Note: render_dist is for the asteroid center point when it shows
         # up, but camera distance is per-pixel and will be closer, so have
         # fade end a little sooner. Go with 1% for now.
+        # Note: dither effect is more noticeable than proper alpha, do try
+        # to lowball the fading period, and not use the full 20% except for
+        # close stuff.
         fade_end   = render_dist * 0.99
         fade_start = render_dist * 0.8
+        # Cap the fade range. Assuming travel at 5km/s, 15km would still take
+        # 3 seconds to fade in, so might be a decent cap.
+        closest_start = fade_end - 15000
+        fade_start = max(fade_start, closest_start)
         
         # Apply these to the material properties.
         for material in materials:
@@ -533,13 +541,41 @@ def Patch_Shader_Files(shader_names, testmode = False):
         zoomed in views see more of the asteroid draw (reducing obviousness
         of the dither effect when using a zoom hotkey).
         
-        TODO: including camera angle somehow? Maybe compute from the
-        cam and object xyz but based on angle? 
+        TODO: maybe discard if not gl_FrontFacing; probably not important.
+
+        To stabalize pattern when camera turns:
+            Use the angle from cam pos to object pos.
             angles = sin((cam.x - obj.x) / (cam.z - obj.z)) + sin((cam.y - obj.y) / (cam.z - obj.z))
             Tweak this based on:
-                - Distance; reduced angle between pixels at longer distance.
-                - Resolution; reduced angle between pixels at higher res.
-                - Round to roughly matching up to pixel density.
+            - Resolution; reduced angle between pixels at higher res.
+            - Round to roughly matching up to pixel density.
+
+            What is the angle between pixels?
+            Guess: 100 fov at 1650 wide, so 5940 pix in full circle, ~6k.
+            Can compute live based on V_viewportpixelsize.x, though fov
+            is unclear (maybe based on x/y ratio?).
+
+            In testing, centering on a nav beacon and counting turns of the
+            camera to get back to it, it takes 4.3 turns, or 84 degrees.
+            Note: trying with the 100 assumption had some dither noise when
+            turning the camera, so that was wrong; maybe 84 is right?
+
+            Scaling by resolution: fov = 84 / (10/16) * x/y = 52.5 * x/y
+
+            Does this even need an actual angle?
+            Can get the xyz vector from the camera to the object, and adjust
+            to be a unit vector:
+                dir = (cam.xyz - obj.xyz)
+                dir = dir / distance(dir)
+            That's probably good enough, but how to round for stability?
+            May need to use atan anyway to get angles.
+
+            Test result:
+            - Looks mostly stable, except some shimmering noticed occasionally,
+            notably near the +x axis center.
+            - Zooming looks bad, but not much to be done about that.
+            - Some shimmer when turning just due to resolution and aliasing,
+            similar to general object edges.
 
         '''
         # Pick number of fade stepping bins, used to reduce shimmer.
@@ -598,12 +634,43 @@ def Patch_Shader_Files(shader_names, testmode = False):
             # Example of randomizer calculation here:
             # https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
             # Works decently, though dither tracks with camera rotation.
-            new_code += '''
+            if 0:
+                new_code += '''
                 if (ast_fade < 0.999){
                     float psuedo_rand = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233))) * 43758.5453);
                     if( psuedo_rand >= ast_fade)
                         discard;
                 }
+                '''
+                
+            # More complex case: compute a rounded angle.
+            # or 
+            if 1:
+                # Fov is roughly 52.5 * x/y of the resolution.
+                # angle_per_pixel = fov / x
+                # Want to round based on angle_per_pixel.
+                # roundto = 52.5 * x/y / x = 52.5 / y
+                # Switch to radians.
+                round_y_ratio = math.pi * 2 / 360 * 52.5
+                new_code += f'''
+                if (ast_fade < 0.999){{
+                    float roundto = {round_y_ratio} / V_viewportpixelsize.y;
+                    vec3 dir = V_cameraposition.xyz - IO_world_pos.xyz;
+                    // Note: atan is -pi to pi.
+                    vec2 angles = vec2(
+                        atan(dir.x, dir.z), 
+                        atan(dir.y, dir.z)
+                        );
+                    // Round them.
+                    angles = floor((angles / roundto) + 0.5) * roundto;
+                    // Get a rand from the angles.
+                    // Ideally don't want patterns, eg. circles of discards,
+                    // so don't add the angles. Can do what was done above
+                    // with xy.
+                    float psuedo_rand = fract(sin(dot(angles, vec2(12.9898,78.233))) * 43758.5453);
+                    if( psuedo_rand >= ast_fade)
+                        discard;
+                }}
                 '''
 
         # Replace a line near the start of main, for fast discard (maybe slightly
