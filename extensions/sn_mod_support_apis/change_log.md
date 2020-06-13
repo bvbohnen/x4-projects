@@ -32,3 +32,5 @@ Change Log for overall api package.
   - Japanese translation by Arkblade.
 * 1.75
   - Fixing action table error from prior version.
+* 1.76
+  - Added Chat_Window_API.

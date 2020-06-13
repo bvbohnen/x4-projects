@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="test_chat_window" 
+  name="Chat Window Test" 
+  author="SirNukes" 
+  version="001" 
+  date="2020-06-20" 
+  save="false" 
+  sync="false" 
+  enabled="false">
+
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="100" optional="false"/>
+</content>

@@ -20,6 +20,8 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="test_chat_window\" />
+    <Folder Include="sn_mod_support_apis\lua\chat_window\" />
     <Folder Include="sn_test_misc\" />
     <Folder Include="sn_asteroid_fade\" />
     <Folder Include="sn_reduce_fog\" />
@@ -60,6 +62,7 @@
     <Folder Include="sn_better_target_monitor\" />
     <Folder Include="sn_better_target_monitor\lua\" />
     <Folder Include="sn_better_target_monitor\md\" />
+    <Folder Include="test_chat_window\md\" />
     <Folder Include="test_hotkey_api\" />
     <Folder Include="test_hotkey_api\md\" />
     <Folder Include="test_interact_menu_api\" />
@@ -121,11 +124,14 @@
     <Content Include="sn_measure_perf\.gitignore" />
     <Content Include="sn_measure_perf\lua\Measure_Perf.lua" />
     <Content Include="sn_mod_support_apis\change_log.md" />
+    <Content Include="sn_mod_support_apis\documentation\Chat_Window_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Interact_Menu_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
+    <Content Include="sn_mod_support_apis\lua\chat_window\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\Text.lua" />
     <Content Include="sn_mod_support_apis\lua_interface.txt" />
+    <Content Include="sn_mod_support_apis\md\Chat_Window_API.xml" />
     <Content Include="sn_mod_support_apis\old_change_logs\interact_menu_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\lua_loader_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\named_pipes_api.md" />
@@ -174,6 +180,8 @@
     <Content Include="sn_measure_perf\md\SN_Measure_Perf.xml" />
     <Content Include="sn_test_misc\content.xml" />
     <Content Include="sn_test_misc\md\SN_Test_Hotkeys.xml" />
+    <Content Include="test_chat_window\content.xml" />
+    <Content Include="test_chat_window\md\Chat_Window_Test.xml" />
     <Content Include="test_hotkey_api\content.xml" />
     <Content Include="test_hotkey_api\md\Hotkey_API_Test.xml" />
     <Content Include="test_interact_menu_api\content.xml" />

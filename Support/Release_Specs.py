@@ -90,6 +90,9 @@ release_specs = [
             'documentation/Interact_Menu_API.md':[
                 'md/Interact_Menu_API.xml',
             ],
+            'documentation/Chat_Window_API.md':[
+                'md/Chat_Window_API.xml',
+            ],
         },
         ),
     

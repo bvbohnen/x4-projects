@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<mdscript name="Chat_Window_Test" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+
+<cues>
+
+  <cue name="Register" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Chat_Window_API.Reloaded" />
+    </conditions>
+    <actions>      
+      <signal_cue_instantly cue="md.Chat_Window_API.Register_Command" param="table[
+        $name      = '/test', 
+        $callback  = OnCommand,
+        $echo      = 'test0',
+        ]"/>
+    </actions>
+  </cue>
+  
+  <!--Generic listener.-->
+  <cue name="Text_Entered" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Chat_Window_API.Text_Entered" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'saw: %1'.[event.param.$text]"/>
+      <debug_text filter="general" text="'' + event.param"/>
+    </actions>
+  </cue>
+        
+  <!--Command callback.-->
+  <cue name="OnCommand" instantiate="true">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>      
+      <!-- Log it. -->
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'%1 seen'.[event.param.$name]"/>
+      <debug_text filter="general" text="'/test seen'"/>
+    </actions>
+  </cue>
+  
+  <!--Listen to refresh events.-->
+  <cue name="OnRefresh" instantiate="true">
+    <conditions>
+      <check_any>
+        <event_ui_triggered screen="'Chat_Window_API'" control="'refreshmd'"/>
+        <event_ui_triggered screen="'Chat_Window_API'" control="'refreshai'"/>
+      </check_any>
+    </conditions>
+    <actions>
+      <!-- Log it. -->
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'%1 command seen'.[event.param2]"/>
+    </actions>
+  </cue>
+  
+      
+</cues>
+
+</mdscript>

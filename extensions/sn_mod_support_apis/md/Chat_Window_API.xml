@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Chat_Window_API" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!-- @doc-title MD Chat Window API -->
+
+  <!-- @doc-overview
+  MD API support for working with the chat window.
+  Can be used to listen to player entered chat text, set up custom commands
+  and callback cues, and print new text.
+  
+  In addition to what is described below for the cues, there is some
+  additional functionality regarding the standard egosoft commands:
+  
+  * `/rmd`, `/rai`, `/rui` may be used in place of 
+    `/refreshmd`, `/refreshai`, `/reloadui`.
+  * When a refresh event occurs, scripts may detect this using the conditions:
+    - `<event_ui_triggered screen="'Chat_Window_API'" control="'refreshmd'"/>`
+    - `<event_ui_triggered screen="'Chat_Window_API'" control="'refreshai'"/>`
+  -->
+  
+    
+  <cues>
+
+    <!-- Register the main lua file. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.sn_mod_support_apis.lua.chat_window.Interface'"/>
+      </actions>
+    </cue>
+    
+    
+    <!--
+      Static cue for holding general state.
+    
+      * $DebugChance
+        - Int, 0 or 100.
+      * $commands
+        - Table of lists of subtables, commands recorded.
+        - Outer table key is the command name.
+        - List is each registered callback for that name (supports multiple).
+        - Inner tables hold the command callback and echo.
+    -->
+    <cue name="Globals">
+      <actions>
+        <!-- Create storage table on first load. -->
+        <set_value name="Globals.$storage"   exact="table[]"/>
+        <include_actions ref="Reset_Globals"/>
+      </actions>
+      <cues>
+        <!-- Listen from the menu api reloading. -->
+        <cue name="Reset_On_Lua_Reload" instantiate="true">
+          <conditions>
+            <event_ui_triggered screen="'Simple_Menu'" control="'reloaded'" />
+          </conditions>
+          <actions>
+            <include_actions ref="Reset_Globals"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+    <library name="Reset_Globals">
+      <actions>
+        <set_value name="Globals.$DebugChance" exact="0"/>
+        <set_value name="Globals.$commands" exact="table[]" />
+        <!-- Send a signal that all users listen to. -->
+        <signal_cue_instantly cue="Reloaded"/>
+      </actions>
+    </library>
+
+    <!--@doc-cue
+    Cue signalled when the api is reloaded.
+    Users that are registering commands should do so when this cue is signalled.
+    -->
+    <cue name="Reloaded" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+      </actions>
+    </cue>
+
+    <!--@doc-cue
+      Print a line to the chat window. This will not evaluate the line as
+      a command.
+    -->
+    <cue name="Print" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <!--The chat window could be handled by egosoft code or custom code. 
+            TODO: maybe support ego control; needs care for the ; requirement.-->
+        <!--<raise_lua_event name="'directChatMessageReceived'" param="event.param"/>-->
+        <raise_lua_event name="'Chat_Window_API.Print'" param="event.param"/>
+      </actions>
+    </cue>
+    
+    
+    <!--@doc-cue
+      Cue signalled when text is entered into the chat window. Users may
+      listen to this to capture all entered text, as an alternative to
+      registering specific commands.
+      
+      Param is a table with two items:
+      * $text
+        - String, the raw text entered by the player.
+        - Will always have at least one non-space character.
+      * $terms
+        - List of strings, the text space separated.
+        - Multiple spaces in a row are treated as one space.
+        - There will always be at least one item in the list.
+        
+      Note: aiscripts can instead listen to the ui signal directly:
+      `<event_ui_triggered screen="'Chat_Window_API'" control="'text_entered'" />`
+      with the text and terms in the event.param3 table.
+    -->
+    <cue name="Text_Entered" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+      </actions>
+    </cue>
+
+    
+    <!--@doc-cue
+    
+    Add a new command to the chat window.  This is primarily for convenience,
+    and can be skipped in favor of listening directly to Text_Entered.
+    
+    This should be called whenever the API signals md.Chat_Window_API.Reloaded.
+      
+    Input to this cue is a table with the following fields:
+      * $name
+        - String, text of the command. Does not need to start with '/'.
+      * $callback
+        - Cue to call when this command is entered.
+        - See below for event.param contents.
+      * $echo
+        - Optional, anything (string, value, table, etc.), data to be
+          attached to the callback cue param for convenience.
+        
+        
+    The callback cue is given an event.param table with the following:
+      * $name
+        - Same as $name above.
+      * $echo
+        - Same as $echo above.
+      * $terms
+        - List of strings, space separated terms given by the player.
+        - The first term is always the $name.
+    
+    Example:
+    ```xml
+    <cue name="Add_Commands" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Chat_Window_API.Reloaded" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly
+          cue="md.Chat_Window_API.Register_Command"
+          param = "table[
+              $name       = '/mytest',
+              $callback   = Command_Callback,
+              $echo       = table[],
+            ]"/>
+      </actions>
+    </cue>
+    ```
+    -->
+    <cue name="Register_Command" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$command" exact="event.param.clone" />
+
+        <!--Error if no name given.-->
+        <do_if value="not $command.$name?">
+          <debug_text text="'Error: missing $name in command with args: %s'.[$command]"
+                    chance="100" filter="general"/>
+        </do_if>
+        <!--Error if no callback given.-->
+        <do_elseif value="not $command.$callback? or not $command.$callback.exists">
+          <debug_text text="'Error: missing $callback in command with args: %s'.[$command]"
+                    chance="100" filter="general"/>
+        </do_elseif>
+        
+        <do_else>          
+          <!--Default args.-->
+          <do_if value="not $command.$echo?">
+            <set_value name="$command.$echo" exact="null"/>
+          </do_if>
+          
+          <!--Record it, making a new list if needed (generally will be).-->
+          <set_value name="$key" exact="'$' + $command.$name"/>
+          <do_if value="not Globals.$commands.{$key}?">
+            <set_value name="Globals.$commands.{$key}" exact="[]"/>
+          </do_if>
+          <append_to_list name="Globals.$commands.{$key}" exact="$command"/>          
+        </do_else>
+      </actions>
+    </cue>
+
+    
+    <!--
+      Listen for text entry, hand off to Text_Entered, and handle command
+      callbacks.
+    -->
+    <cue name="Lua_Signalled_Text_Entered" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Chat_Window_API'" control="'text_entered'" />
+      </conditions>
+      <actions>
+        <signal_cue_instantly cue="Text_Entered"  param="event.param3"/>
+
+        <!--<debug_text filter="general" text="'%s'.[event.param3]"/>-->
+        
+        <!--Check if the first term matches a registered command.-->
+        <set_value name="$key" exact="'$' + event.param3.$terms.{1}"/>
+        <do_if value="Globals.$commands.{$key}?">
+          <do_for_each name="$command" in="Globals.$commands.{$key}">
+            <do_if value="$command.$callback.exists">
+              <signal_cue_instantly 
+                cue="$command.$callback" 
+                param="table[
+                  $name   = $command.$name,
+                  $echo   = $command.$echo,
+                  $terms  = event.param3.$terms,
+                ]"/>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        
+      </actions>
+    </cue>
+
+  </cues>
+
+</mdscript>
+
+
+

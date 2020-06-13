@@ -112,10 +112,12 @@ def Fadein_Asteroids(empty_diffs = 0):
     # TODO: consider asteroid size, as surface several km from center.
     for distance_node in lodvalues_root.xpath('./distances/distance'):
         if float(distance_node.get('render')) > 200000:
-            distance_node.set('component'  , '30000')
             distance_node.set('render'     , '198000')
             distance_node.set('calculation', '200000')
-
+        # Split this into separate check, to work better with other mods
+        # that might change component distances.
+        if float(distance_node.get('component')) > 30000:
+            distance_node.set('component'  , '30000')
 
     # Read out the show distances and size cuttoffs.
     minsize_renderdists ={}
