@@ -219,7 +219,6 @@
       </actions>
     </cue>
 
-
     <!--@doc-cue
         User cue to write a new value for an option, overwriting what is
         stored in this lib. The callback cue will not be signalled.
@@ -235,14 +234,24 @@
         <event_cue_signalled />
       </conditions>
       <actions>
-        <set_value name="$id" exact="'$' + event.param.$id" />
-        <debug_text text="'id %s updating to %s (type %s)'.[
+        <!--This could have been given a $ prefixed id already; try both styles.-->
+        <set_value name="$id" exact="event.param.$id" />
+        <do_if value="not Globals.$storage.{$id}?">
+          <set_value name="$id" exact="'$' + event.param.$id" />
+        </do_if>
+        <!--Error if still not found.-->
+        <do_if value="not Globals.$storage.{$id}?">
+          <debug_text text="'id %s not found in registerd options'.[event.param.$id]"
+                    chance="Globals.$DebugChance" filter="general"/>
+        </do_if>
+        <do_else>
+          <debug_text text="'id %s updating to %s (type %s)'.[
                     event.param.$id, 
                     event.param.$value, 
                     typeof event.param.$value]"
-                  chance="Globals.$DebugChance" filter="general"/>
-        <!--For now, don't validate the id, just store blindly.-->
-        <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+                    chance="Globals.$DebugChance" filter="general"/>
+          <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
+        </do_else>
       </actions>
     </cue>
 

@@ -34,3 +34,5 @@ Change Log for overall api package.
   - Fixing action table error from prior version.
 * 1.76
   - Added Chat_Window_API.
+* 1.77
+  - Adjusted Simple_Menu_Options.Write_Option_Value to support ids with and without a $ prefix.
