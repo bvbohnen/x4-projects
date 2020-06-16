@@ -53,30 +53,38 @@ def Run():
     if config['General']['x4_path']:
         Settings(path_to_x4_folder = config['General']['x4_path'])
 
+    # Evaluate the patterns to collect all files.
+    game_files = []
+    for field, pattern in config['Scripts'].items():
 
-    # Select the path prefixes for files selected.
-    path_prefixes = {'ai':[], 'md':[]}
+        # Make sure the pattern ends in xml.
+        if not pattern.endswith('.xml'):
+            pattern += '.xml'
 
-    for key in ['md','ai']:
-        # Basic x4 scripts.
-        if config.getboolean('X4', f'include_{key}'):
-            path_prefixes[key].append('')
+        # Filter out duplicates (generally not expected, but can happen).
+        for file in Load_Files(pattern):
+            if file not in game_files:
+                game_files.append(file)
 
-        # All extensions blindly (don't currently know their folder names).
-        if config.getboolean('General',f'include_all_ext_{key}'):
-            path_prefixes[key].append('extensions/*/')
-        # Otherwise individual extensions.
-        else:
-            for section, subdict in config._sections.items():
-                if section in ['X4','Defaults','Server','General']:
-                    continue
-                if subdict.get(f'include_{key}') and config.getboolean(section, f'include_{key}'):
-                    # Section name is folder name.
-                    path_prefixes[key].append(f'extensions/{section}/')
-                    
-    Annotate_AI_Scripts(path_prefixes['ai'])
-    Annotate_MD_Scripts(path_prefixes['md'])
+    # Separate into aiscript and md files.
+    ai_files = []
+    md_files = []
+    for file in game_files:
+        path = file.virtual_path
+        if '/' not in path:
+            continue
+        folder = path.split('/')[-2]
+        if folder == 'aiscripts':
+            ai_files.append(file)
+        elif folder == 'md':
+            md_files.append(file)
+            
+    # Hand off to helper functions.
+    Annotate_Scripts(ai_files, style = 'ai')
+    Annotate_Scripts(md_files, style = 'md')
 
+    # Ensure any extensions being modified are set as dependencies.
+    Update_Content_XML_Dependencies()
     Write_To_Extension(skip_content = True)
     return
 
@@ -127,7 +135,7 @@ def Insert_Timestamp(
     '''
     # Signal lua, appending the time of the event.
     new_node = etree.fromstring(f''' <raise_lua_event 
-        name  = "'Measure_Perf.Record_Event'"
+        name  = "'Script_Profiler.Record_Event'"
         param = "'{section_name},{location_name},{path_bound},' + player.systemtime.{{'{time_format}'}} "
         />''')
 
@@ -148,173 +156,277 @@ def Insert_Timestamp(
     return
 
 
+def Get_MD_Block_Name(node):
+    '''
+    For md xml nodes, return their parent cue or lib name.
+    '''
+    # Search parents upward until a match.
+    test_node = node.getparent()
+    while 1:
+        if test_node.tag in ['cue', 'library']:
+            return test_node.get('name')
+        test_node = test_node.getparent()
+        if test_node == None:
+            return ''
+
+
 @Transform_Wrapper()
-def Annotate_AI_Scripts(path_prefixes, empty_diffs = 0):
+def Annotate_Scripts(files, style):
     '''
     For every ai script, add timestamps at entry, exit, and blocking nodes.
+
+    Note: while libraries can potentially be called directly without the
+    caller being full interrupted, they will be treated as fully separate
+    blocks, since ai libraries may have blocking actions and not return
+    right away, and md libraries may be used as cue templates and not
+    just as include_actions calls.
     '''
-    aiscript_files = []
-    for prefix in path_prefixes:
-        aiscript_files += Load_Files(f'{prefix}aiscripts/*.xml')
-    # Safety check: each file occurs once.
-    aiscript_files = set(aiscript_files)
-    
-    for game_file in aiscript_files:
-        xml_root = game_file.Get_Root()
-        file_name = game_file.name.replace('.xml','')
+    # All normal blocking nodes (return to this script when done), and
+    # places where scope moves to a different action block with its
+    # own start/end.
+    # These will get wrapped with an exit point before, entry point after.
+    if style == 'ai':
+        interrupts = [
+            # Blocking actions (explicitly tagged)
+            'dock_masstraffic_drone',
+            'execute_custom_trade',
+            'execute_trade',
+            'move_approach_path',
+            'move_docking',
+            'move_undocking',
+            'move_gate',
+            'move_navmesh',
+            'move_strafe',
+            'move_target_points',
+            'move_waypoints',
+            'move_to',
+            'detach_from_masstraffic',
+            'run_script',
+            'run_order_script',
+            'wait_for_prev_script',
+            'wait',
+
+            # The following are not tagged as blocking, but do cause control
+            # flow change or similar.
+            # Created orders appear to run right away.
+            'create_order',
+            # May not block, but starts a new action block.
+            'include_interrupt_actions',
+            'run_interrupt_script',
+            # This command suggests it will exit an interrupt block to
+            # go to a label. Unclear in documentation, but it may have a
+            # delay before continuing at the label, so treat as blocking.
+            'abort_called_scripts',
+            # Since labels can be jumped to, possible after a delay from
+            # abort_called_scripts, can be extra safe by treating all labels
+            # as potential entry points (and hence set as exit points for
+            # the prior path).
+            'label',
+            # This means resumes also need to be treated as path endpoints.
+            'resume',
+        ]
+    else:
+        # TODO: alternative to sticking endpoints on these, instead set a
+        # global flag that suppresses path start/end in the callees.
+        interrupts = [
+            'include_actions',
+            'run_actions',
+            'signal_cue_instantly',
+            # Signalling objects will also instantly activate cues listening
+            # to that object being signalled.
+            'signal_objects',
+            ]
         
-        if not empty_diffs:
-            # All normal blocking nodes (return to this script when done).
-            for tag in [
-                'dock_masstraffic_drone',
-                'execute_custom_trade',
-                'execute_trade',
-                'move_approach_path',
-                'move_docking',
-                'move_undocking',
-                'move_gate',
-                'move_navmesh',
-                'move_strafe',
-                'move_target_points',
-                'move_waypoints',
-                'move_to',
-                'detach_from_masstraffic',
-                'run_script',
-                'run_order_script',
-                'wait_for_prev_script',
-                'wait',
-                ]:
-                nodes = xml_root.xpath(".//{}".format(tag))
-                if not nodes:
-                    continue
-
-                # All of these nodes need timestamps on both sides.
-                for node in nodes:
-                    # Pick out the entry/exit lines for annotation.
-                    # (Do these nodes even have children?  Maybe; be safe.)
-                    first_line = Get_First_Source_Line(node)
-                    last_line  = Get_Last_Source_Line(node)
-
-                    # Above the node exits a path; below the node enters a path.
-                    Insert_Timestamp(
-                        f'ai.{file_name}', 
-                        f'{node.tag} {first_line}', 
-                        'exit', node, 'before')
-                    Insert_Timestamp(
-                        f'ai.{file_name}', 
-                        f'{node.tag} {last_line}', 
-                        'entry' , node, 'after')
-                
-
-            # Special exit points.
-            # Script can hard-return with a return node.
-            for tag in ['return']:
-                nodes = xml_root.xpath(".//{}".format(tag))
-                if not nodes:
-                    continue
-
-                # Just timestamp the visit.
-                for node in nodes:
-                    first_line = Get_First_Source_Line(node)
-                    Insert_Timestamp(
-                        f'ai.{file_name}', 
-                        f'{node.tag} {first_line}', 
-                        'exit', node, 'before')
-
-
-            # TODO:
-            # Possible mid points:
-            # -label
-            # -resume
-            # 
-
-            # Blocks of actions can show up in:
-            # -attention (one actions child)
-            # -libraries (multiple actions children possible, each named)
-            # -interrupts (may or may not have an actions block)
-            # -handler (one block of actions, no name on this or handler)
-            # -on_attentionchange (in theory; no examples seen)
-            # Of these, all but libraries should start/end paths.
-        
-            # init blocks also have actions, though not labelled as such.
-            # on_abort is similar.
-            for tag in ['actions','init','on_abort']:
-                nodes = xml_root.xpath(f'.//{tag}')
-
-                for node in nodes:
-                    # Skip if empty.
-                    if len(node) == 0:
-                        continue
-
-                    # Skip if action parent is a libary.
-                    # TODO: look into if libs can have blocking actions; if not,
-                    # can set these up with a separate category name.
-                    if tag == 'actions' and node.getparent().tag == 'library':
-                        continue
-
-                    # Pick out the entry/exit lines for annotation.
-                    first_line = Get_First_Source_Line(node[0])
-                    last_line  = Get_Last_Source_Line(node[-1])
-
-                    Insert_Timestamp(
-                        f'ai.{file_name}', 
-                        f'{node.tag} entry {first_line}', 
-                        'entry', node, 'firstchild')
-                    Insert_Timestamp(
-                        f'ai.{file_name}', 
-                        f'{node.tag} exit {last_line}', 
-                        'exit' , node, 'lastchild')
-
-        game_file.Update_Root(xml_root)
-    return
-
-
-@Transform_Wrapper()
-def Annotate_MD_Scripts(path_prefixes, empty_diffs = 0):
-    '''
-    For every md script, add performance measuring nodes.
-    '''    
-    md_files = []
-    for prefix in path_prefixes:
-        md_files += Load_Files(f'{prefix}md/*.xml')
-    # Safety check: each file occurs once.
-    md_files = set(md_files)
-
-        
-    for game_file in md_files:
+    for game_file in files:
         xml_root = game_file.Get_Root()
         file_name = game_file.name.replace('.xml','')
 
-        # Gather a list of sample points.
-        # These will be tuples of 
-        # (section_name, location_name, path_bound "entry"/"mid"/"exit", node, 
-        #  "before"/"after"/"firstchild"/"lastchild").
-        # Where section_name should have the file_name, and a suffix
-        # for the cue/lib involved, so that timers can be matched up
-        # across lib calls from a cue.
-        sample_points = []
-        
-        # Entering/exiting any action block. Include cue/lib name.
-        actions_nodes = xml_root.xpath('.//actions')
-        for actions_node in actions_nodes:
-            cue_name = actions_node.getparent().get('name')
-
-            # Skip if empty.
-            if len(actions_node) == 0:
+        for tag in interrupts:
+            nodes = xml_root.xpath(".//{}".format(tag))
+            if not nodes:
                 continue
 
-            # Pick out the entry/exit lines for annotation.
-            first_line = Get_First_Source_Line(actions_node[0])
-            last_line  = Get_Last_Source_Line(actions_node[-1])
+            # All of these nodes need timestamps on both sides.
+            for node in nodes:
 
-            # Entry/exit redundant for now, but will differ for
-            # specific nodes.
-            Insert_Timestamp(f'md.{file_name}.{cue_name}', f'entry {first_line}', 'entry', actions_node, 'firstchild')
-            Insert_Timestamp(f'md.{file_name}.{cue_name}', f'exit {last_line}'  , 'exit' , actions_node, 'lastchild')
+                # Pick out the entry/exit lines for annotation.
+                # (Do these nodes even have children?  Maybe; be safe.)
+                first_line = Get_First_Source_Line(node)
+                last_line  = Get_Last_Source_Line(node)
 
-        # Commit changes right away; don't bother delaying for errors.
+                # Note: if this node is inside a do_any block, cannot easily
+                # slot in timestamps. Either timestampe the parent do_any,
+                # which can lead to other do_any children going unmeasured, or
+                # nest this node in a do_all, transfer any weight property
+                # to the do_all, and put the timestamping inside the do_all.
+                if node.getparent().tag == 'do_any':
+                    do_all = Element('do_all')
+                    if node.get('weight'):
+                        do_all.set('weight', node.get('weight'))
+                        del(node.attrib['weight'])
+                    node.getparent().replace(node, do_all)
+                    do_all.append(node)
+                    assert do_all.tail == None
+                    # Switch to the do_all for further logic.
+                    node = do_all
+
+                # For md, get the parent cue/lib name to add to
+                # the location.
+                block_name = ''
+                if style == 'md':
+                    block_name = Get_MD_Block_Name(node)
+                    if block_name:
+                        block_name += ' '
+
+                # Above the node exits a path; below the node enters a path.
+                # TODO: add {block_name} to the section name, once confident
+                # that it won't lead to accidents on missing entry/exit points,
+                # for a cleaner printout.
+                Insert_Timestamp(
+                    f'{style}.{file_name}', 
+                    f'{block_name}{node.tag} exit {first_line}',
+                    'exit', node, 'before')
+                Insert_Timestamp(
+                    f'{style}.{file_name}', 
+                    f'{block_name}{node.tag} entry {last_line}', 
+                    'entry' , node, 'after')
+                
+
+        # Special exit points; aiscript only.
+        # Script can hard-return with a return node.
+        for tag in ['return']:
+            nodes = xml_root.xpath(".//{}".format(tag))
+            if not nodes:
+                continue
+
+            # Just timestamp the visit.
+            for node in nodes:
+                first_line = Get_First_Source_Line(node)
+                Insert_Timestamp(
+                    f'{style}.{file_name}', 
+                    f'{node.tag} exit {first_line}', 
+                    'exit', node, 'before')
+
+
+        # TODO:
+        # Possible mid points:
+        # -label
+        # -resume
+        # 
+
+        # Blocks of actions can show up in:
+        # -attention (one actions child)
+        # -libraries (multiple actions children possible, each named)
+        # -interrupts (may or may not have an actions block)
+        # -handler (one block of actions, no name on this or handler)
+        # -on_attentionchange (in theory; no examples seen)
+        # Of these, all but libraries should start/end paths.
+        
+        # "init" blocks also have actions, though not labelled as such.
+        # "on_abort" is similar.
+        for tag in ['actions','init','on_abort']:
+            nodes = xml_root.xpath(f'.//{tag}')
+
+            for node in nodes:
+                # Skip if empty.
+                if len(node) == 0:
+                    continue
+
+                # Pick out the entry/exit lines for annotation.
+                first_line = Get_First_Source_Line(node[0])
+                last_line  = Get_Last_Source_Line(node[-1])
+                
+                # For md, get the parent cue/lib name to add to
+                # the location.
+                block_name = ''
+                if style == 'md':
+                    block_name = Get_MD_Block_Name(node)
+                    if block_name:
+                        block_name += ' '
+                        
+                # TODO: add {block_name} to the section name.
+                Insert_Timestamp(
+                    f'{style}.{file_name}', 
+                    f'{block_name}{node.tag} entry {first_line}', 
+                    'entry', node, 'firstchild')
+                Insert_Timestamp(
+                    f'{style}.{file_name}', 
+                    f'{block_name}{node.tag} exit {last_line}', 
+                    'exit' , node, 'lastchild')
+
+
+        # Cleanup pass to clear out cases where path entry/exit points are
+        # right next to each other.
+        nodes_to_delete = []
+        for node in xml_root.xpath('''.//raise_lua_event[@name="'Script_Profiler.Record_Event'"]'''):
+
+            # Look for entry followed by exit.
+            if ',entry,' not in node.get('param'):
+                continue
+
+            next_node = node.getnext()
+
+            if (next_node == None
+            or next_node.tag != 'raise_lua_event'
+            or next_node.get('name') != "'Script_Profiler.Record_Event'"
+            or ',exit,' not in next_node.get('param')):
+                continue
+
+            # Entry before exit should always be redundant.
+            nodes_to_delete.append(node)
+            nodes_to_delete.append(next_node)
+
+        for node in nodes_to_delete:
+            node.getparent().remove(node)
+
         game_file.Update_Root(xml_root)
     return
+
+
+#@Transform_Wrapper()
+#def Annotate_MD_Scripts(files, empty_diffs = 0):
+#    '''
+#    For every md script, add performance measuring nodes.
+#    '''
+#    for game_file in files:
+#        xml_root = game_file.Get_Root()
+#        file_name = game_file.name.replace('.xml','')
+#
+#        # Gather a list of sample points.
+#        # These will be tuples of 
+#        # (section_name, location_name, path_bound "entry"/"mid"/"exit", node, 
+#        #  "before"/"after"/"firstchild"/"lastchild").
+#        # Where section_name should have the file_name, and a suffix
+#        # for the cue/lib involved, so that timers can be matched up
+#        # across lib calls from a cue.
+#        sample_points = []
+#        
+#        # Entering/exiting any action block. Include cue/lib name.
+#        # TODO: maybe stop/start measurement sections around include_actions
+#        # and signal_cue_instantly points, or otherwise think of a way to
+#        # identify when a cue is signalled instantly (eg. a nested call) to
+#        # omit it from being double counted when summing all time spent
+#        # in scripts.
+#        actions_nodes = xml_root.xpath('.//actions')
+#        for actions_node in actions_nodes:
+#            cue_name = actions_node.getparent().get('name')
+#
+#            # Skip if empty.
+#            if len(actions_node) == 0:
+#                continue
+#
+#            # Pick out the entry/exit lines for annotation.
+#            first_line = Get_First_Source_Line(actions_node[0])
+#            last_line  = Get_Last_Source_Line(actions_node[-1])
+#
+#            # Entry/exit redundant for now, but will differ for
+#            # specific nodes.
+#            Insert_Timestamp(f'md.{file_name}.{cue_name}', f'entry {first_line}', 'entry', actions_node, 'firstchild')
+#            Insert_Timestamp(f'md.{file_name}.{cue_name}', f'exit {last_line}'  , 'exit' , actions_node, 'lastchild')
+#
+#        # Commit changes right away; don't bother delaying for errors.
+#        game_file.Update_Root(xml_root)
+#    return
 
 
 def Test_Time_Deformatter():

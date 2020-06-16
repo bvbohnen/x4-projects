@@ -64,6 +64,11 @@ release_specs = [
         ),
     
     Release_Spec(
+        root_path = project_dir / 'extensions/sn_measure_fps',
+        steam = False,
+        ),
+    
+    Release_Spec(
         root_path = project_dir / 'extensions/sn_mod_support_apis',
         steam = True,
         files = [
@@ -129,6 +134,25 @@ release_specs = [
     Release_Spec(
         root_path = project_dir / 'extensions/sn_remove_highway_blobs',
         steam = True,
+        ),
+    
+    Release_Spec(
+        root_path = project_dir / 'extensions/sn_script_profiler',
+        steam = False,
+        pack = False,
+        skip_subfolders = True,
+        # Control what is included; just want the base files, not those
+        # generated.
+        files = [
+            #'content.xml',
+            #'readme.md',
+            'config_defaults.ini',
+            'Modfy_Exe.py',
+            'Modify_Scripts.py',
+            'lua/Script_Profiler.lua',
+            'md/SN_Script_Profiler.xml',
+            'python/Script_Profiler.py',
+        ],
         ),
     
     Release_Spec(

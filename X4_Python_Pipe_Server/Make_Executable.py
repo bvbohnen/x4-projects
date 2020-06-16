@@ -132,6 +132,7 @@ def Make(*args):
         '    hiddenimports = [',
             '        r"pynput",',
             '        r"time",',
+            '        r"configparser",',
             '        r"win32gui",',
             '        r"win32file",',
         '    ],',

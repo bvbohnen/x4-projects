@@ -53,7 +53,7 @@ temp copy of test args:
 '''
 # Manually list the version for now, since packed exe won't have
 # access to the change_log.
-version = '1.3'
+version = '1.4'
 
 # Setup include path to this package.
 import sys

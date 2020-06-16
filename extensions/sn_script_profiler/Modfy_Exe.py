@@ -1,9 +1,13 @@
 '''
 This script will set up the modified exe.
 This only needs to be done once for a series of perf profiles.
+
 Note: if using steam, the modified exe will be named something like
-"x4.mod.exe", but needs to be renamed to "x4.exe" to launch through
+"x4_profiling.exe", but needs to be renamed to "x4.exe" to launch through
 steam (back up the original and restore it when done).
+
+Recommend using the no-steam exe if available.
+Note: games saved with this exe may have unusual timestamps.
 '''
 import sys
 from lxml import etree
@@ -39,11 +43,18 @@ def Run():
     # Set the path to the X4 installation folder and exe file.
     if config['General']['x4_path']:
         Settings(path_to_x4_folder = config['General']['x4_path'])
+
     if config['General']['x4_exe_name']:
-        Settings(X4_exe_name = 'X4.exe')
+        x4_exe_name = config['General']['x4_exe_name']
+        assert '.exe' in x4_exe_name
+        Settings(X4_exe_name = x4_exe_name)
+
+    # Tweak the exe name to clarify it.
+    Settings(root_file_tag = '_profiling')
 
     Remove_Sig_Errors()
     High_Precision_Systemtime()
+
     Write_Modified_Binaries()
 
 Run()

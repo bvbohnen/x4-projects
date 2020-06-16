@@ -27,6 +27,14 @@ class Release_Spec:
       - Name of the release; uses the root_path name if not specified.
     * is_extension
       - Bool, True if this is an extension.
+    * pack
+      - Bool, True (default) to pack if an extension, False to leave unpacked.
+    * skip_subfolders
+      - Bool, True if subfolders (eg. md/, aiscripts/, etc.) should be ignored.
+      - Any specific files wanted should be given in "files".
+      - Currently only applies to misc xml files that would normally go in 
+        a catalog.
+      - Does not work with packing.
     * steam
       - Bool, True if this is an extension that is intended to be on steam.
     * extension_id
@@ -36,6 +44,7 @@ class Release_Spec:
       - Dict of lists of files, where keys are category strings.
       - Categories include: lua, python, ext_cat, subst_cat, documentation,
         change_logs, misc, prior_subst_cat.
+      - Any files given to init will be treated as misc, and are not packed.
     * doc_specs
       - Dict, keyed by relative path from root to the doc file name, holding
         a list of files to include in the automated documentation generation,
@@ -52,12 +61,18 @@ class Release_Spec:
             name = None,
             doc_specs = None,
             files = None,
+            pack = True,
+            skip_subfolders = False,
         ):
         self.root_path = root_path.resolve()
         self.name = self.root_path.name if not name else name
         self.is_extension = self.root_path.parent.name == 'extensions'
         self.files = defaultdict(list)
         self.steam = steam
+        self.pack = pack
+        self.skip_subfolders = skip_subfolders
+        if pack:
+            assert skip_subfolders == False
 
         self.doc_specs = doc_specs if doc_specs else {}
         # Touch up doc paths.
@@ -101,7 +116,7 @@ class Release_Spec:
 
     def Find_Ext_Files(self):
         '''
-        Search the extension's folder for files, and put them into categories.\
+        Search the extension's folder for files, and put them into categories.
         '''
         files = self.files
         paths_seen = []
@@ -151,9 +166,9 @@ class Release_Spec:
             if path in paths_seen:
                 continue
             # Skip if not in a subfolder.
-            if path.parent == content_dir:
+            if path.parent == content_dir or self.skip_subfolders:
                 continue
-            files['ext_cat'].append(path)
+            files['ext_cat' if self.pack else 'misc'].append(path)
 
         # Check for content.xml.
         content_path = content_dir / 'content.xml'
@@ -500,72 +515,75 @@ class Release_Spec:
             # Note: workshop upload lowercases file names, so account for that
             # below.
             string_replacement_dict = {}
+            
+            # This dict pairs original paths with modified text.
+            file_text_dict = {}
 
-            for path in files['lua'] + files['python']:
+            # Only do this when packing.
+            if self.pack:
+                for path in files['lua'] + files['python']:
 
-                # Set up the adjusted path.
-                # This will include the names of intermediate folders between
-                # the root_path and the actual lua file.
-                # This isn't needed for the lua_interface.txt, which is
-                # already in the top folder as txt.
-                if path.name == 'lua_interface.txt':
-                    new_path = path
-                else:
-                    new_path = root / '{}_{}.txt'.format(
-                        path.relative_to(root).parent.as_posix().replace('/','_'),
-                        path.stem.lower())
-                    # Error if this conflicts with a lua_interface.txt file,
-                    # for safety. (This could be resolved if it comes up.)
-                    assert not new_path.name == 'lua_interface.txt'
-                lua_py_path_newpath_dict[path] = new_path
+                    # Set up the adjusted path.
+                    # This will include the names of intermediate folders between
+                    # the root_path and the actual lua file.
+                    # This isn't needed for the lua_interface.txt, which is
+                    # already in the top folder as txt.
+                    if path.name == 'lua_interface.txt':
+                        new_path = path
+                    else:
+                        new_path = root / '{}_{}.txt'.format(
+                            path.relative_to(root).parent.as_posix().replace('/','_'),
+                            path.stem.lower())
+                        # Error if this conflicts with a lua_interface.txt file,
+                        # for safety. (This could be resolved if it comes up.)
+                        assert not new_path.name == 'lua_interface.txt'
+                    lua_py_path_newpath_dict[path] = new_path
                 
-                # Get the original in-text string for lua requires.
-                # Note: lua_interface.txt doesn't need this conversion
-                # for when it's required (which is why it exists), though
-                # will still undergo replacement later for when it requires
-                # the actual lua files.
-                if path.suffix == '.lua':
-                    # Goal is to replace "extensions.sn_simple_menu_api.lua.Custom_Options"
-                    # with "extensions.sn_simple_menu_api.Custom_Options", or similar.
-                    old_string = self.Path_To_Lua_Require_Path(path)
-                    new_string = self.Path_To_Lua_Require_Path(new_path)
-                    string_replacement_dict[old_string] = new_string
+                    # Get the original in-text string for lua requires.
+                    # Note: lua_interface.txt doesn't need this conversion
+                    # for when it's required (which is why it exists), though
+                    # will still undergo replacement later for when it requires
+                    # the actual lua files.
+                    if path.suffix == '.lua':
+                        # Goal is to replace "extensions.sn_simple_menu_api.lua.Custom_Options"
+                        # with "extensions.sn_simple_menu_api.Custom_Options", or similar.
+                        old_string = self.Path_To_Lua_Require_Path(path)
+                        new_string = self.Path_To_Lua_Require_Path(new_path)
+                        string_replacement_dict[old_string] = new_string
 
-                # The dll is special, looking like:
-                # ".\\extensions\\sn_named_pipes_api\\lualibs\\winpipe_64.dll"
-                # This will also become a _dll.txt file, but needs different
-                # string replacement.
-                elif path.suffix == '.dll':
-                    old_string = self.Path_To_Lua_Loadlib_Path(path)
-                    new_string = self.Path_To_Lua_Loadlib_Path(new_path)
-                    string_replacement_dict[old_string] = new_string
+                    # The dll is special, looking like:
+                    # ".\\extensions\\sn_named_pipes_api\\lualibs\\winpipe_64.dll"
+                    # This will also become a _dll.txt file, but needs different
+                    # string replacement.
+                    elif path.suffix == '.dll':
+                        old_string = self.Path_To_Lua_Loadlib_Path(path)
+                        new_string = self.Path_To_Lua_Loadlib_Path(new_path)
+                        string_replacement_dict[old_string] = new_string
 
-                elif path.suffix == '.py':                                           
-                    old_string = self.Path_To_Python_Path(path)
-                    new_string = self.Path_To_Python_Path(new_path)
-                    string_replacement_dict[old_string] = new_string
+                    elif path.suffix == '.py':
+                        old_string = self.Path_To_Python_Path(path)
+                        new_string = self.Path_To_Python_Path(new_path)
+                        string_replacement_dict[old_string] = new_string
     
 
-            # Load all md xml and lua file texts, and adjust paths.
-            # This dict pairs original paths with modified text.
-            # TODO: maybe think about what happens if python files try
-            # to cross-import; for now don't worry.
-            file_text_dict = {}
-            for path in files['lua'] + files['ext_cat'] + files['misc']:
-                if path.suffix not in ['.lua','.xml','.txt']:
-                    continue
+                # Load all md xml and lua file texts, and adjust paths.
+                # TODO: maybe think about what happens if python files try
+                # to cross-import; for now don't worry.
+                for path in files['lua'] + files['ext_cat'] + files['misc']:
+                    if path.suffix not in ['.lua','.xml','.txt']:
+                        continue
 
-                # Get the existing text.
-                # Needs to explicitly be utf-8 else this messed up 
-                # the infinity symbol in better_target_monitor.
-                text = path.read_text(encoding = 'utf-8')
-                # Edit paths.
-                for old_string, new_string in string_replacement_dict.items():
-                    text = text.replace(old_string, new_string)
+                    # Get the existing text.
+                    # Needs to explicitly be utf-8 else this messed up 
+                    # the infinity symbol in better_target_monitor.
+                    text = path.read_text(encoding = 'utf-8')
+                    # Edit paths.
+                    for old_string, new_string in string_replacement_dict.items():
+                        text = text.replace(old_string, new_string)
 
-                file_text_dict[path] = text
+                    file_text_dict[path] = text
 
-
+            # Should be empty if not packing.
             for path in files['ext_cat']:
                 # Set the catalog virtual path.
                 virtual_path = self.Path_To_Cat_Path(path)
@@ -583,6 +601,7 @@ class Release_Spec:
 
 
             # Subst files are in a separate list.
+            # May have stuff even when not packing.
             for path in files['subst_cat']:
                 virtual_path = self.Path_To_Cat_Path(path)
 
@@ -652,11 +671,12 @@ class Release_Spec:
                     # Otherwise this should be the dll file.
                     path_binaries[new_path] = old_path.read_bytes()
 
-            # TODO: maybe include readme as .txt instead of .md.
-            for path in files['documentation'] + files['change_logs']:
-                if (path.name.lower() == 'readme.md' 
-                or  path.name.lower() == 'change_log.md'):
-                    path_binaries[path.with_suffix('.txt')] = path.read_bytes()
+            # If packing for steam, adjust md files to txt.
+            if self.pack and self.steam:
+                for path in files['documentation'] + files['change_logs']:
+                    if (path.name.lower() == 'readme.md' 
+                    or  path.name.lower() == 'change_log.md'):
+                        path_binaries[path.with_suffix('.txt')] = path.read_bytes()
 
             # Include the new cat/dat files themselves.
             for path in cat_dat_paths:

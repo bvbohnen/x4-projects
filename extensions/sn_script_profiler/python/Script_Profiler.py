@@ -41,7 +41,9 @@ def main(args):
     # TODO: others
 
     # Set up the pipe and connect to x4.
-    pipe = Pipe_Server(pipe_name)
+    # Increase the size above default a bunch, since messages can be
+    # close to 60kB, and two are sent close together.
+    pipe = Pipe_Server(pipe_name, buffer_size = 1024 * 256)
         
     # For python testing, kick off a client thread.
     if test_python_client:
@@ -55,10 +57,6 @@ def main(args):
     # Var to hold the last tic time.
     last_tic = 0
            
-    # FPS counter.
-    # Goal here is to give a smoothed fps over time.
-    fps_counter = FPS_Counter(window = 60)
-
     # Script counter, just for organization.
     # Keys match what is sent from x4.
     ai_counters = {
@@ -81,7 +79,6 @@ def main(args):
         }
 
     # General dict of game state data, most recently sent.
-    # 'fps','gametime', etc.
     state_data = {}
     
     while 1:        
@@ -109,32 +106,14 @@ def main(args):
 
                 # Process them into a dict of strings.
                 # Note: keys are expected to start with $.
-                # Delay printout of fps, since gametime might show up
-                # later in the message.
-                print_fps = False
                 for kv_pair in kv_pairs:
                     key, value = kv_pair.split(':')
 
                     # Explicitly handle cases, for casting and clarity.
-                    # TODO: maybe just special handling for fps, generic
-                    # for others.
-                    if key == '$gametime':
-                        state_data['gametime'] = float(value)
-
-                    elif key == 'path_metrics_timespan':
+                    if key == 'path_metrics_timespan':
                         state_data['path_metrics_timespan'] = float(value)
 
-                    elif key == '$fps':
-                        state_data['fps'] = float(value)
-                        print_fps = True
-                        
                     # TODO: other stuff.
-
-                if print_fps:
-                    # Update the fps counter/smoother.
-                    fps_counter.Update(state_data['gametime'], state_data['fps'])
-                    # Print the smoothed value.
-                    fps_counter.Print()
 
                                         
                 # Get the in-game systemtime.
@@ -207,7 +186,7 @@ def main(args):
                 # For path_times, there is an empty cue which can be used
                 # to adjust for the overhead of gathering systemtime.
                 empty_cue_time = path_metrics['md'].metrics.get(
-                    'md.SN_Measure_Perf.Empty_Cue,entry 101,exit 102')
+                    'md.SN_Script_Profiler.Empty_Cue,entry 101,exit 102')
                 if empty_cue_time == None:
                     print('Error: failed to find Empty_Cue')
                 else:
@@ -250,73 +229,6 @@ def main(args):
     return
 
 
-class FPS_Counter:
-    '''
-    Stores fps samples, and produces a smoothed value over time, since
-    the in-game count fluctuated wildely each second.
-
-    * samples
-      - List of tuples of (gametime, fps count). Newest is first.
-    * running_sum
-      - Sum of fps counts, to speed up averaging.
-      - Samples are assumed to arrive at a regular rate, eg. every second,
-        as all will be treated as equally weighted.
-      - Used to slightly speed up compute with many samples.
-    * window
-      - Float, how many seconds back to set the smoothing window for.
-      - Samples older than this window will be removed.
-    '''
-    def __init__(self, window = 5):
-        self.samples = []
-        self.running_sum = 0
-        self.window = window
-        return
-
-    def Update(self, gametime, fps):
-        '''
-        Record a new fps sample at the given gametime.
-        '''
-        self.samples.insert(0, (gametime, fps))
-        self.running_sum += fps
-
-        # Prune out old samples.
-        oldest = gametime - self.window
-        samples = self.samples
-        # Go backwards, removing items until something is new enough.
-        for i in reversed(range(len(samples))):
-            if samples[i][0] < oldest:
-                self.running_sum -= samples[i][1]
-                samples.pop(-1)
-            else:
-                break
-        return
-
-    def Get_FPS(self):
-        '''
-        Return the current averaged fps.
-        '''
-        return self.running_sum / len(self.samples)
-
-    def Print(self):
-        '''
-        Print a line with current state.
-        '''
-        samples = self.samples
-        # Give some protection against too few samples.
-        msg = 'fps: {:.1f} || over {:.1f}s: {:.1f}  (min: {:.1f}, max: {:.1f})'.format(
-            # Latest sample.
-            samples[0][1] if samples else 0,
-            # Could give sampling window, or actual sample stretch; use latter.
-            samples[0][0] - samples[-1][0] if len(samples) >= 2 else 0,
-            # Average.
-            self.running_sum / len(samples) if samples else 0,
-            # Min and max over the range.
-            min(x[1] for x in samples) if samples else 0,
-            max(x[1] for x in samples) if samples else 0,
-            )
-        print(msg)
-        return
-    
 
 class Count_Storage:
     '''
@@ -506,18 +418,10 @@ def Pipe_Client_Test():
     pipe = Pipe_Client(pipe_name)
 
     # Example messages.
+    # TODO: update this for profile stuff.
     messages = [
-        'update;$fps:25;$gametime:0;',
-        'update;$fps:20;$gametime:1;',
-        'update;$fps:27;$gametime:2;',
-        'update;$fps:24;$gametime:3;',
-        'update;$fps:17;$gametime:4;',
-        'update;$fps:24;$gametime:5;',
-        'update;$fps:29;$gametime:6;',
-        'update;$fps:25;$gametime:7;',
-        'update;$fps:26;$gametime:8;',
-        'update;$fps:25;$gametime:9;$aicommand.move:20;$aicommand.fight:30;',
-        'update;$fps:21;$gametime:10;$aiaction.dock:20;$aiaction.flying:30;',
+        'update;$aicommand.move:20;$aicommand.fight:30;',
+        'update;$aiaction.dock:20;$aiaction.flying:30;',
         ]
 
     # Just transmit; expect no responses for now.

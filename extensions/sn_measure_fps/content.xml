@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="sn_measure_fps" 
+  name="Measure FPS" 
+  author="SirNukes" 
+  version="100" 
+  date="2020-6-14" 
+  save="false" 
+  sync="false" 
+  enabled="true">
+
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="100" optional="false"/>
+</content>

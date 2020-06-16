@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SN_Measure_FPS" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+<!--
+  TODO: measure each frame time instead of sampling the game fps, to enable
+  more detailed statistics on frame variance.
+-->
+<cues>
+  <!-- Register the main lua file. -->
+  <cue name="Load_Lua_Files" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Load'"
+                       param="'extensions.sn_measure_fps.lua.Measure_FPS'"/>
+    </actions>
+  </cue>
+  
+  <!-- Register the python server. -->
+  <cue name="Register_Pipe_Server" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Pipe_Server_Host.Reloaded" />
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Pipe_Server_Host.Register_Module"
+        param="'extensions/sn_measure_fps/python/Measure_FPS.py'"/>
+    </actions>
+  </cue>
+  
+  <!-- 
+    Sample once every second. This will bounce off lua to pick up some
+    information.
+  -->
+  <cue name="Trigger_Sample" instantiate="true" checkinterval="1s">
+    <!--No conditions.-->
+    <actions>
+      <raise_lua_event name="'Measure_FPS.Get_Sample'"/>
+    </actions>
+  </cue>
+
+
+  <!-- 
+  When lua responds, capture its message, fill in additional information,
+  and send it all to python for handling.
+  
+  Messages will be key:value pairs, semicolon separated, starting
+  with an 'update;' string.
+  -->
+  <cue name="Send_Sample" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Measure_FPS'" control="'Sample'" />
+    </conditions>
+    <actions>
+      <!-- Grab the returned value, use it to init the dict of measurements.-->
+      <set_value name="$response" exact="event.param3" />
+      
+      <!--Construct the message string.-->
+      <set_value name="$msg" exact="'update;'" />
+      <do_for_each name="$key" valuename="$value" in="$response">
+        <set_value name="$msg" exact="'%s%s:%s;'.[$msg, $key, $value]"/>
+      </do_for_each>
+      
+      <!--Send to the pipe.-->
+      <signal_cue_instantly
+        cue="md.Named_Pipes.Write"
+        param="table[$pipe='x4_measure_fps', $msg=$msg]"/>
+    </actions>
+  </cue>
+  
+  
+</cues>
+  
+</mdscript>
