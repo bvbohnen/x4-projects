@@ -36,3 +36,5 @@ Change Log for overall api package.
   - Added Chat_Window_API.
 * 1.77
   - Adjusted Simple_Menu_Options.Write_Option_Value to support ids with and without a $ prefix.
+* 1.78
+  - Refinement to chat window api to better detect the window closing and reopening.

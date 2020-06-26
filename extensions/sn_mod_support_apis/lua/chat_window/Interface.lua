@@ -21,6 +21,7 @@ TODO:
 - Easy way to enable/disable for debug purposes.
 - pcalls and such for better error handling.
 - Detect wordwrap and plan around it to avoid text going outside the table.
+- Find a way to suppress the ego ExecuteDebugCommand
 ]]
 
 -- FFI stuff.
@@ -83,7 +84,28 @@ function L.Init()
     -- Also listen to the normal event, for compatability.
     RegisterEvent("directChatMessageReceived", L.onPrint)
     
-    -- The chat window should already be set up in View.
+
+    -- The window could already have been created, or have yet to be created.
+    -- Aim to handle both cases.
+    -- Intercepting View.registerMenu to listen for new chat windows.
+    local ego_registerMenu = View.registerMenu
+    View.registerMenu = function(id, ...)
+        -- Let View do the initial setup.
+        ego_registerMenu(id, ...)
+        -- Use shared code to search for the chat window.
+        if id == "chatWindow" then
+            L.Patch_New_Menu()
+        end
+    end
+
+    -- The chat window might already be set up in View, so always run
+    -- this once, to find an exiting menu.
+    L.Patch_New_Menu()
+
+end
+
+-- Search View for the chatWindow and patch it if found.
+function L.Patch_New_Menu()
     local chat_menu = nil
     for i, menu in ipairs(View.menus) do
         if menu.id == "chatWindow" then
@@ -92,14 +114,12 @@ function L.Init()
         end
     end
 
+    -- If not found, this may be the init call with no shown window, so skip.
     if chat_menu == nil then
-        DebugError("Failed to find chatWindow in View.menus")
         return
     end
 
-    -- The window could already have been created, or have yet to be created.
-    -- Aim to handle both cases.
-    -- Intercepting the creation callback handles the new-window case.
+    -- Intercept the creation callback.
     L.ego_onChatWindowCreated = chat_menu.callback
     chat_menu.callback = L.onChatWindowCreated
 
@@ -108,9 +128,7 @@ function L.Init()
         -- Update it; triggers onChatWindowCreated callback linked above.
         View.updateMenu(chat_menu)
     end
-
 end
-
 
 -- On creation, link to the window widgets, and set a callback editbox script.
 function L.onChatWindowCreated(frames)
@@ -126,6 +144,10 @@ function L.onChatWindowCreated(frames)
     -- Set the callback script. This is called in addition to the
     -- egosoft onCommandBarDeactivated callback, but should be called after.
     SetScript(L.edit_box, "onEditBoxDeactivated", L.onCommandBarDeactivated)
+
+    -- Overwrite the standard inintial window text (may have stuff if this
+    -- isn't the first time shown).
+    L.rebuildWindowOutput()
 end
 
 
@@ -187,10 +209,14 @@ function L.Process_Text(text)
             -- Special short commands.
             if L.short_commands[command] ~= nil then
                 command = L.short_commands[command]
+                -- Hand off to backend for /refreshmd and similar.
+                -- Note: don't do this for the normal full command, since the
+                -- ego code will also check this string and run the command.
+                -- TODO: suppress the ego ExecuteDebugCommand and always do
+                -- it here, so the log doesn't have an unknown command error.
+                ExecuteDebugCommand(command, param)
             end
         
-            -- Hand off to backend for /refreshmd and similar.
-            ExecuteDebugCommand(command, param)
 
             -- Signal the command specifically, for user script convenience.
             -- This way md scripts can detect /refreshmd, ai /refreshai.

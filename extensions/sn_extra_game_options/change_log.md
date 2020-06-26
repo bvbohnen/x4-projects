@@ -26,3 +26,5 @@ Change Log
   - German translation, by Le Leon.
 * 1.9
   - Bug fix for x4 3.2 beta2.
+* 1.10
+  - Disabled custom map opacity scaling if the map filter "opacity" flag is set.

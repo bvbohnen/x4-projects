@@ -20,6 +20,10 @@
   and hence doesn't necessarily need to use a callback to capture it.
   (Perhaps give these as library include_actions.)
   
+  TODO:
+  Store values in the uidata instead of the save game (maybe optional per
+  item), so they are preserved across new games.
+  
   -->
 
   <cues>

@@ -157,8 +157,15 @@ end
 --[[
     The relevant code is in menu_map.lua, createMainFrame function.
     Here, alpha is hardcoded to 98.
-    While the whole function could be replaced with just the one edit,
-    perhaps there is a cleaner solution to updating the alpha live?
+    Update: in 3.3 the alpha is 98, or 100 if the globally saved value
+    __CORE_DETAILMONITOR_MAPFILTER["other_misc_opacity"] is true.
+
+    The global setting makes the need for this extra option less necessary,
+    but since this custom style allows variable opacity (eg. 99), it will
+    be kept functional for now.
+
+    If the map "opacity" flag is set, this will be set to do nothing (let
+    that vanilla setting override this opacity).
 ]]
 -- State for this option.
 L.menu_alpha = {
@@ -175,7 +182,7 @@ function L.Init_Menu_Alpha()
 
         -- If the using default value, don't attach extra code, as a safety
         -- if an x4 patch breaks the logic.
-        if L.menu_alpha.alpha == 98 then            
+        if L.menu_alpha.alpha == 98 or __CORE_DETAILMONITOR_MAPFILTER["other_misc_opacity"] then            
             -- Build the menu.
             original_createMainFrame(...)
 
@@ -224,20 +231,6 @@ function L.Init_Menu_Alpha()
                 end
             end
 
-            -- Try a full frame background if alpha doesn't work.
-            -- (Alpha seems to work fine; don't need this.)
-            --map_menu.mainFrame.backgroundID = "solid"
-
-            -- -Removed; display done smarter.
-            -- Redisplay the menu to refresh it.
-            -- (Clear existing scripts before the refresh.)
-            -- Layer taken from config of menu_map.lua.
-            -- TODO: replace this with the new method that suppresses the
-            -- original frame:display temporarily.
-            --local mainFrameLayer = 5
-            --Helper.removeAllWidgetScripts(map_menu, mainFrameLayer)
-            --map_menu.mainFrame:display()
-        
             -- Re-attach the original frame display, and call it.
             frame.display = frame_display
             frame:display()

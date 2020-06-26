@@ -5,10 +5,10 @@ Add support for profiling MD and AI scripts to help determine their impact
 on x4 performance.
 
 ## Requirements:
-* X4 Customizer v1.22 or later
+* X4 Customizer v1.22+ (python) or v1.23.1+ (exe)
 * Windows 8 or 10
 * Mod Support APIs extension
-* Python pipe server
+* Python pipe server v1.4+
 * This extension
 
 ## Setup
@@ -52,7 +52,6 @@ The following sections go through setting up the profiler.
 * If the game is paused, the profiler game-timer will pause as well (eg. paused time doesn't count down the 1-minute periods), though it will continue to measure time spent on any cues that fire during the pause.
   - This may be adjusted in future versions.
 * Timestamps add significant overhead if many scripts are being profiled at once, which may influence script behavior if the fps dips too low.
-  - This will tend to lead to the 60-second profile gatherings being delayed significantly, which will be reported by the python host server.
   - Limit scripts being profiled if this occurs.
   - More likely to be a problem in SETA mode.
   - Not observed to be a problem in vanilla without SETA.
