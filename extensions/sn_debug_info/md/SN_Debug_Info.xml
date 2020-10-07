@@ -371,14 +371,14 @@
         </do_else>
         
         <do_if value="@$include_buildstorage">
-        <!--Add build storage modules for each station; these are also 
-            containers with their own cargo/etc data.-->
-        <do_for_each name="$station" in="$stations">
-          <do_if value="$station.buildstorage? and $station.buildstorage != null">
-            <add_to_group groupname="$buildstorages" object="$station.buildstorage"/>
-          </do_if>
-        </do_for_each>
-        <add_to_group groupname="$stations" group="$buildstorages"/>          
+          <!--Add build storage modules for each station; these are also 
+              containers with their own cargo/etc data.-->
+          <do_for_each name="$station" in="$stations">
+            <do_if value="$station.buildstorage? and $station.buildstorage != null">
+              <add_to_group groupname="$buildstorages" object="$station.buildstorage"/>
+            </do_if>
+          </do_for_each>
+          <add_to_group groupname="$stations" group="$buildstorages"/>
         </do_if>
       </actions>
     </library>

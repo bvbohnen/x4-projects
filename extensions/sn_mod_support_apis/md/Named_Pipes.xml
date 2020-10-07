@@ -118,11 +118,13 @@ TODO:
   <cue name="Globals">
     <!-- When first created, set up globals. -->
     <actions>
-      <include_actions ref="Reset_Globals"/>
+      <!--Skip if Reset_On_Lua_Reload already set these up.-->
+      <do_if value="not Globals.$DebugChance?">
+        <include_actions ref="Reset_Globals"/>
+      </do_if>
     </actions>
   </cue>
   
-  <!-- TODO: can this lib be put into the cues list above? -->
   <library name="Reset_Globals">
     <actions>
       <!--Load any text.-->

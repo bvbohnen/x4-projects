@@ -38,3 +38,6 @@ Change Log for overall api package.
   - Adjusted Simple_Menu_Options.Write_Option_Value to support ids with and without a $ prefix.
 * 1.78
   - Refinement to chat window api to better detect the window closing and reopening.
+* 1.79
+  - Updated pipes dll to match new lua dll in x4 3.3 hotfix 1.
+  - Note: not compatable with earlier X4 versions (eg. original 3.3 release).

@@ -52,7 +52,7 @@
         <include_actions ref="Reset_Globals"/>
       </actions>
       <cues>
-        <!-- Listen from the menu api reloading. -->
+        <!-- Listen for the menu api reloading. -->
         <cue name="Reset_On_Lua_Reload" instantiate="true">
           <conditions>
             <event_ui_triggered screen="'Simple_Menu'" control="'reloaded'" />

@@ -29,7 +29,9 @@ Dependencies:
      %comspec% /k "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\Tools\VsDevCmd.bat" -arch=amd64
    - Convert this dll into a lib file using bat file from:
      https://stackoverflow.com/questions/9946322/how-to-generate-an-import-library-lib-file-from-a-dll
-     
+   
+   Note: X4 patch 3.3 hf1 beta modified the lua dll. Supporting both pre-patch and post-patch dlls is done manually, with the current setup using the latest dll->lib, but the older one is available under an alternate name (needs manual lib rename to compile it).
+
      
 
 History of moving from winapi batch file to VS IDE compilation:
