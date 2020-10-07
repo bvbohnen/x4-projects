@@ -40,4 +40,6 @@ Change Log for overall api package.
   - Refinement to chat window api to better detect the window closing and reopening.
 * 1.79
   - Updated pipes dll to match new lua dll in x4 3.3 hotfix 1.
-  - Note: not compatable with earlier X4 versions (eg. original 3.3 release).
+* 1.80
+  - Refined pipes dll loading to work with both 3.3 release and hotfix 1.
+  - Fixed possible lua loader failure on txt files due to x4 resetting search paths.

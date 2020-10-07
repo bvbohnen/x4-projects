@@ -36,9 +36,33 @@ This is that wrapper.
 -- First character in package.config is the separator, which
 -- is backslash on windows.
 if package.config:sub(1,1) == "\\" then
-    return package.loadlib(
-        ".\\extensions\\sn_mod_support_apis\\lua\\c_library\\winpipe_64.dll", 
-        "luaopen_winpipe")()
+
+    -- Note: as of x4 3.3 hotfix 1 (beta), the jit and lua dll are changed
+    -- such that the winpipe dll doesn't work between versions.
+    -- (Older winpipe crashes 3.3hf1, while a newer winpipe just doesnt work
+    -- in pre-patch versions.)
+    -- Both winpipe dlls are included for now, but one needs to be selected
+    -- based on the game version.
+
+    -- Note: cannot use jit to check the estimated game version, since it
+    -- cannot be required/imported here.
+    --local jit = require("jit")
+    --DebugError("jit version: "..tostring(jit.version_num))
+
+    -- The GetVersionString() command returns "3.30 (406216)" in the pre-hotfix
+    -- game. Can check for this build code to select which dll to load.
+    -- Newer versions will have a different build code, even the beta.
+    if string.find(GetVersionString(), "406216") then
+        -- <= 3.3 release dll.
+        return package.loadlib(
+            ".\\extensions\\sn_mod_support_apis\\lua\\c_library\\winpipe_64_pre3p3hf1.dll", 
+            "luaopen_winpipe")()
+    else
+        -- 3.3 hf1 dll.
+        return package.loadlib(
+            ".\\extensions\\sn_mod_support_apis\\lua\\c_library\\winpipe_64.dll", 
+            "luaopen_winpipe")()
+    end
 end
 
 

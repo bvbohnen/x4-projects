@@ -15,6 +15,8 @@ This is a collection of APIs developed to ease mod creation in a variety of ways
 * Time API
   - Real-time delays
 
+Note: if installed on an existing save, an additional save/load cycle or a /reloadui command may be needed for all apis to fully register correctly.
+
 
 ### Contributors
 * Le Leon - German translation

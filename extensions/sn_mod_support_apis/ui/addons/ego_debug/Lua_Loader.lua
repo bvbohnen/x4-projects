@@ -49,6 +49,16 @@ which are resolved at this level (eg. store and delay the require until
 all dependencies are met).
 ]]
 local function on_Load_Lua_File(_, file_path)
+
+    -- Since lua files cannot be distributed with steam workshop stuff,
+    -- but txt can, use a trick to change the package search path to
+    -- also look for txt files (which can be put on steam).
+    -- This is done on every load, since the package.path was observed to
+    -- get reset after Init runs (noticed in x4 3.3hf1).
+    if not string.find(package.path, "?.txt;") then
+        package.path = "?.txt;"..package.path
+    end
+
     require(file_path)
     -- Removing the debug message; if a user really wants to know,
     -- they can listen to the ui event.
@@ -74,11 +84,6 @@ local function Init()
     -- (Used since ui gets set up and signals thrown away before md loads).
     RegisterEvent("Lua_Loader.Signal", Announce_Reload)
 
-    -- Since lua files cannot be distributed with steam workshop stuff,
-    -- but txt can, use a trick to change the package search path to
-    -- also look for txt files (which can be put on steam).
-    package.path = "?.txt;"..package.path
-    
     -- Also call the function once on ui reload itself, to catch /reloadui
     -- commands while the md is running.
     Announce_Reload()
