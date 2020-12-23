@@ -324,6 +324,7 @@ Usage:
     - Internal cue, made available as a variable.
     - Must be signalled to start the server connection routine.
     - If the connection is ever broken, which will occur on a Reload or possibly through param actions, this needs to be signalled again to reconnect.
+    - Note: this is only available 2 frames after the Server_Reader cue is set up (as opposed to 1 frame delay for other attributes).
     
   Local variables:
   * $server_access_loop_cue

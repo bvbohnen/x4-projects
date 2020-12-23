@@ -176,7 +176,7 @@
           $name        = Text.$kc_tracker_mine_name, 
           $description = Text.$kc_launch_consumable_mouseover,
           $contexts    = ['flying'],
-          $echo        = [macro.weapon_gen_mine_02_a_macro, 1],
+          $echo        = [macro.weapon_gen_mine_02_macro, 1],
           ]"/>
 
         <signal_cue_instantly cue="md.Hotkey_API.Register_Action" param="table[

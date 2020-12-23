@@ -96,7 +96,7 @@ Additionally, a simplified interface is provided for adding options to an extens
   - Call Register_Options_Menu to register your menu with the backend.
   - Create a cue which will make the rows and widgets as above.
   - Set the above cue as the onOpen callback target during registration.
-  - Access through the "Extension Options" page of the main menu.
+  - Access through the "Extension Options" page of the main menu after loading a game.
 
 ### Examples
 

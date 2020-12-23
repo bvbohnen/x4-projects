@@ -1,5 +1,5 @@
 '''
-Test which will capture select keyboard key presses, and will
+Server which will capture select keyboard key presses, and will
 signal them to x4 accordingly, to be bound x4-side to MD cues.
 
 Uses the pynput package (not included with anaconda or standard python).
