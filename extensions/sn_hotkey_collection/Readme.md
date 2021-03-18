@@ -6,3 +6,4 @@ Adds several new hotkeys to x4, including quick-drop of deployables, autopilot t
 
 ### Contributors
 * Arkblade - Japanese translation
+* morgenrot68 - German translation

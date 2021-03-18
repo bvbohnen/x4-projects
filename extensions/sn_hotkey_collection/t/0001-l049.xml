@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<language>
+
+  <page id="68537" title="SirNukes texts" descr="0" voice="no">
+
+    <!--Start at 4000-->
+    <t id="4000">{1004,55}(Launch)</t>
+
+
+    <t id="4000">Folge Ziel</t>
+    <t id="4001">Schaltet den Autopiloten ein, um dem Ziel zu folgen, ohne dass das Missionsziel überschrieben werden muss</t>
+    <t id="4002">Auswurf illegaler Waren</t>
+    <t id="4003">Wirft jegliches Spielerinventar oder die Ladung von Pilotenschiffen aus, die in der Spielerzone illegal sind</t>
+
+    <t id="4004">SETA Ein/Aus</t>
+    <t id="4005">Schaltet den SETA-Modus um; im Gegensatz zum normalen Hotkey funktioniert dies im angedockten Zustand</t>
+
+    <t id="4006">Heranzoomen</t>
+    <t id="4007">Zoomt in die aktuelle Ansicht, während die Taste gedrückt wird.</t>
+
+    <!--
+  Launch consumables. {1004,55} is "Launch".
+  Ware names are on page 20201
+  -->
+    <t id="4100">{1004,55} {20201,20101}(Tracker Mine)</t>
+    <t id="4101">{1004,55} {20201,20201}(Mine)</t>
+    <t id="4102">{1004,55} {20201,20301}(Satellite)</t>
+    <t id="4103">{1004,55} {20201,20401}(Advanced Satellite)</t>
+    <t id="4104">{1004,55} {20201,20501}(Laser Tower Mk1)</t>
+    <t id="4105">{1004,55} {20201,20601}(Laser Tower Mk2)</t>
+    <t id="4106">{1004,55} {20201,20701}(Resource Probe)</t>
+    <t id="4107">{1004,55} {20201,20801}(Nav Beacon)</t>
+    <t id="4108">{1004,55} {20201,20901}(Friend/Foe Mine)</t>
+    <t id="4109">{1004,55} {20201,21001}(Cluster Mine)</t>
+    <!--Unused-->
+    <t id="4120">Plaziert ein Objekt vom Spieler gesteuerten Schiff</t>
+
+    <t id="4121">%s aufgestellt</t>
+    <t id="4122">Keine %s vorhanden</t>
+
+  </page>
+
+</language>

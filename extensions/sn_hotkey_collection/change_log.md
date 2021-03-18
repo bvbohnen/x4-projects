@@ -14,3 +14,5 @@ Change Log
   - Japanese translation by Arkblade.
 * 1.5
   - Changed tracker mine hotkey to use weapon_gen_mine_02_macro instead of weapon_gen_mine_02_a_macro.
+* 1.6
+  - German translation, by morgenrot68.
