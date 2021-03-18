@@ -546,6 +546,9 @@ function L.Poll_For_Reads()
                 if debug.print_to_chat then
                     CallEventScripts("directChatMessageReceived", pipe_name..";Read error; closing")
                 end
+                if debug.print_to_log then
+                    DebugError(pipe_name.." Read error: "..message_or_nil)
+                end
         
                 -- Something went wrong, other than an empty fifo.
                 -- Close out the pipe; this call will send error messages
@@ -670,6 +673,9 @@ end
 -- Returns a string if the read succesful.
 -- Returns nil if the pipe is empty but otherwise looks good.
 -- Raises an error on other problems.
+-- Note: as of X4 4.0 (or possibly changes to windows pipes?), empty messages
+-- show up as nil and are not supported, so never send an empty string to
+-- a pipe.
 function L._Read_Pipe_Raw(pipe_name)
     -- Open the pipe if needed. Let errors carry upward.
     L.Connect_Pipe(pipe_name)
@@ -698,8 +704,12 @@ function L._Read_Pipe_Raw(pipe_name)
             if debug.print_to_chat then
                 CallEventScripts("directChatMessageReceived", pipe_name..";read failure")
             end
+            -- Note: an empty string will cause an error with code 0 and
+            -- a message indicating a succesful operation.
+            -- TODO: maybe check for code 0 and return an empty string; for now
+            -- just hard error.
             if debug.print_to_log then
-                DebugError(pipe_name.."; read failure, lua message: "..lua_error_message)
+                DebugError(pipe_name.."; read failure (value: "..tostring(return_value).."), win error code: "..tostring(winpipe.GetLastError())..", last error message: '"..lua_error_message.."'")
             end
             
             -- Raise an error in this case.

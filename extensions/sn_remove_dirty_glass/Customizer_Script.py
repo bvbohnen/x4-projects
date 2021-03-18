@@ -17,7 +17,7 @@ from Framework import Transform_Wrapper, Load_File, File_System
 
 Settings(
     # Set the path to the X4 installation folder.
-    path_to_x4_folder   = r'C:\Steam\SteamApps\common\X4 Foundations',
+    path_to_x4_folder   = r'D:\Games\Steam\SteamApps\common\X4 Foundations',
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,

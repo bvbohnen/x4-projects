@@ -10,7 +10,7 @@ ffi.cdef[[
 
 
 local debugger = {
-    verbose = false,
+    verbose = true,
 }
 
 -- Import library functions for strings and tables.
@@ -103,6 +103,12 @@ Tests on specific zoom levels:
 
 For now, limit to 2x and 4x and see how it does.
 
+Note: if a user exits the game while zoomed (eg. set the hotkey to alt and
+used alt-f4), the user config.xml saves the zoomed fov value, and repeatedly
+doing this eventually sets the saved fov to 0.0. After this point, using
+the zoom hotkey will make the whole screen go black.
+TODO: think of a workaround for this (eg. detect game quitting somehow and
+restore fov).
 ]]
 local fov = {
     -- The baseline fov is per-user based on resolution.

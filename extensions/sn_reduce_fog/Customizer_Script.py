@@ -15,7 +15,7 @@ from Framework import Transform_Wrapper, Load_File, File_System
 
 Settings(
     # Set the path to the X4 installation folder.
-    path_to_x4_folder   = r'C:\Steam\SteamApps\common\X4 Foundations',
+    path_to_x4_folder   = r'D:\Games\Steam\SteamApps\common\X4 Foundations',
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
@@ -63,6 +63,24 @@ def Decrease_Fog(empty_diffs = 0):
         else = (d-0.1) * (1 - 0.9 * ((d-0.1)^0.10)) + 0.1
         Linear below 0.1
         Pretty smooth 0.1 to 1.0 (goes up to ~0.2).
+
+    Update: X4 4.0 changes to volumetric fog. While defined similarly,
+    densityfactors are a bit odd, sometimes being the same as the old
+    commented out fog entries, other times being 1/10th. Also, these
+    new entries add a "multiplier" term of unclear intent.
+    Highest observed vf densities are:
+        1x 1.0 (heart of acrimony), mult 0.05
+        1x 0.7, mult 1.0
+        1x 0.6, undef
+        2x 0.5, mult 0.15, undef
+        6x 0.3, mult 1.0, undef
+    Note: xsd indicates undefined mult is 0, though could be wrong as it
+    is unfinished for vf.
+
+    TODO: revisit; fog perf in 4.0 is much improved, but maybe need to test
+    with AA turned on.
+
+    Note: discontinuing this mod for now.
     '''
     game_file = Load_File('libraries/region_definitions.xml')
     xml_root = game_file.Get_Root()
@@ -70,10 +88,15 @@ def Decrease_Fog(empty_diffs = 0):
     # Different scalings are possible.
     # This will try to somewhat preserve relative fog amounts.
 
-    for positional in xml_root.xpath('.//positional'):
-        # Skip non-fog
-        if not positional.get('ref').startswith('fog_outside_'):
-            continue
+    # Note: in X4 3.3, fog was part of a "positional" node with an
+    # attribute "ref='fog_outside_...' term. In X4 4.0 this has changed
+    # to be "volumetricfog" nodes.
+    #for positional in xml_root.xpath('.//positional'):
+    #    # Skip non-fog
+    #    if not positional.get('ref').startswith('fog_outside_'):
+    #        continue
+    for positional in xml_root.xpath('.//volumetricfog'):
+
         # Density is between 0 and 1.
         density = float(positional.get('densityfactor'))
 

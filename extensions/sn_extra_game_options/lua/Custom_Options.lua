@@ -775,6 +775,9 @@ end
             1 is very very close to min_dist (~5 km)
             50 is ~625 km (roughly 1 sector tall)
             100 is max dist
+
+    TODO: detect if map was maximized after being minimized, and do not
+    adjust zoom in that case (as it remembers prior zoom level).
 ]]
 L.mapzoom = {
     distance = 0,

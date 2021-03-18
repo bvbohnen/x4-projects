@@ -9,3 +9,6 @@ Change Log
 * 1.2
   - Changed dither algorithm to use absolute angles instead of screen coordinates.
   - Fade in range limited to 15 km start to end.
+* 1.3
+  - Update for X4 4.0 render distance changes.
+  - Reduced asteroid targeting range to 25km to prevent occasional pop-in due to zone culling.

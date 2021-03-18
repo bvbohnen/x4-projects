@@ -196,20 +196,27 @@ def main(args):
                 # Process the keys, updating what is pressed and getting any
                 # matched combos.
                 matched_combos = combo_processor.Process_Key_Events(key_buffer)
-                # Lump into a single message, to reduce overhead on the x4
-                # side (since it limits signals per frame and can lag when
-                # handling key repetitions).
-                # Note: this doesn't put the '$' back for now, since that
-                # is easier to add in x4 than remove afterwards.
-                message = ';'.join(matched_combos)
 
-                # Debug printout.
-                if verbosity >= 1:
-                    for combo in matched_combos:
-                        print('Sending: ' + combo)
+                # Only send messages if there was a match; x4 4.0 started
+                # sometimes going into an error loop (on ~25% of reloads)
+                # where all key presses with empty messages caused a pipe
+                # error. TODO: maybe track down the intermittent problem
+                # more specifically.
+                if matched_combos:
+                    # Lump into a single message, to reduce overhead on the x4
+                    # side (since it limits signals per frame and can lag when
+                    # handling key repetitions).
+                    # Note: this doesn't put the '$' back for now, since that
+                    # is easier to add in x4 than remove afterwards.
+                    message = ';'.join(matched_combos)
 
-                # Transmit to x4.
-                pipe.Write(message)
+                    # Debug printout.
+                    if verbosity >= 1:
+                        for combo in matched_combos:
+                            print('Sending: ' + combo)
+
+                    # Transmit to x4.
+                    pipe.Write(message)
 
 
             # General pause between checks.

@@ -17,7 +17,7 @@ from Framework import Transform_Wrapper, Load_File, Load_Files, Get_All_Indexed_
 
 Settings(
     # Set the path to the X4 installation folder.
-    path_to_x4_folder   = r'C:\Steam\SteamApps\common\X4 Foundations',
+    path_to_x4_folder   = r'D:\Games\Steam\SteamApps\common\X4 Foundations',
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
@@ -53,6 +53,27 @@ Note:
         100% min cpu: 49.5 fps
     Basically, no difference.
 
+TODO:
+    Try disabling high performance timer, noted to help with some games.
+    Also try setting disabledynamictick.
+    https://www.reddit.com/r/Guildwars2/comments/hmqi76/psa_there_is_a_possibility_that_guild_wars_2_will/
+
+High performance timer test:
+    Using dense empire test save from forums.
+    To see if currently on, can check Divice Manager/System Devices,
+    or can check cmd (as admin) ""bcdedit /enum" and look for 
+    "useplatformclock".
+    To disable, can try disabling in device manager, or maybe 
+    "bcdedit /deletevalue useplatformclock" on cmd, altenratively 
+    "bcdedit /set useplatformclock false".
+    Turn back on in bcd with "bcdedit /set useplatformclock true".
+
+TODO:
+    Maybe increase 1ms waits, on the reasoning that they cant fire faster than
+    a frame delay, and if the game is supposed to operate correctly down 
+    around ~30 fps, then the minimum wait should be ~30 ms (to reduce
+    excessive script load). May have side effects in cases when 1ms wait is
+    meant to just be a 1 frame delay for cue timings or similar, though.
 '''
 
 # Note: can try testing with this removed from command line:

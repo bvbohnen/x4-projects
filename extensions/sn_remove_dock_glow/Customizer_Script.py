@@ -15,7 +15,7 @@ from Framework import Transform_Wrapper, Load_File, Load_Files
 
 Settings(
     # Set the path to the X4 installation folder.
-    path_to_x4_folder   = r'C:\Steam\SteamApps\common\X4 Foundations',
+    path_to_x4_folder   = r'D:\Games\Steam\SteamApps\common\X4 Foundations',
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
@@ -50,6 +50,8 @@ def Remove_Dock_Glow():
         Haze is a greyish fog close to the platform.
     Remove just glow.
 
+    Note: terran stations use "dockarea_ter_m...", but do not have glow
+    effect, so can ignore them here.
     '''
     # Find every "dockarea" file.
     dock_files = Load_Files('*dockarea_arg_m_station*.xml')

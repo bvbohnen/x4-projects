@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_script_profiler\Modify_Scripts.py</StartupFile>
+    <StartupFile>sn_asteroid_fade\Customizer_Script.py</StartupFile>
     <SearchPath>..\..\X4_Customizer</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -166,6 +166,7 @@
     <Content Include="sn_remove_highway_blobs\.gitignore" />
     <Content Include="sn_remove_highway_blobs\content.xml" />
     <Content Include="sn_script_profiler\.gitignore" />
+    <Content Include="sn_script_profiler\config.ini" />
     <Content Include="sn_script_profiler\content.xml" />
     <Content Include="sn_script_profiler\lua\Script_Profiler.lua" />
     <Content Include="sn_script_profiler\md\SN_Script_Profiler.xml" />

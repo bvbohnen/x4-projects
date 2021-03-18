@@ -1,6 +1,6 @@
 REM Change x4_path to point to the x4 installation extensions folder,
 REM and run this bat to symlink git repo extensions into x4.
-SET "x4_path=C:\Steam\steamapps\common\X4 Foundations\extensions"
+SET "x4_path=D:\Games\Steam\SteamApps\common\X4 Foundations\extensions"
 SET "src_path=%~dp0"
 
 for %%F in (

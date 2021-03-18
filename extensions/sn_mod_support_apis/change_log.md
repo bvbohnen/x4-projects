@@ -43,3 +43,5 @@ Change Log for overall api package.
 * 1.80
   - Refined pipes dll loading to work with both 3.3 release and hotfix 1.
   - Fixed possible lua loader failure on txt files due to x4 resetting search paths.
+* 1.81
+  - Fixed possible cause of reconnect loop error in hotkey api.

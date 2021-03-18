@@ -7,3 +7,5 @@ md/*
 !md/SN_Measure_Perf.xml
 # Everything in extensions.
 extensions/*
+# The user custom config.ini.
+config.ini

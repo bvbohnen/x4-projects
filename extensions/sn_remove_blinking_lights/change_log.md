@@ -9,3 +9,5 @@ Change Log
   - Fixed content.xml text nodes.
 * 1.3
   - Added some safety against game version changes.
+* 1.4
+  - Update for CoH.

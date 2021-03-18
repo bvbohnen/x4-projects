@@ -75,6 +75,45 @@
       <debug_text text="'Killed conversation'" chance="100" filter="general"/>
     </actions>
   </cue>-->
+  
+  <!--Test impact of collision detection. Work in progress.-->
+  <cue name="Register_Collision_Option" instantiate="true">
+    <conditions>
+      <event_cue_signalled cue="md.Simple_Menu_Options.Reloaded"/>
+    </conditions>
+    <actions>
+      <signal_cue_instantly
+        cue="md.Simple_Menu_Options.Register_Option"
+        param = "table[
+            $id         = 'disable_collisions',
+            $name       = 'Disable Collisions',
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange_Collisions,
+            ]"/>
+    </actions>
+  </cue>
+
+  <cue name="OnChange_Collisions" instantiate="true">
+    <conditions>
+      <event_cue_signalled />
+    </conditions>
+    <actions>
+      <set_value name="$value" exact="event.param.$value"/>
+      <!--Gather all nearby ships/stations-->
+      <find_ship groupname="$ships_stations" multiple="true" recursive="false"
+              masstraffic="true" space="player.sector"
+              functional="true"/>
+      <find_station groupname="$ships_stations" space="player.sector"
+                    multiple="true"/>
+      <!--What to do here? Apparently need to do individual object pairs...-->
+      <!--TODO-->
+    </actions>
+  </cue>
+  
+  
+  
+  
 
   
   <!--Test how many bounces can be done between lua/md in a frame.

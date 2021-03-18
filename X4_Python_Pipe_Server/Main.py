@@ -318,15 +318,17 @@ def Main():
                         # Import the module.
                         module = Import(full_path)
 
-                        # Pull out the main() function.
-                        main = getattr(module, 'main', None)
+                        # Continue if the import succeeded.
+                        if module != None:
+                            # Pull out the main() function.
+                            main = getattr(module, 'main', None)
 
-                        # Start the thread.
-                        if main != None:
-                            thread = Server_Thread(module.main, test = test_python_client)
-                            threads.append(thread)
-                        else:
-                            print('Module lacks "main()": {}'.format(module_path))
+                            # Start the thread.
+                            if main != None:
+                                thread = Server_Thread(module.main, test = test_python_client)
+                                threads.append(thread)
+                            else:
+                                print('Module lacks "main()": {}'.format(module_path))
 
 
         except (win32api.error, Client_Garbage_Collected) as ex:

@@ -7,3 +7,5 @@ Change Log
   - Restored outside glass texture.
 * 1.2
   - Fixed content.xml text nodes.
+* 1.3
+  - Update for CoH.

@@ -106,10 +106,11 @@ release_specs = [
         steam = True,
         ),
     
-    Release_Spec(
-        root_path = project_dir / 'extensions/sn_reduce_fog',
-        steam = True,
-        ),
+    # Discontinued since fog perf improved in x4 4.0.
+    #Release_Spec(
+    #    root_path = project_dir / 'extensions/sn_reduce_fog',
+    #    steam = True,
+    #    ),
     
     Release_Spec(
         root_path = project_dir / 'extensions/sn_remove_blinking_lights',

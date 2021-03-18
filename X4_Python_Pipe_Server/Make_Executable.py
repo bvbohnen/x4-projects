@@ -130,6 +130,10 @@ def Make(*args):
         # This should include everything expected by extension specific
         # py modules that will be loaded at runtime.
         '    hiddenimports = [',
+            # Note: most recent pynput (as of march 2021) doesnt appear to
+            # work, giving import error when a launched module tries to import
+            # it. Use older pynput, 1.6.8.
+            # https://stackoverflow.com/questions/63681770/getting-error-when-using-pynput-with-pyinstaller
             '        r"pynput",',
             '        r"time",',
             '        r"configparser",',
