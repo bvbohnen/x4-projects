@@ -660,6 +660,9 @@ end
         C.SetSelectedMapComponents to select a group had no effect.
     Overall, giving up on this idea for now.
 
+    Note: importMenuParameters is called by onShowMenu just prior to
+    restoring prior state, so hopefully this doesn't interfere with
+    restoring a minimized menu that focuses on something else.
 ]]
 L.mapfocus = {
     onplayer = true,
@@ -776,8 +779,26 @@ end
             50 is ~625 km (roughly 1 sector tall)
             100 is max dist
 
-    TODO: detect if map was maximized after being minimized, and do not
+    Update: detect if map was maximized after being minimized, and do not
     adjust zoom in that case (as it remembers prior zoom level).
+    Menu logic is:
+        On minimize:
+            Call menu.onMinimizeMenu, save holomap state, clear holomap.
+        Alternatively:
+            Call menu.onSaveState, which returns map state to caller.
+        On restore:
+            Call menu.onRestoreMenu
+                Call menu.displayMenu(firsttime = nil)
+                    Does nothing with state.
+        Alternatively, maybe this happens:
+            Call menu.onShowMenu(state)
+                Call menu.onRestoreState(state)
+                    Repacks state into menu.mapstate.
+                    Unpacks state fields directly into menu "stateKeys".
+                    - Does not include camera zoom level.
+                
+        menu.onUpdate()
+            If menu.mapstate found, sends to C.SetMapState.
 ]]
 L.mapzoom = {
     distance = 0,
@@ -787,6 +808,16 @@ L.mapzoom = {
 }
 function L.Init_Map_Zoom()
     local menu = Lib.Get_Egosoft_Menu("MapMenu")
+
+    -- Detect menu restoration which does not use mapstate.
+    -- Removed; unnecessary.
+    --local ego_onRestoreMenu = menu.onRestoreMenu
+    --menu.onRestoreMenu = function (...)
+    --    ego_onRestoreMenu(...)
+    --    if debugger.verbose then
+    --        DebugError("Detected map menu onRestoreMenu call")
+    --    end
+    --end
     
     -- Patch onUpdate for when it creates a new holomap.
     local ego_onUpdate = menu.onUpdate
@@ -794,27 +825,41 @@ function L.Init_Map_Zoom()
         -- Adjust the zoom level if the map just activated.
         -- To be safe, check for the holomap being changed from its
         -- default of 0.
-        if menu.holomap ~= 0 then
-            if L.mapzoom.distance ~= 0 then
-                -- Get current state to edit (preserves position).
-                local mapstate = ffi.new("HoloMapState")
-                C.GetMapState(menu.holomap, mapstate)
-                mapstate.cameradistance = L.mapzoom.distance
-                C.SetMapState(menu.holomap, mapstate)
+        -- Skip if there was map state.
+        if  menu.holomap ~= 0 
+        and mapstate == nil 
+        and L.mapzoom.distance ~= 0 then
+            if debugger.verbose then
+                DebugError("Changing map zoom level to " .. tostring(L.mapzoom.distance))
             end
+            -- Get current state to edit (preserves position).
+            local mapstate = ffi.new("HoloMapState")
+            C.GetMapState(menu.holomap, mapstate)
+            mapstate.cameradistance = L.mapzoom.distance
+            C.SetMapState(menu.holomap, mapstate)
         end
     end
 
     menu.onUpdate = function (...)
         -- Note if the map is getting activated on this call.
         local activatemap = menu.activatemap
+        
+        -- Note if there is saved map state that is being restored, eg. When
+        -- coming back from minimized, to preserve prior zoom level.
+        -- The onUpdate function will read this and set it to nil, so store
+        -- a reference here.
+        local mapstate = menu.mapstate
+        if mapstate and debugger.verbose and L.mapzoom.distance ~= 0 then
+            DebugError("Skipping map zoom change, prior state found.")
+        end
 
         -- Call it as normal.
         ego_onUpdate(...)
 
-        -- Call the patcher, with safety, since the game crashes if
-        -- this errors somehow otherwise.
-        if activatemap then
+        -- Call the patcher, with safety, since otherwise the game crashes if
+        -- this errors somehow. Skip if not a new activation or if it
+        -- restored prior state.
+        if activatemap and not mapstate then
             success, error = pcall(patch_function)
             if not success then
                 DebugError("Zoom adjustment failed with error: "..tostring(error))
@@ -832,6 +877,8 @@ function L.Handle_Map_Zoom_Distance(_, param)
     local percent = param / 100
     -- Cube it for now.
     local distance = L.mapzoom.dist_min + percent * percent * percent * (L.mapzoom.dist_max - L.mapzoom.dist_min)
+    -- If given 0, keep as 0 (disabled).
+    if param == 0 then distance = 0 end
     --DebugError("Setting cam distance to "..tostring(distance))
     -- Store it.
     L.mapzoom.distance = distance

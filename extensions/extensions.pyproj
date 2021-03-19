@@ -121,6 +121,7 @@
     <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
     <Content Include="sn_hotkey_collection\lua\Hotkeys.lua" />
     <Content Include="sn_hotkey_collection\Readme.md" />
+    <Content Include="sn_hotkey_collection\t\0001-l049.xml" />
     <Content Include="sn_hotkey_collection\t\0001-L081.xml" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
     <Content Include="sn_interact_collection\t\0001.xml" />

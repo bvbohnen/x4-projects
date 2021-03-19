@@ -28,3 +28,6 @@ Change Log
   - Bug fix for x4 3.2 beta2.
 * 1.10
   - Disabled custom map opacity scaling if the map filter "opacity" flag is set.
+* 1.11
+  - Bug fix for map default zoom triggering when set to 0.
+  - Restoring a minimized map no longer triggers map default zoom.
