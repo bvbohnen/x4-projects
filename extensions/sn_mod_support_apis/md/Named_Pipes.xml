@@ -153,6 +153,7 @@ TODO:
       <event_ui_triggered screen="'Named_Pipes'" control="'reloaded'" />
     </conditions>
     <actions>
+      <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
       <!-- Make sure the global registry is reset. -->
       <include_actions ref="Reset_Globals"/>
       <!--Send a signal that all users listen to, to repopulate the table. 

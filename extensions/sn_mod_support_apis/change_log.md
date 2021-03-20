@@ -45,3 +45,6 @@ Change Log for overall api package.
   - Fixed possible lua loader failure on txt files due to x4 resetting search paths.
 * 1.81
   - Fixed possible cause of reconnect loop error in hotkey api.
+* 1.82
+  - Extension options submenu listing is now sorted.
+  - Fixed some temporary oddities with extension options when this api is first added to a game.

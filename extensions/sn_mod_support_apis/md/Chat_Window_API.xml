@@ -58,6 +58,7 @@
             <event_ui_triggered screen="'Simple_Menu'" control="'reloaded'" />
           </conditions>
           <actions>
+            <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
             <include_actions ref="Reset_Globals"/>
           </actions>
         </cue>

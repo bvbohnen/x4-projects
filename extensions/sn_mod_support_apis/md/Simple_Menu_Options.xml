@@ -65,32 +65,51 @@
       <actions>
         <!-- Create storage table on first load. -->
         <set_value name="Globals.$storage"   exact="table[]"/>
-        <include_actions ref="Reset_Globals"/>
+        <!-- Other setup handled below, triggered on menu api reload.-->
       </actions>
-      <cues>
-        <!-- Listen from the menu api reloading. -->
-        <cue name="Reset_On_Lua_Reload" instantiate="true">
-          <conditions>
-            <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
-          </conditions>
-          <actions>
-            <include_actions ref="Reset_Globals"/>
-          </actions>
-        </cue>
-      </cues>
     </cue>
-    <library name="Reset_Globals">
+
+    <!-- 
+      Handle menu reload, resetting globals and registering an options menu. 
+      This will get special treatment by the menu api, and is
+      appended to the general list of sub-menus from the main
+      extension options menu.
+      Eg. all of these loose options share the top level menu.
+      
+      Menu args may be largely ignored currently.
+      TODO: $onSelectElement doesn't work when integrated into the
+      stock menu (since bypassing the simple menu api setup); figure
+      out how to get it working again.
+      
+      Note: cue name has a 2 due to legacy reasons, to work on prior saves.
+    -->
+    <cue name="Reset_On_Lua_Reload2" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
+      </conditions>
       <actions>
+        <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
         <set_value name="Globals.$DebugChance" exact="0"/>
         <set_value name="Globals.$options" exact="table[]" />
-        
+
         <!--Load any text.-->
         <include_actions ref="Load_Text"/>
-        
+
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+            $id      = 'simple_menu_options',
+            $columns = 2, 
+            $title   = Text.$General_Options,
+            $onOpen  = Build_Options_Menu,
+            $onSelectElement = Handle_SelectElement,
+            $private = 1,
+            ]"/>
+
         <!-- Send a signal that all users listen to. -->
-        <signal_cue_instantly cue="Reloaded"/>        
+        <signal_cue_instantly cue="Reloaded"/>
       </actions>
-    </library>
+    </cue>
 
     <!--@doc-cue
     Dummy cue used for signalling that this api reloaded.
@@ -306,36 +325,6 @@
       </actions>
     </library>
 
-
-    <!-- 
-      Register an options menu. 
-      This will get special treatment by the menu api, and is
-      appended to the general list of sub-menus from the main
-      extension options menu.
-      Eg. all of these loose options share the top level menu.
-      
-      Menu args may be largely ignored currently.
-      TODO: $onSelectElement doesn't work when integrated into the
-      stock menu (since bypassing the simple menu api setup); figure
-      out how to get it working again.
-    -->
-    <cue name="Register_Options_Menu" instantiate="true" namespace="this">
-      <conditions>
-        <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
-      </conditions>
-      <actions>
-        <signal_cue_instantly
-          cue="md.Simple_Menu_API.Register_Options_Menu"
-          param = "table[
-            $id      = 'simple_menu_options',
-            $columns = 2, 
-            $title   = Text.$General_Options,
-            $onOpen  = Build_Options_Menu,
-            $onSelectElement = Handle_SelectElement,
-            $private = 1,
-            ]"/>
-      </actions>
-    </cue>
 
     <!-- Callback for building the options menu. -->
     <cue name="Build_Options_Menu" instantiate="true" namespace="this">

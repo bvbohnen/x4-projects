@@ -130,6 +130,7 @@
             <event_ui_triggered screen="'Interact_Menu_API'" control="'reloaded'" />
           </conditions>
           <actions>
+            <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
             <include_actions ref="Reset_Globals"/>
           </actions>
         </cue>

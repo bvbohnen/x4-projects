@@ -240,6 +240,7 @@ Complex properties:
           <event_ui_triggered screen="'Simple_Menu'" control="'reloaded'" />
         </conditions>
         <actions>
+          <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
           <include_actions ref="Reset_Globals"/>
           <!-- Send a signal that all users listen to. -->
           <signal_cue_instantly cue="Reloaded"/>

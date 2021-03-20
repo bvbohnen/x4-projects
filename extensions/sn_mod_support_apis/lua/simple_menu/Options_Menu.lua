@@ -489,28 +489,33 @@ function menu.Display_Extension_Options()
     local num_cols = 2
     local frame, ftable = menu.Make_Menu_Shell({
         id = "simple_menu_extension_options", 
-        title = T.extensionoptions, 
+        title = T.extension_options, 
         -- Set to 2, to sync with the extra options that will get
         -- appended after the submenu list.
         columns = num_cols })
 
     -- Sort the submenus by title.
-    -- Do this by building a new table of them keyed by their titles,
-    -- then use lua sort.
-    local title_menu_specs = {}
+    -- Do this by building a table matching title to spec, along with a list
+    -- of titles, sort the title list, and use that in the later loop.
+    -- Spec ids will be appended to their title, to handle cases where the
+    -- title is a duplicate.
+    local key_menu_specs = {}
+    local key_list = {}
     for menu_id, spec in pairs(custom_menu_specs) do
-        title_menu_specs[spec.title] = spec
+        local key = spec.title..spec.id
+        key_menu_specs[key] = spec
+        table.insert(key_list, key)
     end
-    -- Sort it.
-    table.sort(title_menu_specs)
+    table.sort(key_list)
         
     -- Fill in all listings.
     -- Note: lua is horrible about getting the size of a table; set a flag
     -- to indicate if there were any registered menus.
     -- (The # operator only works on contiguous lists.)
     local menu_found = false
-    for title, spec in pairs(title_menu_specs) do
-        --DebugError("spec '"..spec.id.."' private: "..spec.private)
+    for _, key in ipairs(key_list) do
+        local spec = key_menu_specs[key]
+        --DebugError("spec '"..tostring(spec.id).."' private: "..tostring(spec.private))
         -- Only display non-private menus.
         if not spec.private then
             menu_found = true

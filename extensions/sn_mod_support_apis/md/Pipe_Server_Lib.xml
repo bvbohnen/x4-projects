@@ -207,6 +207,7 @@ Notes on server access looping cues:
           </check_any>
         </conditions>
         <actions>
+          <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
           <!-- Make sure the global vars are reset. -->
           <include_actions ref="Reset_Globals"/>
           
