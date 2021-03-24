@@ -34,9 +34,17 @@
         <set_value exact="{68537, 2015}" name="Text.$tooltip_on_truncation_mouseover" />
         <set_value exact="{68537, 2016}" name="Text.$traffic_density_name" />
         <set_value exact="{68537, 2017}" name="Text.$traffic_density_mouseover" />
-        
+        <set_value exact="{68537, 2018}" name="Text.$autopause_on_load_name" />
+        <set_value exact="{68537, 2019}" name="Text.$autopause_on_load_mouseover" />
       </actions>
     </library>
+    
+    <!--Static cue for saving globals.-->
+    <cue name="Globals">
+      <actions>
+        <set_value name="$load_trigger" value="false"/>
+      </actions>
+    </cue>
 
 
     <!-- Register the main lua file. -->
@@ -155,6 +163,17 @@
             $callback   = OnChange,
             ]"/>
 
+        <signal_cue_instantly
+          cue="md.Simple_Menu_Options.Register_Option"
+          param = "table[
+            $id         = 'autopause_on_load',
+            $name       = Text.$autopause_on_load_name,
+            $mouseover  = Text.$autopause_on_load_mouseover,
+            $default    = 0,
+            $type       = 'button',
+            $callback   = OnChange,
+            ]"/>
+
         <!--This one is special: value is stored in config.xml, read from lua.
             Default taken from lua response.
         -->
@@ -205,7 +224,9 @@
       </actions>
     </cue>
 
-    <!--Bounce values from lua to md options. -->
+    <!--Bounce values from lua to md options.
+        Used currently for traffic density.
+    -->
     <cue name="Init_Lua_Values" instantiate="true">
       <conditions>
         <event_ui_triggered screen="'Extra_Game_Options'" control="'return_lua_values'" />
@@ -222,11 +243,34 @@
       </actions>
     </cue>
 
-    
-    
+    <!--For autopause, detect when a game is started or loaded, and only
+        trigger pausing at that point.
+        
+        This is a little tricky, in that the prior option selection will
+        not be ready to read (from userdata) immediately on reload.
+        However, if waiting for the signal that userdata is ready, it will
+        be send on any /reloadui command, not just on a game load.
+        
+        Here, save/load is detected and sets a trigger variable.
+        Then, userdata loading is detected, and if the trigger is set,
+        runs the autopause logic and clears the trigger.
+        -->
+    <cue name="Detect_Load" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_game_loaded/>
+          <event_game_started/>
+        </check_any>
+      </conditions>
+      <actions>
+        <set_value name="Globals.$load_trigger" exact="true"/>
+      </actions>
+    </cue>
     
     <!--
       Signal lua with value changes.
+      This will be called once for each option upon menu setup at the
+      start of a game (or reloadui), as well as when the player changes values.
     -->
     <cue name="OnChange" instantiate="true">
       <conditions>
@@ -240,6 +284,13 @@
           name="'Simple_Menu_Options.'+$id"
           param="$value"/>
 
+        <!--If the game_loaded trigger is set, and this is the autopause option,
+        and its value is true, then signal lua to pause the game.-->
+        <do_if value="($id == 'autopause_on_load') and $value and Globals.$load_trigger">
+          <!--Clear the trigger for later reloadui commands.-->
+          <set_value name="Globals.$load_trigger" exact="false"/>
+          <raise_lua_event name="'Simple_Menu_Options.Pause_Game'"/>
+        </do_if>
 
         <!--<raise_lua_event
           name="'Simple_Menu_Options.Set_Field'"
@@ -248,7 +299,7 @@
           name="'Simple_Menu_Options.Set_Value'"
           param="event.param.$value"/>-->
       </actions>
-    </cue>
+    </cue>    
 
   </cues>
 

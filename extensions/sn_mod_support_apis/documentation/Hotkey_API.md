@@ -66,7 +66,7 @@
       </conditions>
       <actions>
         <signal_cue_instantly 
-          cue = "md.Hotkey_API.Register_Key" 
+          cue = "md.Hotkey_API.Register_Action" 
           param="table[
             $id          = 'my_key',
             $onPress     = OnKeyPress,

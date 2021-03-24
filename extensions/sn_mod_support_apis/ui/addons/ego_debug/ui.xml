@@ -3,5 +3,6 @@
   <environment type="menus">
   	<file name="debug.lua" />
     <file name="Lua_Loader.lua" />
+    <savedvariable name="__MOD_USERDATA" storage="userdata" />
   </environment>
 </addon>

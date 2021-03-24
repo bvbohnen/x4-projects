@@ -1,5 +1,5 @@
 --[[
-Simple api for loading in mod lua files.
+Simple api for loading in mod lua files, and for accessing ui userdata.
 This works around a bug in the x4 ui.xml style lua loading which fails
 to initialize the globals table.
 
@@ -44,10 +44,38 @@ Example dependency condition:
             control="'Loaded extensions.sn_named_pipes_api.Named_Pipes'" />
     </conditions>
     
+
+This api also provides for saving data into the uidata.xml file.
+All such saved data is in the __MOD_USERDATA global table.
+Each individual mod should add a unique key to this table, and save its
+data under that key. Nested tables are supported.
+Care should be used in the top level key, to avoid cross-mod conflicts.
+
+To enable early loading of the Userdata handler, this will also support
+an early ready signal, which resolves before the normal ready.
+- On reloadui or md signalling Priority_Signal, send Priority_Ready.
+- Next frame, md cues which listen to this may signal to load their lua.
+- Md side will see Priority_Ready, and send Signal.
+- Back end of frame, priority lua files load, and api signals standard Ready.
+- Next frame, md cues which listen to Ready may signal to load their lua.
+
 TODO: allow for more md arguments, including specifying dependendencies
 which are resolved at this level (eg. store and delay the require until
 all dependencies are met).
 ]]
+
+local function Send_Priority_Ready()
+    --DebugError("LUA Loader API: Signalling 'Lua_Loader, Priority_Ready'")
+    -- Send a ui signal, telling all md cues to rerun.
+    AddUITriggeredEvent("Lua_Loader", "Priority_Ready")
+end
+
+local function Send_Ready()
+    --DebugError("LUA Loader API: Signalling 'Lua_Loader, Ready'")
+    -- Send a ui signal, telling all md cues to rerun.
+    AddUITriggeredEvent("Lua_Loader", "Ready")
+end
+
 local function on_Load_Lua_File(_, file_path)
 
     -- Since lua files cannot be distributed with steam workshop stuff,
@@ -69,23 +97,21 @@ local function on_Load_Lua_File(_, file_path)
     AddUITriggeredEvent("Lua_Loader", "Loaded "..file_path)
 end
 
-local function Announce_Reload()
-    --DebugError("LUA Loader API: Signalling 'Lua_Loader, Ready'")
-    -- Send a ui signal, telling all md cues to rerun.
-    AddUITriggeredEvent("Lua_Loader", "Ready")
-end
-
-local function Init()    
+local function Init()
     --DebugError("LUA Loader API: Running Init()")
     -- Hook up an md->lua signal.
     RegisterEvent("Lua_Loader.Load", on_Load_Lua_File)
     
-    -- Re-announce the UI signal on game reload, signalled by MD.
-    -- (Used since ui gets set up and signals thrown away before md loads).
-    RegisterEvent("Lua_Loader.Signal", Announce_Reload)
+    -- Listen to md side timing on when to send Ready signals.
+    -- Priority ready is triggered on game start/load.
+    RegisterEvent("Lua_Loader.Send_Priority_Ready", Send_Priority_Ready)
+    RegisterEvent("Lua_Loader.Send_Ready", Send_Ready)
 
     -- Also call the function once on ui reload itself, to catch /reloadui
     -- commands while the md is running.
-    Announce_Reload()
+    -- Only triggers priority ready; md will then signal Send_Ready for
+    -- the second part.
+    Send_Priority_Ready()
 end
+
 Init()

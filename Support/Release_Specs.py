@@ -98,6 +98,9 @@ release_specs = [
             'documentation/Chat_Window_API.md':[
                 'md/Chat_Window_API.xml',
             ],
+            'documentation/Userdata_API.md':[
+                'md/Userdata.xml',
+            ],
         },
         ),
     

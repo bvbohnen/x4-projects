@@ -5,7 +5,7 @@
   
   Dummy cue used for signalling that this api reloaded. Users that are registering options should listen to this cue being signalled.
       
-* **Register_Option**
+* **None**
   
   User cue for registering a new option. Immediately on registration, the callback cue will be signalled with the currently stored setting (the default if this is a first-time registration, or what the player last selected).
         
@@ -57,11 +57,19 @@
       
 * **Read_Option_Value**
   
-    User cue to read a value stored for an option.
+    User cue to read a value stored for an option. Kept for legacy support; preferably use Read_Value for an instant result.
           
   Input is a table with the following fields:
   * $id
     - String, unique identifier for this option.
   * $callback
     - Cue that will be signalled with a table holding $id and $value.
+      
+* **Read_Value**
+  
+  User library to read a value stored for an option. Call using run_actions, capture response into result.
+        
+  Params:
+  * id
+    - String, unique identifier for this option, without $ prefix.
       

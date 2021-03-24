@@ -48,3 +48,6 @@ Change Log for overall api package.
 * 1.82
   - Extension options submenu listing is now sorted.
   - Fixed some temporary oddities with extension options when this api is first added to a game.
+* 1.83
+  - Added Userdata api, for saving shared data between different save games.
+  - Switched hotkeys and simple menu options to store settings in userdata.

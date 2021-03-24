@@ -22,6 +22,8 @@
   <t id="2015">For UI elements which end up truncating their text, this attempts to add a mouseover popup with the full text; may not work in all cases</t>
   <t id="2016">Mass Traffic Density</t>
   <t id="2017">Change the density of mass traffic civilian ships around stations. Updates the game config.xml. May require reloading the save to take full effect.</t>
+  <t id="2018">Autopause on Load</t>
+  <t id="2019">Automatically pauses the game upon loading a save. (The normal unpause button will not work; open and close the options menu to unpause.)</t>
 </page>
  
 </language>

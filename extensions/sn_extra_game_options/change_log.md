@@ -31,3 +31,5 @@ Change Log
 * 1.11
   - Bug fix for map default zoom triggering when set to 0.
   - Restoring a minimized map no longer triggers map default zoom.
+* 1.12
+  - Added option to autopause after loading a save.

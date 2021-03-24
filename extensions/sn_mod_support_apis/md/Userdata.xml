@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Userdata"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
+
+  <!--@doc-title Userdata API -->
+  
+  <!--
+  MD side of the userdata api.
+  
+  Userdata is stored in uidata.xml, and controlled by lua. To share the data
+  cleanly (without signalling delays on every access), lua will put a copy
+  of loaded userdata in a player blackboard var, $__MOD_USERDATA.
+  
+  Changes made to userdata here will trigger a signal to lua to update
+  its copy, which ultimately gets saved back to uidata.xml.
+  
+  Note: X4 is somewhat aggressive in deleting userdata that it thinks
+  is unused, which has occurred more than one during development of
+  this api.
+  
+  As a safety, the copy of userdata in the player blackboard var will be
+  left in place, to be stored in a savegame. The lua will fall back on
+  the blackboard var if the uidata is empty. This isn't a perfect solution,
+  but may recover in some situations.
+  -->
+  <cues>
+    <!-- Register the main lua file, with priority before other lua. -->
+    <cue name="Load_Lua_Files" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Lua_Loader'" control="'Priority_Ready'" />
+      </conditions>
+      <actions>
+        <raise_lua_event name="'Lua_Loader.Load'"
+                         param="'extensions.sn_mod_support_apis.lua.userdata.Interface'"/>
+      </actions>
+    </cue>
+
+    <cue name="Listen_For_Lua_Reload" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'Userdata'" control="'Ready'" />
+      </conditions>
+      <actions>
+        <!-- Send a signal that all users can listen to. -->
+        <signal_cue_instantly cue="Reloaded"/>
+      </actions>
+    </cue>
+
+    <!--@doc-cue
+    Dummy cue used for signalling that the api reloaded.
+    Users can listen to this being signalled to know it is safe to
+    read userdata. This will be signalled before the other apis load,
+    so waiting for this is unnecessary if already waiting for other apis.
+    -->
+    <cue name="Reloaded" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+      </actions>
+    </cue>
+
+    
+    <!--@doc-cue
+      Read a userdata value, using a paramaterized library call.
+      Params:
+      * Owner
+        - String, unique name of the owner of this data (mod or modder).
+        - Should avoid conflicting with other mods.
+      * Key
+        - String, optional, more specific name of the owner userdata when
+          the owner entry is a table.
+        - If not given, the full Owner entry is returned.
+      * Default
+        - Optional, default value to return if the Owner/Key lookup fails.
+        - If not given, null is returned.
+      
+      Example:
+        ```xml
+        <run_actions ref="md.Userdata.Read" result="$retval">
+          <param name="Owner" value="'sn_mod_support_apis'"/>
+          <param name="Key" value="'hotkey_data'"/>
+          <param name="Default" value="table[]"/>
+        </run_actions>
+        ```
+    -->
+    <library name="Read" purpose="run_actions">
+      <params>
+        <param name="Owner"/>
+        <param name="Key" default="null"/>
+        <param name="Default" default="null"/>
+      </params>
+      <actions>
+        <!--Check for string Owner, string or null Key.-->
+        <do_if value="(typeof $Owner == datatype.string )
+               and (($Key == null) or (typeof $Key == datatype.string))">
+          
+          <!--Prefix string names with $ for table lookup.-->
+          <set_value name="$Owner" exact="'$' + $Owner"/>
+          <!--Temp target var to hold partial deref.-->
+          <set_value name="$target" exact="player.entity.$__MOD_USERDATA"/>
+        
+          <!--Check if this Owner is missing.-->
+          <do_if value="not $target.{$Owner}?">
+            <return value="$Default"/>
+          </do_if>
+          <set_value name="$target" exact="$target.{$Owner}"/>
+        
+          <!--If no key given, return the full Owner data.-->
+          <do_if value="$Key == null">
+            <return value="$target"/>
+          </do_if>
+     
+          <!--Prefix and check if the key is missing.-->
+          <set_value name="$Key" exact="'$' + $Key"/>
+          <do_if value="not $target.{$Key}?">
+            <return value="$Default"/>
+          </do_if>
+          <!--Return the found key data.-->
+          <return value="$target.{$Key}"/>          
+        </do_if>
+        
+        <!--If here, an error occurred. TODO: message.-->
+        <return value="$Default"/>
+      </actions>
+    </library>
+
+
+    <!--@doc-cue
+      Write a userdata value, using a paramaterized library call.
+      Params:
+      * Owner
+        - String, unique name of the owner of this data (mod or modder).
+        - Should avoid conflicting with other mods.
+      * Key
+        - String, optional, more specific name of the owner userdata when
+          the owner entry is a table.
+        - If not given, the full Owner entry is overwritten.
+      * Value
+        - Table or other basic data type to save.
+        - Should generally consist of numbers, strings, nested lists/tables,
+          and similar basic values that are consistent across save games.
+        - Avoid including references to objects, cue instances, etc. which
+          differ across save games.
+        - If "null", the userdata entry will be removed.
+      
+      Example:
+        ```xml
+        <run_actions ref="md.Userdata.Write">
+          <param name="Owner" value="'sn_mod_support_apis'"/>
+          <param name="Key" value="'hotkey_data'"/>
+          <param name="Value" value="table[$zoom='z']"/>
+        </run_actions>
+        ```
+    -->
+    <library name="Write" purpose="run_actions">
+      <params>
+        <param name="Owner"/>
+        <param name="Key" default="null"/>
+        <param name="Value"/>
+      </params>
+      <actions>
+        <!--Check for string Owner, string or null Key.-->
+        <do_if value="(typeof $Owner == datatype.string )
+               and (($Key == null) or (typeof $Key == datatype.string))">
+          
+          <!--Prefix string names with $ for table lookup.-->
+          <set_value name="$Owner_str" exact="'$' + $Owner"/>
+          <!--Temp target var to hold partial deref.-->
+          <set_value name="$target" exact="player.entity.$__MOD_USERDATA"/>
+
+          <!--Handle owner-only cases.-->
+          <do_if value="$Key == null">
+            <!--Do a direct write or overwrite for this owner.-->
+            <set_value name="$target.{$Owner_str}" exact="$Value"/>
+          </do_if>
+
+          <!--Handle key cases.-->
+          <do_else>
+            <!--Check if this Owner is missing.-->
+            <do_if value="not $target.{$Owner_str}?">
+              <!--Create a new table entry.-->
+              <set_value name="$target.{$Owner_str}" exact="table[]"/>
+            </do_if>
+            <set_value name="$target" exact="$target.{$Owner_str}"/>
+          
+            <!--Write or overwrite the key.-->
+            <set_value name="$target.{'$' + $Key}" exact="$Value"/>
+          </do_else>
+        
+          <!--Signal the lua side to update this specific entry.-->
+          <raise_lua_event name="'Userdata.Update'" param="$Owner"/>
+          <raise_lua_event name="'Userdata.Update'" param="$Key"/>
+        </do_if>
+        <!--If here, an error occurred. TODO: message.-->
+        
+      </actions>
+    </library>
+
+  </cues>
+
+</mdscript>

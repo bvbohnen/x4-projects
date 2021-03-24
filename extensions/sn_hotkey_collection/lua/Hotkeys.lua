@@ -10,7 +10,7 @@ ffi.cdef[[
 
 
 local debugger = {
-    verbose = true,
+    verbose = false,
 }
 
 -- Import library functions for strings and tables.

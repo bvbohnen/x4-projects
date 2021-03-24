@@ -104,6 +104,10 @@ TODO:
   * player_action_keys
     - Table of player assigned key descriptors, keyed by action id.
     - Saved across reloads.
+    - Saving is done in md (naturally), and in lua using userdata.xml.
+    - On lua reload, it will read userdata and send over the found keys
+      if it wasn't empty, prior to signalling 'reloaded'.
+    - TODO: drop support for md saving
     - Lua will have a mirrored copy of this, and is primarily responsible
       for changing it or initializing entries.
     - Note: a single action may have multiple keys (2 through ui).
@@ -148,22 +152,28 @@ TODO:
     - This will cause callbacks to be suppressed.
   -->
   <cue name="Globals">
-    <!-- When first created, set up globals. -->
+    <!-- When first created, set up globals for the pipe handler. -->
     <actions>
       <include_actions ref="Reset_Globals"/>
     </actions>
     <cues>
-      <!--
-      Reset when the lua reloads.
-      This is mostly aimed at helping with development/debug.
-    -->
+      <!-- Reset when the lua reloads. -->
       <cue name="Reset_On_Lua_Reload" instantiate="true">
         <conditions>
           <event_ui_triggered screen="'Hotkey'" control="'reloaded'" />
         </conditions>
         <actions>
+          
           <!--<debug_text text="'Reloading'" chance="100" filter="general"/>-->
           <include_actions ref="Reset_Globals"/>
+
+          <!--Load in any saved userdata.-->
+          <include_actions ref="Load_Userdata"/>
+          
+          <!-- Init the lua with the stored list of player keys. -->
+          <set_value name="player.entity.$hotkey_api_player_keys_from_md" exact="$player_action_keys" />
+          <raise_lua_event name="'Hotkey.Update_Player_Keys'"/>
+
           <!-- Send a signal that all users listen to. -->
           <signal_cue_instantly cue="Reloaded"/>
         </actions>
@@ -188,15 +198,43 @@ TODO:
       <!-- TODO: somehow bounce this over to Server_Reader reliably.-->
       <set_value name="$DebugChance" exact="0" />
 
-      <!-- Init the $player_action_keys if it doesn't exist. -->
+      <!-- Init the $player_action_keys if it doesn't exist. -Moved to userdata.
       <do_if value="not $player_action_keys?">
         <set_value name="$player_action_keys" exact="table[]"/>
-      </do_if>
+      </do_if> -->
         
-      <!-- Init the lua with the stored list of player keys. -->
-      <set_value name="player.entity.$hotkey_api_player_keys_from_md" exact="$player_action_keys" />
-      <raise_lua_event name="'Hotkey.Update_Player_Keys'"/> 
-        
+    </actions>
+  </library>
+
+  <!--Load in userdata, which is shared across saves.
+      Values saves in userdata:
+      - Globals.$player_action_keys
+  -->
+  <library name="Load_Userdata">
+    <actions>
+      <!--Set the default to init empty entries.-->
+      <run_actions ref="md.Userdata.Read" result="$userdata">
+        <param name="Owner" value="'sn_mod_support_apis'"/>
+        <param name="Key" value="'hotkey_api'"/>
+        <param name="Default" value="table[
+                       $player_action_keys = table[],
+                       ]"/>
+      </run_actions>      
+      <!--Extract fields.-->
+      <set_value name="Globals.$player_action_keys" exact="$userdata.$player_action_keys"/>
+    </actions>
+  </library>
+
+  <!--Trigger a lua update of userdata, setting it to save to uidata.xml.-->
+  <library name="Update_Userdata">
+    <actions>
+      <run_actions ref="md.Userdata.Write">
+        <param name="Owner" value="'sn_mod_support_apis'"/>
+        <param name="Key" value="'hotkey_api'"/>
+        <param name="Value" value="table[
+               $player_action_keys = Globals.$player_action_keys,
+               ]"/>
+      </run_actions>
     </actions>
   </library>
     
@@ -376,7 +414,7 @@ TODO:
         </conditions>
         <actions>
           <signal_cue_instantly 
-            cue = "md.Hotkey_API.Register_Key" 
+            cue = "md.Hotkey_API.Register_Action" 
             param="table[
               $id          = 'my_key',
               $onPress     = OnKeyPress,
@@ -804,7 +842,9 @@ TODO:
     <actions>
       <set_value name="Globals.$player_action_keys" 
                  exact="player.entity.$hotkey_api_player_keys_from_lua"/>
-      <remove_value name="player.entity.$hotkey_api_player_keys_from_lua"/>
+      <remove_value name="player.entity.$hotkey_api_player_keys_from_lua"/>      
+      <!--Make sure the userdata is updated to store the keys.-->
+      <include_actions ref="Update_Userdata"/>
     </actions>
   </cue>
 

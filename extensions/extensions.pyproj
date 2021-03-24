@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_asteroid_fade\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_sector_travel_rebalance\Customizer_Script.py</StartupFile>
     <SearchPath>..\..\X4_Customizer</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -20,10 +20,12 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_sector_travel_rebalance\" />
     <Folder Include="sn_measure_fps\" />
     <Folder Include="sn_measure_fps\lua\" />
     <Folder Include="sn_measure_fps\md\" />
     <Folder Include="sn_measure_fps\python\" />
+    <Folder Include="sn_mod_support_apis\lua\userdata\" />
     <Folder Include="test_chat_window\" />
     <Folder Include="sn_mod_support_apis\lua\chat_window\" />
     <Folder Include="sn_test_misc\" />
@@ -110,6 +112,8 @@
     <Content Include="sn_better_target_monitor\t\0001-L049.xml" />
     <Content Include="sn_better_target_monitor\t\0001-L081.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
+    <Content Include="sn_mod_support_apis\documentation\Userdata_API.md" />
+    <Content Include="sn_sector_travel_rebalance\content.xml" />
     <Content Include="sn_debug_info\change_log.md" />
     <Content Include="sn_debug_info\content.xml" />
     <Content Include="sn_debug_info\md\sn_debug_info.xml" />
@@ -137,8 +141,12 @@
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
     <Content Include="sn_mod_support_apis\lua\chat_window\Interface.lua" />
     <Content Include="sn_mod_support_apis\lua\Text.lua" />
+    <Content Include="sn_mod_support_apis\lua\userdata\Interface.lua">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="sn_mod_support_apis\lua_interface.txt" />
     <Content Include="sn_mod_support_apis\md\Chat_Window_API.xml" />
+    <Content Include="sn_mod_support_apis\md\Userdata.xml" />
     <Content Include="sn_mod_support_apis\old_change_logs\interact_menu_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\lua_loader_api.md" />
     <Content Include="sn_mod_support_apis\old_change_logs\named_pipes_api.md" />
@@ -260,6 +268,9 @@
     </Compile>
     <Compile Include="sn_script_profiler\Modify_Scripts.py" />
     <Compile Include="sn_script_profiler\python\Script_Profiler.py" />
+    <Compile Include="sn_sector_travel_rebalance\Customizer_Script.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

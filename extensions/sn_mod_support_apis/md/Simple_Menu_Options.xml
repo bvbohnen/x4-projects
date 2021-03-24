@@ -95,6 +95,9 @@
         <!--Load any text.-->
         <include_actions ref="Load_Text"/>
 
+        <!--Load in any saved userdata.-->
+        <include_actions ref="Load_Userdata"/>
+        
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Register_Options_Menu"
           param = "table[
@@ -110,6 +113,38 @@
         <signal_cue_instantly cue="Reloaded"/>
       </actions>
     </cue>
+
+    <!--Load in userdata, which is shared across saves.
+      Values saves in userdata:
+      - Globals.$storage
+    -->
+    <library name="Load_Userdata">
+      <actions>
+        <!--Set the default to init empty entries.-->
+        <run_actions ref="md.Userdata.Read" result="$userdata">
+          <param name="Owner" value="'sn_mod_support_apis'"/>
+          <param name="Key" value="'simple_menu_options'"/>
+          <param name="Default" value="table[
+                       $storage = table[],
+                       ]"/>
+        </run_actions>
+        <!--Extract fields.-->
+        <set_value name="Globals.$storage" exact="$userdata.$storage"/>
+      </actions>
+    </library>
+
+    <!--Trigger a lua update of userdata, setting it to save to uidata.xml.-->
+    <library name="Update_Userdata">
+      <actions>
+        <run_actions ref="md.Userdata.Write">
+          <param name="Owner" value="'sn_mod_support_apis'"/>
+          <param name="Key" value="'simple_menu_options'"/>
+          <param name="Value" value="table[
+               $storage = Globals.$storage,
+               ]"/>
+        </run_actions>
+      </actions>
+    </library>
 
     <!--@doc-cue
     Dummy cue used for signalling that this api reloaded.
@@ -171,6 +206,14 @@
         - Defaults 0.
       * $disabled = 0
         - Optional, 0 or 1; if the option will not be displayed in the menu.
+    -->
+    <!--
+    TODO:
+      * $userdata
+        - Optional bool, if true then the player value will be saved
+          as userdata to uidata.xml, and restored across different saves
+          or new games.
+        - If false or not given, values are only saved to the current savegame.
     -->
     <cue name="Register_Option" instantiate="true" namespace="this">
       <conditions>
@@ -275,11 +318,15 @@
                     chance="Globals.$DebugChance" filter="general"/>
           <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
         </do_else>
+
+        <!--Need to update userdata.-->
+        <include_actions ref="Update_Userdata"/>
       </actions>
     </cue>
 
     <!--@doc-cue
         User cue to read a value stored for an option.
+        Kept for legacy support; preferably use Read_Value for an instant result.
         
       Input is a table with the following fields:
       * $id
@@ -299,6 +346,24 @@
                               ]"/>
       </actions>
     </cue>
+
+    <!--@doc-cue
+      User library to read a value stored for an option.
+      Call using run_actions, capture response into result.
+      
+      Params:
+      * id
+        - String, unique identifier for this option, without $ prefix.
+    -->
+    <library name="Read_Value" purpose="run_actions">
+      <params>
+        <param name="id"/>
+      </params>
+      <actions>
+        <!--TODO: error checking.-->
+        <return value="Globals.$storage.{'$' + $id}"/>
+      </actions>
+    </library>
     
     <!--
       Library to call when setting or updating the value of widget.
@@ -489,6 +554,9 @@
         <do_if value="event.param.$echo.$type == 'slidercell'">
           <set_value name="Globals.$storage.{$id}" exact="event.param.$value"/>
         </do_if>
+
+        <!--Need to update userdata.-->
+        <include_actions ref="Update_Userdata"/>
         
         <!--Return the value and original option id.-->
         <do_if value="event.param.$echo.$callback? and event.param.$echo.$callback.exists">

@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<content 
+  author="SirNukes" 
+  date="2020-05-24" 
+  enabled="false" 
+  id="sn_sector_travel_rebalance" 
+  name="SirNukes Sector Travel Rebalance" 
+  description=" "
+  save="true" 
+  sync="false" 
+  version="010">
+  
+  <text description=" " language="7"/>
+  <text description=" " language="33"/>
+  <text description=" " language="37"/>
+  <text description=" " language="39"/>
+  <text description="Reduces the size of sectors, removes travel drive, rebalances engines so that small ships are faster than larger, SETA given at game start, and other related tweaks. Requires a new game." language="44"/>
+  <text description=" " language="49"/>
+  <text description=" " language="55"/>
+  <text description=" " language="81"/>
+  <text description=" " language="82"/>
+  <text description=" " language="86"/>
+  <text description=" " language="88"/>
+</content>

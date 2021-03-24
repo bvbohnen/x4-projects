@@ -14,10 +14,20 @@
       </check_any>
     </conditions>    
     <actions>
-      <raise_lua_event name="'Lua_Loader.Signal'"/>
-    </actions>    
+      <raise_lua_event name="'Lua_Loader.Send_Priority_Ready'"/>
+    </actions>
   </cue>
-  
+
+  <!--Wait for lua side to send the Priority_Ready, and trigger normal Ready.-->
+  <cue name="Send_Ready" instantiate="true" namespace="this">
+    <conditions>
+      <event_ui_triggered screen="'Lua_Loader'" control="'Priority_Ready'" />
+    </conditions>
+    <actions>
+      <raise_lua_event name="'Lua_Loader.Send_Ready'"/>
+    </actions>
+  </cue>
+
 </cues>
 
 </mdscript>

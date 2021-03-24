@@ -110,9 +110,11 @@ function L.Init()
     RegisterEvent("Simple_Menu_Options.adjust_fov"            , L.Handle_FOV)
     RegisterEvent("Simple_Menu_Options.disable_helptext"      , L.Handle_Hide_Helptext)
     RegisterEvent("Simple_Menu_Options.tooltip_on_truncation" , L.Handle_Tooltip_On_Truncation)
-    
     RegisterEvent("Simple_Menu_Options.traffic_density"       , L.Handle_Set_Traffic_Density)
+
+    RegisterEvent("Simple_Menu_Options.Pause_Game"            , L.Handle_Pause_Game)
     RegisterEvent("Extra_Game_Options.get_lua_values"         , L.Handle_Get_Lua_Values)
+    
     
 
     -- Testing.
@@ -1250,6 +1252,19 @@ function L.Handle_Tooltip_On_Truncation(_, param)
 
     -- Store it.
     L.auto_mouseover.enabled  = param
+end
+
+------------------------------------------------------------------------------
+--[[
+    Automatically pause the game upon loading.
+    This will only have an effect a short time after loading into a save,
+    after userdata is available.
+
+    Note: this event is only called when md determined a pause should happen,
+    so no param is passed.
+]]
+function L.Handle_Pause_Game()
+    Pause()
 end
 
 ------------------------------------------------------------------------------

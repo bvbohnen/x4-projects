@@ -16,3 +16,5 @@ Change Log
   - Changed tracker mine hotkey to use weapon_gen_mine_02_macro instead of weapon_gen_mine_02_a_macro.
 * 1.6
   - German translation, by morgenrot68.
+* 1.7
+  - Fixed debug log error when ejecting illegal wares in a sector with no police faction.

@@ -251,16 +251,18 @@
         <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ejecting_Illegals'"/>-->
         <!--<debug_text text="'KeyCapture Triggered Ejecting_Illegals'" filter="general"/>-->
 
-        <set_value name="$faction" exact="player.zone.policefaction"/>
-        <drop_illegal_cargo groupname="$boxes" object="player.occupiedship" faction="$faction"/>
-        <drop_illegal_inventory groupname="$boxes" object="player.entity" faction="$faction"/>
-        <do_if value="$boxes.count != 0">
-          <show_notification text="'Ejected Illegal Wares'"/>
+        <set_value name="$faction" exact="player.sector.policefaction"/>
+        <!--Unpoliced areas may have null police faction.-->
+        <do_if value="$faction != null">
+          <drop_illegal_cargo groupname="$boxes" object="player.occupiedship" faction="$faction"/>
+          <drop_illegal_inventory groupname="$boxes" object="player.entity" faction="$faction"/>
+          <do_if value="$boxes.count != 0">
+            <show_notification text="'Ejected Illegal Wares'"/>
+          </do_if>
+          <do_else>
+            <show_notification text="'No Illegal Wares'"/>          
+          </do_else>
         </do_if>
-        <do_else>
-          <show_notification text="'No Illegal Wares'"/>          
-        </do_else>
-        
       </actions>
     </cue>
     

@@ -761,6 +761,29 @@ def Patch_Shader_Files(shader_names, testmode = False):
                     '''
                 ref_line = '}'
                 new_text = (new_code + ref_line).join(new_text.rsplit(ref_line, 1))
+
+            # Based on experimentation below, can play with the
+            # asteroid normal/specular to introduce some light transparency,
+            # which may help with a smoother fade-in alongside the dither.
+            # Set the normal to average between 0 rgb and (1-ast_fade)
+            # alpha, and what it would otherwise be, for smoother fade-in.
+            #
+            # -Removed; in practice, the norm/spec only draws when the
+            # asteroid is somewhat closer than its render distance, eg.
+            # it will be dither in 40% and then suddenly the semi-clear
+            # normals kick in. (Tested on medium roids in Faulty Logic.)
+            # TODO: maybe revisit if finding a way to extend
+            # normals out to further distances (may require
+            # messing with models or something).
+            if not testmode and 0:
+                new_code = '''
+                    OUT_Color.a = (OUT_Color.a + 1 - ast_fade) / 2;
+                    OUT_Color.rgb = OUT_Color.rgb * ast_fade;
+                    //OUT_Color.a = 1.0;
+                    //OUT_Color.rgb = half3(0.0, 0.0, 0.0);
+                    '''
+                ref_line = '}'
+                new_text = (new_code + ref_line).join(new_text.rsplit(ref_line, 1))
             
         elif 0:
             # Experiment with transparency, hopefully finding out how to make
