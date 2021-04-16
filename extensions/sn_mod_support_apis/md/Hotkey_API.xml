@@ -616,9 +616,10 @@ TODO:
       - num_+
       - num_-
       - num_*
+      - num_/
+      - num_enter
       - win_l
       - win_r
-    - Note: numpad 'enter' and '/' alias to normal versions of those keys.
 
   -->
   <cue name="Register_Key" instantiate="true" namespace="this">

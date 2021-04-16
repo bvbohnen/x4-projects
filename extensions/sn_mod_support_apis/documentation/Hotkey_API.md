@@ -162,9 +162,10 @@
     - num_+
     - num_-
     - num_*
+    - num_/
+    - num_enter
     - win_l
     - win_r
-  - Note: numpad 'enter' and '/' alias to normal versions of those keys.
   
     
 * **Unregister_Key**

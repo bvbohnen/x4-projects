@@ -1614,6 +1614,8 @@ end
 
 -- Returns a string for the ETA.
 -- Ideally runs after Get_Distance.
+-- TODO: maybe limit update rate to every half second, to reduce jankiness
+-- in some situations.
 function L.Get_ETA(targetdata)
     -- Get the current distance, and change rate (rel speed).
     local distance  = L.filter_distance.current

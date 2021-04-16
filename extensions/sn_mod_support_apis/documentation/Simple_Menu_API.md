@@ -177,7 +177,7 @@ Complex properties:
     - Standard api args
   * columns
     - Integer, total number of columns in the menu table.
-    - Max is 13.
+    - Max is 13 (as of x4 4.0).
   * title
     - Text to display in the table header.
   * width
@@ -376,7 +376,7 @@ Complex properties:
     
 * **Add_Row**
   
-    Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 130 rows (150 as of x4 3.2 beta 2).
+    Add a row to the current menu. Following widget creation commands add to the most recently added row. Max is 160 rows (as of x4 4.0).
       
     Param: Table with the following items.
     * id, echo

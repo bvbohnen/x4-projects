@@ -697,7 +697,6 @@ def Patch_Shader_Files(shader_names, testmode = False):
                     '''
                 
                 # More complex case: compute a rounded angle.
-                # or 
                 if 1:
                     # Fov is roughly 52.5 * x/y of the resolution.
                     # angle_per_pixel = fov / x

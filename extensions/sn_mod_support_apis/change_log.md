@@ -51,3 +51,5 @@ Change Log for overall api package.
 * 1.83
   - Added Userdata api, for saving shared data between different save games.
   - Switched hotkeys and simple menu options to store settings in userdata.
+* 1.84
+  - Improved hotkey api support for non-alphanumeric keys.

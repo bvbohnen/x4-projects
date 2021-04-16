@@ -22,6 +22,7 @@ Settings(
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
+    # TODO: maybe whitelist only official dlc.
     developer = True,
     )
 
@@ -53,11 +54,12 @@ if 0:
 
 # Sector/speed rescaling stuff. Requires new game to work well.
     
-# Disable travel drives for ai.
-Disable_AI_Travel_Drive()
-
 # Enable seta when not piloting.
 # TODO: couldn't find a way to do this.
+
+# TODO: lower superhighway exit speed from 5000 to something lower, eg. 500,
+# else the player can cruise out of a highway at excessive speed.
+# need to target parameters.xml, spaceflight/superhighway@exitspeed
 
 # Reduce weapon rofs; seta impact is a bit much on the faster stuff (6 rps).
 # Prevent dropping below 1 rps.

@@ -58,7 +58,8 @@ int push_error_msg(lua_State *L, const char *msg) {
 }
 
 const char *last_error(int err) {
-    static char errbuff[256];
+    // --VS warning indicates this should be 512, not 256 (as in winapi).
+    static char errbuff[512];
     int sz;
     if (err == 0) {
         err = GetLastError();
@@ -69,6 +70,10 @@ const char *last_error(int err) {
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
         errbuff, 256, NULL
     );
+    // --Ensure this stays in bounds (get rid of vs warning).
+    if(sz < 2) {
+        sz = 2;
+    }        
     errbuff[sz - 2] = '\0'; // strip the \r\n
     return errbuff;
 }
