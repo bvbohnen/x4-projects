@@ -22,31 +22,19 @@ That page also advises doing very little in the listener callback functions,
 since long running callbacks can cause problems with new input capture.
 '''
 
-'''
-Note:
-    The various keys map to keycodes, found in pynput source in _win32.py
-    for windows, _dawrin.py for unix.
-    In here, shift_l and shift map to the same keycode, which causes a
-    hiccup if trying to match x4 key requests to pynput pressed keys
-    based on name, since x4 may request shift_l and pynput will only
-    return shift.
-
-    An intermediate step of mapping x4 key names to keycodes can be used
-    to improve robustness.  The shift_l keycode would then match a
-    keypress of shift. This will only be done for special keys; pynput
-    doesn't appear to support integer codes for alphanumeric keys.
-'''
 
 import sys
 import time
 import threading
-import win32file
 import copy
 from collections import defaultdict
 
-## This will be specific to windows for now.
+# This will be specific to windows for now.
 if not sys.platform == 'win32':
     raise Exception("Only windows supported at this time.")
+
+#import win32file
+import win32api
 
 from pynput import keyboard
 from X4_Python_Pipe_Server import Pipe_Server, Pipe_Client
@@ -56,12 +44,6 @@ from win32gui import GetWindowText, GetForegroundWindow
 # Name of the pipe to use.
 pipe_name = 'x4_keys'
 
-# Flag to do a test run with the pipe client handled in python instead
-# of x4.
-# Note: if doing this from a console window, pynput prevents ctrl-c
-# exits, but ctrl-pause/break will work.
-test_python_client = 0
-
 # Verbosity level of console window messages.
 verbosity = 1
 
@@ -70,9 +52,6 @@ verbosity = 1
 # For python, there may be a path prefix, so this will just check the
 # final part of the window title.
 window_title = 'X4'
-if test_python_client:
-    # TODO: make more robust, eg. work with cmd.
-    window_title = 'python.exe'
 
 
 def main(args):
@@ -88,17 +67,16 @@ def main(args):
     Note: by experience, x4 side sometimes has several seconds of lag
     before processing keys sent.
     '''
-    # Enable test mode if requested.
-    if args['test']:
-        global test_python_client
-        test_python_client = True
-
     # Set up the pipe and connect to x4.
     pipe = Pipe_Server(pipe_name)
         
-    # For python testing, kick off a client thread.
-    if test_python_client:
+    # Enable test mode if requested.
+    if args['test']:
+        # TODO: make more robust, eg. work with cmd.
+        window_title = 'python.exe'
         # Set up the reader in another thread.
+        # Note: if doing this from a console window, pynput prevents ctrl-c
+        # exits, but ctrl-pause/break will work.
         reader_thread = threading.Thread(target = Pipe_Client_Test)
         reader_thread.start()
 
@@ -248,6 +226,8 @@ def Pipe_Client_Test():
     # Pick some keys to capture.
     # Some given as MD registered string combos, some as ego keycodes.
     # 286 is shift-a, 82 is numpad 0.
+    # Note: leftshift-a should send '$shift_l a onPress' and '$code 1 286 0 onPress'
+    # but not '$a onPress'.
     keys = 'setkeys:' + ';'.join([
             '$a onPress',
             '$a onRepeat',
@@ -264,19 +244,11 @@ def Pipe_Client_Test():
     # Capture a few characters.
     for _ in range(50):
         char = pipe.Read()
-        print(char)
+        print(f'test received: {char}')
         pipe.Write('ack')
             
     return
 
-
-# Scancode dict.
-# This will map from windows vk codes to keyboard scancodes.
-# This is a more dynamic version of _vk_to_scancode_dict defined statically
-# further below. Entries defined in _vk_to_scancode_dict will be kept as-is,
-# but unknown entries are filled in at runtime based on pynput key data.
-# Init with a copy of the static pairings further below.
-vk_scancode_mapping = {}
 
 
 class Key_Event:
@@ -291,29 +263,25 @@ class Key_Event:
       - String, name of the key.
     * vk
       - Int, the OS virtual keycode.
-      - May be ambiguous between different physical keys.
     * code
       - Int, keyboard scancode of the key that was pressed, as decided
-        by windows.
-      - Some numpad keys will use their normal key alias scancode instead.
-        - numpad enter
-        - numpad /
+        by windows, adding 0x80 for extended keys.
     * pressed
       - Bool, if True the key was pressed, else the key was released.
     '''
-    def __init__(self, key_object, pressed = None):
+    def __init__(self, key_object, scancode, pressed = None):
+        self.code = scancode
         self.pressed = pressed
 
         # The key vk is either in 'vk' or 'value.vk'.
+        # TODO: special handling for numpad_enter; maybe pick name
+        # from the scancode.
         if hasattr(key_object, 'vk'):
             self.vk = key_object.vk
             self.name = key_object.char
         else:
             self.vk = key_object.value.vk
             self.name = key_object.name
-
-        # Get the scancode and attach it.
-        self.code = vk_scancode_mapping[self.vk]
 
         # If no name recorded, eg. for special keys (mute, etc.), then
         # just use the keycode raw.
@@ -346,6 +314,15 @@ class Keyboard_Listener():
         # The listener thread itself.
         self.listener_thread = None
 
+        # The last scancode seen, to transfer from Event_Precheck 
+        # to the Buffer_X calls.
+        # Note: in testing, there were never observed to Event_Prechecks
+        # before the Buffer call, so hopefully this will never mismatch
+        # a scancode to the wrong key.
+        self.last_scancode = None
+
+        return
+
 
     def Retrieve_Key_Buffer(self):
         '''
@@ -365,7 +342,7 @@ class Keyboard_Listener():
         Kept super simple, due to pynput warning about long callbacks.
         '''
         if len(self.key_buffer) < self.max_keys_buffered:
-            self.key_buffer.append( Key_Event(key_object, True))
+            self.key_buffer.append( Key_Event(key_object, self.last_scancode, True))
         return
     
     def Buffer_Releases(self, key_object):
@@ -374,7 +351,7 @@ class Keyboard_Listener():
         Kept super simple, due to pynput warning about long callbacks.
         '''
         if len(self.key_buffer) < self.max_keys_buffered:
-            self.key_buffer.append( Key_Event(key_object, False))
+            self.key_buffer.append( Key_Event(key_object, self.last_scancode, False))
         return
 
     def Event_Precheck(self, msg, data):
@@ -385,48 +362,26 @@ class Keyboard_Listener():
         ahead of the on_press and on_release callbacks.
 
         This is mainly used to try to get more key information, since normal
-        pynput KeyPress objects use windows keycodes which don't distinguish
-        all keys (eg. enter vs numpad_enter).
-
-        Event scanCodes will be added to vk_scancode_mapping, overwriting
-        any existing entry.
+        pynput KeyPress objects use windows vk codes which don't distinguish
+        extended keys.
         '''
-
         # 'data' is a dict with keys matching those in KBLLHOOKSTRUCT:
         # https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-kbdllhookstruct
-        # Pynput normally returns the vkCode, but scanCode will better match
-        # up with x4.
-        # Note: goal was to have scancode differ between 'enter' and 'numpad_enter',
-        # but in practice even at this low level windows will conflate the two,
-        # and just returns the scancode for the normal 'enter' key always.
-        # This also gets confused on keys like home/end, giving the scancode
-        # for the numpad 7/1 keys instead, though there the vkCode will
-        # actually differ (whereas for 'enter' keys the vkCode is the same).
-        # The 'flags' field can be used to detect numpad enter (or other
-        # numpad keys, though those have unique vkCodes already):
-        # bit 0 is 1 if this is an "extended" key.
 
-        #print(f'data.vkCode: {data.vkCode}, data.scanCode: {data.scanCode}, data.flags: {data.flags}')
+        # Determine the actual x4-style scancode.
+        # This is the windows base scancode from the struct, offset by an
+        # extra 0x80 if it is an extended key.
+        self.last_scancode = data.scanCode
+        if data.flags & 1:
+            self.last_scancode += 0x80
+        
+        if verbosity >= 3:
+            print(f'data.vkCode: {hex(data.vkCode)}({data.vkCode}),'
+                  f' data.scanCode: {hex(data.scanCode)}({data.scanCode}),'
+                  f' data.flags: {hex(data.flags)}, scancode: '
+                  f'{hex(self.last_scancode)}({self.last_scancode})')
 
-        # To remove some ambiguity, _vk_to_scancode_dict holds manually
-        # mapped vk->scan codes for most keys. If this vk is in that dict,
-        # it will use the predefined scancode (eg. it will correctly look
-        # up the scancode for 'home' as the 'home' key and not 'num_7' that
-        # pynput provides).
-        # Enter will have special handling here, changing the scancode
-        # based on if this was the numpad enter or not (so the correct code
-        # is looked up later).
-        # Otherwise, fall back on the pynput scancode, already intialized
-        # into the vk_scancode_mapping.
-        if data.scanCode == _name_to_scancode_dict['enter']:
-            if data.flags & 1:
-                # Associate vk with numpad enter.
-                vk_scancode_mapping[data.vkCode] = _name_to_scancode_dict['num_enter']
-            else:
-                # Associate vk with normal enter.
-                vk_scancode_mapping[data.vkCode] = _name_to_scancode_dict['enter']
-        elif data.vkCode not in _vk_to_scancode_dict:
-            vk_scancode_mapping[data.vkCode] = data.scanCode
+        # Always process the key for now.
         return True
 
 
@@ -494,7 +449,7 @@ class Key_Combo:
         # Code; starts at 0, gets bits set.
         self.mod_flags = 0
         # Check each modifier.
-        for index, mod_key in enumerate(_mod_keycodes):
+        for index, mod_key in enumerate(mod_key_scancode_list):
             if mod_key in key_codes:
                 # Set a bit for this position.
                 self.mod_flags += (1 << index)
@@ -582,7 +537,7 @@ class Key_Combo_Processor:
         for combo in self.key_combo_list:
             self.keys_in_combos.update(combo.key_codes)
         # Include modifiers always, left/right variations.
-        self.keys_in_combos.update(_mod_keycodes)
+        self.keys_in_combos.update(mod_key_scancode_list)
 
         return
 
@@ -648,7 +603,7 @@ class Key_Combo_Processor:
             # Skip empty key names, which may be the result of double
             # spacing in the message.
             # Unrecognized entries will have a dict key lookup error.
-            scancodes = [_name_to_scancode_dict[x]
+            scancodes = [name_to_scancode_dict[x]
                             for x in key_name_list if x]
 
             # Pack into a Key_Combo and record.
@@ -691,7 +646,7 @@ class Key_Combo_Processor:
             elif key in self.keys_down:
                 self.keys_down.remove(key)
             if verbosity >= 3:
-                print('Keys down: {}'.format(self.keys_down))
+                print('Keys down: {}'.format(self.keys_down if self.keys_down else ''))
 
 
             # The first pass logic will group combos into those
@@ -712,7 +667,7 @@ class Key_Combo_Processor:
             #  corresponding category code.
             mod_flags = 0
             # Check each modifier.
-            for index, mod_key in enumerate(_mod_keycodes):
+            for index, mod_key in enumerate(mod_key_scancode_list):
                 if mod_key in self.keys_down:
                     # Add a 1-hot bit.
                     mod_flags += (1 << index)
@@ -808,7 +763,7 @@ class Key_Combo_Processor:
         # Note: shortly after this the name will convert back into a code,
         #  which will be the same for most keys, but some aliased keys will
         #  get swapped to the windows returned scancode.
-        keyname = _scancode_to_name_dict.get(keycode, None)
+        keyname = scancode_to_name_dict.get(keycode, None)
         # Error if the keyname not supported.
         if not keyname:
             raise Exception("Ego keycode {} not supported".format(keycode))
@@ -818,363 +773,278 @@ class Key_Combo_Processor:
 
 
 
+'''
+Windows vk codes:
+ https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+
+Scancodes (Ego keys appear to match this)(only for standard english):
+ https://github.com/wgois/OIS/blob/master/includes/OISKeyboard.h
+ Note: in testing this appears to be bugged, with numlock/pause reversed.
+
+Doc on windows input handling:
+ https://docs.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
+Note: various keys, generally those on the numpad, will alias to each other.
+These are distinguished by an "extended-key" flag.
+" The extended keys consist of the ALT and CTRL keys on the right-hand side
+of the keyboard; the INS, DEL, HOME, END, PAGE UP, PAGE DOWN, and arrow keys
+in the clusters to the left of the numeric keypad; the NUM LOCK key; the BREAK
+(CTRL+PAUSE) key; the PRINT SCRN key; and the divide (/) and ENTER keys in the
+numeric keypad."
+
+win32api.MapVirtualKey will translate a vk to a scancode, but the scancode
+is always the non-extended version (eg. VK_HOME maps to the numpad7 scancode).
+
+By observation, it appears the x4 scancodes that deal with extended
+keys will use the non-extended scancode by default, and then set bit 8
+for the extended flag.  Eg. VK_LCONTROL is 0x1D, VK_RCONTROL is 0x9D.
+'''
 # List of keys, windows virtual keycodes, scancodes, and string names.
-# Windows vk codes:
-#  https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-# Scancodes (Ego keys appear to match this):
-#  https://github.com/wgois/OIS/blob/master/includes/OISKeyboard.h
-# This manual  matching is as a workaround for the pynput provided scancodes
-# aliasing eg. home with numpad7 (different vk, pynput gives numpad7 scancode 
-# for both when it should differ).
+# (Scancode mapping here is only for english.)
 # Entries are tuples of:
-# (win vk name, vk code, scancode, local name)
-_key_info_list = [
-    ('VK_LBUTTON'            , 0x01, None , None),
-    ('VK_RBUTTON'            , 0x02, None , None ),
-    ('VK_CANCEL'             , 0x03, None , None ),
-    ('VK_MBUTTON'            , 0x04, None , None ),
-    ('VK_XBUTTON1'           , 0x05, None , None ),
-    ('VK_XBUTTON2'           , 0x06, None , None ),
-    ('VK_BACK'               , 0x08, 0x0E , "backspace"),
-    ('VK_TAB'                , 0x09, 0x0F , "tab"),
-    ('VK_CLEAR'              , 0x0C, None , None ),
-    ('VK_RETURN'             , 0x0D, 0x1C , "enter"),
+# (win vk name, vk code, extended flag, english scancode, pynput/local name)
+# TODO: remove scancodes; they are generated at runtime instead.
+key_info_list = [
+    ('VK_LBUTTON'            , 0x01, 0, None , None),
+    ('VK_RBUTTON'            , 0x02, 0, None , None ),
+    ('VK_CANCEL'             , 0x03, 1, None , 'break' ), # Sent with ctrl+pause as ctrl+break
+    ('VK_MBUTTON'            , 0x04, 0, None , None ),
+    ('VK_XBUTTON1'           , 0x05, 0, None , None ),
+    ('VK_XBUTTON2'           , 0x06, 0, None , None ),
+    ('VK_BACK'               , 0x08, 0, 0x0E , "backspace"),
+    ('VK_TAB'                , 0x09, 0, 0x0F , "tab"),
+    ('VK_CLEAR'              , 0x0C, 0, None , None ),
+    ('VK_RETURN'             , 0x0D, 0, 0x1C , "enter"),
     # Ignore generic key modifiers; left/right versions are below, and
     # these get special handling in combo processing code.
-    ('VK_SHIFT'              , 0x10, None , None ),
-    ('VK_CONTROL'            , 0x11, None , None ),
-    ('VK_MENU'               , 0x12, None , None ), # Alt
-    ('VK_PAUSE'              , 0x13, 0xC5 , "pause"),
-    ('VK_CAPITAL'            , 0x14, 0x3A , "caps_lock"),
-    ('VK_ESCAPE'             , 0x1B, 0x01 , "esc"),
-    ('VK_SPACE'              , 0x20, 0x39 , "space"),
-    ('VK_PRIOR'              , 0x21, 0xC9 , "page_up"),
-    ('VK_NEXT'               , 0x22, 0xD1 , "page_down"),
-    ('VK_END'                , 0x23, 0xCF , "end"),
-    ('VK_HOME'               , 0x24, 0xC7 , "home"),
-    ('VK_LEFT'               , 0x25, 0xCB , "left"),
-    ('VK_UP'                 , 0x26, 0xC8 , "up"),
-    ('VK_RIGHT'              , 0x27, 0xCD , "right"),
-    ('VK_DOWN'               , 0x28, 0xD0 , "down"),
-    ('VK_SELECT'             , 0x29, None , None ),
-    ('VK_PRINT'              , 0x2A, None , None ),
-    ('VK_EXECUTE'            , 0x2B, None , None ),
-    ('VK_SNAPSHOT'           , 0x2C, None , None ),
-    ('VK_INSERT'             , 0x2D, 0xD2 , "insert"),
-    ('VK_DELETE'             , 0x2E, 0xD3 , "delete"),
-    ('VK_HELP'               , 0x2F, None , None ),
-    ('VK_0'                  , 0x30, 0x0B , "0"),           
-    ('VK_1'                  , 0x31, 0x02 , "1"),          
-    ('VK_2'                  , 0x32, 0x03 , "2"),          
-    ('VK_3'                  , 0x33, 0x04 , "3"),          
-    ('VK_4'                  , 0x34, 0x05 , "4"),          
-    ('VK_5'                  , 0x35, 0x06 , "5"),          
-    ('VK_6'                  , 0x36, 0x07 , "6"),          
-    ('VK_7'                  , 0x37, 0x08 , "7"),          
-    ('VK_8'                  , 0x38, 0x09 , "8"),          
-    ('VK_9'                  , 0x39, 0x0A , "9"),          
-    ('VK_A'                  , 0x41, 0x1E , "a"),
-    ('VK_B'                  , 0x42, 0x30 , "b"),
-    ('VK_C'                  , 0x43, 0x2E , "c"),
-    ('VK_D'                  , 0x44, 0x20 , "d"),
-    ('VK_E'                  , 0x45, 0x12 , "e"),
-    ('VK_F'                  , 0x46, 0x21 , "f"),
-    ('VK_G'                  , 0x47, 0x22 , "g"),
-    ('VK_H'                  , 0x48, 0x23 , "h"),
-    ('VK_I'                  , 0x49, 0x17 , "i"),
-    ('VK_J'                  , 0x4A, 0x24 , "j"),
-    ('VK_K'                  , 0x4B, 0x25 , "k"),
-    ('VK_L'                  , 0x4C, 0x26 , "l"),
-    ('VK_M'                  , 0x4D, 0x32 , "m"),
-    ('VK_N'                  , 0x4E, 0x31 , "n"),
-    ('VK_O'                  , 0x4F, 0x18 , "o"),
-    ('VK_P'                  , 0x50, 0x19 , "p"),
-    ('VK_Q'                  , 0x51, 0x10 , "q"),
-    ('VK_R'                  , 0x52, 0x13 , "r"),
-    ('VK_S'                  , 0x53, 0x1F , "s"),
-    ('VK_T'                  , 0x54, 0x14 , "t"),
-    ('VK_U'                  , 0x55, 0x16 , "u"),
-    ('VK_V'                  , 0x56, 0x2F , "v"),
-    ('VK_W'                  , 0x57, 0x11 , "w"),
-    ('VK_X'                  , 0x58, 0x2D , "x"),
-    ('VK_Y'                  , 0x59, 0x15 , "y"),
-    ('VK_Z'                  , 0x5A, 0x2C , "z"),
-    ('VK_LWIN'               , 0x5B, 0xDB , "win_l"),
-    ('VK_RWIN'               , 0x5C, 0xDC , "win_r"),
-    ('VK_APPS'               , 0x5D, None , None ),
-    ('VK_SLEEP'              , 0x5F, None , None ),
-    ('VK_NUMPAD0'            , 0x60, 0x52 , "num_0"),
-    ('VK_NUMPAD1'            , 0x61, 0x4F , "num_1"),
-    ('VK_NUMPAD2'            , 0x62, 0x50 , "num_2"),
-    ('VK_NUMPAD3'            , 0x63, 0x51 , "num_3"),
-    ('VK_NUMPAD4'            , 0x64, 0x4B , "num_4"),
-    ('VK_NUMPAD5'            , 0x65, 0x4C , "num_5"),
-    ('VK_NUMPAD6'            , 0x66, 0x4D , "num_6"),
-    ('VK_NUMPAD7'            , 0x67, 0x47 , "num_7"),
-    ('VK_NUMPAD8'            , 0x68, 0x48 , "num_8"),
-    ('VK_NUMPAD9'            , 0x69, 0x49 , "num_9"),
-    ('VK_MULTIPL'            , 0x6A, 0x37 , "num_*"),
-    ('VK_ADD'                , 0x6B, 0x4E , "num_+"),
-    ('VK_SEPARATOR'          , 0x6C, None , None ),
-    ('VK_SUBTRACT'           , 0x6D, 0x4A , "num_-"),
-    ('VK_DECIMAL'            , 0x6E, 0x53 , "num_."),
-    ('VK_DIVIDE'             , 0x6F, 0xB5 , "num_/"),
-    ('VK_F1'                 , 0x70, 0x3B , "f1", ),
-    ('VK_F2'                 , 0x71, 0x3C , "f2", ),
-    ('VK_F3'                 , 0x72, 0x3D , "f3", ),
-    ('VK_F4'                 , 0x73, 0x3E , "f4", ),
-    ('VK_F5'                 , 0x74, 0x3F , "f5", ),
-    ('VK_F6'                 , 0x75, 0x40 , "f6", ),
-    ('VK_F7'                 , 0x76, 0x41 , "f7", ),
-    ('VK_F8'                 , 0x77, 0x42 , "f8", ),
-    ('VK_F9'                 , 0x78, 0x43 , "f9", ),
-    ('VK_F10'                , 0x79, 0x44 , "f10"),
-    ('VK_F11'                , 0x7A, 0x57 , "f11"),
-    ('VK_F12'                , 0x7B, 0x58 , "f12"),
-    ('VK_F13'                , 0x7C, 0x64 , "f13"),
-    ('VK_F14'                , 0x7D, 0x65 , "f14"),
-    ('VK_F15'                , 0x7E, 0x66 , "f15"),
-    ('VK_F16'                , 0x7F, None , None ),
-    ('VK_F17'                , 0x80, None , None ),
-    ('VK_F18'                , 0x81, None , None ),
-    ('VK_F19'                , 0x82, None , None ),
-    ('VK_F20'                , 0x83, None , None ),
-    ('VK_F21'                , 0x84, None , None ),
-    ('VK_F22'                , 0x85, None , None ),
-    ('VK_F23'                , 0x86, None , None ),
-    ('VK_F24'                , 0x87, None , None ),
-    ('VK_NUMLOCK'            , 0x90, 0x45 , "num_lock"),
-    ('VK_SCROLL'             , 0x91, 0x46 , "scroll_lock"),
-    ('VK_LSHIFT'             , 0xA0, 0x2A , "shift_l"),
-    ('VK_RSHIFT'             , 0xA1, 0x36 , "shift_r"),
-    ('VK_LCONTROL'           , 0xA2, 0x1D , "ctrl_l"),
-    ('VK_RCONTROL'           , 0xA3, 0x9D , "ctrl_r"),
-    ('VK_LMENU'              , 0xA4, 0x38 , "alt_l"),
-    ('VK_RMENU'              , 0xA5, 0xB8 , "alt_r"),
-    ('VK_BROWSER_BACK'       , 0xA6, None , None ),
-    ('VK_BROWSER_FORWARD'    , 0xA7, None , None ),
-    ('VK_BROWSER_REFRESH'    , 0xA8, None , None ),
-    ('VK_BROWSER_STOP'       , 0xA9, None , None ),
-    ('VK_BROWSER_SEARCH'     , 0xAA, None , None ),
-    ('VK_BROWSER_FAVORITES'  , 0xAB, None , None ),
-    ('VK_BROWSER_HOME'       , 0xAC, None , None ),
-    ('VK_VOLUME_MUTE'        , 0xAD, None , None ),
-    ('VK_VOLUME_DOWN'        , 0xAE, None , None ),
-    ('VK_VOLUME_UP'          , 0xAF, None , None ),
-    ('VK_MEDIA_NEXT_TRACK'   , 0xB0, None , None ),
-    ('VK_MEDIA_PREV_TRACK'   , 0xB1, None , None ),
-    ('VK_MEDIA_STOP'         , 0xB2, None , None ),
-    ('VK_MEDIA_PLAY_PAUSE'   , 0xB3, None , None ),
-    ('VK_LAUNCH_MAIL'        , 0xB4, None , None ),
-    ('VK_LAUNCH_MEDIA_SELECT', 0xB5, None , None ),
-    ('VK_LAUNCH_APP1'        , 0xB6, None , None ),
-    ('VK_LAUNCH_APP2'        , 0xB7, None , None ),
-    ('VK_OEM_1'              , 0xBA, 0x27 , ";"),
-    ('VK_OEM_PLUS'           , 0xBB, 0x0D , "=", ),
-    ('VK_OEM_COMMA'          , 0xBC, 0x33 , ","),
-    ('VK_OEM_MINUS'          , 0xBD, 0x0C , "-"),
-    ('VK_OEM_PERIOD'         , 0xBE, 0x34 , "."),
-    ('VK_OEM_2'              , 0xBF, 0x35 , "/"),
-    ('VK_OEM_3'              , 0xC0, 0x29 , "`"),
-    ('VK_OEM_4'              , 0xDB, 0x1A , "["),
-    ('VK_OEM_5'              , 0xDC, 0x2B , "\\"),
-    ('VK_OEM_6'              , 0xDD, 0x1B , "]"),
-    ('VK_OEM_7'              , 0xDE, 0x28 , "'"),
-    ('VK_OEM_8'              , 0xDF, None , None ),
-    ('VK_OEM_102'            , 0xE2, 0x56 , "oem102"),
-    ('VK_PROCESSKEY'         , 0xE5, None , None ),
-    ('VK_PACKET'             , 0xE7, None , None ),
-    ('VK_ATTN'               , 0xF6, None , None ),
-    ('VK_CRSEL'              , 0xF7, None , None ),
-    ('VK_EXSEL'              , 0xF8, None , None ),
-    ('VK_EREOF'              , 0xF9, None , None ),
-    ('VK_PLAY'               , 0xFA, None , None ),
-    ('VK_ZOOM'               , 0xFB, None , None ),
-    ('VK_NONAME'             , 0xFC, None , None ),
-    ('VK_PA1'                , 0xFD, None , None ),
-    ('VK_OEM_CLEAR'          , 0xFE, None , None ),
-    # Fake entries for special keys that dont have win vk codes, but do
-    # have scancodes. Giving dummy vk codes.
-    ('NUMPAD_ENTER'          , 0x100, 0x9C , "num_enter", ),
+    ('VK_SHIFT'              , 0x10, 0, None , None ),
+    ('VK_CONTROL'            , 0x11, 0, None , None ),
+    ('VK_MENU'               , 0x12, 0, None , None ), # Alt
+    ('VK_PAUSE'              , 0x13, 0, 0x45 , "pause"), # MapVirtualKey returns 0 (for whatever reason)
+    ('VK_CAPITAL'            , 0x14, 0, 0x3A , "caps_lock"),
+    ('VK_ESCAPE'             , 0x1B, 0, 0x01 , "esc"),
+    ('VK_SPACE'              , 0x20, 0, 0x39 , "space"),
+    ('VK_PRIOR'              , 0x21, 1, 0xC9 , "page_up"),
+    ('VK_NEXT'               , 0x22, 1, 0xD1 , "page_down"),
+    ('VK_END'                , 0x23, 1, 0xCF , "end"),
+    ('VK_HOME'               , 0x24, 1, 0xC7 , "home"),
+    ('VK_LEFT'               , 0x25, 1, 0xCB , "left"),
+    ('VK_UP'                 , 0x26, 1, 0xC8 , "up"),
+    ('VK_RIGHT'              , 0x27, 1, 0xCD , "right"),
+    ('VK_DOWN'               , 0x28, 1, 0xD0 , "down"),
+    ('VK_SELECT'             , 0x29, 0, None , None ),
+    ('VK_PRINT'              , 0x2A, 0, None , None ),
+    ('VK_EXECUTE'            , 0x2B, 0, None , None ),
+    ('VK_SNAPSHOT'           , 0x2C, 1, 0x54 , "printscreen"), # Maybe wrong scancode, but determined properly below.
+    ('VK_INSERT'             , 0x2D, 1, 0xD2 , "insert"),
+    ('VK_DELETE'             , 0x2E, 1, 0xD3 , "delete"),
+    ('VK_HELP'               , 0x2F, 0, None , None ),
+    ('VK_0'                  , 0x30, 0, 0x0B , "0"),           
+    ('VK_1'                  , 0x31, 0, 0x02 , "1"),          
+    ('VK_2'                  , 0x32, 0, 0x03 , "2"),          
+    ('VK_3'                  , 0x33, 0, 0x04 , "3"),          
+    ('VK_4'                  , 0x34, 0, 0x05 , "4"),          
+    ('VK_5'                  , 0x35, 0, 0x06 , "5"),          
+    ('VK_6'                  , 0x36, 0, 0x07 , "6"),          
+    ('VK_7'                  , 0x37, 0, 0x08 , "7"),          
+    ('VK_8'                  , 0x38, 0, 0x09 , "8"),          
+    ('VK_9'                  , 0x39, 0, 0x0A , "9"),          
+    ('VK_A'                  , 0x41, 0, 0x1E , "a"),
+    ('VK_B'                  , 0x42, 0, 0x30 , "b"),
+    ('VK_C'                  , 0x43, 0, 0x2E , "c"),
+    ('VK_D'                  , 0x44, 0, 0x20 , "d"),
+    ('VK_E'                  , 0x45, 0, 0x12 , "e"),
+    ('VK_F'                  , 0x46, 0, 0x21 , "f"),
+    ('VK_G'                  , 0x47, 0, 0x22 , "g"),
+    ('VK_H'                  , 0x48, 0, 0x23 , "h"),
+    ('VK_I'                  , 0x49, 0, 0x17 , "i"),
+    ('VK_J'                  , 0x4A, 0, 0x24 , "j"),
+    ('VK_K'                  , 0x4B, 0, 0x25 , "k"),
+    ('VK_L'                  , 0x4C, 0, 0x26 , "l"),
+    ('VK_M'                  , 0x4D, 0, 0x32 , "m"),
+    ('VK_N'                  , 0x4E, 0, 0x31 , "n"),
+    ('VK_O'                  , 0x4F, 0, 0x18 , "o"),
+    ('VK_P'                  , 0x50, 0, 0x19 , "p"),
+    ('VK_Q'                  , 0x51, 0, 0x10 , "q"),
+    ('VK_R'                  , 0x52, 0, 0x13 , "r"),
+    ('VK_S'                  , 0x53, 0, 0x1F , "s"),
+    ('VK_T'                  , 0x54, 0, 0x14 , "t"),
+    ('VK_U'                  , 0x55, 0, 0x16 , "u"),
+    ('VK_V'                  , 0x56, 0, 0x2F , "v"),
+    ('VK_W'                  , 0x57, 0, 0x11 , "w"),
+    ('VK_X'                  , 0x58, 0, 0x2D , "x"),
+    ('VK_Y'                  , 0x59, 0, 0x15 , "y"),
+    ('VK_Z'                  , 0x5A, 0, 0x2C , "z"),
+    ('VK_LWIN'               , 0x5B, 0, 0xDB , "win_l"),
+    ('VK_RWIN'               , 0x5C, 0, 0xDC , "win_r"),
+    ('VK_APPS'               , 0x5D, 0, None , None ),
+    ('VK_SLEEP'              , 0x5F, 0, None , None ),
+    ('VK_NUMPAD0'            , 0x60, 0, 0x52 , "num_0"),
+    ('VK_NUMPAD1'            , 0x61, 0, 0x4F , "num_1"),
+    ('VK_NUMPAD2'            , 0x62, 0, 0x50 , "num_2"),
+    ('VK_NUMPAD3'            , 0x63, 0, 0x51 , "num_3"),
+    ('VK_NUMPAD4'            , 0x64, 0, 0x4B , "num_4"),
+    ('VK_NUMPAD5'            , 0x65, 0, 0x4C , "num_5"),
+    ('VK_NUMPAD6'            , 0x66, 0, 0x4D , "num_6"),
+    ('VK_NUMPAD7'            , 0x67, 0, 0x47 , "num_7"),
+    ('VK_NUMPAD8'            , 0x68, 0, 0x48 , "num_8"),
+    ('VK_NUMPAD9'            , 0x69, 0, 0x49 , "num_9"),
+    ('VK_MULTIPL'            , 0x6A, 0, 0x37 , "num_*"),
+    ('VK_ADD'                , 0x6B, 0, 0x4E , "num_+"),
+    ('VK_SEPARATOR'          , 0x6C, 0, None , None ),
+    ('VK_SUBTRACT'           , 0x6D, 0, 0x4A , "num_-"),
+    ('VK_DECIMAL'            , 0x6E, 0, 0x53 , "num_."),
+    ('VK_DIVIDE'             , 0x6F, 1, 0xB5 , "num_/"),
+    ('VK_F1'                 , 0x70, 0, 0x3B , "f1", ),
+    ('VK_F2'                 , 0x71, 0, 0x3C , "f2", ),
+    ('VK_F3'                 , 0x72, 0, 0x3D , "f3", ),
+    ('VK_F4'                 , 0x73, 0, 0x3E , "f4", ),
+    ('VK_F5'                 , 0x74, 0, 0x3F , "f5", ),
+    ('VK_F6'                 , 0x75, 0, 0x40 , "f6", ),
+    ('VK_F7'                 , 0x76, 0, 0x41 , "f7", ),
+    ('VK_F8'                 , 0x77, 0, 0x42 , "f8", ),
+    ('VK_F9'                 , 0x78, 0, 0x43 , "f9", ),
+    ('VK_F10'                , 0x79, 0, 0x44 , "f10"),
+    ('VK_F11'                , 0x7A, 0, 0x57 , "f11"),
+    ('VK_F12'                , 0x7B, 0, 0x58 , "f12"),
+    ('VK_F13'                , 0x7C, 0, 0x64 , "f13"),
+    ('VK_F14'                , 0x7D, 0, 0x65 , "f14"),
+    ('VK_F15'                , 0x7E, 0, 0x66 , "f15"),
+    ('VK_F16'                , 0x7F, 0, None , None ),
+    ('VK_F17'                , 0x80, 0, None , None ),
+    ('VK_F18'                , 0x81, 0, None , None ),
+    ('VK_F19'                , 0x82, 0, None , None ),
+    ('VK_F20'                , 0x83, 0, None , None ),
+    ('VK_F21'                , 0x84, 0, None , None ),
+    ('VK_F22'                , 0x85, 0, None , None ),
+    ('VK_F23'                , 0x86, 0, None , None ),
+    ('VK_F24'                , 0x87, 0, None , None ),
+    ('VK_NUMLOCK'            , 0x90, 1, 0xC5 , "num_lock"), # Alias to pause
+    ('VK_SCROLL'             , 0x91, 0, 0x46 , "scroll_lock"),
+    ('VK_LSHIFT'             , 0xA0, 0, 0x2A , "shift_l"),
+    ('VK_RSHIFT'             , 0xA1, 0, 0x36 , "shift_r"),
+    ('VK_LCONTROL'           , 0xA2, 0, 0x1D , "ctrl_l"),
+    ('VK_RCONTROL'           , 0xA3, 1, 0x9D , "ctrl_r"),
+    ('VK_LMENU'              , 0xA4, 0, 0x38 , "alt_l"),
+    ('VK_RMENU'              , 0xA5, 1, 0xB8 , "alt_r"),
+    ('VK_BROWSER_BACK'       , 0xA6, 0, None , None ),
+    ('VK_BROWSER_FORWARD'    , 0xA7, 0, None , None ),
+    ('VK_BROWSER_REFRESH'    , 0xA8, 0, None , None ),
+    ('VK_BROWSER_STOP'       , 0xA9, 0, None , None ),
+    ('VK_BROWSER_SEARCH'     , 0xAA, 0, None , None ),
+    ('VK_BROWSER_FAVORITES'  , 0xAB, 0, None , None ),
+    ('VK_BROWSER_HOME'       , 0xAC, 0, None , None ),
+    ('VK_VOLUME_MUTE'        , 0xAD, 0, None , None ),
+    ('VK_VOLUME_DOWN'        , 0xAE, 0, None , None ),
+    ('VK_VOLUME_UP'          , 0xAF, 0, None , None ),
+    ('VK_MEDIA_NEXT_TRACK'   , 0xB0, 0, None , None ),
+    ('VK_MEDIA_PREV_TRACK'   , 0xB1, 0, None , None ),
+    ('VK_MEDIA_STOP'         , 0xB2, 0, None , None ),
+    ('VK_MEDIA_PLAY_PAUSE'   , 0xB3, 0, None , None ),
+    ('VK_LAUNCH_MAIL'        , 0xB4, 0, None , None ),
+    ('VK_LAUNCH_MEDIA_SELECT', 0xB5, 0, None , None ),
+    ('VK_LAUNCH_APP1'        , 0xB6, 0, None , None ),
+    ('VK_LAUNCH_APP2'        , 0xB7, 0, None , None ),
+    ('VK_OEM_1'              , 0xBA, 0, 0x27 , ";"),
+    ('VK_OEM_PLUS'           , 0xBB, 0, 0x0D , "=", ),
+    ('VK_OEM_COMMA'          , 0xBC, 0, 0x33 , ","),
+    ('VK_OEM_MINUS'          , 0xBD, 0, 0x0C , "-"),
+    ('VK_OEM_PERIOD'         , 0xBE, 0, 0x34 , "."),
+    ('VK_OEM_2'              , 0xBF, 0, 0x35 , "/"),
+    ('VK_OEM_3'              , 0xC0, 0, 0x29 , "`"),
+    ('VK_OEM_4'              , 0xDB, 0, 0x1A , "["),
+    ('VK_OEM_5'              , 0xDC, 0, 0x2B , "\\"),
+    ('VK_OEM_6'              , 0xDD, 0, 0x1B , "]"),
+    ('VK_OEM_7'              , 0xDE, 0, 0x28 , "'"),
+    ('VK_OEM_8'              , 0xDF, 0, None , None ),
+    ('VK_OEM_102'            , 0xE2, 0, 0x56 , "oem102"),
+    ('VK_PROCESSKEY'         , 0xE5, 0, None , None ),
+    ('VK_PACKET'             , 0xE7, 0, None , None ),
+    ('VK_ATTN'               , 0xF6, 0, None , None ),
+    ('VK_CRSEL'              , 0xF7, 0, None , None ),
+    ('VK_EXSEL'              , 0xF8, 0, None , None ),
+    ('VK_EREOF'              , 0xF9, 0, None , None ),
+    ('VK_PLAY'               , 0xFA, 0, None , None ),
+    ('VK_ZOOM'               , 0xFB, 0, None , None ),
+    ('VK_NONAME'             , 0xFC, 0, None , None ),
+    ('VK_PA1'                , 0xFD, 0, None , None ),
+    ('VK_OEM_CLEAR'          , 0xFE, 0, None , None ),
+    # Fake entry for numpad enter, which has no vk of its own.
+    ('NUMPAD_ENTER'          ,0x100, 1, 0x9C , "num_enter", ),
     ]
 
-# Match vk code to scancode.
-_vk_to_scancode_dict = { x[1] : x[2] for x in _key_info_list if x[2] != None }
-vk_scancode_mapping = {x:y for x,y in _vk_to_scancode_dict.items()}
+# TODO:
+# Map vk to a display name, supporting other languages.
+# https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeynametexta
 
-# Dict mapping egosoft keycodes to key name strings understood by pynput,
+# Dict mapping vk codes (from pynput) to scancodes (from x4).
+vk_to_scancode_dict = {}
+
+# Dict mapping scancodes to key name strings understood by pynput,
 # and hence allowed by md side key names.
-_scancode_to_name_dict = { x[2] : x[3] for x in _key_info_list if x[2] != None }
+# TODO: maybe think about the language issue, but most users will use the
+# in-game key mapper, and md is english anyway, so this isn't very important
+# for now.
+scancode_to_name_dict = {}
 
 # Reversal of the above, to map defined names to scancodes.
 # Where a name is reused, the lowerscancode is kept.
 # (Iterates in reverse sorted order, so lower scancode wins.)
-_name_to_scancode_dict = { v:k for k,v in sorted(_scancode_to_name_dict.items(), reverse = True)}
+name_to_scancode_dict = {}
+
+# List of modifier key scancodes, left and right versions.
+mod_key_scancode_list = None
 
 
-# List of modifier key names, used a couple places to categorize key combos.
-# These are left/right versions, as well as the plain version, since
-# 'shift' was observed to be returned plain for left-shift.
-_mod_keys = ['alt_l','alt_r',
-            'ctrl_l','ctrl_r',
-            'shift_l','shift_r',]
-# The associated integer key codes.
-_mod_keycodes = [_name_to_scancode_dict[x] for x in _mod_keys]
+def Key_Init():
+    '''
+    Initialize data related to vks and scancodes for use at runtime.
+    '''
+    # Mapping of vk names to their vk codes, for convenience.
+    vk_name_to_code_dict = {}
 
+    # Set of vk codes that map to extended keys.
+    vks_that_are_extended_set = set(x[0] for x in key_info_list if x[2])
 
+    # Match vk codes to scancodes. Just do this once here, to avoid having to
+    # keep doing it during runtime.
+    for vkname, vk, extended, eng_scancode, local_name in key_info_list:
 
+        # Skip unsupported keys for now.
+        if not local_name:
+            continue
 
-# Dict mapping egosoft keycodes to key name strings understood by pynput.
-# Ego keys appear to match this (excepting special shift/ctrl handling):
-#  https://github.com/wgois/OIS/blob/master/includes/OISKeyboard.h
-# -Replaced by above general table; kept for reference for now.
-'''
-_scancode_to_name_dict = {    
-    0x00 : "",            # KC_UNASSIGNED
-    0x01 : "esc",            # KC_ESCAPE
-    0x02 : "1",           # KC_1
-    0x03 : "2",           # KC_2
-    0x04 : "3",           # KC_3
-    0x05 : "4",           # KC_4
-    0x06 : "5",           # KC_5
-    0x07 : "6",           # KC_6
-    0x08 : "7",           # KC_7
-    0x09 : "8",           # KC_8
-    0x0A : "9",           # KC_9
-    0x0B : "0",           # KC_0
-    0x0C : "-",           # KC_MINUS // - on main keyboard
-    0x0D : "=",           # KC_EQUALS
-    0x0E : "backspace",   # KC_BACK // backspace
-    0x0F : "tab",         # KC_TAB
-    0x10 : "q",           # KC_Q
-    0x11 : "w",           # KC_W
-    0x12 : "e",           # KC_E
-    0x13 : "r",           # KC_R
-    0x14 : "t",           # KC_T
-    0x15 : "y",           # KC_Y
-    0x16 : "u",           # KC_U
-    0x17 : "i",           # KC_I
-    0x18 : "o",           # KC_O
-    0x19 : "p",           # KC_P
-    0x1A : "[",           # KC_LBRACKET
-    0x1B : "]",           # KC_RBRACKET
-    0x1C : "enter",       # KC_RETURN // Enter on main keyboard
-    0x1D : "ctrl_l",      # KC_LCONTROL
-    0x1E : "a",           # KC_A
-    0x1F : "s",           # KC_S
-    0x20 : "d",           # KC_D
-    0x21 : "f",           # KC_F
-    0x22 : "g",           # KC_G
-    0x23 : "h",           # KC_H
-    0x24 : "j",           # KC_J
-    0x25 : "k",           # KC_K
-    0x26 : "l",           # KC_L
-    0x27 : ";",           # KC_SEMICOLON
-    0x28 : "'",           # KC_APOSTROPHE
-    0x29 : "`",           # KC_GRAVE // accent
-    0x2A : "shift_l",     # KC_LSHIFT
-    0x2B : "\\",          # KC_BACKSLASH
-    0x2C : "z",           # KC_Z
-    0x2D : "x",           # KC_X
-    0x2E : "c",           # KC_C
-    0x2F : "v",           # KC_V
-    0x30 : "b",           # KC_B
-    0x31 : "n",           # KC_N
-    0x32 : "m",           # KC_M
-    0x33 : ",",           # KC_COMMA
-    0x34 : ".",           # KC_PERIOD // . on main keyboard
-    0x35 : "/",           # KC_SLASH // / on main keyboard
-    0x36 : "shift_r",     # KC_RSHIFT
-    0x37 : "num_*",           # KC_MULTIPLY // * on numeric keypad
-    0x38 : "alt_l",       # KC_LMENU // left Alt
-    0x39 : "space",       # KC_SPACE
-    0x3A : "caps_lock",   # KC_CAPITAL
-    0x3B : "f1",          # KC_F1
-    0x3C : "f2",          # KC_F2
-    0x3D : "f3",          # KC_F3
-    0x3E : "f4",          # KC_F4
-    0x3F : "f5",          # KC_F5
-    0x40 : "f6",          # KC_F6
-    0x41 : "f7",          # KC_F7
-    0x42 : "f8",          # KC_F8
-    0x43 : "f9",          # KC_F9
-    0x44 : "f10",         # KC_F10
-    0x45 : "num_lock",    # KC_NUMLOCK
-    0x46 : "scroll_lock", # KC_SCROLL // Scroll Lock
-    0x47 : "num_7",            # KC_NUMPAD7
-    0x48 : "num_8",            # KC_NUMPAD8
-    0x49 : "num_9",            # KC_NUMPAD9
-    0x4A : "num_-",            # KC_SUBTRACT // - on numeric keypad
-    0x4B : "num_4",            # KC_NUMPAD4
-    0x4C : "num_5",            # KC_NUMPAD5
-    0x4D : "num_6",            # KC_NUMPAD6
-    0x4E : "num_+",            # KC_ADD // + on numeric keypad
-    0x4F : "num_1",            # KC_NUMPAD1
-    0x50 : "num_2",            # KC_NUMPAD2
-    0x51 : "num_3",            # KC_NUMPAD3
-    0x52 : "num_0",            # KC_NUMPAD0
-    0x53 : "num_.",            # KC_DECIMAL // . on numeric keypad
-    0x56 : "",            # KC_OEM_102 // < > | on UK/Germany keyboards
-    0x57 : "f11",            # KC_F11
-    0x58 : "f12",            # KC_F12
-    0x64 : "f13",            # KC_F13 // (NEC PC98)
-    0x65 : "f14",            # KC_F14 // (NEC PC98)
-    0x66 : "f15",            # KC_F15 // (NEC PC98)
-    0x70 : "",            # KC_KANA // (Japanese keyboard)
-    0x73 : "",            # KC_ABNT_C1 // / ? on Portugese (Brazilian) keyboards
-    0x79 : "",            # KC_CONVERT // (Japanese keyboard)
-    0x7B : "",            # KC_NOCONVERT // (Japanese keyboard)
-    0x7D : "",            # KC_YEN // (Japanese keyboard)
-    0x7E : "",            # KC_ABNT_C2 // Numpad . on Portugese (Brazilian) keyboards
-    0x8D : "",            # KC_NUMPADEQUALS // = on numeric keypad (NEC PC98)
-    0x90 : "",            # KC_PREVTRACK // Previous Track (KC_CIRCUMFLEX on Japanese keyboard)
-    0x91 : "",            # KC_AT // (NEC PC98)
-    0x92 : "",            # KC_COLON // (NEC PC98)
-    0x93 : "",            # KC_UNDERLINE // (NEC PC98)
-    0x94 : "",            # KC_KANJI // (Japanese keyboard)
-    0x95 : "",            # KC_STOP // (NEC PC98)
-    0x96 : "",            # KC_AX // (Japan AX)
-    0x97 : "",            # KC_UNLABELED // (J3100)
-    0x99 : "",            # KC_NEXTTRACK // Next Track
-    0x9C : "num_enter",       # KC_NUMPADENTER // Enter on numeric keypad
-    0x9D : "ctrl_r",      # KC_RCONTROL
-    0xA0 : "",            # KC_MUTE // Mute
-    0xA1 : "",            # KC_CALCULATOR // Calculator
-    0xA2 : "",            # KC_PLAYPAUSE // Play / Pause
-    0xA4 : "",            # KC_MEDIASTOP // Media Stop
-    0xAA : "",            # KC_TWOSUPERIOR // ² on French AZERTY keyboard (same place as ~ ` on QWERTY)
-    0xAE : "",            # KC_VOLUMEDOWN // Volume -
-    0xB0 : "",            # KC_VOLUMEUP // Volume +
-    0xB2 : "",            # KC_WEBHOME // Web home
-    0xB3 : "",            # KC_NUMPADCOMMA // , on numeric keypad (NEC PC98)
-    0xB5 : "/",           # KC_DIVIDE // / on numeric keypad
-    0xB7 : "",            # KC_SYSRQ
-    0xB8 : "alt_r",       # KC_RMENU // right Alt
-    0xC5 : "pause",       # KC_PAUSE // Pause
-    0xC7 : "home",        # KC_HOME // Home on arrow keypad
-    0xC8 : "up",          # KC_UP // UpArrow on arrow keypad
-    0xC9 : "page_up",     # KC_PGUP // PgUp on arrow keypad
-    0xCB : "left",        # KC_LEFT // LeftArrow on arrow keypad
-    0xCD : "right",       # KC_RIGHT // RightArrow on arrow keypad
-    0xCF : "end",         # KC_END // End on arrow keypad
-    0xD0 : "down",        # KC_DOWN // DownArrow on arrow keypad
-    0xD1 : "page_down",   # KC_PGDOWN // PgDn on arrow keypad
-    0xD2 : "insert",      # KC_INSERT // Insert on arrow keypad
-    0xD3 : "delete",      # KC_DELETE // Delete on arrow keypad
-    0xDB : "win_l",       # KC_LWIN // Left Windows key
-    0xDC : "win_r",       # KC_RWIN // Right Windows key
-    0xDD : "",            # KC_APPS // AppMenu key
-    0xDE : "",            # KC_POWER // System Power
-    0xDF : "",            # KC_SLEEP // System Sleep
-    0xE3 : "",            # KC_WAKE // System Wake
-    0xE5 : "",            # KC_WEBSEARCH // Web Search
-    0xE6 : "",            # KC_WEBFAVORITES // Web Favorites
-    0xE7 : "",            # KC_WEBREFRESH // Web Refresh
-    0xE8 : "",            # KC_WEBSTOP // Web Stop
-    0xE9 : "",            # KC_WEBFORWARD // Web Forward
-    0xEA : "",            # KC_WEBBACK // Web Back
-    0xEB : "",            # KC_MYCOMPUTER // My Computer
-    0xEC : "",            # KC_MAIL // Mail
-    0xED : "",            # KC_MEDIASELECT // Media Select
-    }
-'''
+        # For portability across languages and keyboard layouts, use windows
+        # api to translate this.
+        # Note: the api function always returns the non-extended scancode.
+        # (See notes further below on the extended-key flag in windows.)
+        # https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapvirtualkeya
+
+        # Note: apparently MapVirtualKey is problematic for Pause and
+        # returns 0, so handle manually.
+        # (First google result says its a bug: https://blog.molecular-matters.com/2011/09/05/properly-handling-keyboard-input/ )
+        if vkname == 'VK_PAUSE':
+            scancode = eng_scancode
+        else:
+            # Special handling of numpad_enter; treat it like enter for
+            # scancode lookup.
+            this_vk = vk
+            if vkname == 'NUMPAD_ENTER':
+                this_vk = vk_name_to_code_dict['VK_RETURN']
+            scancode = win32api.MapVirtualKey(this_vk, 0)
+
+        # If this vk is an extended-key, set the high bit.
+        if extended:
+            scancode += 0x80
+
+        vk_name_to_code_dict[vkname] = vk
+        vk_to_scancode_dict[vk] = scancode
+        scancode_to_name_dict[scancode] = local_name
+        name_to_scancode_dict[local_name] = scancode
+
+    # The modifier keys to always track.
+    global mod_key_scancode_list
+    mod_key_scancode_list = [name_to_scancode_dict[x] for x in [
+        'alt_l','alt_r','ctrl_l','ctrl_r','shift_l','shift_r',]]
+    return
+
+Key_Init()

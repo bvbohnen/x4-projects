@@ -53,3 +53,5 @@ Change Log for overall api package.
   - Switched hotkeys and simple menu options to store settings in userdata.
 * 1.84
   - Improved hotkey api support for non-alphanumeric keys.
+* 1.85
+  - Improved hotkey api support various keyboard layouts.

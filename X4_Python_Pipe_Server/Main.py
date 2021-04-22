@@ -103,11 +103,6 @@ from importlib import machinery
 # Flag to use during development, for extra exception throws.
 developer = False
 
-# Use a python test client, instead of needing x4 open.
-# Note: putting breakpoints on tested modules requires opening them from
-# their extension folder path, not their git repo path that was symlinked over.
-test_python_client = 0
-
 # Name of the host pipe.
 pipe_name = 'x4_python_host'
 
@@ -172,8 +167,8 @@ def Main():
             return
 
     # Check if running in test mode.
+    test_python_client = False
     if args.test:
-        global test_python_client
         test_python_client = True
 
         if not args.x4_path:
