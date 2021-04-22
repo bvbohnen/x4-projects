@@ -71,6 +71,7 @@ def main(args):
     pipe = Pipe_Server(pipe_name)
         
     # Enable test mode if requested.
+    global window_title
     if args['test']:
         # TODO: make more robust, eg. work with cmd.
         window_title = 'python.exe'

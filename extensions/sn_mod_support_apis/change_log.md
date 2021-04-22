@@ -55,3 +55,5 @@ Change Log for overall api package.
   - Improved hotkey api support for non-alphanumeric keys.
 * 1.85
   - Improved hotkey api support various keyboard layouts.
+* 1.86
+  - Hotkey pipe server bugfix.
