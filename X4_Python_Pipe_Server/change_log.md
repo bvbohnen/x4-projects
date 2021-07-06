@@ -22,3 +22,5 @@ Change Log
   - Gave explicit pipe read/write security permission to the current user, to help avoid "access denied" errors on pipe opening in x4 for some users.
 * 1.4
   - Added configparser module to exe.
+* 1.4.1
+  - Added "-v" ("--verbose") command line arg, which will print pipe access permission messages.

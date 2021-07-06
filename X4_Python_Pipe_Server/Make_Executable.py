@@ -94,6 +94,26 @@ def Make(*args):
     if dist_folder.exists():
         Clear_Dir(dist_folder)
 
+    # Check the change_log for the latest version (last * line).
+    version = ''
+    for line in reversed(open(This_dir / 'change_log.md', 'r').readlines()):
+        if line.strip().startswith('*'):
+            version = line.replace('*','').strip()
+            break
+
+    # Somewhat clumsy, but edit the Main.py file to change its internal
+    # version global.
+    main_text = (This_dir / 'Main.py').read_text()
+    for line in main_text.splitlines():
+        # Find the version (should be only) version line.
+        if line.startswith('version ='):
+            # Only replace it if it changed.
+            new_line = f"version = '{version}'"
+            if line != new_line:
+                main_text = main_text.replace(line, new_line)
+                (This_dir / 'Main.py').write_text(main_text)
+            break
+
         
     # Generate lines for a hook file.
     # Not currently used.

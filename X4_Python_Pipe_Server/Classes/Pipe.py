@@ -144,8 +144,9 @@ class Pipe_Server(Pipe):
     Call Connect to wait for a client to connect to the pipe.
     Use Read and Write to interact with the pipe.
     '''
-    def __init__(self, pipe_name, buffer_size = None):
+    def __init__(self, pipe_name, buffer_size = None, verbose = False):
         super().__init__(pipe_name, buffer_size)
+        self.verbose = verbose
         
         
         # Note: at least one user had access_denied errors from the x4
@@ -172,6 +173,7 @@ class Pipe_Server(Pipe):
         # Note: for the person with perm problems, "Everyone" and 
         # "Administrators" lookups failed (1332 error), but the user lookup
         # worked, and  just setting read/write for the user was sufficient.
+        # TODO: a couple others have reported perm problems still; unknown reason.
         perms_set = False
         for account_name in [win32api.GetUserName()]:
             try:
@@ -181,11 +183,13 @@ class Pipe_Server(Pipe):
                                          con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE, 
                                          account_id)
                 perms_set = True
+                if self.verbose:
+                    print(f'Setting pipe read/write permission for account "{account_name}"')
             except win32api.error as ex:
-                # -Removed; don't really need this print except for debugging.
-                #print(f'Failed to set read/write permission for account '
-                #      f'"{account_name}"; error code {ex.winerror} in '
-                #      f'{ex.funcname} : {ex.strerror}')
+                if self.verbose:
+                    print(f'Failed to set pipe read/write permission for account '
+                          f'"{account_name}"; error code {ex.winerror} in '
+                          f'{ex.funcname} : {ex.strerror}')
                 continue
 
         if perms_set:
@@ -194,12 +198,12 @@ class Pipe_Server(Pipe):
             sec_desc.SetSecurityDescriptorDacl(1, dacl, 0)
             # Leave user/group/etc. at defaults (eg. unspecified).
         else:
-            # If all perms failed, just clear this and used defaults.
+            # If all perms failed, just clear this and use defaults.
             sec_desc = None
 
         # Create the pipe in server mode.
         self.pipe_file = win32pipe.CreateNamedPipe(
-            # Note: for some dumb reason, this doesn't use keyword args,
+            # Note: for some reason this doesn't use keyword args,
             #  so arg names included in comments.
             # pipeName
             self.pipe_path, 

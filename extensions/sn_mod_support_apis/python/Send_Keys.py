@@ -71,9 +71,9 @@ def main(args):
     pipe = Pipe_Server(pipe_name)
         
     # Enable test mode if requested.
-    global window_title
     if args['test']:
-        # TODO: make more robust, eg. work with cmd.
+        # TODO: make title more robust, eg. work with cmd.
+        global window_title
         window_title = 'python.exe'
         # Set up the reader in another thread.
         # Note: if doing this from a console window, pynput prevents ctrl-c

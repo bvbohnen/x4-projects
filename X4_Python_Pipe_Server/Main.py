@@ -51,9 +51,9 @@ x4 side should automatically reconnect.
 temp copy of test args:
 -t -x "C:\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_measure_perf\python\Measure_Perf.py"
 '''
-# Manually list the version for now, since packed exe won't have
-# access to the change_log.
-version = '1.4'
+# Note: version tag set by Make_Executable based on latest version
+# in the change_log. This line should always start "version =".
+version = '1.4.1'
 
 # Setup include path to this package.
 import sys
@@ -151,13 +151,13 @@ def Main():
         help =  'Path to a specific python module to run in test mode,'
                 ' relative to the x4-path.' )
     
-    #argparser.add_argument(
-    #    '-v', '--verbose',
-    #    action='store_true',
-    #    help =  'Print extra messages.' )
+    argparser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help =  'Print extra messages.' )
        
     args = argparser.parse_args(sys.argv[1:])
-
+    
     if args.permissions_path:
         global permissions_path
         permissions_path = Path.cwd() / (Path(args.permissions_path).resolve())
@@ -213,7 +213,7 @@ def Main():
         # TODO: maybe reuse Server_Thread somehow, though don't actually
         # want a separate thread for this.
         try:
-            pipe = Pipe_Server(pipe_name)
+            pipe = Pipe_Server(pipe_name, verbose = args.verbose)
         
             # For python testing, kick off a client thread.
             if test_python_client:

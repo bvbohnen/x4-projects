@@ -44,6 +44,20 @@ def Remove_Dock_Glow():
         '   ...
         '   <parts>
         '     <part name="fx_glow">
+        '       <lods>
+        '         <lod index="0">
+        '           <materials>
+        '             <material id="1" ref="p1effects.p1_lightcone_soft"/>
+        '           </materials>
+        '         </lod>
+        '       </lods>
+        '       <size>
+        '         <max x="719.8841" y="717.2308" z="662.7744"/>
+        '         <center x="-3.051758E-05" y="349.1792" z="13.29515"/>
+        '       </size>
+        '     </part>
+        '   </parts>
+        '   ...
 
     In testing:
         Glow is the giant blue ball effect.
@@ -52,6 +66,10 @@ def Remove_Dock_Glow():
 
     Note: terran stations use "dockarea_ter_m...", but do not have glow
     effect, so can ignore them here.
+
+    TODO: look instead for p1effects.p1_lightcone_soft, which shows up in some
+    other places. Notably, some landmarks and piers. Maybe check the size
+    being above some threshold.
     '''
     # Find every "dockarea" file.
     dock_files = Load_Files('*dockarea_arg_m_station*.xml')
