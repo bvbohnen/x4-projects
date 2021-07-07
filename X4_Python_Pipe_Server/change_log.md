@@ -24,3 +24,5 @@ Change Log
   - Added configparser module to exe.
 * 1.4.1
   - Added "-v" ("--verbose") command line arg, which will print pipe access permission messages.
+* 1.4.2
+  - Added fallback to default pipe permissions when failing to look up user account name.

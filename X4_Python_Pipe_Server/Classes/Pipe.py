@@ -173,23 +173,30 @@ class Pipe_Server(Pipe):
         # Note: for the person with perm problems, "Everyone" and 
         # "Administrators" lookups failed (1332 error), but the user lookup
         # worked, and  just setting read/write for the user was sufficient.
-        # TODO: a couple others have reported perm problems still; unknown reason.
         perms_set = False
         for account_name in [win32api.GetUserName()]:
+            # One user indicated the printed account name for them was blank,
+            # followed by perms not working. Warn in that case, and leave
+            # perms at default.
+            if not account_name.strip():
+                if self.verbose:
+                    print(f'Failed to retrieve account name with win32api.GetUserName')
+                continue
+
             try:
                 account_id, domain, type = win32security.LookupAccountName (None, account_name)
                 # Set read/write permission (execute doesn't make sense).
                 dacl.AddAccessAllowedAce(win32security.ACL_REVISION, 
-                                         con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE, 
-                                         account_id)
+                                            con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE, 
+                                            account_id)
                 perms_set = True
                 if self.verbose:
                     print(f'Setting pipe read/write permission for account "{account_name}"')
             except win32api.error as ex:
                 if self.verbose:
                     print(f'Failed to set pipe read/write permission for account '
-                          f'"{account_name}"; error code {ex.winerror} in '
-                          f'{ex.funcname} : {ex.strerror}')
+                            f'"{account_name}"; error code {ex.winerror} in '
+                            f'{ex.funcname} : {ex.strerror}')
                 continue
 
         if perms_set:
@@ -199,7 +206,7 @@ class Pipe_Server(Pipe):
             # Leave user/group/etc. at defaults (eg. unspecified).
         else:
             # If all perms failed, just clear this and use defaults.
-            sec_desc = None
+            sec_attr = None
 
         # Create the pipe in server mode.
         self.pipe_file = win32pipe.CreateNamedPipe(

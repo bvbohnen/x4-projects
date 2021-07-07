@@ -53,7 +53,7 @@ temp copy of test args:
 '''
 # Note: version tag set by Make_Executable based on latest version
 # in the change_log. This line should always start "version =".
-version = '1.4.1'
+version = '1.4.2'
 
 # Setup include path to this package.
 import sys
