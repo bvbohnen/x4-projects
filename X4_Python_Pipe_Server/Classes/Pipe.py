@@ -178,6 +178,8 @@ class Pipe_Server(Pipe):
             # One user indicated the printed account name for them was blank,
             # followed by perms not working. Warn in that case, and leave
             # perms at default.
+            # TODO: this didn't fix the problem; would need more input from
+            # the user to figure out exactly what is going on.
             if not account_name.strip():
                 if self.verbose:
                     print(f'Failed to retrieve account name with win32api.GetUserName')

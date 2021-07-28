@@ -146,6 +146,7 @@ local E = {}
 -- Table of local functions and data.
 local L = {
     debug = false,
+
     -- Flag, if true then alarms are being checked every cycle.
     checking_alarms = false,
 
@@ -433,6 +434,10 @@ function L.Poll_For_Alarm()
 
                 -- Note this id for list removal.
                 table.insert(ids_to_remove, id)
+                
+                if L.debug then
+                    DebugError("Time Alarm triggered: "..tostring(id))
+                end
             else
                 -- Otherwise count down the frames.
                 alarm_data[2] = alarm_data[2] - 1

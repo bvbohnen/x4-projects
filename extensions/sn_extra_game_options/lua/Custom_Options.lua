@@ -665,6 +665,11 @@ end
     Note: importMenuParameters is called by onShowMenu just prior to
     restoring prior state, so hopefully this doesn't interfere with
     restoring a minimized menu that focuses on something else.
+
+    TODO: noticed in 4.10b5: map tries to open on last focused object, and
+    this code no longer works. Map behavior janky, eg getting insistent on
+    a particular object and not wanting to change defaults, so ignore
+    initially.
 ]]
 L.mapfocus = {
     onplayer = true,
@@ -801,6 +806,9 @@ end
                 
         menu.onUpdate()
             If menu.mapstate found, sends to C.SetMapState.
+            
+    TODO: noticed in 4.10b5: map always opens with prior zoom level, and
+    this does nothing. Maybe remove.
 ]]
 L.mapzoom = {
     distance = 0,

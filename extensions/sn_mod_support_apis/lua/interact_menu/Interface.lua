@@ -16,7 +16,7 @@ menu.onShowMenu()
 - Calls menu.display()
 
 menu.display()
-- Records mouse position (not use anywhere?)
+- Records mouse position (not used anywhere?)
 - Calls menu.prepareActions() 
 - Calls menu.draw()
 - Can potentially intercept and delay this one frame to get md responses.
@@ -26,7 +26,8 @@ menu.display()
 
 menu.draw()
 - Sets up widget stuff.
-- Records menu.mouseOutBox.
+- Records menu.mouseOutBox, used in update function to close the menu if the
+  mouse is outside the box.
 
 menu.onUpdate()
 - Checks menu.mouseOutBox.
@@ -46,6 +47,7 @@ menu.prepareActions()
 - Makes many conditional calls to insertInteractionContent() 
     to register the actions.
 - Can be followed with adding new actions.
+- Returns "anydisplayed", true if there are any menu entries.
             
         
 insertInteractionContent(section, entry)
@@ -354,21 +356,38 @@ function L.Init_Patch_Menu()
             ego_draw(...)
         end
     end
+
+    -- Delay the update function, since it wants to check if the mouse is over
+    -- the menu, but the menu box isn't known yet (not until draw() finishes).
+    local ego_onUpdate = menu.onUpdate
+    menu.onUpdate = function(...)
+        if not L.delaying_menu then
+            ego_onUpdate(...)
+        end
+    end
     
     -- Patch prepareActions to slot in the custom function afterward.
     local ego_prepareActions = menu.prepareActions
     menu.prepareActions = function (...)
         if not L.delaying_menu then
             -- Run the standard setup first.
-            ego_prepareActions(...)
+            -- Return arg added in 4.10b5 (will be nil on pre-beta branch).
+            local hasanydisplayed = ego_prepareActions(...)
 
             -- Safety call to add in the new actions.
             if not L.settings.disabled then
-                local success, error = pcall(L.Add_Actions, ...)
+                local success, has_added_actions_or_error = pcall(L.Add_Actions, ...)
                 if not success then
-                    DebugError("Interact API prepareActions error: "..tostring(error))
+                    DebugError("Interact API prepareActions error: "..tostring(has_added_actions_or_error))
+                elseif has_added_actions_or_error then
+                    hasanydisplayed = true
                 end
             end
+            return hasanydisplayed
+        else
+            -- Act as if the menu will have something to display, so it
+            -- doesn't get closed early (checked in the display() func).
+            return true
         end
     end
     
@@ -412,7 +431,7 @@ function L.Delayed_Draw()
 
     -- Run the suppressed functions.
     menu.prepareActions()
-    menu.draw()    
+    menu.draw()
 end
 
 -- Function called when a menu is first opened.
@@ -512,6 +531,10 @@ function L.Add_Actions()
 
     local convertedComponent = ConvertStringTo64Bit(tostring(menu.componentSlot.component))
 
+    -- Flag set true if any actions are added, to be merged with the egosoft
+    -- hasanydisplayed flag.
+    local has_added_actions = false
+
     -- Update object flags.
     L.Update_Flags(menu.componentSlot.component)
 
@@ -542,8 +565,12 @@ function L.Add_Actions()
         local success, error = pcall(L.Process_Action, action)
         if not success then
             DebugError("Interact API error in Process_Action: "..tostring(error))
+        else
+            has_added_actions = true
         end
     end
+
+    return has_added_actions
 end
 
 -- Process a single action. This should be pcalled for safety.

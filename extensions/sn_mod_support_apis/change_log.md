@@ -57,3 +57,5 @@ Change Log for overall api package.
   - Improved hotkey api support various keyboard layouts.
 * 1.86
   - Hotkey pipe server bugfix.
+* 1.87
+  - Update/fix to interact api for x4 4.10 beta 5.
