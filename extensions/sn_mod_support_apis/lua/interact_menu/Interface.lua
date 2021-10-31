@@ -334,6 +334,8 @@ function L.Init_Patch_Menu()
     -- Wrap onUpdate, so it can be suppressed. Note that Helper will link
     -- to this when the menu showMenuCallback kicks off, which is fine
     -- with this style of wrapping. (Temporary wraps wouldn't work so well.)
+    -- Note: onUpdate wants to check if the mouse is over the menu,
+    -- but the menu box isn't known while delayed (not until draw() finishes).
     -- Note: onUpdate will get called 1-2 times before the frame delay
     -- completes, due to event order alignment (and that onUpdate fires
     -- on the same frame the menu display() was called, needlessly).
@@ -357,15 +359,13 @@ function L.Init_Patch_Menu()
         end
     end
 
-    -- Delay the update function, since it wants to check if the mouse is over
-    -- the menu, but the menu box isn't known yet (not until draw() finishes).
-    local ego_onUpdate = menu.onUpdate
-    menu.onUpdate = function(...)
-        if not L.delaying_menu then
-            ego_onUpdate(...)
-        end
-    end
-    
+    -- Removed; temp printout used during some debugging.
+    --local ego_insertInteractionContent = menu.insertInteractionContent
+    --menu.insertInteractionContent = function(name, entry, ...)
+    --    DebugError("insertInteractionContent("..name..", "..tostring(entry.text)..")")
+    --    ego_insertInteractionContent(name, entry, ...)
+    --end
+
     -- Patch prepareActions to slot in the custom function afterward.
     local ego_prepareActions = menu.prepareActions
     menu.prepareActions = function (...)
@@ -430,6 +430,9 @@ function L.Delayed_Draw()
     L.delaying_menu = false
 
     -- Run the suppressed functions.
+    -- Note: if a C function fails, prepareActions will silently die and
+    -- not return, so draw() will not be called, and the onUpdate function
+    -- will throw errors due to missing mouse position data.
     menu.prepareActions()
     menu.draw()
 end
@@ -473,8 +476,9 @@ function L.Signal_MD_Get_Actions()
         -- Int 1-24 (or nil) greek letter index.
         subordinategroup = menu.subordinategroup,
         
-        -- Just pass mission ids through as-is; attempts to convert them
-        -- to something like parent cues didn't work out below.
+        -- Note: mission ids are cdata objects (ULL), which the AddUITriggeredEvent
+        -- function will error on ("Cannot convert table value '(null)' to ScriptValue").
+        -- Handle conversions further below.
         mission = menu.mission,
         missionoffer = menu.missionoffer,
         componentMissions = menu.componentMissions,
@@ -507,6 +511,45 @@ function L.Signal_MD_Get_Actions()
     -- unified term here.
     ret_table.texts.targetBaseOrShortName = menu.texts.targetBaseName or menu.texts.targetShortName
 
+    -- Convert cdata to something that AddUITriggeredEvent can handle.
+    -- For now, just use strings.
+    -- TODO: maybe cast to numbers, but lua doubles can lose precision
+    -- from 64-bit ints.
+    -- This will just check the top layer and one level of table nesting,
+    -- which should catch all missionid entries.
+    for field, value in pairs(ret_table) do
+        -- Nested table handling
+        if type(value) == "table" then
+            -- For safety, always make sure this ret_table value is a
+            -- different table from the one from the menu (to avoid
+            -- messing up menu data) if cdata is being replaced.
+            local convert = false
+            for subfield, subvalue in pairs(value) do
+                if type(subvalue) == "cdata" then
+                    convert = true
+                    break
+                end
+            end
+            if convert then
+                -- Copy elements to the new table, converting on the
+                -- cdata ones (probably all, but be safe).
+                local new_table = {}
+                ret_table[field] = new_table
+                for subfield, subvalue in pairs(value) do
+                    if type(subvalue) == "cdata" then
+                        new_table[subfield] = tostring(subvalue)
+                    else
+                        new_table[subfield] = subvalue
+                    end
+                end
+            end
+        else
+            if type(value) == "cdata" then
+                ret_table[field] = tostring(value)
+            end
+        end
+    end
+
     --Lib.Print_Table(ret_table, "interact_menu_params")
     --if ret_table.componentMissions ~= nil then
     --    Lib.Print_Table(ret_table.componentMissions, "componentMissions")
@@ -514,6 +557,7 @@ function L.Signal_MD_Get_Actions()
     --Lib.Print_Table(ret_table.texts, "texts")
 
     -- Package up menu into into a table, and signal to md.
+    -- Note: will give a (null) conversion error on cdata objects in ret_table.
     AddUITriggeredEvent("Interact_Menu_API", "onDisplay", ret_table)
 
     -- Clear any prior recorded temp actions.

@@ -585,56 +585,61 @@
       <actions>
         <!--The table will largely be used as-is.-->
         <set_value name="$menu_params" exact="event.param3"/>
+        <!--Error check for bad table (may be null due to conversion error).
+            In such cases, expect a AddUITriggeredEvent releated error in
+            the debug log, so don't print an error message here.-->
+        <do_if value="typeof $menu_params == datatype.table">
         
-        <!--Convert select lua object ids to their md components.-->
-        <do_for_each name="$field" in="['$object', '$offsetcomponent', '$construction']">
-          <do_if value="$menu_params.{$field}?">
-            <!--Convert 0 to null explicitly. (Component lookup will also 
-                return null, but with a log error)-->
-            <do_if value="$menu_params.{$field} == 0">
-              <set_value name="$menu_params.{$field}" exact="null"/>
+          <!--Convert select lua object ids to their md components.-->
+          <do_for_each name="$field" in="['$object', '$offsetcomponent', '$construction']">
+            <do_if value="$menu_params.{$field}?">
+              <!--Convert 0 to null explicitly. (Component lookup will also 
+                  return null, but with a log error)-->
+              <do_if value="$menu_params.{$field} == 0">
+                <set_value name="$menu_params.{$field}" exact="null"/>
+              </do_if>
+              <do_else>
+                <set_value name="$menu_params.{$field}" exact="component.{$menu_params.{$field}}"/>
+              </do_else>
             </do_if>
-            <do_else>
-              <set_value name="$menu_params.{$field}" exact="component.{$menu_params.{$field}}"/>
-            </do_else>
+          </do_for_each>
+        
+          <!--Loop over lists, if present.-->
+          <do_for_each name="$field" in="['$selectedplayerships', '$selectedplayerdeployables', '$selectedotherobjects']">
+            <do_if value="$menu_params.{$field}?">
+              <do_for_each name="$ship_id" in="$menu_params.{$field}">
+                <set_value name="$menu_params.{$field}.{loop.index}" exact="component.{$ship_id}"/>
+              </do_for_each>                         
+            </do_if>
+          </do_for_each>
+        
+          <!--Convert an offset position to an md Position.-->
+          <do_if value="$menu_params.$offset?">
+            <set_value name="$menu_params.$offset" exact="position.[
+                       $menu_params.$offset.$x,
+                       $menu_params.$offset.$y,
+                       $menu_params.$offset.$z,
+                       ]"/>
           </do_if>
-        </do_for_each>
         
-        <!--Loop over lists, if present.-->
-        <do_for_each name="$field" in="['$selectedplayerships', '$selectedplayerdeployables', '$selectedotherobjects']">
-          <do_if value="$menu_params.{$field}?">
-            <do_for_each name="$ship_id" in="$menu_params.{$field}">
-              <set_value name="$menu_params.{$field}.{loop.index}" exact="component.{$ship_id}"/>
-            </do_for_each>                         
+          <!--Convert 0/1 to bool true/false.-->
+          <do_for_each name="$field" in="['$isshipconsole', '$isdockedship', '$showPlayerInteractions', '$hasPlayerShipPilot']">
+            <set_value name="$menu_params.{$field}" exact="if $menu_params.{$field} == 1 then true else false"/>
+          </do_for_each>
+        
+          <!--TODO: what other conversions are needed?-->
+        
+          <!--Store this data to repeat later for a possible callback cue, so
+              the lua doesn't have to send it twice.-->
+          <set_value name="Globals.$menu_params" exact="$menu_params"/>
+        
+          <do_if value="Globals.$DebugChance">
+            <signal_cue_instantly cue="Debug_Print_Params"/>
           </do_if>
-        </do_for_each>
         
-        <!--Convert an offset position to an md Position.-->
-        <do_if value="$menu_params.$offset?">
-          <set_value name="$menu_params.$offset" exact="position.[
-                     $menu_params.$offset.$x,
-                     $menu_params.$offset.$y,
-                     $menu_params.$offset.$z,
-                     ]"/>
+          <!--Signal this locally to a dummy cue, that users can listen to.-->
+          <signal_cue_instantly cue="Get_Actions" param="$menu_params"/>
         </do_if>
-        
-        <!--Convert 0/1 to bool true/false.-->
-        <do_for_each name="$field" in="['$isshipconsole', '$isdockedship', '$showPlayerInteractions', '$hasPlayerShipPilot']">
-          <set_value name="$menu_params.{$field}" exact="if $menu_params.{$field} == 1 then true else false"/>
-        </do_for_each>
-        
-        <!--TODO: what other conversions are needed?-->
-        
-        <!--Store this data to repeat later for a possible callback cue, so
-            the lua doesn't have to send it twice.-->
-        <set_value name="Globals.$menu_params" exact="$menu_params"/>
-        
-        <do_if value="Globals.$DebugChance">
-          <signal_cue_instantly cue="Debug_Print_Params"/>
-        </do_if>
-        
-        <!--Signal this locally to a dummy cue, that users can listen to.-->
-        <signal_cue_instantly cue="Get_Actions" param="$menu_params"/>
       </actions>
     </cue>
 
@@ -790,15 +795,13 @@
         shipyard and $construction is the ship.
       - May be unspecified.
     * $mission
-      - ID of an active mission.
+      - ID of an active mission, as a cdata string representation.
       - May be unspecified.
     * $missionoffer
-      - ID of a mission offer.
+      - ID of a mission offer, as a cdata string representation.
       - May be unspecified.
     * $componentMissions
-      - Potentially a list of mission ids (untested).
-      - Not verified in game as ever being populated, though the table will
-        exist when opening a menu for a station from the map.
+      - Potentially a list of mission ids (untested), as cdata strings.
       - May be unspecified.
     * $offsetcomponent
       - Reference object for a position targeted, often a sector.

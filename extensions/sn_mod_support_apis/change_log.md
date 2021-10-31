@@ -59,3 +59,5 @@ Change Log for overall api package.
   - Hotkey pipe server bugfix.
 * 1.87
   - Update/fix to interact api for x4 4.10 beta 5.
+* 1.88
+  - Fix in interact api for missionid cdata values failing to convert to md, which will now be passed as strings.

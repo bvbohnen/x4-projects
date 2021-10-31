@@ -269,14 +269,13 @@ The possible params are as follows. Not all of these will exist for every target
   - This occurs in the map view, looking at a shipyard, right clicking on a ship under construction, in which case the $object is the shipyard and $construction is the ship.
   - May be unspecified.
 * $mission
-  - ID of an active mission.
+  - ID of an active mission, as a cdata string representation.
   - May be unspecified.
 * $missionoffer
-  - ID of a mission offer.
+  - ID of a mission offer, as a cdata string representation.
   - May be unspecified.
 * $componentMissions
-  - Potentially a list of mission ids (untested).
-  - Not verified in game as ever being populated, though the table will exist when opening a menu for a station from the map.
+  - Potentially a list of mission ids (untested), as cdata strings.
   - May be unspecified.
 * $offsetcomponent
   - Reference object for a position targeted, often a sector.

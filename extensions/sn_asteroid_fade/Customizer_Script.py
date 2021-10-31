@@ -826,6 +826,10 @@ def Patch_Shader_Files(shader_names, testmode = False):
             haziness just make it look bad (and cannot be hidden since
             asteroids wouldnt go fully transparent).
             Giving up on this path for now to go back to dithering.
+
+            Note: 4.10b7 adds an alpha term to asteroid.f, with the return
+            switching from GENERAL_OUTPUT(...) to GENERAL_OUTPUTA(alpha, ...).
+            In testing, this doesn't appear to be helpful.
             '''
             # Calculate the custom fade.
             # See notes above (on 3.3 version) for explanation.
@@ -953,6 +957,14 @@ def Patch_Shader_Files(shader_names, testmode = False):
                 '''
             ref_line = '}'
             new_text = (new_code + ref_line).join(new_text.rsplit(ref_line, 1))
+
+            # Test out modifying the GENERAL_OUTPUTA line, added in 4.1.
+            # Result: no effect when ast_fade locked to 0.5, asteroids were
+            # still fully visible (or fading in with ego janky logic).
+            #new_text = new_text.replace(
+            #    'GENERAL_OUTPUTA(ColorBaseDiffuse.a * F_alphascale',
+            #    'GENERAL_OUTPUTA(ColorBaseDiffuse.a * F_alphascale * ast_fade'
+            #    )
 
             # In test mode, shortcut the ast_fade to the asteroid color.
             # Close asteroids will be white, far away black (ideally).
