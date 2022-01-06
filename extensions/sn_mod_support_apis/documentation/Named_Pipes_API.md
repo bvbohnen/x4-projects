@@ -61,7 +61,7 @@ Note on timeouts:
   Usage example:
   ```xml
     <signal_cue_instantly 
-      name="md.Named_Pipes.Write" 
+      cue="md.Named_Pipes.Write" 
       param="table[
         $pipe='mypipe', 
         $msg='hello', 
@@ -76,7 +76,7 @@ Note on timeouts:
   Usage example:
   ```xml
     <signal_cue_instantly 
-      name="md.Named_Pipes.Write_Special" 
+      cue="md.Named_Pipes.Write_Special" 
       param="table[
         $pipe='mypipe', 
         $msg='package.path', 
@@ -113,7 +113,7 @@ Note on timeouts:
   Usage example, initial read:
   ```xml
     <signal_cue_instantly 
-      name="md.Named_Pipes.Read" 
+      cue="md.Named_Pipes.Read" 
       param="table[
         $pipe = 'mypipe', 
         $cue = Read_Callback, 
@@ -153,7 +153,7 @@ Note on timeouts:
   Usage example:
   ```xml
     <signal_cue_instantly 
-      name="md.Named_Pipes.Cancel_Reads" 
+      cue="md.Named_Pipes.Cancel_Reads" 
       param="'mypipe'">
   ```
     
@@ -176,7 +176,7 @@ Note on timeouts:
   Usage example:
   ```xml
     <signal_cue_instantly 
-      name="md.Named_Pipes.Write" 
+      cue="md.Named_Pipes.Write" 
       param="table[
         $pipe='mypipe', 
         $msg='hello', 
@@ -193,7 +193,7 @@ Note on timeouts:
   Usage example:
   ```xml
     <signal_cue_instantly 
-      name="md.Named_Pipes.Close" 
+      cue="md.Named_Pipes.Close" 
       param="'mypipe'">
   ```
     

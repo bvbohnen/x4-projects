@@ -135,9 +135,11 @@ release_specs = [
         steam = True,
         ),
     
+    # Note: forgot to set this as public on steam, and another user made
+    # the same mod (with same change), so leave this off steam.
     Release_Spec(
         root_path = project_dir / 'extensions/sn_remove_highway_blobs',
-        steam = True,
+        steam = False, #True,
         ),
     
     Release_Spec(

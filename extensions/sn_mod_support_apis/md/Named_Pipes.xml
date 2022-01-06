@@ -253,7 +253,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Write" 
+        cue="md.Named_Pipes.Write" 
         param="table[
           $pipe='mypipe', 
           $msg='hello', 
@@ -282,7 +282,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Write_Special" 
+        cue="md.Named_Pipes.Write_Special" 
         param="table[
           $pipe='mypipe', 
           $msg='package.path', 
@@ -338,7 +338,7 @@ TODO:
     Usage example, initial read:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Read" 
+        cue="md.Named_Pipes.Read" 
         param="table[
           $pipe = 'mypipe', 
           $cue = Read_Callback, 
@@ -390,7 +390,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Cancel_Reads" 
+        cue="md.Named_Pipes.Cancel_Reads" 
         param="'mypipe'">
     ```
   -->
@@ -431,7 +431,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Write" 
+        cue="md.Named_Pipes.Write" 
         param="table[
           $pipe='mypipe', 
           $msg='hello', 
@@ -462,7 +462,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Close" 
+        cue="md.Named_Pipes.Close" 
         param="'mypipe'">
     ```
   -->
@@ -491,7 +491,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Suppress_Paused_Reads" 
+        cue="md.Named_Pipes.Suppress_Paused_Reads" 
         param="'mypipe'">
     ```
   -->
@@ -517,7 +517,7 @@ TODO:
     Usage example:
     ```xml
       <signal_cue_instantly 
-        name="md.Named_Pipes.Suppress_Paused_Reads" 
+        cue="md.Named_Pipes.Suppress_Paused_Reads" 
         param="'mypipe'">
     ```
   -->
