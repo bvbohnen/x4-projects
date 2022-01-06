@@ -51,7 +51,7 @@ Note on timeouts:
   * cue
     - Callback, optional, the cue to call when the write completes.
   * time
-    - Timeout, optional, the time until an unsent read is cancelled.
+    - Timeout, optional, the time until an unsent write is cancelled.
     - Currently not meaningful, as write stalling on a full pipe is not supported at the lua level.
         
   Returns:
@@ -176,12 +176,10 @@ Note on timeouts:
   Usage example:
   ```xml
     <signal_cue_instantly 
-      cue="md.Named_Pipes.Write" 
+      cue="md.Named_Pipes.Check" 
       param="table[
         $pipe='mypipe', 
-        $msg='hello', 
-        $cue=Write_Callback, 
-        $time=5s]">
+        $cue=Check_Callback]">
   ```
     
 * **Close**
