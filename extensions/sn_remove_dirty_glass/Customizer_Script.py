@@ -172,6 +172,16 @@ def Clean_Dirty_Glass():
     Note: removing the outside glass texture means there is no
     apparent cockpit glass when viewed from outside. So try to leave
     the outside glass intact.
+
+    Update: 5.0 beta changed cockpit_glass_inside_01, notably adding
+    diffuse_detail and normal_detail to the diffuse/normal/smooth maps.
+    - Setting these all as transparent_diff now has the effect of making
+    the whole cockpit a hazy white.
+    - Setting just diffuse/normal/smooth transparent, and not details,
+    has the effect of the entire cockpit having the dirty effect
+    (as opposed to it being based on light sources and view angle).
+    - Setting the "...Str" values to 0 appears to work (these are new
+    in 5.0).
     '''
     
     if 1:
@@ -192,7 +202,11 @@ def Clean_Dirty_Glass():
 
         for mat_name in [
             'cockpit_glass_inside_01',
+
+            # 02 version only used on an argon bridge, and seems less
+            # developed.
             'cockpit_glass_inside_02',
+
             #'cockpit_glass_outside_01',
             #'cockpit_glass_outside_02',
             'p1_window_trim_01',
@@ -234,9 +248,24 @@ def Clean_Dirty_Glass():
             #    bitmap.getparent().remove(bitmap)
 
             # Change all bitmaps to use assets\textures\fx\transparent_diff
+            # As of 5.0 beta, this no longer works; makes the entire mat
+            # hazy white. (This remains true if the below color alpha
+            # change is also applied.)
+            # This is still needed to support pre-5.0 versions.
+            # TODO: remove once 5.0 released.
             for bitmap in mat_node.xpath("./properties/property[@type='BitMap']"):
                 bitmap.set('value', r'assets\textures\fx\transparent_diff')
 
+            # Try changing the Color alpha to clear instead of 255.
+            # -no effect
+            #for color in mat_node.xpath("./properties/property[@type='Color']"):
+            #    color.set('a', '0')
+
+            # Try changing the "...Str" values (strength?) to 0.
+            # Note: non-0 Str values are new in 5.0.
+            for color in mat_node.xpath("./properties/property[@type='Float']"):
+                if color.get('name').endswith('Str'):
+                    color.set('value', '0')
 
         material_file.Update_Root(xml_root)
 
