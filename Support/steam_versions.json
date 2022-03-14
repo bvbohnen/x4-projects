@@ -3,7 +3,7 @@
   "sn_remove_dock_symbol": "1.2",
   "sn_station_kill_helper": "1.1",
   "sn_interact_collection": "1.1",
-  "sn_extra_game_options": "1.12",
+  "sn_extra_game_options": "1.13",
   "sn_better_target_monitor": "2.0",
   "sn_mod_support_apis": "1.88",
   "sn_remove_dock_glow": "1.2",
@@ -14,5 +14,5 @@
   "sn_start_with_seta": "1.1",
   "sn_debug_info": "1.1",
   "sn_reduce_fog": "1.0",
-  "sn_asteroid_fade": "1.4"
+  "sn_asteroid_fade": "1.5"
 }

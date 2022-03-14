@@ -14,3 +14,5 @@ Change Log
   - Reduced asteroid targeting range to 25km to prevent occasional pop-in due to zone culling.
 * 1.4
   - Update for X4 4.1.
+* 1.5
+  - Update for X4 5.0.

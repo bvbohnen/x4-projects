@@ -13,11 +13,11 @@
   <t id="2006">Adjust map opacity</t>
   <t id="2007">Sets the alpha value of the map menu; egosoft default is 98, set to 100 to remove transparency</t>
   <t id="2008">Open map on player</t>
-  <t id="2009">Forces the map to open focused on the player location always, instead of the current target location</t>
+  <t id="2009">Forces the property-owned map to open focused on the player location always, instead of the current target location</t>
   <t id="2010">Adjust Field of View</t>
   <t id="2011">Change the FoV scaling</t>
   <t id="2012">Default map cam distance</t>
-  <t id="2013">When the map is opened, forces the initial camera distance; 0 is no change (default behavior), 1 is full zoom in, 100 is full zoom out</t>
+  <t id="2013">When the property-owned map is opened, forces the initial camera distance; 0 is no change (default behavior), 1 is full zoom in, 100 is full zoom out</t>
   <t id="2014">Add mouseover on truncation</t>
   <t id="2015">For UI elements which end up truncating their text, this attempts to add a mouseover popup with the full text; may not work in all cases</t>
   <t id="2016">Mass Traffic Density</t>

@@ -33,3 +33,5 @@ Change Log
   - Restoring a minimized map no longer triggers map default zoom.
 * 1.12
   - Added option to autopause after loading a save.
+* 1.13
+  - Clarified that map default focus and zoom only apply when opening the property menu.
