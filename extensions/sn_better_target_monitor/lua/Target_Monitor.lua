@@ -5,7 +5,7 @@
     Specific details on what text is displayed are handled in targetmonitor.lua.
 
     The GetTargetMonitorDetails function handles selection of which text
-    to show on which rows. By wrappint it, text can be modified.
+    to show on which rows. By wrapping it, text can be modified.
 
     Note: the display only has room for 7 rows, so some things may need
     to be pruned or otherwise mucked with. There is a lot of vertical
@@ -1315,6 +1315,11 @@ function L.Patch_GetTargetMonitorDetails()
         -- Get the standard table data.
         local full_spec = ego_GetTargetMonitorDetails(component, templateConnectionName)
         
+        -- Quick exit when disabled or something went wrong.
+        if (not L.settings.enabled) or (full_spec == nil) then
+            return full_spec
+        end
+
         -- To look up speed in GetLiveData, might need to save some info
         -- from the GetTargetMonitorDetails call (unless there is another
         -- way to rebuild it).
@@ -1331,11 +1336,6 @@ function L.Patch_GetTargetMonitorDetails()
         L.targetdata.has_speed = false
         L.targetdata.distance_error = false
         
-        -- Quick exit when disabled or something went wrong.
-        if (not L.settings.enabled) or (full_spec == nil) then
-            return full_spec
-        end
-
         -- Hand off to helper functions based on object type.
         local orig = L.Categorize_Original_Rows(full_spec.text)    
         local new_rows = L.Get_New_Rows(L.targetdata, orig, L.specs.rows, L.specs.cols)
@@ -1388,7 +1388,7 @@ end
 function L.Patch_GetLiveData()
     -- Wrap the live keyword replacement function.
     local ego_GetLiveData = GetLiveData
-    GetLiveData = function(placeholder, component)
+    GetLiveData = function(placeholder, component, templateConnectionName)
 
         local targetdata = L.targetdata
 
@@ -1432,7 +1432,7 @@ function L.Patch_GetLiveData()
             end
         end
 
-        return ego_GetLiveData(placeholder, component)
+        return ego_GetLiveData(placeholder, component, templateConnectionName)
     end
 end
 

@@ -36,3 +36,5 @@ Change Log
   - Fixed content.xml text nodes.
 * 2.0
   - Japanese translation by Arkblade.
+* 2.1
+  - Update for x4 5.0.
