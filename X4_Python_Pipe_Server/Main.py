@@ -495,8 +495,9 @@ def Check_Permission(x4_path, module_path):
             raise Exception('Module is not in extensions')
 
         # The module_path should start with 'extensions', so find the
-        # second folder.
-        # (Note: pathlib is dump and doesn't allow negative indices on parents.)
+        # second folder. Use negative indexing to go backwards, eg.
+        # -1 is ".", -2 is "extensions", -3 is the extension folder.
+        # (Note: pathlib is dumb and doesn't allow negative indices on parents.)
         ext_dir = x4_path / [x for x in module_path.parents][-3]
 
         # Load the content.xml. Can do xml or raw text; text should

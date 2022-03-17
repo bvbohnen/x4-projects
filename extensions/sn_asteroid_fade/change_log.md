@@ -16,3 +16,5 @@ Change Log
   - Update for X4 4.1.
 * 1.5
   - Update for X4 5.0.
+* 1.5.1
+  - Bugfix for complex_surface shader compilation crash.

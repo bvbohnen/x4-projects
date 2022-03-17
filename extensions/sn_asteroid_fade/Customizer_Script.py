@@ -392,7 +392,7 @@ def Patch_Shader_Files(shader_names, testmode = False):
     '''
     The asteroid shader, and ogl file linking to v/vh/etc., doesn't normally
     support camera fade. However, fading rules are in the common.v file,
-    and fade parameters can be added to the shaer ogl.
+    and fade parameters can be added to the ogl.
     Note: ogl is xml format.
 
     Note:
@@ -406,8 +406,8 @@ def Patch_Shader_Files(shader_names, testmode = False):
     Note: some ogl files are empty; skip them (will have load_error flagged).
     
     Note: in testing, other users of these shaders tend to error,
-    apparently tracing back to the V_cameraposition or IO_world_pos
-    values (at a guess), which even when not executed still cause a problem.
+    apparently tracing back to a missing IO_world_pos value (at a guess), 
+    which even when not executed still cause a problem.
 
         It is possible the other ogl spec files do not have corresponding
         defines for the above values to be present.
@@ -419,6 +419,14 @@ def Patch_Shader_Files(shader_names, testmode = False):
             these variables are available.
         - Modify the common header to ensure this vars are available.
         - Regenerate these vars here (if possible).
+
+        Update: IO_VertexToEye is often a precomputed (in vertex shader)
+        distance from camera to object, 
+        eg. distance(V_cameraposition.xyz, IO_world_pos.xyz), though in
+        many cases it gets normalized.
+        Code below will compute from IO_world_pos if available, else will
+        fall back on IO_VertexToEye (so it can work if unnormalized),
+        which should hopefully handle most or all situations.
     '''
     # From ogl files, get their fragment shader names.
     shader_f_names = []
@@ -640,8 +648,21 @@ def Patch_Shader_Files(shader_names, testmode = False):
             # avoid stepping on existing fade variables (eg. IO_fade).
             # Note: ast_fade is live through the function in testmode, so give
             # it a name likely to be unique.
+            # Update: IO_VertexToEye should be more commonly available in
+            # shaders, a precomputed distance value, and helps in cases
+            # where IO_world_pos not available; but in the case of asteroids,
+            # IO_VertexToEye is normalized, so want to freshly compute dist.
+            if 'IO_world_pos' in new_text:
+                precalc = '''
+                float ast_cameradistance = distance(V_cameraposition.xyz, IO_world_pos.xyz);
+                vec3 dir = V_cameraposition.xyz - IO_world_pos.xyz;'''
+            else:
+                precalc = '''
+                float ast_cameradistance = length(IO_VertexToEye);
+                vec3 dir = IO_VertexToEye.xyz;'''
+
             new_code = f'''
-                float ast_cameradistance = abs(distance(V_cameraposition.xyz, IO_world_pos.xyz));
+                {precalc}
                 float ast_faderange = U_ast_camera_fade_range_stop - U_ast_camera_fade_range_start;
                 float ast_fade = 1.0 - clamp(abs(ast_cameradistance) - U_ast_camera_fade_range_start, 0.0, ast_faderange) / ast_faderange;
                 ast_fade = round(ast_fade * {num_bins:.1f}) / {num_bins:.1f};
@@ -707,7 +728,6 @@ def Patch_Shader_Files(shader_names, testmode = False):
                     new_code += f'''
                     if (ast_fade < 0.999){{
                         float roundto = {round_y_ratio} / V_viewportpixelsize.y;
-                        vec3 dir = V_cameraposition.xyz - IO_world_pos.xyz;
                         // Note: atan is -pi to pi.
                         vec2 angles = vec2(
                             atan(dir.x, dir.z), 
