@@ -21,6 +21,19 @@ Settings(
     # Generate the extension here.
     path_to_output_folder = this_dir.parent,
     extension_name = this_dir.name,
+    # Note: with the way x4 loads extensions, the material library
+    # p1_effects collection can occur multiple times (base, split dlc,
+    # maybe other dlc), and the extensions will end up with their nodes
+    # ordered first, such that an attempt to modify the base p1_effects
+    # will use an xpath index that depends on extensions loaded.
+    # This can break for users without the same dlcs as when the xpath was
+    # constructed.
+    # For better compatability, guide the xpath generator to include a
+    # child node check for picking with p1_effects node to include, so
+    # it doesn't use an index.
+    #forced_xpath_attributes = "material/@name='p1_window_trim_01'",
+    # Alternativly, use // syntax to shorten xpaths.
+    shorten_xpaths = True,
     )
 
 
@@ -210,9 +223,8 @@ def Clean_Dirty_Glass():
             #'cockpit_glass_outside_01',
             #'cockpit_glass_outside_02',
             'p1_window_trim_01',
-            # TODO: other trims?
-            #'p1_window_trim_02', - exists, unclear which ships use it.
-            # p1_window_trim_03  - Added in 3.10hf1b1, no mat entry yet?
+            'p1_window_trim_02', # Only used in a couple l/xl bridges.
+            # p1_window_trim_03  - diffuse map added in 3.10hf1b1, no mat entry yet.
             ]:
             mat_node = xml_root.xpath(".//material[@name='{}']".format(mat_name))
             assert len(mat_node) == 1

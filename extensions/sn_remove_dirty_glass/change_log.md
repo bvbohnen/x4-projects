@@ -11,3 +11,5 @@ Change Log
   - Update for CoH.
 * 1.4
   - Update for 5.0 beta.
+* 1.5
+  - Improved compatability with various dlc combinations.
