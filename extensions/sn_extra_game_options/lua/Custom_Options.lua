@@ -1140,6 +1140,9 @@ ffi.C = setmetatable({}, {
     The above has similar TruncateText logic to Helper.createButton, but
     unfortunately widgetHelpers is local.
 
+    TODO: 5.10 in widget_fullsceen make changes to updateFontString 
+    related to adding mouseover text on truncation; this mod may no
+    longer be needed (pending testing).
 ]]
 L.auto_mouseover = {
     enabled = false,

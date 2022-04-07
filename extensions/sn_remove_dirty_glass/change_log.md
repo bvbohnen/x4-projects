@@ -12,4 +12,4 @@ Change Log
 * 1.4
   - Update for 5.0 beta.
 * 1.5
-  - Improved compatability with various dlc combinations.
+  - Improved compatibility with various dlc combinations.
