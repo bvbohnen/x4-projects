@@ -15,7 +15,7 @@
   its copy, which ultimately gets saved back to uidata.xml.
   
   Note: X4 is somewhat aggressive in deleting userdata that it thinks
-  is unused, which has occurred more than one during development of
+  is unused, which has occurred more than once during development of
   this api.
   
   As a safety, the copy of userdata in the player blackboard var will be
