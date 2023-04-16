@@ -26,12 +26,12 @@
         <set_value exact="{68537, 2007}" name="Text.$map_menu_alpha_mouseover" />
         <set_value exact="{68537, 2008}" name="Text.$map_menu_player_focus_name" />
         <set_value exact="{68537, 2009}" name="Text.$map_menu_player_focus_mouseover" />
-        <set_value exact="{68537, 2010}" name="Text.$adjust_fov_name" />
-        <set_value exact="{68537, 2011}" name="Text.$adjust_fov_mouseover" />
+        <!--<set_value exact="{68537, 2010}" name="Text.$adjust_fov_name" />
+        <set_value exact="{68537, 2011}" name="Text.$adjust_fov_mouseover" />-->
         <set_value exact="{68537, 2012}" name="Text.$map_menu_zoom_name" />
         <set_value exact="{68537, 2013}" name="Text.$map_menu_zoom_mouseover" />
-        <set_value exact="{68537, 2014}" name="Text.$tooltip_on_truncation_name" />
-        <set_value exact="{68537, 2015}" name="Text.$tooltip_on_truncation_mouseover" />
+        <!--<set_value exact="{68537, 2014}" name="Text.$tooltip_on_truncation_name" />
+        <set_value exact="{68537, 2015}" name="Text.$tooltip_on_truncation_mouseover" />-->
         <set_value exact="{68537, 2016}" name="Text.$traffic_density_name" />
         <set_value exact="{68537, 2017}" name="Text.$traffic_density_mouseover" />
         <set_value exact="{68537, 2018}" name="Text.$autopause_on_load_name" />
@@ -42,7 +42,7 @@
     <!--Static cue for saving globals.-->
     <cue name="Globals">
       <actions>
-        <set_value name="$load_trigger" value="false"/>
+        <set_value name="$load_trigger" exact="false"/>
       </actions>
     </cue>
 
@@ -152,7 +152,8 @@
             ]"/>
 
         <!--Unobtrusive, so default to on.-->
-        <signal_cue_instantly
+        <!--Note: removing tooltips, since redundant with 5.10-->
+        <!--<signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"
           param = "table[
             $id         = 'tooltip_on_truncation',
@@ -161,7 +162,7 @@
             $default    = 1,
             $type       = 'button',
             $callback   = OnChange,
-            ]"/>
+            ]"/>-->
 
         <signal_cue_instantly
           cue="md.Simple_Menu_Options.Register_Option"

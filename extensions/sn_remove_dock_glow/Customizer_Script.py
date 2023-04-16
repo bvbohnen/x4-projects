@@ -71,8 +71,8 @@ def Remove_Dock_Glow():
     other places. Notably, some landmarks and piers. Maybe check the size
     being above some threshold.
     '''
-    # Find every "dockarea" file.
-    dock_files = Load_Files('*dockarea_arg_m_station*.xml')
+    # Find every "dockarea" file (expecting arg and bor versions).
+    dock_files = Load_Files('*dockarea_*_m_station*.xml')
 
     for game_file in dock_files:
         xml_root = game_file.Get_Root()

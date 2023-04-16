@@ -11,3 +11,5 @@ Change Log
   - Added some safety against game version changes.
 * 1.4
   - Update for CoH.
+* 1.5
+  - Update for ToA.

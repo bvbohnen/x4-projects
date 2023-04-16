@@ -20,3 +20,5 @@ Change Log
   - Bugfix for complex_surface shader compilation crash.
 * 1.6
   - Update for X4 5.1.
+* 1.7
+  - Update for X4 6.0.

@@ -13,7 +13,7 @@
   <t id="4003">Eject any player inventory or piloted ship cargo that is illegal in the player zone</t>
 
   <t id="4004">Toggle SETA</t>
-  <t id="4005">Toggles SETA mode; unlike the normal hotkey, this works while docked</t>
+  <t id="4005">Toggles SETA mode; works while docked</t>
 
   <t id="4006">Zoom In</t>
   <t id="4007">Zoom in the current view while the key is held.</t>

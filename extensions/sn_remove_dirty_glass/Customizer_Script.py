@@ -264,9 +264,9 @@ def Clean_Dirty_Glass():
             # hazy white. (This remains true if the below color alpha
             # change is also applied.)
             # This is still needed to support pre-5.0 versions.
-            # TODO: remove once 5.0 released.
-            for bitmap in mat_node.xpath("./properties/property[@type='BitMap']"):
-                bitmap.set('value', r'assets\textures\fx\transparent_diff')
+            # -Removed
+            #for bitmap in mat_node.xpath("./properties/property[@type='BitMap']"):
+            #    bitmap.set('value', r'assets\textures\fx\transparent_diff')
 
             # Try changing the Color alpha to clear instead of 255.
             # -no effect

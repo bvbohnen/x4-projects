@@ -109,7 +109,7 @@ function L.Init()
     RegisterEvent("Simple_Menu_Options.map_menu_zoom"         , L.Handle_Map_Zoom_Distance)
     RegisterEvent("Simple_Menu_Options.adjust_fov"            , L.Handle_FOV)
     RegisterEvent("Simple_Menu_Options.disable_helptext"      , L.Handle_Hide_Helptext)
-    RegisterEvent("Simple_Menu_Options.tooltip_on_truncation" , L.Handle_Tooltip_On_Truncation)
+    --RegisterEvent("Simple_Menu_Options.tooltip_on_truncation" , L.Handle_Tooltip_On_Truncation)
     RegisterEvent("Simple_Menu_Options.traffic_density"       , L.Handle_Set_Traffic_Density)
 
     RegisterEvent("Simple_Menu_Options.Pause_Game"            , L.Handle_Pause_Game)
@@ -1109,7 +1109,7 @@ ffi.C = setmetatable({}, {
 
 
 ------------------------------------------------------------------------------
--- Testing auto-generation of mouseover text.
+-- Auto-generation of mouseover text.
 --[[
     Many of the text boxes utilize a call to CreateFontString, some
     global function that takes various text properties, including the
@@ -1140,10 +1140,12 @@ ffi.C = setmetatable({}, {
     The above has similar TruncateText logic to Helper.createButton, but
     unfortunately widgetHelpers is local.
 
-    TODO: 5.10 in widget_fullsceen make changes to updateFontString 
-    related to adding mouseover text on truncation; this mod may no
-    longer be needed (pending testing).
+    Update: 5.10 in widget_fullsceen make changes to updateFontString 
+    related to adding mouseover text on truncation (using similar logic
+    to compare pre- and post-truncation string lengths), so disabling
+    this option. Otherwise, end up with duplicated tooltips.
 ]]
+--[[
 L.auto_mouseover = {
     enabled = false,
 }
@@ -1264,7 +1266,7 @@ function L.Handle_Tooltip_On_Truncation(_, param)
     -- Store it.
     L.auto_mouseover.enabled  = param
 end
-
+]]
 ------------------------------------------------------------------------------
 --[[
     Automatically pause the game upon loading.

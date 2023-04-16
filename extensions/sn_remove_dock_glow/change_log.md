@@ -7,3 +7,5 @@ Change Log
   - Fixed content.xml text nodes.
 * 1.2
   - Added some safety against game version changes.
+* 1.3
+  - Added support for boron docks.
