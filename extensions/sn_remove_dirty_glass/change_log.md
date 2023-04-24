@@ -15,3 +15,5 @@ Change Log
   - Improved compatibility with various dlc combinations.
 * 1.6
   - Removed pre-5.0 legacy support due to possible 6.0 conflicts.
+* 1.7
+  - Added support for boron ships.

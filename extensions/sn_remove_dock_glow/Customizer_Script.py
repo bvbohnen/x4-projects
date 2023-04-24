@@ -72,9 +72,14 @@ def Remove_Dock_Glow():
     being above some threshold.
     '''
     # Find every "dockarea" file (expecting arg and bor versions).
-    dock_files = Load_Files('*dockarea_*_m_station*.xml')
+    dock_files = Load_Files('*dockarea*.xml')
 
     for game_file in dock_files:
+        # Ignore if there was a loading error (occurs from an empty xml
+        # 'dockarea_gen_xl_venturer_01_macro.xml').
+        if game_file.load_error:
+            continue
+
         xml_root = game_file.Get_Root()
 
         results = xml_root.xpath(".//connection[parts/part/@name='fx_glow']")

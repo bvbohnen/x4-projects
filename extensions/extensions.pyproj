@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>f6c389ca-f38e-4609-9962-215729e29106</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>sn_sector_travel_rebalance\Customizer_Script.py</StartupFile>
+    <StartupFile>sn_remove_dock_glow\Customizer_Script.py</StartupFile>
     <SearchPath>..\..\X4_Customizer</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>

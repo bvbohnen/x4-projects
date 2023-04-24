@@ -2,6 +2,7 @@
 import sys
 from copy import deepcopy
 from lxml import etree
+from lxml.etree import Element
 from pathlib import Path
 this_dir = Path(__file__).resolve().parent
 
@@ -214,18 +215,24 @@ def Clean_Dirty_Glass():
         #    ]
 
         for mat_name in [
-            'cockpit_glass_inside_01',
+                'cockpit_glass_inside_01',
 
-            # 02 version only used on an argon bridge, and seems less
-            # developed.
-            'cockpit_glass_inside_02',
+                # 02 version only used on an argon bridge, and seems less
+                # developed.
+                'cockpit_glass_inside_02',
 
-            #'cockpit_glass_outside_01',
-            #'cockpit_glass_outside_02',
-            'p1_window_trim_01',
-            'p1_window_trim_02', # Only used in a couple l/xl bridges.
-            # p1_window_trim_03  - diffuse map added in 3.10hf1b1, no mat entry yet.
+                #'cockpit_glass_outside_01',
+                #'cockpit_glass_outside_02',
+                'p1_window_trim_01',
+                'p1_window_trim_02', # Only used in a couple l/xl bridges.
+                # p1_window_trim_03  - diffuse map added in 3.10hf1b1, no mat entry yet.
+
+                # Boron dlc adds new dirty glass textures.
+                'gen_p2_cockpitglassinside_01',
+                'fx_p2_windowtrim_01',
+                #'gen_p2_glassinterior_01',
             ]:
+
             mat_node = xml_root.xpath(".//material[@name='{}']".format(mat_name))
             assert len(mat_node) == 1
             mat_node = mat_node[0]
@@ -263,21 +270,76 @@ def Clean_Dirty_Glass():
             # As of 5.0 beta, this no longer works; makes the entire mat
             # hazy white. (This remains true if the below color alpha
             # change is also applied.)
-            # This is still needed to support pre-5.0 versions.
-            # -Removed
-            #for bitmap in mat_node.xpath("./properties/property[@type='BitMap']"):
-            #    bitmap.set('value', r'assets\textures\fx\transparent_diff')
+            # Update: for 6.0, this is needed to clean up the trim on
+            # the boron ships (which is otherwise unaffected by Str
+            # changes below for some unknown reason). Some reports exist
+            # of it breaking during 6.0b5, but couldn't be confirmed on
+            # 6.0 release. For now, just apply to boron trim.
+            if mat_name == 'fx_p2_windowtrim_01':
+                for bitmap in mat_node.xpath("./properties/property[@type='BitMap']"):
+                    bitmap.set('value', r'assets\textures\fx\transparent_diff')
 
             # Try changing the Color alpha to clear instead of 255.
             # -no effect
             #for color in mat_node.xpath("./properties/property[@type='Color']"):
             #    color.set('a', '0')
 
-            # Try changing the "...Str" values (strength?) to 0.
+            # Change the "...Str" values (strength?) to 0.
             # Note: non-0 Str values are new in 5.0.
             for color in mat_node.xpath("./properties/property[@type='Float']"):
                 if color.get('name').endswith('Str'):
                     color.set('value', '0')
+
+            # On reviewing the glass shader, there are some Str fields not
+            # present in the material library entries which can potentially
+            # bet set to 0.
+            # Look up all Str fields in the ogl file, and set them to 0 here.
+            # (Maybe unecessary.)
+            if 0:
+                shader_fields = {
+                    'p1_glass.fx':[
+                        'smoothStr',
+                        'metalStr',
+                        'diffuseStr',
+                        'diffuse_detailStr',
+                        'diffuse_paintStr',
+                        'normalStr',
+                        'normal_detailStr',
+                        'color_glowStr',
+                        'color_dirtStr',
+                        'environmentStr',
+                        'envi_lightStr', 
+                        ],
+                    'P1_complex_surface_translucent.fx':[
+                        'smoothStr',
+                        'metalStr',
+                        'diffuseStr',
+                        'diffuse_detailStr',
+                        'diffuse_paintStr',
+                        'normalStr',
+                        'normal_detailStr',
+                        'color_glowStr',
+                        'color_dirtStr',
+                        'environmentStr',
+                        'patternStr',
+                        'translucencyStr',
+                        ],
+                    }
+                for shader, fields in shader_fields.items():
+                    if mat_node.get('shader') != shader:
+                        continue
+                    properties_node = mat_node.xpath("./properties")[0]
+                    for field in fields:
+                        # Skip if node already present.
+                        if mat_node.xpath(f"./properties/property[@name='{field}']"):
+                            continue
+                        # Add the node, with suitable attributes.
+                        new_node = Element('property',
+                                    name = field,
+                                    type = 'Float',
+                                    value = '0')
+                        properties_node.append(new_node)
+
 
         material_file.Update_Root(xml_root)
 

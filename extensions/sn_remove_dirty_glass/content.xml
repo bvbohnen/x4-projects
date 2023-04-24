@@ -21,4 +21,6 @@
   <text description=" " language="82"/>
   <text description=" " language="86"/>
   <text description=" " language="88"/>
+
+  <dependency id="ego_dlc_boron" optional="true"></dependency>
 </content>

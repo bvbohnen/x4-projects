@@ -9,3 +9,5 @@ Change Log
   - Added some safety against game version changes.
 * 1.3
   - Added support for boron docks.
+* 1.4
+  - Supporting even more boron docks.
