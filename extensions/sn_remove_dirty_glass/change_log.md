@@ -17,3 +17,5 @@ Change Log
   - Removed pre-5.0 legacy support due to possible 6.0 conflicts.
 * 1.7
   - Added support for boron ships.
+* 1.8
+  - Cleaning up trim on non-boron ships.

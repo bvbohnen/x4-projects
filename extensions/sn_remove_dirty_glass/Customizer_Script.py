@@ -270,12 +270,13 @@ def Clean_Dirty_Glass():
             # As of 5.0 beta, this no longer works; makes the entire mat
             # hazy white. (This remains true if the below color alpha
             # change is also applied.)
-            # Update: for 6.0, this is needed to clean up the trim on
-            # the boron ships (which is otherwise unaffected by Str
+            # Update: for 6.0, this is needed to clean up the trim,
+            # especially on boron ships (which is otherwise unaffected by Str
             # changes below for some unknown reason). Some reports exist
-            # of it breaking during 6.0b5, but couldn't be confirmed on
-            # 6.0 release. For now, just apply to boron trim.
-            if mat_name == 'fx_p2_windowtrim_01':
+            # of it breaking during 6.0b5 when applied to all windows,
+            # but couldn't be confirmed on 6.0 release. For safety, apply
+            # this only to trim, which uses the translucent shader.
+            if mat_node.get('shader') == 'P1_complex_surface_translucent.fx':
                 for bitmap in mat_node.xpath("./properties/property[@type='BitMap']"):
                     bitmap.set('value', r'assets\textures\fx\transparent_diff')
 
