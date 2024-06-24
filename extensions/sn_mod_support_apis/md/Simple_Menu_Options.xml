@@ -429,7 +429,7 @@
                 $text = Globals.$options.{$category}.{1}.$orig_category,
                 $halign = 'center',                
                 $font = 'Helper.standardFontBold',
-                $titleColor = 'Helper.defaultSimpleBackgroundColor',  
+                $titleColor = 'Color.row_title',  
                 ]"/>
           
           <!-- Loop over the options list. -->

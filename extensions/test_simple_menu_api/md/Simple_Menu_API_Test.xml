@@ -89,10 +89,10 @@
           $col=1, 
           $text='Type', 
           $halign='center',
-          $color='Helper.color.white',
-          $boxColor='Helper.color.blue',
+          $color='Color.text_normal',
+          $boxColor='Color.boxtext_box_default',
           $mouseOverText='Type of widget being tested',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_BoxText"
@@ -100,10 +100,10 @@
           $col=2, 
           $text='Widget', 
           $halign='center',
-          $color='Helper.color.white',
-          $boxColor='Helper.color.blue',
+          $color='Color.text_normal',
+          $boxColor='Color.boxtext_box_default',
           $mouseOverText='Interractable widget',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
 
         <!-- Horizontal line, ego style: make empty text widget wide, thin, and lightly colored. -->
@@ -116,7 +116,7 @@
           $colSpan = 2,
           $height = 'Helper.borderSize',
           $fontsize = 1,
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
 
         <!-- Button, with text counter. -->
@@ -127,7 +127,7 @@
           $col = 1, 
           $text = 'Button test', 
           $mouseOverText = 'Mouseover test',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Button"
@@ -136,7 +136,7 @@
           $id = 'count_button',
           $text = table[
             $text   = '' + Globals.$vars.{'$button_presses'}, 
-            $color  = 'Helper.color.brightyellow',
+            $color  = 'Color.chatuser_5',
             $halign = 'center',
             ],
           $onClick = Handle_Menu_Action,
@@ -155,7 +155,7 @@
           param = "table[
           $col = 1, 
           $text = 'Statusbar test',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_StatusBar"
@@ -169,13 +169,13 @@
 
         <!-- CheckBox -->
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"
-                              param ="table[$bgColor='Helper.color.red']"/>
+                              param ="table[$bgColor='Color.text_failure']"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Text"
           param = "table[
           $col = 1, 
           $text = 'CheckBox test',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_CheckBox"
@@ -194,13 +194,13 @@
           param = "table[
           $col = 1, 
           $text = 'EditBox test', 
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_EditBox"
           param = "table[
           $col = 2, 
-          $text = table[ $text = 'edit me', $color = 'Helper.color.orange' ],
+          $text = table[ $text = 'edit me', $color = 'Color.text_warning' ],
           $defaultText = 'default',
           $onTextChanged = Handle_Menu_Action,
           ]"/>
@@ -212,7 +212,7 @@
           param = "table[
           $col=1, 
           $text='Slider test', 
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <!--Set dummy text to increase height of the cell.-->
         <signal_cue_instantly
@@ -237,7 +237,7 @@
           param = "table[
           $col = 1, 
           $text = 'Dropdown test', 
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Dropdown"
@@ -260,7 +260,7 @@
           param = "table[
           $col = 1, 
           $text = 'Icon test',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Icon"
@@ -277,7 +277,7 @@
           param = "table[
           $col = 1, 
           $text = 'Icon test 2',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Icon"
@@ -297,7 +297,7 @@
           $colSpan = 2,
           $text = 'Shield/Hull bar test', 
           $halign = 'center',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
         <!--Note: attempts to increase height have been unsuccessful,
@@ -321,7 +321,7 @@
           $colSpan = 2,
           $halign = 'center',
           $text = 'Test vars',
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.optionsmenu_cell_background',
           ]"/>
 
         <!-- Loop over the vars. -->
@@ -335,7 +335,7 @@
             param = "table[
             $col = 1, 
             $text = $key, 
-            $cellBGColor = 'Helper.color.transparent60',
+            $cellBGColor = 'Color.optionsmenu_cell_background',
             ]"/>
 
           <!-- Add args to the var_widgets table. -->
@@ -386,9 +386,6 @@
             $onColChanged     = Handle_Menu_Event,
             $onSelectElement  = Handle_Menu_Event,
             $frame    = table[
-              $backgroundID               = 'enc_cluster01',
-              $backgroundColor            = 'Helper.color.semitransparent',
-              $overlayID                  = '',
               $standardButtons            = table[$close=true, $back=true, $minimize=true],
               $showBrackets               = true,
               $closeOnUnhandledClick      = true,
@@ -397,6 +394,8 @@
               $enableDefaultInteractions  = true,
               ],
             $table    = table[
+              $backgroundID               = 'enc_cluster01',
+              $backgroundColor            = 'Color.frame_background_semitransparent',
               $borderEnabled            = true,
               $wraparound               = true,
               $highlightMode            = 'on',
@@ -458,7 +457,7 @@
             $onSelectElement  = Handle_Menu_Event,
             $table    = table[
               $backgroundID             = 'enc_cluster01',
-              $backgroundColor          = 'Helper.color.white',
+              $backgroundColor          = 'Color.text_normal',
               $borderEnabled            = true,
               $wraparound               = true,
               $highlightMode            = 'column',
@@ -495,7 +494,7 @@
           param = "table[
           $col = 1, 
           $text = 'Refresh test', 
-          $cellBGColor = 'Helper.color.transparent60',
+          $cellBGColor = 'Color.frame_background_semitransparent',
           ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Button"
@@ -504,7 +503,7 @@
           $id = 'refresh_button',
           $text = table[
             $text   = '' + Globals.$vars.{'$refresh_presses'}, 
-            $color  = 'Helper.color.brightyellow',
+            $color  = 'Color.chatuser_5',
             $halign = 'center',
             ],
           $onClick = Handle_Menu_Action,

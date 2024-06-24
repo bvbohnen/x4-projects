@@ -25,6 +25,9 @@ for %%F in (
 
     sn_debug_info
     sn_script_profiler
+	
+	test_interact_menu_api
+	test_simple_menu_api
 
 
 ) do (

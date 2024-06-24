@@ -79,7 +79,6 @@ end
 
 
 function L.Init()
-
     RegisterEvent("Chat_Window_API.Print", L.onPrint)
     -- Also listen to the normal event, for compatability.
     RegisterEvent("directChatMessageReceived", L.onPrint)
@@ -290,5 +289,5 @@ function L.rebuildWindowOutput()
     ReleaseDescriptor(contentDescriptor)
 end
 
-
-L.Init()
+-- Removed. TODO: overhaul for changes made in 6.0+.
+--L.Init()

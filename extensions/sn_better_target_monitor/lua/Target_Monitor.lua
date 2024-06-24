@@ -127,11 +127,11 @@ local L = {
 
     -- Default font/color, originally matching the ego menu.
     orig_defaults = {
-        headercolor = { r = 127, g = 195, b = 255 },
+        headercolor = Color["text_notification_header"],
         headerfont = "Zekton",
         headerfontsize = 22,
 
-        textcolor = { r = 127, g = 195, b = 255 },
+        textcolor = Color["text_notification_text"],
         textfont = "Zekton",
         textfontsize = 22,
 
@@ -139,11 +139,11 @@ local L = {
     },
     -- Customized defaults, to be used for new items and overwrite ego stuff.
     new_defaults = {
-        headercolor = { r = 255, g = 255, b = 255 },
+        headercolor = Color["text_normal"],
         headerfont = "Zekton Bold",
         headerfontsize = 22,
 
-        textcolor = { r = 255, g = 255, b = 255 },
+        textcolor = Color["text_normal"],
         textfont = "Zekton Bold",
         textfontsize = 22,
 
@@ -151,11 +151,13 @@ local L = {
     },
 
     -- Optional special colors for certain terms.
+    -- Note: these are passed to Helper.convertColorToText which expects
+    -- alpha in 0-100 (and converts it to 0-255 internally).
     colors = {
         -- yellow
-        hull   = { r = 200, g = 200, b = 0 },
+        hull   = { r = 200, g = 200, b = 0, a = 100},
         -- blue
-        shield = { r = 90, g = 146, b = 186 },
+        shield = { r = 108, g = 175, b = 223, a = 100},
     },
 
     -- Table holding row/column display specifications.

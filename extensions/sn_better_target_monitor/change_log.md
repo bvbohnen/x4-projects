@@ -38,3 +38,5 @@ Change Log
   - Japanese translation by Arkblade.
 * 2.1
   - Update for x4 5.0.
+* 2.2
+  - Update for x4 7.0.

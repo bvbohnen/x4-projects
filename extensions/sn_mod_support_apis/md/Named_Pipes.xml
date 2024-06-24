@@ -853,7 +853,7 @@ TODO:
             $col           = 1, 
             $text          = Text.$Pipe, 
             $mouseOverText = Text.$pipe_mouseover,
-            $cellBGColor   = 'Helper.color.transparent60',
+            $cellBGColor   = 'Color.optionsmenu_cell_background',
             ]"/>
       <signal_cue_instantly
         cue="md.Simple_Menu_API.Make_Text"
@@ -861,7 +861,7 @@ TODO:
             $col           = 2, 
             $text          = Text.$Status, 
             $mouseOverText = Text.$status_mouseover,
-            $cellBGColor   = 'Helper.color.transparent60',
+            $cellBGColor   = 'Color.optionsmenu_cell_background',
             ]"/>
       
       <!-- Loop over registered pipe handler cues. -->
@@ -870,11 +870,11 @@ TODO:
         <!-- Set the text string, connected/disconnected with color. -->
         <do_if value="@Globals.$pipe_status_cues.{$i}.{'$server_connected'}">
           <set_value name="$text" exact="Text.$connected"/>
-          <set_value name="$color" exact="'Helper.color.green'"/>
+          <set_value name="$color" exact="'Color.text_positive'"/>
         </do_if>
         <do_else>
           <set_value name="$text" exact="Text.$disconnected"/>
-          <set_value name="$color" exact="'Helper.color.red'"/>
+          <set_value name="$color" exact="'Color.text_negative'"/>
         </do_else>
         
         <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
@@ -883,7 +883,7 @@ TODO:
           param = "table[
             $col=1, 
             $text= '' + @Globals.$pipe_status_cues.{$i}.{'$Pipe_Name'},
-            $cellBGColor = 'Helper.color.transparent60',
+            $cellBGColor = 'Color.optionsmenu_cell_background',
             ]"/>
         <signal_cue_instantly
           cue="md.Simple_Menu_API.Make_Text"
@@ -891,7 +891,7 @@ TODO:
             $col = 2, 
             $text = $text,
             $color = $color,
-            $cellBGColor = 'Helper.color.transparent60',
+            $cellBGColor = 'Color.optionsmenu_cell_background',
             ]"/>
       </do_all>
     </actions>

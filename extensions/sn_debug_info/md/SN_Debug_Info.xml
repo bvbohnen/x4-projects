@@ -324,7 +324,7 @@
           $colSpan = event.param.$columns,
           $height = $thickness,
           $fontsize = 1,
-          $cellBGColor = 'Helper.color.grey',
+          $cellBGColor = 'Color.row_separator',
           ]"/>
       </actions>
     </library>

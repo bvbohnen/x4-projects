@@ -977,14 +977,14 @@ function L.Init_Cheats()
             -- Cheats entry.
             local row = ftable:addRow(true, { fixed = true })
 
-            local bgcolor = Helper.defaultTitleBackgroundColor
+            local bgcolor = Color.row_title_background
             if menu.infoTableMode == "cheats" then
-                bgcolor = Helper.defaultArrowRowBackgroundColor
+                bgcolor = Color.row_background_selected
             end
 
-            local color = Helper.color.white
+            local color = Color.text_normal
             if menu.highlightLeftBar["cheats"] then
-                color = Helper.color.mission
+                color = Color.text_mission
             end
                 
             row[1]:createButton({ active = true, height = menu.sideBarWidth, bgColor = bgcolor, mouseOverText = entry.name, helpOverlayID = entry.helpOverlayID, helpOverlayText = entry.helpOverlayText }):setIcon(entry.icon, { color = color })

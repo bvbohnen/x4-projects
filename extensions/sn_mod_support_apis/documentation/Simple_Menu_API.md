@@ -44,7 +44,7 @@ Widget properties (all widgets)
     - String, text to display on mouseover.
         
 Cell properties (all widgets)
-  * cellBGColor = 'Helper.defaultSimpleBackgroundColor'
+  * cellBGColor = 'Color.row_background'
     - Color, cell background color.
   * uiTriggerID = none
     - String, if present then this is the control field for ui triggered events on widget activations.
@@ -95,7 +95,8 @@ Complex properties:
       * halign = 'Helper.standardHalignment'
       * x = 0
       * y = 0
-      * color = 'Helper.standardColor'
+      * color = 'Color.text_normal'
+      * glowfactor = 'Color.text_normal.glow'
       * font = 'Helper.standardFont'
       * fontsize = 'Helper.standardFontSize'
       * scaling = true
@@ -110,7 +111,8 @@ Complex properties:
       * height = 0
       * x = 0
       * y = 0
-      * color = 'Helper.standardColor'
+      * color = 'Color.icon_normal'
+      * glowfactor = 'Color.icon_normal.glow'
       * scaling = true
   * HotkeyProperty
     - Table describing an activation hotkey.
@@ -130,6 +132,20 @@ Complex properties:
       * close = true
       * back = true
       * minimize = false
+  * FrameTextureProperty
+    - Table describing a frame background or overlay texture.
+    - Fields:
+		  * icon = ""
+		  * color = 'Color.frame_background_default'
+		  * width = 0
+		  * height = 0
+		  * rotationRate = 0
+		  * rotationStart = 0
+		  * rotationDuration = 0
+		  * rotationInterval = 0
+		  * initialScaleFactor = 1
+		  * scaleDuration = 0
+		  * glowfactor = 'Color.frame_background_default.glow'
 
 ### Simple Menu API Cues
 
@@ -168,136 +184,129 @@ Complex properties:
     
 * **Create_Menu**
   
-  Create a fresh standalone menu. Note: these menus are not attached to the normal options menu. To be followed by Add_Row and similar cue calls to fill in the menu.
+      Create a fresh standalone menu. Note: these menus are not attached to the normal options menu. To be followed by Add_Row and similar cue calls to fill in the menu.
       
-  Each menu created will internally be given a frame to hold a table in which widgets will be placed.  The frame and table properties are also set with this cue.
+      Each menu created will internally be given a frame to hold a table in which widgets will be placed.  The frame and table properties are also set with this cue.
       
-  Param: Table with the following items:
-  * id, echo
-    - Standard api args
-  * columns
-    - Integer, total number of columns in the menu table.
-    - Max is 13 (as of x4 4.0).
-  * title
-    - Text to display in the table header.
-  * width
-    - Int, optional, menu width. Defaults to a predefined width.
-  * height
-    - Int, optional, menu height. Default expands to fit contents.
-  * offsetX
-  * offsetY
-    - Ints, optional, amount of space between menu and screen edge.
-    - Positive values taken from top/left of screen, negative values from bottom/right of screen.
-    - Defaults will center the menu.
-  * onCloseElement
-    - Cue, optional, signalled when the menu is closed.
-  * onRowChanged
-    - Cue, optional, signalled when the player highlights a different row, either by clicking or using arrow keys.
-    - This is the row that is highlighted.
-    - Fires when the menu is first opened and a default row selected.
-  * onColChanged
-    - Cue, optional, signalled when the player highlights a different column, either by clicking or using arrow keys.
-    - This will fire if the row changes and there is an interactive widget on the new row.
-    - Does not fire when selecting a row with no interactive widgets.
-  * onSelectElement
-    - Cue, optional, signalled when the player selects a different element.
-    - In practice, this appears to only work well for row selection.
-    - An element is selected when:
-      - It is clicked after already being highlighted.
-      - 'Enter' is pressed with it highlighted.
-    - Example use: the default options menu uses this to know when the player wants to open a submenu, eg. by 'selecting' Load Game.
-  * frame
-    - Subtable, properties for the frame, as follows:
-    * backgroundID = "solid"
-      - String, name of an icon to use as the background texture.
-      - Set to a blank string to disable the background.
-      - Solid by default, though encyclopedia system pictures can make for pretty backgrounds.
-    * backgroundColor = 'Helper.color.semitransparent'
-      - Color of the background texture.
-      - Use 'Helper.color.white' when displaying pictures to retain their original coloring.
-    * overlayID = ""
-      - String, name of an icon to use as an overlay effect.
-      - As of x4 2.6, this is bugged to use backgroundColor.
-    * overlayColor = 'Helper.color.white'
-      - Intended color of the overlay texture.
-      - No effect currently.
-    * standardButtons = 'Helper.standardButtons_CloseBack'
-      - StandardButtonProperty
-      - Which standard buttons will be included, eg. back/minimize/close.
-      - These are generally placed in the top right.
-    * standardButtonX = 0
-      - Int, x offset for the buttons.
-    * standardButtonY = 0
-      - Int, y offset for the buttons.
-    * showBrackets = false
-      - Bool, if frame brackets will be shown.
-    * closeOnUnhandledClick = false
-      - Bool, if the menu triggers an onHide event if the player clicks outside of its area.
-      - Pending development.
-    * playerControls = false
-      - Bool, if player controls are enabled while the menu is open.
-      - Can use this to create an info menu in the corner while the player continues flying.
-    * enableDefaultInteractions = true
-      - Bool, if default inputs are enabled (escape, delete, etc.).
-      - When false, these inputs have their normal non-menu effect, eg. escape will open the main options menu (which closes this menu automatically).
-  * table
-    - Subtable, properties for the table of widgets, as follows:
-    * borderEnabled = true
-      - Bool, if the table cells have a background color.
-      - When set false, the mouse can no longer change row selection, only arrow keys can.
-    * reserveScrollBar = true
-      - Bool, if the table width reserves space for a scrollbar by adjusting column sizes.
-    * wraparound = true
-      - Bool, if arrow key traversal of table cells will wrap around edges.
-    * highlightMode = "on"
-      - String, controls highlighting behavior of table selections.
-      - One of ["on","column","off","grey"]
-        - "on"     : highlight row with blue box
-        - "column" : highlight cell with blue box
-        - "grey"   : highlight row with grey box
-        - "off"    : no highlights of selected cell
-    * multiSelect = false
-      - Bool, whether the table allows selection of multiple cells.
-    * backgroundID = ""
-      - String, name of an icon to use as the background texture.
-      - Works similar to that for frame, except doesn't cover the title bar.
-    * backgroundColor = 'Helper.color.white'
-      - Color of the background texture.
+      Param: Table with the following items:
+      * id, echo
+        - Standard api args
+      * columns
+        - Integer, total number of columns in the menu table.
+        - Max is 13 (as of x4 4.0).
+      * title
+        - Text to display in the table header.
+      * width
+        - Int, optional, menu width. Defaults to a predefined width.
+      * height
+        - Int, optional, menu height. Default expands to fit contents.
+      * offsetX
+      * offsetY
+        - Ints, optional, amount of space between menu and screen edge.
+        - Positive values taken from top/left of screen, negative values from bottom/right of screen.
+        - Defaults will center the menu.
+      * onCloseElement
+        - Cue, optional, signalled when the menu is closed.
+      * onRowChanged
+        - Cue, optional, signalled when the player highlights a different row, either by clicking or using arrow keys.
+        - This is the row that is highlighted.
+        - Fires when the menu is first opened and a default row selected.
+      * onColChanged
+        - Cue, optional, signalled when the player highlights a different column, either by clicking or using arrow keys.
+        - This will fire if the row changes and there is an interactive widget on the new row.
+        - Does not fire when selecting a row with no interactive widgets.
+      * onSelectElement
+        - Cue, optional, signalled when the player selects a different element.
+        - In practice, this appears to only work well for row selection.
+        - An element is selected when:
+          - It is clicked after already being highlighted.
+          - 'Enter' is pressed with it highlighted.
+        - Example use: the default options menu uses this to know when the player wants to open a submenu, eg. by 'selecting' Load Game.
+      * frame
+        - Subtable, properties for the frame, as follows:
+  		  * background
+          - FrameTextureProperty
+  		  * background2
+          - FrameTextureProperty
+  		  * overlay
+          - FrameTextureProperty
+        * standardButtons = 'Helper.standardButtons_CloseBack'
+          - StandardButtonProperty
+          - Which standard buttons will be included, eg. back/minimize/close.
+          - These are generally placed in the top right.
+        * standardButtonX = 0
+          - Int, x offset for the buttons.
+        * standardButtonY = 0
+          - Int, y offset for the buttons.
+        * showBrackets = false
+          - Bool, if frame brackets will be shown.
+        * closeOnUnhandledClick = false
+          - Bool, if the menu triggers an onHide event if the player clicks outside of its area.
+          - Pending development.
+        * playerControls = false
+          - Bool, if player controls are enabled while the menu is open.
+          - Can use this to create an info menu in the corner while the player continues flying.
+        * enableDefaultInteractions = true
+          - Bool, if default inputs are enabled (escape, delete, etc.).
+          - When false, these inputs have their normal non-menu effect, eg. escape will open the main options menu (which closes this menu automatically).
+      * table
+        - Subtable, properties for the table of widgets, as follows:
+        * borderEnabled = true
+          - Bool, if the table cells have a background color.
+          - When set false, the mouse can no longer change row selection, only arrow keys can.
+        * reserveScrollBar = true
+          - Bool, if the table width reserves space for a scrollbar by adjusting column sizes.
+        * wraparound = true
+          - Bool, if arrow key traversal of table cells will wrap around edges.
+        * highlightMode = "on"
+          - String, controls highlighting behavior of table selections.
+          - One of ["on","column","off","grey"]
+            - "on"     : highlight row with blue box
+            - "column" : highlight cell with blue box
+            - "grey"   : highlight row with grey box
+            - "off"    : no highlights of selected cell
+        * multiSelect = false
+          - Bool, whether the table allows selection of multiple cells.
+        * backgroundID = ""
+          - String, name of an icon to use as the background texture.
+          - Set to a blank string to disable the background.
+        * backgroundColor = 'Color.table_background_default'
+          - Color of the background texture.
             
-  onCloseElement event returns:
-  * echo, event, id
-  * reason 
-    - String, reason for the closure.
-    - "back" if the player pressed the back button, or pressed 'escape' with enableDefaultInteractions == true.
-    - "close" if the player pressed the close button, pressed 'delete' with enableDefaultInteractions == true, or opened a different menu.
-    - "minimize" if the player pressed the minimize button.
+      onCloseElement event returns:
+      * echo, event, id
+      * reason 
+        - String, reason for the closure.
+        - "back" if the player pressed the back button, or pressed 'escape' with enableDefaultInteractions == true.
+        - "close" if the player pressed the close button, pressed 'delete' with enableDefaultInteractions == true, or opened a different menu.
+        - "minimize" if the player pressed the minimize button.
       
-  onRowChanged event returns:
-  * echo, event, id
-  * row
-    - Int, index of the newly highlighted row.
-  * row_id
-    - ID of the selected row, if available.
-  * row_echo
-    - Echo field of the row, if available.
+      onRowChanged event returns:
+      * echo, event, id
+      * row
+        - Int, index of the newly highlighted row.
+      * row_id
+        - ID of the selected row, if available.
+      * row_echo
+        - Echo field of the row, if available.
       
-  onColChanged event returns:
-  * echo, event, id
-  * row, col
-    - Ints, row/col highlighted, generally corresponding to a widget.
-  * widget_id
-    - ID of the any selected widget at the give row/col, if available.
-  * widget_echo
-    - Echo field of the widget, if available.
+      onColChanged event returns:
+      * echo, event, id
+      * row, col
+        - Ints, row/col highlighted, generally corresponding to a widget.
+      * widget_id
+        - ID of the any selected widget at the give row/col, if available.
+      * widget_echo
+        - Echo field of the widget, if available.
       
-  onSelectElement event returns:
-  * echo, event, id
-  * row
-    - Int, index of the selected row.
-  * row_id
-    - ID of the selected row, if available.
-  * row_echo
-    - Echo field of the row, if available.
+      onSelectElement event returns:
+      * echo, event, id
+      * row
+        - Int, index of the selected row.
+      * row_id
+        - ID of the selected row, if available.
+      * row_echo
+        - Echo field of the row, if available.
         
       
 * **Register_Options_Menu**
@@ -392,7 +401,8 @@ Complex properties:
       - Requires prior rows also be fixed.
     * borderBelow = true
       - Shows a border gap before the next row, if present.
-    * bgColor = 'Helper.color.transparent'
+    * interactive = true
+    * bgColor = 'Color.row_background'
       - Color, default background of the row's cells.
     * multiSelected = false
       - Bool, row is preselected for multiselect menu tables. },
@@ -463,15 +473,18 @@ Complex properties:
   * text
     - String, text to display.
     - Updateable
-  * halign
-  * color
+  * halign = 'Helper.standardHalignment'
+  * color = Color.text_normal
     - Updateable
+  * glowfactor = Color.text_normal.glow
   * titleColor
     - If given, puts the widget in title mode, which includes an automatic cell underline.
-  * font
-  * fontsize
-  * wordwrap
-  * minRowHeight
+  * font = 'Helper.standardFont'
+  * fontsize = 'Helper.standardFontSize'
+  * wordwrap = false
+  * textX = 'Helper.standardTextOffsetx'
+  * textY = 'Helper.standardTextOffsety'
+  * minRowHeight = 'Helper.standardTextHeight'
       
       
   Hint: egosoft menus make vertical space using wide, empty text cells. Example, assuming 2 table columns:
@@ -485,7 +498,7 @@ Complex properties:
         $colSpan = 2,
         $height = 'Helper.borderSize',
         $fontsize = 1,
-        $cellBGColor = 'Helper.color.transparent60',
+        $cellBGColor = 'Color.optionsmenu_cell_background',
         ]"/>
   ```
       
@@ -504,11 +517,13 @@ Complex properties:
     - String, text to display.
     - Updateable
   * halign
-  * color
+  * color = 'Color.text_normal'
     - Updateable
-  * boxColor
+  * glowfactor = 'Color.text_normal.glow'
+  * boxColor = 'Color.boxtext_box_default'
     - Color of the surrounding box.
     - Updateable
+  * minRowHeight = 'Helper.standardTextHeight'
   * font
   * fontsize
   * wordwrap
@@ -538,12 +553,13 @@ Complex properties:
   * active = true
     - Bool, if the button is active.
     - Updateable
-  * bgColor = 'Helper.defaultButtonBackgroundColor'
+  * bgColor = 'Color.button_background_default'
     - Color of background.
     - Updateable
-  * highlightColor = 'Helper.defaultButtonHighlightColor'
+  * highlightColor = 'Color.button_highlight_default'
     - Color when highlighted.
     - Updateable
+  * height = 'Helper.standardButtonHeight'
   * icon
     - IconProperty
   * icon2
@@ -578,7 +594,7 @@ Complex properties:
     - Cue to call when the player deselects the box.
     - Deselection may occur when selecting another element, pressing enter, or pressing escape.
     - Does not trigger if the menu is closed.
-  * bgColor = 'Helper.defaultEditBoxBackgroundColor'
+  * bgColor = 'Color.editbox_background_default'
     - Color of background.
   * closeMenuOnBack = false
     - Bool, if the menu is closed when the 'back' button is pressed while the editbox is active.
@@ -590,6 +606,13 @@ Complex properties:
     - Bool, if the text is invisible.
   * encrypted = false
     - Bool, if the input has an encrypted style of display.
+  * selectTextOnActivation = true
+    - Bool, if the text is preselected on activation.
+  * active = true
+  * restoreInteractiveObject = false
+    - Bool, if the focus is returned to the prior input object when this editBox is deactivated.
+  * maxChars = 50
+    - Int, maximum number of chars that may be entered.
   * text
     - TextProperty
   * hotkey
@@ -631,13 +654,14 @@ Complex properties:
     - Cue to call when the player deactivates the slider.
     - Triggers less often than onSliderCellChanged.
     - Recommended to use this over other events.
-  * bgColor = 'Helper.defaultSliderCellBackgroundColor'
+  * bgColor = 'Color.slider_background_default'
     - Color of background.
-  * valueColor = 'Helper.defaultSliderCellValueColor'
+  * inactiveBGColor = 'Color.slider_background_inactive'
+  * valueColor = 'Color.slider_value'
     - Color of value.
-  * posValueColor = 'Helper.defaultSliderCellPositiveValueColor'
+  * posValueColor = 'Color.slider_diff_pos'
     - Color, positive value if fromCenter is true
-  * negValueColor = 'Helper.defaultSliderCellNegativeValueColor'
+  * negValueColor = 'Color.slider_diff_neg'
     - Color, negative value if fromCenter is true
   * min = 0
     - Min value the bar is sized for
@@ -673,6 +697,8 @@ Complex properties:
     - Bool, bar extends from a zero point in the center.
   * readOnly = false
     - Bool, disallows player changes.
+  * forceArrows = false
+    - Bool, show force arrows in readOnly case.
   * useInfiniteValue = false
     - Bool, sets slider to show infinity when infiniteValue is reached.
   * infiniteValue = 0
@@ -738,11 +764,11 @@ Complex properties:
     - Updateable
   * active = true
    - Bool, if the widget is active.
-  * bgColor = 'Helper.defaultButtonBackgroundColor'
+  * bgColor = 'Color.dropdown_background_default'
    - Color of background.
-  * highlightColor = 'Helper.defaultButtonHighlightColor'
+  * highlightColor = 'Color.dropdown_highlight_default'
    - Color when highlighted.
-  * optionColor = 'Helper.color.black'
+  * optionColor = 'Color.dropdown_background_options'
     - Color of the options.
   * optionWidth, optionHeight = 0
     - Dimensions of the options.
@@ -791,9 +817,14 @@ Complex properties:
   * icon = ""
     - String, icon id
     - Updateable
-  * color = 'Helper.standardColor'
+  * color = 'Color.icon_normal'
     - Color
     - Updateable
+  * glowfactor = 'Color.icon_normal.glow'
+  * bgColor = 'Color.checkbox_background_default'
+  * active = true
+  * symbol = 'circle'
+    - String, 'circle or 'arrow', the symbol shown in a checked box.
   * text
     - TextProperty
     - Updateable text
@@ -817,10 +848,12 @@ Complex properties:
   * checked = false
     - Bool or int, if checked initially.
     - Updateable
-  * bgColor = 'Helper.defaultCheckBoxBackgroundColor'
+  * bgColor = 'Color.checkbox_background_default'
    - Color of background.
   * active = true
    - Bool, if the widget is active.
+  * symbol = 'circle'
+  * glowfactor = 'Color.icon_normal.glow'
        
   onClick event returns:
   * row, col, echo, event, id
@@ -849,14 +882,16 @@ Complex properties:
     - Int, max value of the bar, used for graphic scaling.
     - Min value of the bar is always pinned at 0.
     - Updateable
-  * valueColor = 'Helper.defaultStatusBarValueColor'
+  * valueColor = 'Color.statusbar_value_default'
     - Color
-  * posChangeColor = 'Helper.defaultStatusBarPosChangeColor'
+  * posChangeColor = 'Color.statusbar_diff_pos_default'
     - Color
-  * negChangeColor = 'Helper.defaultStatusBarNegChangeColor'
+  * negChangeColor = 'Color.statusbar_diff_neg_default'
     - Color
-  * markerColor = 'Helper.defaultStatusBarMarkerColor'
+  * markerColor = 'Color.statusbar_marker_default'
     - Color
+  * titleColor
+    - Color, optional.
       
 * **Update_Widget**
   
@@ -874,7 +909,7 @@ Complex properties:
 
 #### Helper Consts
 
-In the egosoft backend, there is a "Helper" module which defines many constants used in the standard menus such as colors, fonts, etc. Arguments may optionally be given as a string matching a Helper const, eg. 'Helper.color.brightyellow'. A selected list of possibly useful helper consts follows.  
+In the egosoft backend, there is a "Helper" module which defines many constants used in the standard menus such as fonts, etc. Colors are available in lua through the Color global, with fields defined in the libraries/colors.xml mapping entries (but the color entries are not accessible). Arguments may optionally be given as a string matching a Helper const, eg. 'Helper.standardFontBold', or a Color const, eg. 'Color.row_separator_white'. A selected list of possibly useful helper consts follows (and may be out of date with the current patch).
   
 * Font related
   - Helper.standardFontBold = "Zekton bold"
@@ -924,65 +959,4 @@ In the egosoft backend, there is a "Helper" module which defines many constants 
   - Helper.standardButtons_CloseBack
   - Helper.standardButtons_Close
   
-* Colors
-  - Helper.color.black
-  - Helper.color.slidervalue
-  - Helper.color.green
-  - Helper.color.playergreen
-  - Helper.color.grey
-  - Helper.color.lightgreen
-  - Helper.color.lightgrey
-  - Helper.color.orange
-  - Helper.color.darkorange
-  - Helper.color.red
-  - Helper.color.semitransparent
-  - Helper.color.transparent60
-  - Helper.color.transparent
-  - Helper.color.white
-  - Helper.color.yellow
-  - Helper.color.brightyellow
-  - Helper.color.warning
-  - Helper.color.done
-  - Helper.color.available
-  - Helper.color.darkgrey
-  - Helper.color.mission
-  - Helper.color.warningorange
-  - Helper.color.blue
-  - Helper.color.standardColor
-  - Helper.color.statusRed
-  - Helper.color.statusOrange
-  - Helper.color.statusYellow
-  - Helper.color.statusGreen
-  - Helper.color.defaultHeaderBackgroundColor
-  - Helper.color.defaultSimpleBackgroundColor
-  - Helper.color.defaultTitleBackgroundColor
-  - Helper.color.defaultArrowRowBackgroundColor
-  - Helper.color.defaultUnselectableBackgroundColor
-  - Helper.color.defaultUnselectableFontColor
-  - Helper.color.defaultButtonBackgroundColor
-  - Helper.color.defaultUnselectableButtonBackgroundColor
-  - Helper.color.defaultButtonHighlightColor
-  - Helper.color.defaultUnselectableButtonHighlightColor
-  - Helper.color.defaultCheckBoxBackgroundColor
-  - Helper.color.defaultEditBoxBackgroundColor
-  - Helper.color.defaultSliderCellBackgroundColor
-  - Helper.color.defaultSliderCellValueColor
-  - Helper.color.defaultSliderCellPositiveValueColor
-  - Helper.color.defaultSliderCellNegativeValueColor
-  - Helper.color.defaultStatusBarValueColor
-  - Helper.color.defaultStatusBarPosChangeColor
-  - Helper.color.defaultStatusBarNegChangeColor
-  - Helper.color.defaultStatusBarMarkerColor
-  - Helper.color.defaultBoxTextBoxColor
-  - Helper.color.defaultFlowchartOutlineColor
-  - Helper.color.defaultFlowchartBackgroundColor
-  - Helper.color.defaultFlowchartValueColor
-  - Helper.color.defaultFlowchartSlider1Color
-  - Helper.color.defaultFlowchartDiff1Color
-  - Helper.color.defaultFlowchartSlider2Color
-  - Helper.color.defaultFlowchartDiff2Color
-  - Helper.color.defaultFlowchartConnector1Color
-  - Helper.color.defaultFlowchartConnector2Color
-  - Helper.color.defaultFlowchartConnector3Color
-      
   

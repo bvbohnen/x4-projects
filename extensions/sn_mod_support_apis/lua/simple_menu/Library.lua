@@ -115,42 +115,56 @@ function L.Validate_Args(args, arg_specs)
 end
 
 
--- Replace any arg value that references a Helper const with the actual
+-- Replace any arg value that references a global table const with the actual
 -- value, recursively through subtables.
-function L.Replace_Helper_Args(args)
-    local prefix = "Helper."
+-- Reused for Helper and Color tables.
+function _Replace_Global_Args(args, prefix, ref_table)
     for k, v in pairs(args) do
 
         -- Look for strings that start with "Helper."
         if type(v) == "string" and string.sub(v, 1, #prefix) == prefix then
+            --DebugError("Unpacking const arg ref "..v)
 
             -- Split on the dots.
             local fields = L.Split_String_Multi(v, ".")
 
-            -- Approach will get to start with Helper, and progress through
+            -- Approach will get to start with the table, and progress through
             -- its fields downward.
-            local temp = Helper
+            local temp = ref_table
 
-            -- Loop over all after the first (skipping Helper)
+            -- Loop over all after the first (skipping ref_table).
             for i = 2, #fields do
                 if temp then
                     temp = temp[fields[i]]
                 end
             end
 
-            -- Error message if ran into nil.
-            if not temp then
-                DebugError("Simple Menu: Failed lookup of helper const: "..v)
+            -- Error message if ran into nil (but false is okay).
+            if temp == nil then
+                DebugError("Simple Menu: Failed lookup of "..prefix.." const: "..v)
             end
 
             -- Put it back.
             args[k] = temp
 
-        -- Recurse into subtables.
+        -- Recurse into subtables to find nested globals.
         elseif type(v) == "table" then
-            L.Replace_Helper_Args(v)
+            _Replace_Global_Args(v, prefix, ref_table)
         end
     end
+end
+
+-- Replace any arg value that references a Helper const with the actual
+-- value, recursively through subtables.
+function L.Replace_Helper_Args(args)
+    _Replace_Global_Args(args, "Helper.", Helper)
+end
+
+
+-- Replace any arg value that references a Color const with the actual
+-- value, recursively through subtables.
+function L.Replace_Color_Args(args)
+    _Replace_Global_Args(args, "Color.", Color)
 end
 
 

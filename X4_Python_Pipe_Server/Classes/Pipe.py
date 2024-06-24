@@ -172,7 +172,7 @@ class Pipe_Server(Pipe):
         # Look up windows users.
         # Note: for the person with perm problems, "Everyone" and 
         # "Administrators" lookups failed (1332 error), but the user lookup
-        # worked, and  just setting read/write for the user was sufficient.
+        # worked, and just setting read/write for the user was sufficient.
         perms_set = False
         for account_name in [win32api.GetUserName()]:
             # One user indicated the printed account name for them was blank,

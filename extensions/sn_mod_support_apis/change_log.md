@@ -61,3 +61,7 @@ Change Log for overall api package.
   - Update/fix to interact api for x4 4.10 beta 5.
 * 1.88
   - Fix in interact api for missionid cdata values failing to convert to md, which will now be passed as strings.
+* 1.89
+  - Update for x4 7.0.
+  - Switched menu api to the new color system, replacing Helper.color references.
+  - Chat api and hotkey menu integration disabled pending further updates.

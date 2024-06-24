@@ -52,7 +52,9 @@ menu.custom_widget_defaults = {
     -- Don't use text overrides like the options menu; user may want
     -- the smaller default fonts.
     
-    ["table"] = {        
+    ["table"] = {
+        backgroundID = "solid",
+        backgroundColor = Color.frame_background_semitransparent,
         -- 1 sets the table as interactive.
         tabOrder = 1, 
         -- Turn on wraparound.
@@ -63,7 +65,7 @@ menu.custom_widget_defaults = {
     ["button"] = {text = {halign = "center"}},
 
     -- Blank row backgrounds.
-    ["row"] = { bgColor = Helper.color.transparent },
+    ["row"] = { bgColor = Color.row_background },
 }
 
 
@@ -241,8 +243,6 @@ function menu.createFrame()
     -- Apply local defaults.
     Lib.Fill_Defaults(properties, {
         layer = config.optionsLayer,
-        backgroundID = "solid",
-        backgroundColor = Helper.color.semitransparent,
         startAnimation = false,
         })
         
@@ -282,7 +282,7 @@ function menu.createTable(frame)
         skipTabChange = true 
         })
     -- Unselectable (first arg nil/false).
-    local row = title_table:addRow(false, { fixed = true, bgColor = Helper.color.transparent })
+    local row = title_table:addRow(false, { fixed = true, bgColor = Color.row_background })
     row[1]:createText(menu.user_settings.title, config.headerTextProperties)
     menu_data.title_table = title_table
     

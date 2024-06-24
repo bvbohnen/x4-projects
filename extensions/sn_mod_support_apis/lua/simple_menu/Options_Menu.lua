@@ -50,7 +50,7 @@ menu.custom_widget_defaults = {
     ["exitbox"] = {text = config.standardTextProperties},
     
     -- Blank row backgrounds. Extra handy for the backarrow column.
-    ["row"] = { bgColor = Helper.color.transparent },
+    ["row"] = { bgColor = Color.row_background },
     
     -- Defaults that match what ego does with setDefaultCellProperties.
     -- Ego's approach updates metatables, but doesn't work when the user
@@ -171,15 +171,20 @@ local function Init_Gameoptions_Link()
             })
 
             -- The above was appended to the menu rows. For cleanliness,
-            -- reposition the entry to be by Extensions.
-            -- TODO: this changes the default menu option from Exit to
-            --  custom options; how to restore back to exit?
-            -- Do a search for the extensions row index, and target one after.
+            -- reposition the entry to be by Settings.
+            -- Note: 7.0 moved extensions to a submenu under settings,
+            -- but for convenience these extension options will be kept
+            -- at the main menu level.
+            -- TODO: maybe move this to be under settings alongside
+            -- extensions (or make an option?).
+            -- Do a search for the settings row index, and target the same
+            -- index to place before it (to avoid being too close to the
+            -- exit-to-menu line).
             local last_index = #ftable.rows
             local target_index = last_index
             for i = 1, last_index do
-                if ftable.rows[i].rowdata and ftable.rows[i].rowdata.id == "extensions" then
-                    target_index = i + 1
+                if ftable.rows[i].rowdata and ftable.rows[i].rowdata.id == "settings" then
+                    target_index = i
                     break
                 end
             end
@@ -425,7 +430,7 @@ function menu.Make_Menu_Shell(menu_spec)
     
     -- Title/back button row.
     -- Must be selectable for back button to work.
-    local row = title_table:addRow(true, { fixed = true, bgColor = Helper.color.transparent })
+    local row = title_table:addRow(true, { fixed = true, bgColor = Color.row_background })
     
     -- Unclear what this does, but background span the whole thing.
     row[1]:setBackgroundColSpan(2)
@@ -536,7 +541,7 @@ function menu.Display_Extension_Options()
         -- If there are no menus, note this.
         -- In the current setup, this logic is not expected to be reached.
         if not menu_found then
-            local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+            local row = ftable:addRow(false, { bgColor = Color.row_background })
             row[2]:setColSpan(num_cols):createText("No menus registered", config.warningTextProperties)
         end
         frame:display()

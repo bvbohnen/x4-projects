@@ -80,58 +80,74 @@ function T.menu_data:reset()
 end
 
 
--- General config, copied from ego code; may not all be used.
+-- General config, copied from ego code (gameoptions.lua).
+-- Commenting out unused fields for clarity.
 T.config = {
-    contextLayer = 3,
-    optionsLayer = 4,
-    topLevelLayer = 5,
-
-    backarrow = "table_arrow_inv_left",
-    backarrowOffsetX = 3,
-
-    sliderCellValueColor = { r = 71, g = 136, b = 184, a = 100 },
-    greySliderCellValueColor = { r = 55, g = 55, b = 55, a = 100 },
-
-    font = "Zekton outlined",
-    fontBold = "Zekton bold outlined",
-
-    headerFontSize = 13,
-    infoFontSize = 9,
-    standardFontSize = 10,
-
-    headerTextHeight = 34,
-    subHeaderTextHeight = 22,
-    standardTextHeight = 19,
-    infoTextHeight = 16,
-
-    headerTextOffsetX = 5,
-    standardTextOffsetX = 5,
-    infoTextOffsetX = 5,
-
-    vrIntroDelay = 32,
-    vrIntroFadeOutTime = 2,
+	--contextLayer = 2,
+	optionsLayer = 4,
+	--topLevelLayer = 5,
+    
+	backarrow = "table_arrow_inv_left",
+	backarrowOffsetX = 3,
+    
+	font = "Zekton outlined",
+	fontBold = "Zekton bold outlined",
+    
+	headerFontSize = 13,
+	infoFontSize = 9,
+	standardFontSize = 10,
+    
+	headerTextHeight = 34,
+	subHeaderTextHeight = 22,
+	standardTextHeight = 19,
+	infoTextHeight = 16,
+    
+	headerTextOffsetX = 5,
+	standardTextOffsetX = 5,
+	infoTextOffsetX = 5,
+    
+	--idleTime = 10,
+    --
+	--saveReloadInterval = 60,
+    --
+	--hubFadeOutTime = 2,
+	--hubFadeOutHoldDuration = 0.1,
+    --
+	--numRecommendedGamestarts = 2,
+    --
+	--minGamestartInfoRows = 8,
 }
 
 -- Convenience renaming.
 local config = T.config
 
-config.table = {
-    x = 45,
-    y = 45,
-    width = 710,
-    widthWithExtraInfo = 370,
-    height = 600,
-    arrowColumnWidth = 20,
-    infoColumnWidth = 330,
-}
--- Copied from ego menu for fonts.
+--config.table = {
+--    x = 45,
+--    y = 45,
+--    width = 710,
+--	widthExtraWide = 1130,
+--	widthWithExtraInfo = 370,
+--	height = 980,
+--	arrowColumnWidth = 20,
+--	infoColumnWidth = 330,
+--}
+---- Copied from ego menu for fonts.
 config.headerTextProperties = {
     font = config.fontBold,
     fontsize = config.headerFontSize,
     x = config.headerTextOffsetX,
     y = 6,
     minRowHeight = config.headerTextHeight,
-    titleColor = Helper.defaultSimpleBackgroundColor,
+    titleColor = Color["row_title"],
+}
+config.subHeaderTextProperties = {
+    font = config.fontBold,
+    fontsize = config.standardFontSize,
+    x = config.standardTextOffsetX,
+    y = 2,
+    minRowHeight = config.subHeaderTextHeight,
+    halign = "center",
+    titleColor = Color["row_title"],
 }
 config.infoTextProperties = {
     font = config.font,
@@ -140,13 +156,24 @@ config.infoTextProperties = {
     y = 2,
     wordwrap = true,
     minRowHeight = config.infoTextHeight,
-    titleColor = Helper.defaultSimpleBackgroundColor,
+    titleColor = Color["row_title"],
 }
 config.standardTextProperties = {
     font = config.font,
     fontsize = config.standardFontSize,
     x = config.standardTextOffsetX,
     y = 2,
+}
+-- Custom subheader punched up a bit (used by hotkey api).
+-- Basically Header with center alignment.
+config.subHeaderTextProperties_2 = {
+    font = config.fontBold,
+    fontsize = config.headerFontSize,
+    x = config.headerTextOffsetX,
+    y = 6,
+    minRowHeight = config.headerTextHeight,
+    halign = "center",
+    titleColor = Color["row_title"],
 }
 
 
@@ -196,15 +223,18 @@ T.widget_defaults = {
     },
     ["frame"] = {
         -- Layer is fixed.
-        --layer = 3,
+        --layer = 4,
         -- No notable effect with only one table to use.
         --exclusiveInteractions = false,
-        backgroundID = "",
-        backgroundColor = Helper.color.white,
-        overlayID = "",
-        -- Bugged; overlay icon uses backgroundColor instead.
-        -- Can leave for now; may get fixed.
-        overlayColor = Helper.color.white,
+
+        -- Removed in 7.0:
+        --backgroundID = "",
+        --backgroundColor = Color.text_normal,
+        --overlayID = "",
+        ---- Bugged; overlay icon uses backgroundColor instead.
+        ---- Can leave for now; may get fixed.
+        --overlayColor = Color.text_normal,
+
         standardButtons = Helper.standardButtons_CloseBack,
         standardButtonX = 0,
         standardButtonY = 0,
@@ -222,11 +252,16 @@ T.widget_defaults = {
         -- Disallow miniwidgets; they appear to be limited to 2 rows
         -- in widget_fullscreen.
         --useMiniWidgetSystem = false,
+        keepHUDVisible = false,
+        keepCrosshairVisible = false,
+        showTickerPermanently = false,
         -- Don't allow fiddling with widget level stuff.
         --_basetype = "widget"
     },
     ["rendertarget"] = {
-        alpha = 100,											
+        alpha = 100,
+        clear = true,
+        startnoise = false,
         _basetype = "widget"
     },
     ["table"] = {
@@ -259,7 +294,7 @@ T.widget_defaults = {
         highlightMode = "on",
         multiSelect = false,
         backgroundID = "",
-        backgroundColor = Helper.color.white,
+        backgroundColor = Color.table_background_default,
         -- Unused; just one table.
         --prevTable = 0,
         --nextTable = 0,
@@ -270,19 +305,21 @@ T.widget_defaults = {
         scaling = true,
         fixed = false,
         borderBelow = true,
-        bgColor = Helper.defaultSimpleBackgroundColor,
+        interactive = true,
+        bgColor = Color.row_background,
         multiSelected = false
     },
     
     ["cell"] = {
-        cellBGColor = Helper.defaultSimpleBackgroundColor,
+        cellBGColor = Color.row_background,
         uiTriggerID = propertyDefaultValue,
         _basetype = "widget"
     },
     ["text"] = {
         text = "",
         halign = Helper.standardHalignment,
-        color = Helper.standardColor,
+        color = Color.text_normal,
+        glowfactor = Color.text_normal.glow,
         titleColor = propertyDefaultValue,
         font = Helper.standardFont,
         fontsize = Helper.standardFontSize,
@@ -294,44 +331,54 @@ T.widget_defaults = {
     },
     ["icon"] = {
         icon = "",
-        color = Helper.standardColor,
+        color = Color.icon_normal,
+        glowfactor = Color.icon_normal.glow,
         _basetype = "cell"
     },
     ["button"] = {
         active = true,
-        bgColor = Helper.defaultButtonBackgroundColor,
-        highlightColor = Helper.defaultButtonHighlightColor,
+        bgColor = Color.button_background_default,
+        highlightColor = Color.button_highlight_default,
         height = Helper.standardButtonHeight,
         _basetype = "cell"
     },
     ["editbox"] = {
-        bgColor = Helper.defaultEditBoxBackgroundColor,
+        bgColor = Color.editbox_background_default,
         closeMenuOnBack = false,
         defaultText = "",
+        description = "",
         textHidden = false,
         encrypted = false,
+        selectTextOnActivation = true,
+        active = true,
+        restoreInteractiveObject = false,
+        maxChars = 50,
         _basetype = "cell"
     },
     ["shieldhullbar"] = {
         shield = 0,
         hull = 0,
+        glowfactor = Color.icon_normal.glow,
         _basetype = "cell"
     },
     ["graph"] = {		
         graphdesc = propertyDefaultValue,
+        bgColor = Color.graph_background,
         _basetype = "cell"
     },
     ["slidercell"] = {
-        bgColor = Helper.defaultSliderCellBackgroundColor,
-        valueColor = Helper.defaultSliderCellValueColor,
-        posValueColor = Helper.defaultSliderCellPositiveValueColor,
-        negValueColor = Helper.defaultSliderCellNegativeValueColor,
+        bgColor = Color.slider_background_default,
+        inactiveBGColor = Color.slider_background_inactive,
+        valueColor = Color.slider_value,
+        posValueColor = Color.slider_diff_pos,
+        negValueColor = Color.slider_diff_neg,
         min = 0,
         minSelect = propertyDefaultValue,
         max = 0,
         maxSelect = propertyDefaultValue,
         start = 0,
         step = 1,
+        accuracyOverride = propertyDefaultValue,
         infiniteValue = 0,
         suffix = "",
         exceedMaxValue = false,
@@ -339,6 +386,7 @@ T.widget_defaults = {
         rightToLeft = false,
         fromCenter = false,
         readOnly = false,
+        forceArrows = false,
         useInfiniteValue = false,
         useTimeFormat = false,
         _basetype = "cell"
@@ -347,9 +395,9 @@ T.widget_defaults = {
         options = {},
         startOption = "",
         active = true,
-        bgColor = Helper.defaultButtonBackgroundColor,
-        highlightColor = Helper.defaultButtonHighlightColor,
-        optionColor = Helper.color.black,
+        bgColor = Color.dropdown_background_default,
+        highlightColor = Color.dropdown_highlight_default,
+        optionColor = Color.dropdown_background_options,
         optionWidth = 0,
         optionHeight = 0,
         allowMouseOverInteraction = false,
@@ -359,31 +407,35 @@ T.widget_defaults = {
     },
     ["checkbox"] = {
         checked = false,
-        bgColor = Helper.defaultCheckBoxBackgroundColor,
+        bgColor = Color.checkbox_background_default,
         active = true,
+        symbol = "circle",
+        glowfactor = Color.icon_normal.glow,
         _basetype = "cell"
     },
     ["statusbar"] = {
         current = 0,
         start = 0,
         max = 0,
-        valueColor = Helper.defaultStatusBarValueColor,
-        posChangeColor = Helper.defaultStatusBarPosChangeColor,
-        negChangeColor = Helper.defaultStatusBarNegChangeColor,
-        markerColor = Helper.defaultStatusBarMarkerColor,
+        valueColor = Color.statusbar_value_default,
+        posChangeColor = Color.statusbar_diff_pos_default,
+        negChangeColor = Color.statusbar_diff_neg_default,
+        markerColor = Color.statusbar_marker_default,
+        titleColor = propertyDefaultValue,
         _basetype = "cell"
     },
     ["boxtext"] = {
         text = "",
         halign = Helper.standardHalignment,
-        color = Helper.standardColor,
-        boxColor = Helper.defaultBoxTextBoxColor,
+        color = Color.text_normal,
+        boxColor = Color.boxtext_box_default,
         font = Helper.standardFont,
         fontsize = Helper.standardFontSize,
         wordwrap = false,
         textX = Helper.standardTextOffsetx,
         textY = Helper.standardTextOffsety,
         minRowHeight = Helper.standardTextHeight,
+        glowfactor = Color.text_normal.glow,
         _basetype = "cell"
     },
     
@@ -392,7 +444,7 @@ T.widget_defaults = {
         skipTabChange = false,
         defaultInteractiveObject = false,
         borderHeight = 0,
-        borderColor = Helper.color.transparent,
+        borderColor = Color.flowchart_border_default,
         maxVisibleHeight = 0,
         minRowHeight = 0,
         minColWidth = 0,
@@ -410,6 +462,7 @@ T.widget_defaults = {
         height = Helper.standardFlowchartNodeHeight,
         shape = "rectangle",
         expandedFrameLayer = 0,
+        expandedFrameNumTables = 1,
         expandedTableNumColumns = 0,
         value = 0,
         max = 0,
@@ -420,13 +473,13 @@ T.widget_defaults = {
         statusColor = propertyDefaultValue,
         statusBgIconID = "",
         statusBgIconRotating = false,
-        bgColor = Helper.defaultFlowchartBackgroundColor,
-        outlineColor = Helper.defaultFlowchartOutlineColor,
-        valueColor = Helper.defaultFlowchartValueColor,
-        slider1Color = Helper.defaultFlowchartSlider1Color,
-        slider2Color = Helper.defaultFlowchartSlider2Color,
-        diff1Color = Helper.defaultFlowchartDiff1Color,
-        diff2Color = Helper.defaultFlowchartDiff2Color,
+        bgColor = Color.flowchart_node_background,
+        outlineColor = Color.flowchart_node_default,
+        valueColor = Color.flowchart_value_default,
+        slider1Color = Color.flowchart_slider_value1,
+        slider2Color = Color.flowchart_slider_value2,
+        diff1Color = Color.flowchart_slider_diff1,
+        diff2Color = Color.flowchart_slider_diff2,
         slider1MouseOverText = "",
         slider2MouseOverText = "",
         _basetype = "flowchartcell"
@@ -437,11 +490,11 @@ T.widget_defaults = {
         _basetype = "flowchartcell"
     },
     ["flowchartedge"] = {
-        color = Helper.standardColor,
+        color = Color.flowchart_edge_default,
         sourceSlotColor = propertyDefaultValue,
-        sourceSlotSecondary = false,
+        sourceSlotRank = 1,
         destSlotColor = propertyDefaultValue,
-        destSlotSecondary = false,
+        destSlotRank = 1,
         _basetype = "widget"
     },
 }
@@ -463,7 +516,8 @@ local complexCell_defaults = {
         x = 0,
         y = 0,
         halign = Helper.standardHalignment,
-        color = Helper.standardColor,
+        color = Color.text_normal,
+        glowfactor = Color.text_normal.glow,
         font = Helper.standardFont,
         fontsize = Helper.standardFontSize,
         scaling = true,
@@ -475,7 +529,8 @@ local complexCell_defaults = {
         height = 0,
         x = 0,
         y = 0,
-        color = Helper.standardColor,
+        color = Color.icon_normal,
+        glowfactor = Color.icon_normal.glow,
         scaling = true,
     },
     hotkeyproperty = {
@@ -484,9 +539,27 @@ local complexCell_defaults = {
         x = 0,
         y = 0,
     },
+	frametextureproperty = {
+		icon = "",
+		color = Color["frame_background_default"],
+		width = 0,
+		height = 0,
+		rotationRate = 0,
+		rotationStart = 0,
+		rotationDuration = 0,
+		rotationInterval = 0,
+		initialScaleFactor = 1,
+		scaleDuration = 0,
+		glowfactor = Color["frame_background_default"].glow,
+	},
 }
 -- Copied from Helper, fields in each widget that are a subtable/complex.
 local complexCellProperties = {
+	["frame"] = {
+		background =	"frametextureproperty",
+		background2 =	"frametextureproperty",
+		overlay =		"frametextureproperty",
+	},
     ["icon"] = {
         text =			"textproperty",
         text2 =			"textproperty"

@@ -51,7 +51,8 @@ ffi.cdef[[
 local Lib = require("extensions.sn_mod_support_apis.lua.Library")
 local Time = require("extensions.sn_mod_support_apis.lua.time.Interface")
 local T = require("extensions.sn_mod_support_apis.lua.Text")
-local Tables = require("extensions.sn_mod_support_apis.lua.hotkey.Tables")
+-- Reuse the config table from simple menu api.
+local Tables = require("extensions.sn_mod_support_apis.lua.simple_menu.Tables")
 local config = Tables.config
 
 -- Local functions and data.
@@ -118,7 +119,9 @@ local function Init()
     Raise_Signal("reloaded")
 
     -- Run the menu init stuff.
-    L.Init_Menu()
+    -- Disabled as of 7.0; TODO: needs an overhaul since the hotkey ui has
+    -- drastically changed. (Explicit md defined hotkeys should still work.)
+    --L.Init_Menu()
 end
 
 -------------------------------------------------------------------------------
@@ -501,6 +504,9 @@ function L.displayControls (preselectOption, optionParameter)
     -- stock example actions should always be present, so can skip this
     -- check.
 
+    -- TODO: skip if hotkey menu items are disabled using an extension options
+    -- debug flag, in case this code breaks the menu otherwise.
+
     -- For now, stick keys on the keyboard/space submenu.
     -- Skip others.
     if optionParameter ~= "keyboard_space" then return end
@@ -533,15 +539,15 @@ function L.displayControls (preselectOption, optionParameter)
     end
 
     -- Add some space.
-    row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+    row = ftable:addRow(false, { bgColor = Color.row_background })
     row[2]:setColSpan(3):createText(" ", { 
         fontsize = 1, 
         height = config.infoTextHeight, 
-        cellBGColor = Helper.color.transparent60 })
+        cellBGColor = Color.row_background })
         
     -- Add a nice title.
     -- Make this a larger than normal font.
-    local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+    local row = ftable:addRow(false, { bgColor = Color.row_background })
 
     row[2]:setColSpan(3):createText(T.extensions, config.subHeaderTextProperties_2)
     
@@ -550,11 +556,13 @@ function L.displayControls (preselectOption, optionParameter)
         if not L.player_action_keys[action.id] then
             L.player_action_keys[action.id] = {
                 -- Repetition of id, in case it is ever useful.
-                -- (This will not get a $ prefix went sent to md.)
+                -- (This will not get a $ prefix when sent to md.)
                 id = action.id,
                 -- List of inputs.
                 -- Note: unused entries are elsewhere {-1,-1,0}, though that
                 -- led to problems when tried.  All nil works okay.
+                -- TODO: limit to only supporting one hotkey, maybe, or
+                -- arbitrary number.
                 inputs = {
                     [1] = {combo  = "", code = nil, source = nil, signum = nil},
                     [2] = {combo  = "", code = nil, source = nil, signum = nil},
@@ -594,7 +602,8 @@ function L.displayControls (preselectOption, optionParameter)
     for _, cat in ipairs(cats_sorted) do
         -- Make a header if this is a named category.
         if cat ~= "" then
-            local row = ftable:addRow(false, { bgColor = Helper.color.transparent })
+            local row = ftable:addRow(false, { bgColor = Color.row_background })
+            -- TODO: maybe colspan 7.
             row[2]:setColSpan(3):createText(cat, config.subHeaderTextProperties)
         end
         -- Loop over the sorted action list.
@@ -644,7 +653,7 @@ function L.displayControlRow(ftable, action_id)
     local action    = L.action_registry[action_id]
     local player_keys = L.player_action_keys[action_id]
     
-    local row = ftable:addRow(true, { bgColor = Helper.color.transparent })
+    local row = ftable:addRow(true, { bgColor = Color.row_background })
     
     -- Select the row if it was selected before menu reload.
     if row.index == menu.preselectOption then
@@ -684,7 +693,7 @@ function L.displayControlRow(ftable, action_id)
             -- 'nameControl' handles label blinking when changing.
             function () return menu.nameControl(keyname, row.index, col) end,
             -- Can probably leave color at default; don't need 'red' logic.
-            { color = Helper.color.white })
+            { color = Color.text_normal })
         -- Add the icon.
         if keyicon then
             button:setText2(keyicon, { halign = "right" })

@@ -108,6 +108,8 @@ local function Init()
     -- Cache the player component id.
     L.player_id = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
     
+    --Lib.Print_Table(_G, "_G")
+    --Lib.Print_Table(Color, "Color")
 end
 
 
@@ -153,6 +155,8 @@ function L.Get_Next_Args()
     local args = table.remove(menu_data.queued_args, 1)
     
     -- Debug printout of passed args; kinda messy.
+    -- Note: printouts will fail when v is a table; todo: maybe revisit and
+    -- cleanup properly.
     --DebugError("Args received:")
     --for k,v in pairs(args) do
     --    DebugError(""..k.." type = "..type(v))
@@ -161,9 +165,10 @@ function L.Get_Next_Args()
     --    end
     --end
 
-    -- Support the user giving strings matching Helper consts, replacing
-    -- them here.
+    -- Support the user giving strings matching Helper or Color consts,
+    -- replacing them here.
     Lib.Replace_Helper_Args(args)
+    Lib.Replace_Color_Args(args)
 
     return args
 end
@@ -670,6 +675,7 @@ function L.Update_Widget(args)
             -- Ego code may have a bug when it uses cell.id here.
             SetTextColor(cell.id, args.color.r, args.color.g, args.color.b, args.color.a)
         end
+        -- TODO: maybe glowfactor
 
     elseif cell.type == "boxtext" then                    
         if args.text then
