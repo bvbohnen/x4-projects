@@ -452,7 +452,7 @@ Complex properties:
   - "setDefaultBackgroundColSpan"
     * col
     * bgcolspan
-      - Int, how many extra columns the backgrounds of widgets created in this column will be stretched across.      
+      - Int, how many extra columns the backgrounds of widgets created in this column will be stretched across.
       
 
 

@@ -672,7 +672,6 @@ function L.Update_Widget(args)
             SetText(cell.id, args.text)
         end
         if args.color then
-            -- Ego code may have a bug when it uses cell.id here.
             SetTextColor(cell.id, args.color.r, args.color.g, args.color.b, args.color.a)
         end
         -- TODO: maybe glowfactor

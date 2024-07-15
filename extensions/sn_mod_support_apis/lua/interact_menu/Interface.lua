@@ -549,12 +549,15 @@ function L.Signal_MD_Get_Actions()
             end
         end
     end
-
-    --Lib.Print_Table(ret_table, "interact_menu_params")
-    --if ret_table.componentMissions ~= nil then
-    --    Lib.Print_Table(ret_table.componentMissions, "componentMissions")
+    
+    -- Note: info gets printed out md-side, so this is somewhat redundant.
+    --if debugger.verbose then
+    --    Lib.Print_Table(ret_table, "interact_menu_params")
+    --    if ret_table.componentMissions ~= nil then
+    --        Lib.Print_Table(ret_table.componentMissions, "componentMissions")
+    --    end
+    --    Lib.Print_Table(ret_table.texts, "texts")
     --end
-    --Lib.Print_Table(ret_table.texts, "texts")
 
     -- Package up menu into into a table, and signal to md.
     -- Note: will give a (null) conversion error on cdata objects in ret_table.

@@ -8,9 +8,9 @@ from pathlib import Path # TODO: complete switchover to pathlib.
 # Conditional import of pyinstaller, checking if it is available.
 try:
     import PyInstaller
+    pyinstaller_found = True
 except Exception:
-    print('Error: PyInstaller not found.')
-    sys.exit()
+    pyinstaller_found = False
 
 import subprocess
 
@@ -60,6 +60,8 @@ def Make(*args):
     # Run the parser on the input args.
     args, remainder = argparser.parse_known_args(args)
 
+    if not pyinstaller_found:
+        raise RuntimeError('PyInstaller not found')
     
     # Set the output folder names.
     # Note: changing the pyinstaller build and dist folder names is

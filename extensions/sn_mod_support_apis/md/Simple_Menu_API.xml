@@ -866,7 +866,7 @@ Complex properties:
       * col
       * bgcolspan
         - Int, how many extra columns the backgrounds of widgets created in
-          this column will be stretched across.      
+          this column will be stretched across.
     -->
   <cue name="Call_Table_Method" instantiate="true" namespace="this">
     <conditions>

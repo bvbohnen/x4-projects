@@ -24,7 +24,7 @@ from X4_Python_Pipe_Server import Make_Executable
 # Grab the project specifications.
 from Release_Specs import release_specs
 
-x_tools_path = Path("D:\Games\Steam\SteamApps\common\X Tools\WorkshopTool.exe")
+x_tools_path = Path(r"D:\Games\Steam\SteamApps\common\X Tools\WorkshopTool.exe")
 
 
 def Make(*args):

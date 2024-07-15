@@ -32,9 +32,10 @@
       <set_value name="$target" exact="event.param.$object"/>
       
       <!-- Announce the event. -->
-      <raise_lua_event name="'directChatMessageReceived'"
-                        param="'interact;target: %s (%s)'.[
+      <set_value name="$msg" exact="'interact;target: %s (%s)'.[
                           $target, $texts.$targetBaseOrShortName ]"/>
+      <raise_lua_event name="'directChatMessageReceived'" param="$msg"/>
+      <debug_text text="$msg" chance="100" filter="general"/>
             
       <!--Decide if this should show.-->
       <do_if value="$target.isclass.{class.ship}">

@@ -65,3 +65,5 @@ Change Log for overall api package.
   - Update for x4 7.0.
   - Switched menu api to the new color system, replacing Helper.color references.
   - Chat api and hotkey menu integration disabled pending further updates.
+* 1.90
+  - Fixed interact menu bug introduced in 1.89 that prevented Get_Actions calls.

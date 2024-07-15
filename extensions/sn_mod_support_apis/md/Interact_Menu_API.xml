@@ -580,7 +580,7 @@
     -->
     <cue name="Capture_Lua_Display" instantiate="true" namespace="this">
       <conditions>
-        <event_ui_triggered screen="'Interact_Menu_API'" control="''" />
+        <event_ui_triggered screen="'Interact_Menu_API'" control="'onDisplay'" />
       </conditions>
       <actions>
         <!--The table will largely be used as-is.-->
