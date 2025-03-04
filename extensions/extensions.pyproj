@@ -113,6 +113,7 @@
     <Content Include="sn_better_target_monitor\t\0001-L081.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
     <Content Include="sn_mod_support_apis\documentation\Userdata_API.md" />
+    <Content Include="sn_mod_support_apis\ui\addons\ego_debug\OnlineGetUserItemsPatch.lua" />
     <Content Include="sn_sector_travel_rebalance\.gitignore" />
     <Content Include="sn_sector_travel_rebalance\content.xml" />
     <Content Include="sn_debug_info\change_log.md" />
