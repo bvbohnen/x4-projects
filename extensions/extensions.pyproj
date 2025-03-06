@@ -20,14 +20,19 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Folder Include="sn_extra_game_options\ui\" />
+    <Folder Include="sn_hotkey_collection\ui\" />
+    <Folder Include="sn_measure_fps\ui\" />
+    <Folder Include="sn_measure_perf\ui\" />
+    <Folder Include="sn_script_profiler\ui\" />
     <Folder Include="sn_sector_travel_rebalance\" />
     <Folder Include="sn_measure_fps\" />
     <Folder Include="sn_measure_fps\lua\" />
     <Folder Include="sn_measure_fps\md\" />
     <Folder Include="sn_measure_fps\python\" />
-    <Folder Include="sn_mod_support_apis\lua\userdata\" />
+    <Folder Include="sn_mod_support_apis\ui\userdata\" />
     <Folder Include="test_chat_window\" />
-    <Folder Include="sn_mod_support_apis\lua\chat_window\" />
+    <Folder Include="sn_mod_support_apis\ui\chat_window\" />
     <Folder Include="sn_test_misc\" />
     <Folder Include="sn_asteroid_fade\" />
     <Folder Include="sn_reduce_fog\" />
@@ -65,7 +70,7 @@
     <Folder Include="sn_interact_collection\md\" />
     <Folder Include="sn_mod_support_apis\" />
     <Folder Include="sn_better_target_monitor\" />
-    <Folder Include="sn_better_target_monitor\lua\" />
+    <Folder Include="sn_better_target_monitor\ui\" />
     <Folder Include="sn_better_target_monitor\md\" />
     <Folder Include="test_chat_window\md\" />
     <Folder Include="test_hotkey_api\" />
@@ -80,20 +85,16 @@
     <Folder Include="sn_hotkey_collection\md\" />
     <Folder Include="test_simple_menu_api\" />
     <Folder Include="test_simple_menu_api\md\" />
-    <Folder Include="sn_extra_game_options\lua\" />
     <Folder Include="sn_extra_game_options\md\" />
-    <Folder Include="sn_mod_support_apis\lua\" />
-    <Folder Include="sn_mod_support_apis\lua\named_pipes\" />
-    <Folder Include="sn_mod_support_apis\lua\hotkey\" />
-    <Folder Include="sn_mod_support_apis\lua\interact_menu\" />
-    <Folder Include="sn_mod_support_apis\lua\time\" />
-    <Folder Include="sn_mod_support_apis\lua\simple_menu\" />
-    <Folder Include="sn_mod_support_apis\md\" />
-    <Folder Include="sn_mod_support_apis\lua\c_library\" />
-    <Folder Include="sn_mod_support_apis\documentation\" />
     <Folder Include="sn_mod_support_apis\ui\" />
-    <Folder Include="sn_mod_support_apis\ui\addons\" />
-    <Folder Include="sn_mod_support_apis\ui\addons\ego_debug\" />
+    <Folder Include="sn_mod_support_apis\ui\named_pipes\" />
+    <Folder Include="sn_mod_support_apis\ui\hotkey\" />
+    <Folder Include="sn_mod_support_apis\ui\interact_menu\" />
+    <Folder Include="sn_mod_support_apis\ui\time\" />
+    <Folder Include="sn_mod_support_apis\ui\simple_menu\" />
+    <Folder Include="sn_mod_support_apis\md\" />
+    <Folder Include="sn_mod_support_apis\ui\c_library\" />
+    <Folder Include="sn_mod_support_apis\documentation\" />
     <Folder Include="test_time_api\" />
     <Folder Include="test_time_api\md\" />
   </ItemGroup>
@@ -103,8 +104,8 @@
     <Content Include="sn_asteroid_fade\content.xml" />
     <Content Include="sn_better_target_monitor\change_log.md" />
     <Content Include="sn_better_target_monitor\content.xml" />
-    <Content Include="sn_better_target_monitor\lua\Target_Monitor.lua" />
-    <Content Include="sn_better_target_monitor\lua_interface.txt" />
+    <Content Include="sn_better_target_monitor\ui\Target_Monitor.lua" />
+    <Content Include="sn_better_target_monitor\ui\lua_interface.lua" />
     <Content Include="sn_better_target_monitor\md\Better_Target_Monitor.xml" />
     <Content Include="sn_better_target_monitor\Readme.md" />
     <Content Include="sn_better_target_monitor\t\0001-L007.xml" />
@@ -112,8 +113,14 @@
     <Content Include="sn_better_target_monitor\t\0001-L049.xml" />
     <Content Include="sn_better_target_monitor\t\0001-L081.xml" />
     <Content Include="sn_better_target_monitor\t\0001.xml" />
+    <Content Include="sn_better_target_monitor\ui.xml" />
+    <Content Include="sn_extra_game_options\ui.xml" />
+    <Content Include="sn_hotkey_collection\ui.xml" />
+    <Content Include="sn_measure_fps\ui.xml" />
+    <Content Include="sn_measure_perf\ui.xml" />
     <Content Include="sn_mod_support_apis\documentation\Userdata_API.md" />
-    <Content Include="sn_mod_support_apis\ui\addons\ego_debug\OnlineGetUserItemsPatch.lua" />
+    <Content Include="sn_mod_support_apis\ui\OnlineGetUserItemsPatch.lua" />
+    <Content Include="sn_script_profiler\ui.xml" />
     <Content Include="sn_sector_travel_rebalance\.gitignore" />
     <Content Include="sn_sector_travel_rebalance\content.xml" />
     <Content Include="sn_debug_info\change_log.md" />
@@ -125,28 +132,26 @@
     <Content Include="sn_friendlier_fire\change_log.md" />
     <Content Include="sn_friendlier_fire\content.xml" />
     <Content Include="sn_friendlier_fire\md\SN_Friendlier_Fire.xml" />
-    <Content Include="sn_hotkey_collection\lua\Hotkeys.lua" />
+    <Content Include="sn_hotkey_collection\ui\Hotkeys.lua" />
     <Content Include="sn_hotkey_collection\Readme.md" />
     <Content Include="sn_hotkey_collection\t\0001-l049.xml" />
     <Content Include="sn_hotkey_collection\t\0001-L081.xml" />
     <Content Include="sn_hotkey_collection\t\0001.xml" />
     <Content Include="sn_interact_collection\t\0001.xml" />
     <Content Include="sn_measure_fps\content.xml" />
-    <Content Include="sn_measure_fps\lua\Measure_FPS.lua" />
+    <Content Include="sn_measure_fps\ui\Measure_FPS.lua" />
     <Content Include="sn_measure_fps\md\SN_Measure_FPS.xml" />
     <Content Include="sn_measure_perf\.gitignore" />
-    <Content Include="sn_measure_perf\lua\Measure_Perf.lua" />
+    <Content Include="sn_measure_perf\ui\Measure_Perf.lua" />
     <Content Include="sn_mod_support_apis\change_log.md" />
     <Content Include="sn_mod_support_apis\documentation\Chat_Window_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Interact_Menu_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_Options_API.md" />
     <Content Include="sn_mod_support_apis\documentation\Time_API.md" />
-    <Content Include="sn_mod_support_apis\lua\chat_window\Interface.lua" />
-    <Content Include="sn_mod_support_apis\lua\Text.lua" />
-    <Content Include="sn_mod_support_apis\lua\userdata\Interface.lua">
-      <SubType>Code</SubType>
-    </Content>
-    <Content Include="sn_mod_support_apis\lua_interface.txt" />
+    <Content Include="sn_mod_support_apis\ui\chat_window\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\Text.lua" />
+    <Content Include="sn_mod_support_apis\ui\userdata\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\lua_interface.lua" />
     <Content Include="sn_mod_support_apis\md\Chat_Window_API.xml" />
     <Content Include="sn_mod_support_apis\md\Userdata.xml" />
     <Content Include="sn_mod_support_apis\old_change_logs\interact_menu_api.md" />
@@ -179,7 +184,7 @@
     <Content Include="sn_script_profiler\.gitignore" />
     <Content Include="sn_script_profiler\config.ini" />
     <Content Include="sn_script_profiler\content.xml" />
-    <Content Include="sn_script_profiler\lua\Script_Profiler.lua" />
+    <Content Include="sn_script_profiler\ui\Script_Profiler.lua" />
     <Content Include="sn_script_profiler\md\SN_Script_Profiler.xml" />
     <Content Include="sn_script_profiler\config_defaults.ini" />
     <Content Include="sn_script_profiler\readme.md" />
@@ -192,7 +197,7 @@
     <Content Include="sn_interact_collection\change_log.md" />
     <Content Include="sn_interact_collection\content.xml" />
     <Content Include="sn_interact_collection\md\SN_Interact_Commands.xml" />
-    <Content Include="sn_mod_support_apis\lua\Library.lua" />
+    <Content Include="sn_mod_support_apis\ui\Library.lua" />
     <Content Include="sn_remove_dock_symbol\content.xml" />
     <Content Include="sn_measure_perf\content.xml" />
     <Content Include="sn_measure_perf\md\SN_Measure_Perf.xml" />
@@ -209,7 +214,7 @@
     <Content Include="test_named_pipes_api\md\Test_Named_Pipe.xml" />
     <Content Include="sn_hotkey_collection\change_log.md" />
     <Content Include="sn_hotkey_collection\content.xml" />
-    <Content Include="sn_extra_game_options\lua\Custom_Options.lua" />
+    <Content Include="sn_extra_game_options\ui\Custom_Options.lua" />
     <Content Include="test_simple_menu_api\content.xml" />
     <Content Include="test_simple_menu_api\md\Simple_Menu_API_Test.xml" />
     <Content Include="sn_extra_game_options\change_log.md" />
@@ -219,18 +224,18 @@
     <Content Include="sn_mod_support_apis\Readme.md">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="sn_mod_support_apis\lua\time\Interface.lua" />
-    <Content Include="sn_mod_support_apis\lua\time\Pipe_Time.lua" />
+    <Content Include="sn_mod_support_apis\ui\time\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\time\Pipe_Time.lua" />
     <Content Include="sn_mod_support_apis\md\Time_API.xml" />
     <Content Include="sn_mod_support_apis\documentation\Simple_Menu_API.md" />
-    <Content Include="sn_mod_support_apis\lua\simple_menu\Interface.lua" />
-    <Content Include="sn_mod_support_apis\lua\simple_menu\Library.lua" />
-    <Content Include="sn_mod_support_apis\lua\simple_menu\Options_Menu.lua" />
-    <Content Include="sn_mod_support_apis\lua\simple_menu\Standalone_Menu.lua" />
-    <Content Include="sn_mod_support_apis\lua\simple_menu\Tables.lua" />
+    <Content Include="sn_mod_support_apis\ui\simple_menu\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\simple_menu\Library.lua" />
+    <Content Include="sn_mod_support_apis\ui\simple_menu\Options_Menu.lua" />
+    <Content Include="sn_mod_support_apis\ui\simple_menu\Standalone_Menu.lua" />
+    <Content Include="sn_mod_support_apis\ui\simple_menu\Tables.lua" />
     <Content Include="sn_mod_support_apis\old_change_logs\hotkey_api.md" />
-    <Content Include="sn_mod_support_apis\lua\hotkey\Interface.lua" />
-    <Content Include="sn_mod_support_apis\lua\interact_menu\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\hotkey\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\interact_menu\Interface.lua" />
     <Content Include="sn_hotkey_collection\md\SN_Hotkeys.xml" />
     <Content Include="sn_mod_support_apis\md\Hotkey_API.xml" />
     <Content Include="sn_mod_support_apis\md\Interact_Menu_API.xml" />
@@ -238,17 +243,17 @@
     <Content Include="sn_mod_support_apis\md\Simple_Menu_API.xml" />
     <Content Include="sn_mod_support_apis\md\Simple_Menu_Options.xml" />
     <Content Include="sn_mod_support_apis\documentation\Hotkey_API.md" />
-    <Content Include="sn_mod_support_apis\lua\c_library\winpipe.lua" />
-    <Content Include="sn_mod_support_apis\lua\named_pipes\Interface.lua" />
-    <Content Include="sn_mod_support_apis\lua\named_pipes\Pipes.lua" />
-    <Content Include="sn_mod_support_apis\lua\named_pipes\Library.lua" />
+    <Content Include="sn_mod_support_apis\ui\c_library\winpipe.lua" />
+    <Content Include="sn_mod_support_apis\ui\named_pipes\Interface.lua" />
+    <Content Include="sn_mod_support_apis\ui\named_pipes\Pipes.lua" />
+    <Content Include="sn_mod_support_apis\ui\named_pipes\Library.lua" />
     <Content Include="sn_mod_support_apis\md\Named_Pipes.xml" />
     <Content Include="sn_mod_support_apis\md\Pipe_Server_Host.xml" />
     <Content Include="sn_mod_support_apis\md\Pipe_Server_Lib.xml" />
     <Content Include="sn_mod_support_apis\documentation\Named_Pipes_API.md" />
     <Content Include="sn_mod_support_apis\content.xml" />
-    <Content Include="sn_mod_support_apis\ui\addons\ego_debug\Lua_Loader.lua" />
-    <Content Include="sn_mod_support_apis\ui\addons\ego_debug\ui.xml" />
+    <Content Include="sn_mod_support_apis\ui\Lua_Loader.lua" />
+    <Content Include="sn_mod_support_apis\ui.xml" />
     <Content Include="test_time_api\content.xml" />
     <Content Include="test_time_api\md\Time_API_Test.xml" />
   </ItemGroup>

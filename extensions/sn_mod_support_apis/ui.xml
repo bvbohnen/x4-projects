@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon name="sn_mod_support_apis" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
+  <environment type="menus">
+    <file name="ui/OnlineGetUserItemsPatch.lua" />
+
+    <file name="ui/Lua_Loader.lua" />
+
+    <file name="ui/Text.lua" />
+    <file name="ui/Library.lua" />
+
+    <file name="ui/userdata/Interface.lua" />
+
+    <file name="ui/time/Interface.lua" />
+
+    <file name="ui/c_library/winpipe.lua" />
+
+    <file name="ui/named_pipes/library.lua" />
+    <file name="ui/named_pipes/Pipes.lua" />
+    <file name="ui/named_pipes/Interface.lua" />
+
+    <!-- pipe_time.lua has a dependency on the pipes.lua, so we need to ensure it's loaded first. -->
+    <file name="ui/time/Pipe_Time.lua" />
+
+    <file name="ui/interact_menu/Interface.lua" />
+    <file name="ui/chat_window/Interface.lua" />
+
+    <file name="ui/simple_menu/Library.lua" />
+    <file name="ui/simple_menu/Tables.lua" />
+    <file name="ui/simple_menu/Standalone_Menu.lua" />
+    <file name="ui/simple_menu/Options_Menu.lua" />
+    <file name="ui/simple_menu/Interface.lua" />
+
+    <file name="ui/hotkey/Interface.lua" />
+
+    <file name="ui/lua_interface.lua" />
+
+    <savedvariable name="__MOD_USERDATA" storage="userdata" />
+  </environment>
+</addon>
