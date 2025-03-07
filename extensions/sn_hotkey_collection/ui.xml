@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<addon name="sn_hotkey_collection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
+	<environment type="menus">
+		<dependency name="sn_mod_support_apis" />
+		<file name="ui/Hotkeys.lua" />
+		<savedvariable name="__MOD_USERDATA" storage="userdata" />
+	</environment>
+</addon>

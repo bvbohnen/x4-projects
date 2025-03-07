@@ -178,6 +178,9 @@ Complex properties:
     <actions>
       <raise_lua_event name="'Lua_Loader.Load'"
                        param="'extensions.sn_mod_support_apis.lua.simple_menu.Interface'"/>
+      <!--<raise_lua_event name="'Lua_Loader.Init'" param="'extensions.sn_mod_support_apis.lua.simple_menu.Tables'" />
+      <raise_lua_event name="'Lua_Loader.Init'" param="'extensions.sn_mod_support_apis.lua.simple_menu.Standalone_Menu'" />
+      <raise_lua_event name="'Lua_Loader.Init'" param="'extensions.sn_mod_support_apis.ui.simple_menu.interface'" />-->
     </actions>
   </cue>
 
