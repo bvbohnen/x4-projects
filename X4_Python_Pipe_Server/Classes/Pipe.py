@@ -1,4 +1,5 @@
 
+from pathlib import Path
 # Note: import pywin32 as win32api, if needed, though subpackages are
 #  directly available.
 # The top level has the "error" exception.
@@ -12,7 +13,10 @@ import win32file
 # This provides support for changing access permissions (for users where
 # the defaults don't work). Note: defaults work for most users.
 import win32security
-import ntsecuritycon as con
+# Support for looking at processes.
+import win32process
+import win32con
+#import ntsecuritycon as con
 
 from .Misc import Client_Garbage_Collected
 
@@ -189,7 +193,7 @@ class Pipe_Server(Pipe):
                 account_id, domain, type = win32security.LookupAccountName (None, account_name)
                 # Set read/write permission (execute doesn't make sense).
                 dacl.AddAccessAllowedAce(win32security.ACL_REVISION, 
-                                            con.FILE_GENERIC_READ | con.FILE_GENERIC_WRITE, 
+                                            win32file.FILE_GENERIC_READ | win32file.FILE_GENERIC_WRITE, 
                                             account_id)
                 perms_set = True
                 if self.verbose:
@@ -268,6 +272,31 @@ class Pipe_Server(Pipe):
         #  just ignore any error code but let exceptions get raised.
         win32pipe.ConnectNamedPipe(self.pipe_file, None)
         print('Connected to client')
+        return
+
+
+    def Get_Client_Executable(self) -> Path:
+        '''
+        Returns the path of the executable of the process that opened
+        the client side of the pipe. Should only be called after connecting.
+        '''
+        proc_handle = None
+        try:
+            proc_id = win32pipe.GetNamedPipeClientProcessId(self.pipe_file)
+            proc_handle = win32api.OpenProcess(
+                win32con.PROCESS_QUERY_INFORMATION,# | win32con.PROCESS_VM_READ,
+                False,
+                proc_id)
+            exe_path_name = win32process.GetModuleFileNameEx(proc_handle,0)
+        except Exception as ex:
+            print(f'Get_Client_Executable failed with exception: {ex}')
+            exe_path_name = ''
+        finally:
+            # Close the handle if open.
+            if proc_handle is not None:
+                win32api.CloseHandle(proc_handle)                
+        path = Path(exe_path_name)
+        return path
 
 
     def Close(self):

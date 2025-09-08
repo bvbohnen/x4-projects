@@ -789,7 +789,7 @@
             <set_value name="$wares_ships.{$ware}"     exact="1" operation="add"/>
           </do_for_each>
 
-          <do_if value="$ship.cargo.table.keys.list.count >= 1">
+          <do_if value="$ship.cargo.table.keys.count >= 1">
             <set_value name="$total_ships"  exact="1" operation="add"/>
           </do_if>
           
@@ -987,7 +987,7 @@
 
 
         <!--Total of all objects. Skip if just one entry.-->
-        <do_if value="$class_component_counts.keys.list.count > 1">
+        <do_if value="$class_component_counts.keys.count > 1">
 
           <!--Sum them, nested loops.-->
           <set_value name="$total_count" exact="0"/>

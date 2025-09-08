@@ -18,3 +18,5 @@ Change Log
   - German translation, by morgenrot68.
 * 1.7
   - Fixed debug log error when ejecting illegal wares in a sector with no police faction.
+* 1.8
+  - Update for x4 7.5 ui loading changes.

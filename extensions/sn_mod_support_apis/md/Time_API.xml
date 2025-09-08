@@ -8,18 +8,6 @@
   access to the real time (as opposed to game time).
 -->
 <cues>
-  <!-- Register the main lua file. -->
-  <cue name="Load_Lua_Files" instantiate="true">
-    <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-    </conditions>
-    <actions>
-      <raise_lua_event name="'Lua_Loader.Load'"
-                       param="'extensions.sn_mod_support_apis.lua.time.Interface'"/>
-      <raise_lua_event name="'Lua_Loader.Load'"
-                       param="'extensions.sn_mod_support_apis.lua.time.Pipe_Time'"/>
-    </actions>
-  </cue>
   
   <!-- Register the python server. -->
   <cue name="Register_Pipe_Server" instantiate="true">

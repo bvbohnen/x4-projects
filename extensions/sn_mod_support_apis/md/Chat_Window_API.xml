@@ -21,18 +21,6 @@
   
     
   <cues>
-
-    <!-- Register the main lua file. -->
-    <cue name="Load_Lua_Files" instantiate="true">
-      <conditions>
-        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-      </conditions>
-      <actions>
-        <raise_lua_event name="'Lua_Loader.Load'"
-                         param="'extensions.sn_mod_support_apis.lua.chat_window.Interface'"/>
-      </actions>
-    </cue>
-    
     
     <!--
       Static cue for holding general state.

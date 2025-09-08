@@ -67,3 +67,16 @@ Change Log for overall api package.
   - Chat api and hotkey menu integration disabled pending further updates.
 * 1.90
   - Fixed interact menu bug introduced in 1.89 that prevented Get_Actions calls.
+* 1.91
+  - Update for x4 8.0, including 7.5 ui loading changes.
+  - Updated hotkey api control menu integration for 7.0 changes, including support for more than two keys per action.
+  - Added support for protected ui mode. Pipes api will be disabled in this mode.
+    - Note: in this mode the mod might interfere with online functionality due to OnlineGetVersionIncompatibilityState behavior.
+  - Added new lua global functions as part of the Lua_Loader_API:
+    - Register_Require_Response, adding "require" support to extension lua files in protected ui mode.
+    - Register_OnLoad_Init, helping lua files run init functions after the game fully loads.
+    - Register_Require_With_Init, combining the above functions in one call.
+  - Simple_Menu_API new MD cues:
+    - Edit_Registered_Options_Menu
+    - Enable_Registered_Options_Menu
+    - Disable_Registered_Options_Menu

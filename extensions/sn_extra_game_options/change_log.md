@@ -37,3 +37,5 @@ Change Log
   - Clarified that map default focus and zoom only apply when opening the property menu.
 * 1.14
   - Removed truncated text tooltips (part of base game now).
+* 1.15
+  - Update for x4 7.5 ui loading changes.

@@ -40,3 +40,5 @@ Change Log
   - Update for x4 5.0.
 * 2.2
   - Update for x4 7.0.
+* 2.3
+  - Update for x4 7.5 ui loading changes.

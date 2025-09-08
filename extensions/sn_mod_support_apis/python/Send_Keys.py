@@ -31,7 +31,7 @@ from collections import defaultdict
 
 # This will be specific to windows for now.
 if not sys.platform == 'win32':
-    raise Exception("Only windows supported at this time.")
+    raise Exception("Hotkeys only supported on windows at this time.")
 
 #import win32file
 import win32api

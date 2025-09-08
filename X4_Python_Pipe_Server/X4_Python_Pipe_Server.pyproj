@@ -13,7 +13,7 @@
     <Name>X4_Python_Pipe_Server</Name>
     <RootNamespace>Python_Server</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>-v -t -x "D:\Games\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_mod_support_apis\python\Send_Keys.py</CommandLineArguments>
+    <CommandLineArguments>-v -x "D:\Games\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_mod_support_apis\python\Send_Keys.py</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>

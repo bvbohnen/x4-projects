@@ -19,7 +19,6 @@ project_dir = Path(__file__).resolve().parents[1]
 
 # Import the pipe server for its exe maker.
 sys.path.append(str(project_dir))
-from X4_Python_Pipe_Server import Make_Executable
 
 # Grab the project specifications.
 from Release_Specs import release_specs
@@ -68,6 +67,7 @@ def Make(*args):
         # (Though it is pretty quick since pyinstaller checks for changes
         #  as well.)
         print('Refreshing executable.')
+        from X4_Python_Pipe_Server import Make_Executable
         Make_Executable.Make()
         
 
@@ -156,11 +156,6 @@ def Make_Zip(release_dir, zip_path, spec):
             # May need to create the folder.
             path.parent.mkdir(parents = True, exist_ok = True)
             path.write_bytes(binary)
-
-    # TODO:
-    # Automatically call the X tools to upload to steam, if the files haven't
-    # changed since a prior version (detect this somehow, or maybe just
-    # always upload).
 
     print('Release written to {}'.format(zip_path))
 

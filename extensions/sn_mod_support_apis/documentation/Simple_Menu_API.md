@@ -193,7 +193,7 @@ Complex properties:
         - Standard api args
       * columns
         - Integer, total number of columns in the menu table.
-        - Max is 13 (as of x4 4.0).
+        - Max is 13 (as of x4 4.0, in Helper.maxTableCols).
       * title
         - Text to display in the table header.
       * width
@@ -341,6 +341,8 @@ Complex properties:
     - Same as for Create_Menu.
   * table
     - Same as for Create_Menu.
+  * enabled
+    - Bool, true to enable the menu (default), false to disable.
         
         
   Call this each time the Reloaded cue is signalled. Example:

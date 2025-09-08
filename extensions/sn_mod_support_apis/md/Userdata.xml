@@ -24,17 +24,7 @@
   but may recover in some situations.
   -->
   <cues>
-    <!-- Register the main lua file, with priority before other lua. -->
-    <cue name="Load_Lua_Files" instantiate="true">
-      <conditions>
-        <event_ui_triggered screen="'Lua_Loader'" control="'Priority_Ready'" />
-      </conditions>
-      <actions>
-        <raise_lua_event name="'Lua_Loader.Load'"
-                         param="'extensions.sn_mod_support_apis.lua.userdata.Interface'"/>
-      </actions>
-    </cue>
-
+    
     <cue name="Listen_For_Lua_Reload" instantiate="true">
       <conditions>
         <event_ui_triggered screen="'Userdata'" control="'Ready'" />

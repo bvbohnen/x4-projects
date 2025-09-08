@@ -24,11 +24,37 @@ Note: if installed on an existing save, an additional save/load cycle or a /relo
 
 
 # X4 LUA Loader API
-This extension implements a generic method of loading custom lua files into X4, working around a bug in the intended method of loading lua code.
 
-### How to use
+This extension provides support functions to aid in loading lua files.
+  
+### Support "require" in protected ui mode
 
-In an MD script, add a cue that follows this template code:
+Protected UI mode added in X4 7.5 limits the lua "require" function to a handful of whitelisted modules (eg. "ffi"). Mods may write to the global space to pass data, but as an alternative this API patches the "require" function and allows lua files to register for require support.
+
+New lua global:
+* Register_Require_Response(require_path, value)
+  - Adds "require" support for the require_path string, returning the given value to any require call.
+  - The path does not need to match the actual file path.
+
+### Delayed Init function call
+
+Lua files loaded through ui.xml specification will be initially run before a game has fully loaded, so lookups such as `C.GetPlayerID()` will not work. This API provides a convenient option to delay Init functions until after the game has loaded, delayed by a couple frames.
+
+New lua globals:
+* Register_OnLoad_Init(function, label)
+  - Calls the given function on game start, reload, or ui reload.
+  - Label is an optional string printed to the debuglog (along with the specific error message) if the function fails.
+  - Functions are called in order of registration, which can be controlled through intermod dependencies and the order of inclusion in ui.xml.
+* Register_Require_With_Init(require_path, value, function)
+  - Combination of Register_Require_Response and Register_OnLoad_Init, treating the require_path as the error label.
+
+### Loading loose lua files
+
+Pre-7.5, lua files loaded using ui.xml were missing general lua globals ("_G is nil" error). This API provides md cues to trigger a load of loose lua files. Protected UI mode needs to be disabled.
+
+This functionality is retained for legacy support, but is not recommended for use in new mods.
+
+To use, in an MD script add a cue that follows this template code:
 ```xml
 <cue name="Load_Lua_Files" instantiate="true">
   <conditions>
@@ -52,25 +78,6 @@ Example dependency condition code:
     control="'Loaded extensions.other_ext_name.other_lua_file_name'" />
 </conditions>
 ```
-### How it works
-
-A small lua program is provided with two functions: to signal when it is loaded, and to receive file paths from MD scripts. These files are loaded using lua's "require". This api's lua file is itself loaded into x4 by replacing ui/addons/ego_debug/ui.xml file.
-
-### Summary of the problem
-
-The intended method of adding lua files is to place a ui.xml file in the extension's primary folder, which in turn specifies the lua files to load into the game. As of X4 2.5, lua files loaded this way are provided some basic X4 functions (eg. DebugError), but their globals table is not initialized. Without this table, the lua code cannot access the various UI functions exported by other X4 lua files, lacks FFI support, and lacks a way to communicate with the mission director. Even basic lua functions are unavailable.
-
-A workaround is to load in custom lua files alongside the egosoft lua. This is done by editing one of a handful of ui.xml files in the ui/addons folders, adding the path to the custom lua file. These ui.xml files cannot be diff patched. The lua file must be given an xpl extension, and this xpl and the ui.xml must be packed in a "subst" cat/dat.
-
-Since there are a limited number of such ui.xml files, there is a high likelyhood of conflicts in mods importing lua files this way. Additionally, when editing code, this method of lua inclusion will generally require a restart of X4 to load any changes properly due to the "subst" packing.
-
-### Prior work
-
-An initial workaround was provided by morbideth (https://forum.egosoft.com/viewtopic.php?t=411630). However, this was presented alongside a much more complicated right-click-menu mod, leading to confusion among modders as to how to use the workaround, how reliable it is, and if they had permission to use it.
-
-This new api has a new, somewhat simpler implementation; supports txt files; and is available under the MIT license.
-
-
 
 # X4 Simple Menu API
 
@@ -225,10 +232,9 @@ This code adds a generic "Follow" action to any target.
 
 # X4 Named Pipes API
 
-Adds support for Windows named pipes to X4 Foundations.
-Named pipes are OS level psuedo-files which support inter-process communication.
-Pipes avoid the overhead of disk access from normal files (eg. debug logs), and are bidirectional.
-X4 will act as a client, with one or more an external applications serving the pipes.
+Adds support for Windows named pipes to X4 Foundations. Named pipes are OS level psuedo-files which support inter-process communication. Pipes avoid the overhead of disk access from normal files (eg. debug logs), and are bidirectional. X4 will act as a client, with one or more an external applications serving the pipes.
+
+Protected UI mode must be disabled to connect to the pipes.
 
 There are three components to this API:
  * A low level lua plugin and corresponding dll for pipe access.
@@ -272,9 +278,9 @@ There are three components to this API:
 
 # X4 Hotkey API
 
-Adds support for capturing key presses in X4, to implement custom hotkeys.
-An external Python server is used for the key capture and combo recognition, and interfaces with X4 using named pipes.
+Adds support for capturing key presses in X4, to implement custom hotkeys. An external Python server is used for the key capture and combo recognition, and interfaces with X4 using named pipes.
 
+Protected UI mode must be disabled.
 
 ### Requirements
 
@@ -322,6 +328,8 @@ Limitations:
 # X4 Time API
 
 This api provides additional timing functions to mission director scripts and lua modules. These timers will continue to run while the game is paused.
+
+Protected UI mode must be disabled.
 
 Timing is done using two sources:
 * The lua function GetCurRealTime(), which measures the seconds since X4 booted up, advancing each frame while X4 is active (eg. not while minimized).

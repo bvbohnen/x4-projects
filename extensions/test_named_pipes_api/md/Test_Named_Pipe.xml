@@ -105,11 +105,10 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
   <!-- </cue> -->
 
 
-  <!-- Test the lua_loader response on loading the lua component. -->
-
   <cue name="Check_Lua_Loaded" instantiate="true">
     <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" control="'Loaded extensions.named_pipes_api.Named_Pipes'" />
+      <event_ui_triggered screen="'Named_Pipes'" control="'reloaded'" />
+      <event_ui_triggered screen="'Named_Pipes'" control="'disabled'" />
     </conditions>
     <actions>
       <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test; Lua load completed'"/>

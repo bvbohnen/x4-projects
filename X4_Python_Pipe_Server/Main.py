@@ -5,7 +5,6 @@ This will load in individual pipe sub-servers and run their threads.
 Initial version just runs a test server.
 '''
 '''
-
 Note on security:
     Loading arbitrary python code can be unsafe.  As a light protection,
     the pipe server will only load modules that are part of extensions
@@ -47,13 +46,15 @@ is done in some gui code for rerunning scripts.)
 Overall, it is probably reasonably easy for developers to just shut down
 this host server and restart it, if they want to update their server code;
 x4 side should automatically reconnect.
-
-temp copy of test args:
--t -x "C:\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_measure_perf\python\Measure_Perf.py"
+'''
+r'''
+Debug test args (for convenient swapping out):
+-v -t -x "D:\Games\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_mod_support_apis\python\Send_Keys.py
+-v -t -x "D:\Games\Steam\steamapps\common\X4 Foundations" -m "extensions\sn_measure_perf\python\Measure_Perf.py"
 '''
 # Note: version tag set by Make_Executable based on latest version
 # in the change_log. This line should always start "version =".
-version = '1.4.2'
+version = '1.4.3'
 
 # Setup include path to this package.
 import sys
@@ -113,6 +114,10 @@ permissions = None
 # Go with the exe/main directory.
 permissions_path = main_path / 'permissions.json'
 
+class Reset_Requested (Exception):
+    '''
+    Custom exception thrown on a reset request from a client.
+    '''
 
 def Main():
     '''
@@ -226,7 +231,16 @@ def Main():
 
             # Clear out any old x4 path; the game may have shut down and
             # relaunched from a different location.
+            #x4_path = None
+
+            # Determine the game location from the pipe client.
             x4_path = None
+            if test_python_client:
+                x4_path = args.x4_path
+            else:
+                exe_path = pipe.Get_Client_Executable()
+                if exe_path is not None:
+                    x4_path = exe_path.parent
 
             # Listen to runtime messages, announcing relative paths to
             # python modules to load from extensions.
@@ -245,35 +259,36 @@ def Main():
                 elif message == 'restart':
                     raise Reset_Requested()
             
-                elif message.startswith('package.path:'):
-                    message = message.replace('package.path:','')
-
-                    # Parse into the base x4 path.
-                    # Example return:
-                    # ".\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?\init.lua;"
-                    # Split and convert to proper Paths.
-                    paths = [Path(x) for x in message.split(';')]
-
-                    # Search for a wanted path.
-                    x4_path = None
-                    for path in paths:
-                        # Different ways to possibly do this.
-                        # This approach will iterate through parents to find the
-                        # "lua" folder, then get its parent.
-                        # (The folder should not be assumed to match the default
-                        # x4 installation folder name, since a user may have
-                        # changed it if running multiple installs.)
-                        test_path = path
-                        # Loop while more parents are present.
-                        while test_path.parents:
-                            # Check the parent.
-                            test_path = test_path.parent
-                            if test_path.stem == "lua":
-                                x4_path = test_path.parent
-                                break
-                        # Stop looping once an x4_path found.
-                        if x4_path:
-                            break
+                #-Removed; x4 7.5 no longer fills package.path with the game path.
+                #elif message.startswith('package.path:'):
+                #    message = message.replace('package.path:','')
+                #
+                #    # Parse into the base x4 path.
+                #    # Example return:
+                #    # ".\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?\init.lua;"
+                #    # Split and convert to proper Paths.
+                #    paths = [Path(x) for x in message.split(';')]
+                #
+                #    # Search for a wanted path.
+                #    x4_path = None
+                #    for path in paths:
+                #        # Different ways to possibly do this.
+                #        # This approach will iterate through parents to find the
+                #        # "lua" folder, then get its parent.
+                #        # (The folder should not be assumed to match the default
+                #        # x4 installation folder name, since a user may have
+                #        # changed it if running multiple installs.)
+                #        test_path = path
+                #        # Loop while more parents are present.
+                #        while test_path.parents:
+                #            # Check the parent.
+                #            test_path = test_path.parent
+                #            if test_path.stem == "lua":
+                #                x4_path = test_path.parent
+                #                break
+                #        # Stop looping once an x4_path found.
+                #        if x4_path:
+                #            break
 
 
                 elif message.startswith('modules:'):
@@ -281,6 +296,7 @@ def Main():
 
                     # If no x4_path yet seen, ignore.
                     if not x4_path:
+                        print('Error: received modules list prior to x4_path')
                         continue
 
                     # Break apart the modules. Semicolon separated, with an
@@ -320,13 +336,14 @@ def Main():
 
                             # Start the thread.
                             if main != None:
+                                print(f'Starting main() function of module: {full_path}.')
                                 thread = Server_Thread(module.main, test = test_python_client)
                                 threads.append(thread)
                             else:
-                                print('Module lacks "main()": {}'.format(module_path))
+                                print(f'Module lacks "main()": {module_path}')
 
 
-        except (win32api.error, Client_Garbage_Collected) as ex:
+        except (win32api.error, Client_Garbage_Collected, Reset_Requested) as ex:
             # win32api.error exceptions have the fields:
             #  winerror : integer error code (eg. 109)
             #  funcname : Name of function that errored, eg. 'ReadFile'
@@ -340,6 +357,9 @@ def Main():
 
             elif isinstance(ex, Client_Garbage_Collected):
                 print('Pipe client garbage collected, restarting.')
+                
+            elif isinstance(ex, Reset_Requested):
+                print('Client requested pipe restart, restarting.')
                 
             # If another host was already running, there will have been
             # an error when trying to set up the pipe.
@@ -415,11 +435,19 @@ def Main():
     return
 
 
-def Import(full_path):
+def Import(full_path : Path):
     '''
     Code for importing a module, broken out for convenience.
     '''
-    
+    # Check if the path file exists, and if not then try a txt suffix
+    # used in steam versions.
+    if not full_path.exists():
+        test_path = full_path.with_name(full_path.name.replace('.py','.txt'))
+        if test_path.exists():
+            full_path = test_path
+
+    # If the path doesnt exist, send it to the loader anyway to trigger
+    # a nice error message.
     try:
         # Attempt to load/run the module.
         module = machinery.SourceFileLoader(
@@ -439,8 +467,7 @@ def Import(full_path):
         # Make a nice message, to prevent a full stack trace being
         #  dropped on the user.
         print('Failed to import {}'.format(full_path))
-        print('Exception of type "{}" encountered.\n'.format(
-            type(ex).__name__))
+        print('Exception of type "{}" encountered.\n'.format(type(ex).__name__))
         ex_text = str(ex)
         if ex_text:
             print(ex_text)
@@ -542,10 +569,9 @@ def Pipe_Client_Test(args):
 
     # Example lua package path.
     #package_path = r".\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?.lua;C:\Steam\steamapps\common\X4 Foundations\lua\?\init.lua;"
-    package_path = r".\?.lua;{0}\lua\?.lua;{0}\lua\?\init.lua;".format(args.x4_path)
-
+    #package_path = r".\?.lua;{0}\lua\?.lua;{0}\lua\?\init.lua;".format(args.x4_path)
     # Announce the package path.
-    pipe.Write("package.path:" + package_path)
+    #pipe.Write("package.path:" + package_path)
 
     # Announce module relative paths.
     # Just one test module for now.

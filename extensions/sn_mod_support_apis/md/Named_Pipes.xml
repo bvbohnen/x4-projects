@@ -58,17 +58,6 @@ TODO:
 -->
 <cues>
 
-  <!-- Setting up the Lua side of this test. -->
-  <cue name="Load_Lua_Files" instantiate="true">
-    <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-    </conditions>
-    <actions>
-      <raise_lua_event name="'Lua_Loader.Load'" 
-                       param="'extensions.sn_mod_support_apis.lua.named_pipes.Interface'"/>
-    </actions>
-  </cue>
-
   <!--
       Text storage cue, for easier lookup in general.
       Members are descriptive names of the text strings, prefixed with $.
@@ -133,6 +122,7 @@ TODO:
       <!-- Counter reset is optional, but include for init. -->
       <set_value name="Globals.$access_counter" exact="0"/>
       <set_value name="Globals.$reserved_ids" exact="table[]"/>
+      <set_value name="Globals.$enabled" exact="true"/>
       <!-- Prefix to add to all pipe names. -->
       <set_value name="Globals.$pipe_name_prefix" exact="'\\\\.\\pipe\\'" />
       <set_value name="Globals.$pipe_status_cues" exact="[]"/>
@@ -147,6 +137,8 @@ TODO:
     the lua loading which in turn sends this ui event signal.
     (Note: the lua signal will always arrive after md cues are set up,
     since it gets delayed by the Lua_Loader call.)
+    (Note: this is never signalled if the pipes are disabled; instead
+    'disabled' is signalled.)
   -->
   <cue name="Reset_On_Lua_Reload" instantiate="true">
     <conditions>
@@ -161,7 +153,7 @@ TODO:
       -->
       <signal_cue_instantly cue="Reloaded"/>
     </actions>
-  </cue>  
+  </cue>
   
   <!--@doc-cue
     Dummy cue used for signalling.
@@ -174,6 +166,21 @@ TODO:
     </actions>
   </cue>
 
+  <!--
+    Note that the pipes are disabled.
+  -->
+  <cue name="Capture_Lua_Pipes_Disabled" instantiate="true">
+    <conditions>
+      <event_ui_triggered screen="'Named_Pipes'" control="'disabled'" />
+    </conditions>
+    <actions>
+      <!--<debug_text text="'Pipes disabled'" chance="100" filter="general"/>-->
+      <!-- Perform a general reset incase pipes were enabled previously. -->
+      <include_actions ref="Reset_Globals"/>
+      <set_value name="Globals.$enabled" exact="false"/>
+      <!--TODO: should this signal other users in some way? Ignore for now.-->
+    </actions>
+  </cue>
 
   <!--
     Support lib function to update the access_counter, and use it
@@ -794,21 +801,26 @@ TODO:
     Makes use of the simple menu api, if available, else throws an error.
     
     TODO: option to enable debug logging (maybe per pipe).
+    TODO: only enable the menu if at least one pipe is connected.
   -->
   <cue name="Register_Options_Menu" instantiate="true" namespace="this">
     <conditions>
       <event_cue_signalled cue="md.Simple_Menu_API.Reloaded"/>
     </conditions>
     <actions>
-      <!-- Register the parent menu. -->
-      <signal_cue_instantly
-        cue="md.Simple_Menu_API.Register_Options_Menu"
-        param = "table[
-            $id      = 'named_pipes_menu',
-            $columns = 2, 
-            $title   = Text.$Named_Pipes_API,
-            $onOpen  = Build_Options_Menu
-            ]"/>
+      <!-- Register the parent menu if enabled. -->
+      <!--Note: the pipes lua loads before simple menu, so the $enabled flag
+      will be cleared in time for suppressing this menu.-->
+      <do_if value="Globals.$enabled">
+        <signal_cue_instantly
+          cue="md.Simple_Menu_API.Register_Options_Menu"
+          param = "table[
+              $id      = 'named_pipes_menu',
+              $columns = 2, 
+              $title   = Text.$Named_Pipes_API,
+              $onOpen  = Build_Options_Menu
+              ]"/>
+      </do_if>
     </actions>
   </cue>
 
@@ -844,7 +856,6 @@ TODO:
       <event_cue_signalled/>
     </conditions>
     <actions>
-
       <!-- Column labels. -->
       <signal_cue_instantly cue="md.Simple_Menu_API.Add_Row"/>
       <signal_cue_instantly

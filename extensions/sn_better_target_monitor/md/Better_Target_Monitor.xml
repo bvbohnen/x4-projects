@@ -12,17 +12,6 @@
 
   <cues>
 
-    <!-- Register the main lua file. -->
-    <cue name="Load_Lua_Files" instantiate="true">
-      <conditions>
-        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-      </conditions>
-      <actions>
-        <raise_lua_event name="'Lua_Loader.Load'"
-                         param="'extensions.sn_better_target_monitor.lua.Target_Monitor'"/>
-      </actions>
-    </cue>
-
     <!--
       Text storage cue, for easier lookup in general.
       Members are descriptive names of the text strings, prefixed with $.

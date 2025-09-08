@@ -26,3 +26,5 @@ Change Log
   - Added "-v" ("--verbose") command line arg, which will print pipe access permission messages.
 * 1.4.2
   - Added fallback to default pipe permissions when failing to look up user account name.
+* 1.4.3
+  - Updated for x4 7.5, replacing the game lua reported install path with the windows process path.

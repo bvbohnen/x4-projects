@@ -6,18 +6,7 @@
   Light support for performance measurements.
 -->
 <cues>
-  <!-- Register the main lua file. -->
-  <cue name="Load_Lua_Files" instantiate="true">
-    <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-    </conditions>
-    <actions>
-      <raise_lua_event name="'Lua_Loader.Load'"
-                       param="'extensions.sn_measure_perf.lua.Measure_Perf'"/>
-    </actions>
-  </cue>
   
-    
   <!--Testing using open_menu, intercepted by lua, to do direct calls that
       resolve within the md node, not after actions finish.
       Test results: couldn't get lua to trigger before md actions finished.-->

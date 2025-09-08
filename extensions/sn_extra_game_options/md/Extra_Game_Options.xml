@@ -46,19 +46,6 @@
       </actions>
     </cue>
 
-
-    <!-- Register the main lua file. -->
-    <cue name="Load_Lua_Files" instantiate="true">
-      <conditions>
-        <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-      </conditions>
-      <actions>
-        <raise_lua_event name="'Lua_Loader.Load'"
-                         param="'extensions.sn_extra_game_options.lua.Custom_Options'"/>
-      </actions>
-    </cue>
-
-    
     <!--Listen from the menu api reloading. -->
     <cue name="Reset_On_Reload" instantiate="true">
       <conditions>

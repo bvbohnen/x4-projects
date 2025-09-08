@@ -479,7 +479,7 @@
           
             <!-- Merge in any extra specified args. -->
             <do_if value="$option.$args?">
-              <do_all exact="$option.$args.keys.list.count" counter="$i">
+              <do_all exact="$option.$args.keys.count" counter="$i">
                 <set_value name="$key" exact="$option.$args.keys.list.{$i}"/>
                 <set_value name="$val" exact="$option.$args.{$key}"/>
                 <set_value name="$args.{$key}" exact="$val"/>

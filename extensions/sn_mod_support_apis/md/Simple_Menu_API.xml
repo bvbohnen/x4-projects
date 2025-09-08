@@ -170,17 +170,6 @@ Complex properties:
 
 <cues>
 
-  <!-- Register the main lua file. -->
-  <cue name="Load_Lua_Files" instantiate="true">
-    <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-    </conditions>
-    <actions>
-      <raise_lua_event name="'Lua_Loader.Load'"
-                       param="'extensions.sn_mod_support_apis.lua.simple_menu.Interface'"/>
-    </actions>
-  </cue>
-
   <!--
     Static cue that holds some shared state information or constants.
     When this script is installed, a new instance of this cue is created,
@@ -372,6 +361,7 @@ Complex properties:
         by eg. auto $row inclusion below.
       -->
       <set_value name="$args" exact="event.param.clone" />
+      <set_value name="$send_to_lua" exact="true"/>
             
       <!-- The following command handlers are ordered most to least common. -->
       
@@ -427,22 +417,54 @@ Complex properties:
             
       <!-- Handle options menu arg recording. -->
       <do_elseif value="$args.$command == 'Register_Options_Menu'">
-        <!-- Record the args using the menu id, $ prefixed. -->
-        <set_value name="Globals.$options_submenu_specs.{'$'+event.param.$id}" exact="$args" />
-      </do_elseif>      
-      
-      <!-- Args are transmitted to lua using a blackboard var. -->
-      <!-- Create the blackboard list if it doesn't exist. -->
-      <do_if value="not player.entity.$simple_menu_args?">
-        <set_value name="player.entity.$simple_menu_args" exact="[]" />
+        <!-- 
+          Record the args using the menu id, $ prefixed. 
+          Note: copy the args fields into a new table, both to avoid copying
+          the command itself, and to ensure that args passed to the lua
+          will not be modified if a following Edit_Registered_Options_Menu
+          occurs on this same frame and edits the $options_submenu_specs table.
+        -->
+        <set_value name="$id_key" exact="'$'+$args.$id"/>
+        <set_value name="Globals.$options_submenu_specs.{'$'+$args.$id}" exact="table[]" />
+        <do_for_each name="$field" valuename="$value" in="$args">
+          <do_if value="$field != '$command'">
+            <set_value name="Globals.$options_submenu_specs.{$id_key}.{$field}" exact="$value"/>
+          </do_if>
+        </do_for_each>
+      </do_elseif>
+
+      <do_elseif value="$args.$command == 'Edit_Registered_Options_Menu'">
+        <!--Check if the id exists.-->
+        <set_value name="$id_key" exact="'$'+$args.$id"/>
+        <do_if value="Globals.$options_submenu_specs.{$id_key}?">
+          <!--Update individual fields.-->
+          <do_for_each name="$field" valuename="$value" in="$args">
+            <do_if value="$field != '$command'">
+              <set_value name="Globals.$options_submenu_specs.{$id_key}.{$field}" exact="$value"/>
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <do_else>
+          <!--Disable lua update.-->
+          <set_value name="$send_to_lua" exact="false"/>
+          <!--TODO: maybe a warning, preferably printed just once per id.-->
+        </do_else>
+      </do_elseif>
+
+      <do_if value="$send_to_lua">
+        <!-- Args are transmitted to lua using a blackboard var. -->
+        <!-- Create the blackboard list if it doesn't exist. -->
+        <do_if value="not player.entity.$simple_menu_args?">
+          <set_value name="player.entity.$simple_menu_args" exact="[]" />
+        </do_if>
+        <append_to_list name="player.entity.$simple_menu_args" exact="$args"/>
+
+        <debug_text text="'Sending Process_Command with args: %s'.[$args]"
+                  chance="Globals.$DebugChance" filter="general"/>
+
+        <!-- Signal the lua function. -->
+        <raise_lua_event name="'Simple_Menu.Process_Command'"/>
       </do_if>
-      <append_to_list name="player.entity.$simple_menu_args" exact="$args"/>
-
-      <debug_text text="'Sending Process_Command with args: %s'.[$args]"
-                chance="Globals.$DebugChance" filter="general"/>
-
-      <!-- Signal the lua function. -->
-      <raise_lua_event name="'Simple_Menu.Process_Command'"/>
     </actions>
   </cue>
 
@@ -472,7 +494,7 @@ Complex properties:
       - Standard api args
     * columns
       - Integer, total number of columns in the menu table.
-      - Max is 13 (as of x4 4.0).
+      - Max is 13 (as of x4 4.0, in Helper.maxTableCols).
     * title
       - Text to display in the table header.
     * width
@@ -668,6 +690,8 @@ Complex properties:
       - Same as for Create_Menu.
     * table
       - Same as for Create_Menu.
+    * enabled
+      - Bool, true to enable the menu (default), false to disable.
       
       
     Call this each time the Reloaded cue is signalled. Example:
@@ -697,7 +721,62 @@ Complex properties:
       <set_value name="$args" exact="event.param"/>
       <include_actions ref="Init_Args_Table"/>
       <set_value name="$args.$command" exact="'Register_Options_Menu'" />
+      <do_if value="$args.$id?">
+        <signal_cue_instantly cue="Send_Command" param="$args"/>
+      </do_if>
+    </actions>
+  </cue>
+
+  <!--
+    Edit a registered options menu's fields. Does nothing if the menu id
+    has not been registered.
+    
+    Param: Table with the same fields supported as Register_Options_Menu,
+    requiring the id of the menu to edit.
+  -->
+  <cue name="Edit_Registered_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <set_value name="$args" exact="event.param"/>
+      <include_actions ref="Init_Args_Table"/>
+      <set_value name="$args.$command" exact="'Edit_Registered_Options_Menu'" />
       <signal_cue_instantly cue="Send_Command" param="$args"/>
+    </actions>
+  </cue>
+
+  <!--
+    Enable a registered options menu.
+    
+    Param: id of the menu to edit.
+  -->
+  <cue name="Enable_Registered_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <signal_cue_instantly cue="Edit_Registered_Options_Menu" param="table[
+                   $id      = event.param,
+                   $enabled = true,
+                   ]"/>
+    </actions>
+  </cue>
+
+  <!--
+    Disable a registered options menu.
+    
+    Param: id of the menu to edit.
+  -->
+  <cue name="Disable_Registered_Options_Menu" instantiate="true" namespace="this">
+    <conditions>
+      <event_cue_signalled/>
+    </conditions>
+    <actions>
+      <signal_cue_instantly cue="Edit_Registered_Options_Menu" param="table[
+                   $id      = event.param,
+                   $enabled = false,
+                   ]"/>
     </actions>
   </cue>
 

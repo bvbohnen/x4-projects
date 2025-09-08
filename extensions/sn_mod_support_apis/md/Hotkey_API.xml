@@ -21,19 +21,6 @@ TODO:
   <!--                              Init                                  -->
   <!-- ################################################################## -->
 
-    
-  <!-- Register the main lua file. -->
-  <cue name="Load_Lua_Files" instantiate="true">
-    <conditions>
-      <event_ui_triggered screen="'Lua_Loader'" control="'Ready'" />
-    </conditions>
-    <actions>
-      <raise_lua_event name="'Lua_Loader.Load'"
-                        param="'extensions.sn_mod_support_apis.lua.hotkey.Interface'"/>
-    </actions>
-  </cue>
-
-
   <!--
   Register the pipe server with the python host.
   -->
@@ -115,9 +102,7 @@ TODO:
       * id
         - String, action id.
       * inputs
-        - List with two entries, subtables describing the key.
-        - Indices match up to the menu columns (left/right), supporting two
-          player keys per action.
+        - List with 0 or more entries, subtables describing the key.
         - Fields per subtable:
           * combo
             - String, pipe server understood key combo.
@@ -265,7 +250,7 @@ TODO:
       <set_value name="$DebugChance" exact="0" />
 
       <!-- Make sure the read loop is started if there are keys tracked. -->
-      <do_if value="md.Hotkey_API.Globals.$key_event_action_registry.keys.list.count != 0">
+      <do_if value="md.Hotkey_API.Globals.$key_event_action_registry.keys.count != 0">
         <signal_cue cue="$Start_Reading" />
       </do_if>
       <!-- Disable the menu plugin. -->
@@ -315,7 +300,7 @@ TODO:
 
         <!--Start by merging the keys together, semicolon separated. -->
         <set_value name="$joined_keys" exact="''" />
-        <do_all exact="Globals.$key_event_action_registry.keys.list.count" counter="$i">
+        <do_all exact="Globals.$key_event_action_registry.keys.count" counter="$i">
           <set_value name="$joined_keys"
             exact="$joined_keys + Globals.$key_event_action_registry.keys.list.{$i} + ';'"/>
         </do_all>
@@ -493,7 +478,7 @@ TODO:
       <!-- If any player keys were saved for this action, apply them now. -->
       <do_if value="Globals.$player_action_keys.{'$'+$args.$id}?">
         <set_value name="$info" exact="Globals.$player_action_keys.{'$'+$args.$id}"/>
-        <!-- Loop over the input list; up to 2 combos. -->
+        <!-- Loop over the input list. -->
         <do_for_each name="$input" in="$info.$inputs">
           <!-- Skip if the combo is blank. -->
           <do_if value="$input.$combo != ''">
@@ -859,7 +844,7 @@ TODO:
       <set_value name="Globals.$in_menu" exact="false"/>
       <set_value name="Globals.$in_protected_menu" exact="false"/>
       
-      <do_all exact="Globals.$menu_states.keys.list.count" counter="$i">
+      <do_all exact="Globals.$menu_states.keys.count" counter="$i">
         <set_value name="$key" exact="Globals.$menu_states.keys.list.{$i}"/>
         
         <!-- Check if this menu is open. -->
