@@ -2,15 +2,15 @@
 ### Lua Loader API Overview
 
  
-Provides support for loading lua files.
+Provides support functions that aid in running lua files, addressing some issues in X4.
 
-* ui.xml based lua files are loaded before the game initializes
-  - Fix: init functions can be registered to run only after game load.
-* "require" is limited to whitelisted lua files in protected ui mode
-  - Fix: allows lua files to register return values for use in "require" calls.
-* pre-7.5 mods using ui.xml have uninitialized globals ("_G is nil")
-  - Fix: provide MD cues that will trigger loading of loose lua files through a patched egosoft ui.xml.
-  - Legacy support for older mods, no longer recommended for use.
+* Register lua Init functions to run after the game fully loads.
+  - Lua files added to the game using ui.xml are loaded before the game initializes; delaying the Init call allows for accessing game state (eg. C.GetPlayerID() only works after the game loads).
+* Register module path strings and return values for "require" calls.
+  - In protected UI mode, "require" is limited to whitelisted lua files; this api patches "require" to add support for registered lua files.
+* Trigger loading of loose lua files using MD script cues.
+  - Solved an former issue: before X4 7.5, mods loaded through ui.xml had uninitialized globals ("_G is nil").
+  - This functionality is retained as legacy support for older mods; newer mods should ignore this in favor of ui.xml loading.
 
 ### Lua Loader API Functions
 

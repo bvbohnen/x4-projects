@@ -322,7 +322,7 @@ Example direct key mapping:
 
 Limitations:
 * The windows backend confuses numpad enter and numpad / with their non-numpad counterparts.  If one of these keys is used, both the numpad and normal key will trigger the hotkey callback.
-* Currently only supports keyboard inputs, not mouse or joystick.
+* Currently only supports keyboard inputs, not mouse or joystick or radial menu.
   
 
 # X4 Time API
