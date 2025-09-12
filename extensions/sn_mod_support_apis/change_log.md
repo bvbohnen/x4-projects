@@ -80,3 +80,7 @@ Change Log for overall api package.
     - Edit_Registered_Options_Menu
     - Enable_Registered_Options_Menu
     - Disable_Registered_Options_Menu
+* 1.92
+  - Note: X4 online features do not work with this mod.
+  - Patched several lua restricted "Online" functions to return safe values instead of nil for modded menus.
+  - Fixed a ui lockup bug when accessing player info.

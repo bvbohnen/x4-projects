@@ -116,6 +116,14 @@ function L.Init()
     RegisterEvent("Extra_Game_Options.get_lua_values"         , L.Handle_Get_Lua_Values)
     
     
+    L.Init_Menu_Alpha()
+    L.Init_Animations()
+    L.Init_Help_Text()
+    L.Init_Map_Focus()
+    L.Init_Map_Zoom()
+    --L.Init_Cheats()
+    --L.Init_Auto_Mouseover()
+    --L.Init_Hide_Modified()
 
     -- Testing.
     --Lib.Print_Table(_G, "_G")
@@ -240,7 +248,6 @@ function L.Init_Menu_Alpha()
 
     end    
 end
-L.Init_Menu_Alpha()
 
 function L.Handle_Map_alpha(_, new_alpha)
     -- Validate within reasonable limits.
@@ -316,7 +323,6 @@ function L.Init_Animations()
     end
     
 end
-L.Init_Animations()
 
 
 -- Runtime md signal handler to change the option state.
@@ -611,7 +617,6 @@ function L.Init_Help_Text()
     end
     ]]
 end
-L.Init_Help_Text()
 
 
 function L.Handle_Hide_Helptext(_, param)
@@ -722,7 +727,6 @@ function L.Init_Map_Focus()
     --end    
 
 end
-L.Init_Map_Focus()
 
 
 function L.Handle_Map_Player_Focus(_, param)
@@ -877,7 +881,6 @@ function L.Init_Map_Zoom()
         end
     end    
 end
-L.Init_Map_Zoom()
 
 function L.Handle_Map_Zoom_Distance(_, param)
     if debugger.verbose then
@@ -995,7 +998,6 @@ function L.Init_Cheats()
         end
     end    
 end
-L.Init_Cheats()
 ]]
 
 ------------------------------------------------------------------------------
@@ -1253,7 +1255,6 @@ function L.Init_Auto_Mouseover()
     -- TODO:  widgetPrototypes.frame:update()
 
 end
-L.Init_Auto_Mouseover()
 
 function L.Handle_Tooltip_On_Truncation(_, param)
     if debugger.verbose then
@@ -1316,7 +1317,6 @@ function L.Init_Hide_Modified()
         return ego_CreateFontString(text, ...)
     end
 end
-L.Init_Hide_Modified()
 ]]
 
 ------------------------------------------------------------------------------

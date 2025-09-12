@@ -90,7 +90,6 @@ local gameoptions_menu = nil
 local original_displayOptions = nil
 local original_submenuHandler = nil
 local original_viewCreated = nil
-local original_warningIconOnline = nil
 
 
 -- Patched egosoft menu.displayOptions
@@ -282,11 +281,9 @@ local function viewCreated(layer, ...)
 end
 
 
--- Hook into the gameoptions menu.
-local function Init_Gameoptions_Link()
-    -- Look up the menu, store in this module's local.
-    gameoptions_menu = Lib.Get_Egosoft_Menu("OptionsMenu")
-    
+-- Clumsy function to hide various errors from online related functions
+-- failing when the menu has been edited.
+local function Hide_Online_Errors()
     --[[
     Note: in xr 7.5 while in ui protected mode, patching the menus will 
     interfere with OnlineGetVersionIncompatibilityState calls, making them 
@@ -302,11 +299,69 @@ local function Init_Gameoptions_Link()
     Online line of the settings menu.
     As a workaround, patch the warning icon function to hide the error.
     ]]
-    original_warningIconOnline = gameoptions_menu.warningIconOnline
+    local ego_warningIconOnline = gameoptions_menu.warningIconOnline
     gameoptions_menu.warningIconOnline = function()
         return ""
     end
+
+    -- Patch OnlineGetUserItems to return an empty table if it would
+    -- return nil (which breaks the ui elsewhere, eg. play info menu).
+    local ego_OnlineGetUserItems = OnlineGetUserItems
+    OnlineGetUserItems = function()
+        local value = ego_OnlineGetUserItems()
+        if value == nil then
+            value = {}
+        end
+        return value
+    end
+        
+    local ego_OnlineHasSession = OnlineHasSession
+    OnlineHasSession = function()
+        local value = ego_OnlineHasSession()
+        if value == nil then
+            value = false
+        end
+        return value
+    end
     
+    local ego_OnlineIsOnlineModeActive = OnlineIsOnlineModeActive
+    OnlineIsOnlineModeActive = function()
+        local value = ego_OnlineIsOnlineModeActive()
+        if value == nil then
+            value = false
+        end
+        return value
+    end
+        
+    local ego_OnlineHasVentureLogbookReward = OnlineHasVentureLogbookReward
+    OnlineHasVentureLogbookReward = function()
+        local value = ego_OnlineHasVentureLogbookReward()
+        if value == nil then
+            value = false
+        end
+        return value
+    end
+    
+    -- TODO: add this for 1.93, along with any other missed functions.
+    --local ego_OnlineIsCurrentTeamValid = OnlineIsCurrentTeamValid
+    --OnlineIsCurrentTeamValid = function()
+    --    local value = ego_OnlineIsCurrentTeamValid()
+    --    if value == nil then
+    --        value = false
+    --    end
+    --    return value
+    --end
+        
+end
+
+
+-- Hook into the gameoptions menu.
+local function Init_Gameoptions_Link()
+
+    -- Look up the menu, store in this module's local.
+    gameoptions_menu = Lib.Get_Egosoft_Menu("OptionsMenu")
+    
+    Hide_Online_Errors()
 
     -- Patch displayOptions.
     original_displayOptions = gameoptions_menu.displayOptions

@@ -1,5 +1,7 @@
 # X4 Mod Support APIs
 
+Warning: several X4 online features are disabled by this mod due to egosoft restrictions when top level menus are patched.
+
 This is a collection of APIs developed to ease mod creation in a variety of ways. Components include:
 
 * Lua Loader API
