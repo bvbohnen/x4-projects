@@ -36,8 +36,8 @@
     </conditions>
     <actions>      
       <!-- Log it. -->
-      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'%1 seen'.[event.param.$name]"/>
-      <debug_text filter="general" text="'/test seen'"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'OnCommand %1 triggered'.[event.param.$name]"/>
+      <debug_text filter="general" text="'OnCommand /test triggered'"/>
     </actions>
   </cue>
   

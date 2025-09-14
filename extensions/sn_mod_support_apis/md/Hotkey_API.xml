@@ -70,7 +70,7 @@ TODO:
     - Descriptors are made up of the key combo string, followed by the
       name of an event type (onPress, etc.).
     - Key descriptors have an extra '$' prefixed, due to x4 quirkiness.
-    - A action may be used in multiple entries if it is enabled for
+    - An action may be used in multiple entries if it is enabled for
       multiple events.
     - Normally expect only one action to be registered per key, but it
       might be higher.

@@ -84,3 +84,6 @@ Change Log for overall api package.
   - Note: X4 online features do not work with this mod.
   - Patched several lua restricted "Online" functions to return safe values instead of nil for modded menus.
   - Fixed a ui lockup bug when accessing player info.
+* 1.93
+  - Fix for hotkeys using ctrl not triggering.
+  - Updated chat window api for 8.0.

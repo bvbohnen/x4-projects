@@ -342,15 +342,14 @@ local function Hide_Online_Errors()
         return value
     end
     
-    -- TODO: add this for 1.93, along with any other missed functions.
-    --local ego_OnlineIsCurrentTeamValid = OnlineIsCurrentTeamValid
-    --OnlineIsCurrentTeamValid = function()
-    --    local value = ego_OnlineIsCurrentTeamValid()
-    --    if value == nil then
-    --        value = false
-    --    end
-    --    return value
-    --end
+    local ego_OnlineIsCurrentTeamValid = OnlineIsCurrentTeamValid
+    OnlineIsCurrentTeamValid = function()
+        local value = ego_OnlineIsCurrentTeamValid()
+        if value == nil then
+            value = false
+        end
+        return value
+    end
         
 end
 

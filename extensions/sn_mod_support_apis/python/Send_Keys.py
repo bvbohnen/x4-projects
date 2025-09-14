@@ -648,22 +648,8 @@ class Key_Combo_Processor:
                 self.keys_down.remove(key)
             if verbosity >= 3:
                 print('Keys down: {}'.format(self.keys_down if self.keys_down else ''))
-
-
-            # The first pass logic will group combos into those
-            # matched, held, unheld.
-            # - Held: keys all pressed, other modifiers unpressed, but last key
-            #   is not the latest key (should have had a press event earlier).
-            # - Matched: as Held, but last key is the latest key.
-            # - Unheld: everything else.
-            # Checking these categories against the prior held combos will
-            #  determine which ones are pressed (newly held), repeated
-            #  (already held), released (no longer held).
-            combos_held    = []
-            combos_matched = []
-            combos_unheld  = []
-
-        
+                
+                
             # Get which modifier keys are currently held, and their
             #  corresponding category code.
             mod_flags = 0
@@ -737,7 +723,7 @@ class Key_Combo_Processor:
         Keycodes use standard keyboard scancodes.
         Modifiers for shift and ctrl are baked into the keycode's high byte:
             shift: 0x100
-            ctrl : 0x400
+            ctrl : 0x200
         '''
         assert combo_string.startswith('code ')
     
@@ -750,15 +736,15 @@ class Key_Combo_Processor:
 
         # Isolate modifiers.
         # Note: ego code doesn't distinguish between left/right keys.
-        # Ctrl at 0x400.
-        if keycode & 0x400:
-            keycode -= 0x400
-            combo.append('ctrl')
+        # Ctrl at 0x200.
+        if keycode & 0x200:
+            keycode -= 0x200
+            combo.insert(0, 'ctrl')
 
         # Shift at 0x100.
         if keycode & 0x100:
             keycode -= 0x100
-            combo.append('shift')
+            combo.insert(0, 'shift')
 
         # Convert the remainder to a key name.
         # Note: shortly after this the name will convert back into a code,
@@ -1004,7 +990,7 @@ def Key_Init():
     vk_name_to_code_dict = {}
 
     # Set of vk codes that map to extended keys.
-    vks_that_are_extended_set = set(x[0] for x in key_info_list if x[2])
+    #vks_that_are_extended_set = set(x[0] for x in key_info_list if x[2])
 
     # Match vk codes to scancodes. Just do this once here, to avoid having to
     # keep doing it during runtime.

@@ -28,6 +28,14 @@ Note: if installed on an existing save, an additional save/load cycle or a /relo
 # X4 LUA Loader API
 
 This extension provides support functions to aid in loading lua files.
+
+Note: if using these new lua global functions, add a dependency to the mod apis in your ui.xml file to ensure the functions are loaded earlier. Example: 
+```
+  <environment type="menus">
+    <file name="ui/function_user.lua" />
+    <dependency name="sn_mod_support_apis" />
+  </environment>
+```
   
 ### Support "require" in protected ui mode
 
