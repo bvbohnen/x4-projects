@@ -177,17 +177,22 @@ end
 -- Handle command events coming in.
 -- Param unused currently.
 function L.Handle_Process_Command(_, param)
-    local args = L.Get_Next_Args()
+    -- Note: sometimes if there was a problem loading the files, the
+    -- blackboard var is blank, leading to nil args. Avoid throwing
+    -- an error in that case.
+    local success, args = pcall(L.Get_Next_Args)
     
-    if menu_data.delay_commands == false
-    -- These commands are never delayed.
-    or args.command == "Create_Menu"
-    or args.command == "Close_Menu"
-    or args.command == "Register_Options_Menu"
-    or args.command == "Edit_Registered_Options_Menu" then
-        L.Process_Command(args)
-    else
-        table.insert(menu_data.queued_events, args)
+    if success then
+        if menu_data.delay_commands == false
+        -- These commands are never delayed.
+        or args.command == "Create_Menu"
+        or args.command == "Close_Menu"
+        or args.command == "Register_Options_Menu"
+        or args.command == "Edit_Registered_Options_Menu" then
+            L.Process_Command(args)
+        else
+            table.insert(menu_data.queued_events, args)
+        end
     end
 end
 

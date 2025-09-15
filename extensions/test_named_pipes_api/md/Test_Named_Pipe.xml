@@ -108,10 +108,9 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
   <cue name="Check_Lua_Loaded" instantiate="true">
     <conditions>
       <event_ui_triggered screen="'Named_Pipes'" control="'reloaded'" />
-      <event_ui_triggered screen="'Named_Pipes'" control="'disabled'" />
     </conditions>
     <actions>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test; Lua load completed'"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Pipe Test; Lua load completed'"/>
     </actions>
   </cue>
   
@@ -185,7 +184,7 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
       <!-- Pull the value out of the param. -->
       <set_value name="$read_result" exact="event.param"/>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Read result: ' + $read_result"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Pipe Test;Read result: ' + $read_result"/>
     </actions>
   </cue>
     
@@ -197,7 +196,7 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
       <!-- Pull the value out of the param. -->
       <set_value name="$result" exact="event.param"/>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Write result: ' + $result"/>      
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Pipe Test;Write result: ' + $result"/>      
     </actions>
   </cue>
   
@@ -209,7 +208,7 @@ TODO: a full (though simple) app that uses a pipe regularly during runtime,
       <!-- Pull the value out of the param. -->
       <set_value name="$result" exact="event.param"/>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" param="'Pipe Test;Connected? ' + $result"/>      
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Pipe Test;Connected? ' + $result"/>      
     </actions>
   </cue>
   

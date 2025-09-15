@@ -73,33 +73,33 @@ release_specs = [
         steam = True,
         doc_specs = {
             'documentation/Named_Pipes_API.md':[
-                'md/Named_Pipes.xml',
-                'md/Pipe_Server_Host.xml',
-                'md/Pipe_Server_Lib.xml',
+                'md/named_pipes.xml',
+                'md/pipe_server_host.xml',
+                'md/pipe_server_lib.xml',
             ],
             'documentation/Hotkey_API.md':[
-                'md/Hotkey_API.xml',
+                'md/hotkey_api.xml',
             ],
             'documentation/Simple_Menu_API.md':[
-                'md/Simple_Menu_API.xml',
+                'md/simple_menu_api.xml',
             ],
             'documentation/Simple_Menu_Options_API.md':[
-                'md/Simple_Menu_Options.xml',
+                'md/simple_menu_options.xml',
             ],
             'documentation/Time_API.md':[
-                'ui/time/Interface.lua',
+                'ui/time/interface.lua',
             ],
             'documentation/Interact_Menu_API.md':[
-                'md/Interact_Menu_API.xml',
+                'md/interact_menu_api.xml',
             ],
             'documentation/Chat_Window_API.md':[
-                'md/Chat_Window_API.xml',
+                'md/chat_window_api.xml',
             ],
             'documentation/Userdata_API.md':[
-                'md/Userdata.xml',
+                'md/userdata.xml',
             ],
             'documentation/Lua_Loader_API.md':[
-                'ui/Lua_Loader.lua',
+                'ui/lua_loader.lua',
             ],
         },
         ),
@@ -155,8 +155,8 @@ release_specs = [
             'config_defaults.ini',
             'Modfy_Exe.py',
             'Modify_Scripts.py',
-            'ui/Script_Profiler.lua',
-            'md/SN_Script_Profiler.xml',
+            'ui/script_profiler.lua',
+            'md/sn_script_profiler.xml',
             'python/Script_Profiler.py',
         ],
         ),

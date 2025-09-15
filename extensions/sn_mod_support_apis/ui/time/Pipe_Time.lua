@@ -6,7 +6,7 @@ an import loop.
 ]]
 
 -- TODO: conditionally include pipes api. For now hardcode.
-local pipes_api = require("extensions.sn_mod_support_apis.ui.time.Interface")
+local pipes_api = require("extensions.sn_mod_support_apis.ui.named_pipes.Interface")
 
 -- Table of local functions and data.
 local L = {
@@ -41,11 +41,15 @@ function L.Get_System_Time(_, id)
             -- Punt on errors for now.
             if message ~= 'ERROR' then
                 -- Put the time in the log.
-                DebugError(string.format("Request id '%s' system time: %f seconds", id, message))
+                if L.debug then
+                    DebugError(string.format("Request id '%s' system time: %f seconds", id, message))
+                end
                 -- Return to md.
                 L.Raise_Signal(id, message)
             else
-                DebugError("Time.Get_System_Time failed; pipe not connected.")
+                if L.debug then
+                    DebugError("Time.Get_System_Time failed; pipe not connected.")
+                end
             end
         end
         )
@@ -69,15 +73,19 @@ function L.Toc(_, id)
             -- Punt on errors for now.
             if message ~= 'ERROR' then
                 -- Put the time in the log.
-                DebugError(string.format("Toc id '%s': %f seconds", id, message))
+                if L.debug then
+                    DebugError(string.format("Toc id '%s': %f seconds", id, message))
+                end
                 -- Return to md.
                 L.Raise_Signal(id, message)
             else
-                DebugError("Time.Toc failed; pipe not connected.")
+                if L.debug then
+                    DebugError("Time.Toc failed; pipe not connected.")
+                end
             end
         end
         )
 end
 
 
-Init()
+Register_OnLoad_Init(Init, "extensions.sn_mod_support_apis.ui.time.Pipe_Time")

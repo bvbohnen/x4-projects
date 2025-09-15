@@ -762,7 +762,7 @@ TODO:
       <event_ui_triggered screen="'Hotkey'" control="'disable'" />
     </conditions>
     <actions>
-      <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;disabling...'"/>-->
+      <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;disabling...'"/>-->
       <set_value name="Globals.$disabled" exact="true"/>
     </actions>
   </cue>
@@ -772,7 +772,7 @@ TODO:
       <event_ui_triggered screen="'Hotkey'" control="'enable'" />
     </conditions>
     <actions>
-      <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;enabling...'"/>-->
+      <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;enabling...'"/>-->
       <set_value name="Globals.$disabled" exact="false"/>
     </actions>
   </cue>
@@ -851,7 +851,7 @@ TODO:
         <do_if value="Globals.$menu_states.{$key}">
           <set_value name="Globals.$in_menu" exact="true"/>
           
-          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Menu open: %s'.[$key]"/>-->
+          <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Menu open: %s'.[$key]"/>-->
           
           <!-- Check if the protected options menu is open. -->
           <do_if value="$key == 'OptionsMenu'">
@@ -911,20 +911,20 @@ TODO:
 
         <debug_text text="'Received key event %s'.[$key_event]"
                     chance="Globals.$DebugChance" filter="general"/>
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Received key event %s'.[$key_event]"/>-->
+        <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Received key event %s'.[$key_event]"/>-->
       
         <!-- Ignore if currently in a protected menu. -->
         <do_if value="Globals.$in_protected_menu">
           <debug_text text="'Ignoring key; protected menu open'"
                       chance="Globals.$DebugChance" filter="general"/>
-          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ignoring key; protected menu open'"/>-->
+          <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Ignoring key; protected menu open'"/>-->
         </do_if>
       
         <!--Ignore if disabled after direct input.-->
         <do_elseif value="Globals.$disabled">
           <debug_text text="'Ignoring key; temporarily disabled after direct text input'"
                       chance="Globals.$DebugChance" filter="general"/>
-          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ignoring key; direct input disabled'"/>-->
+          <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Ignoring key; direct input disabled'"/>-->
         </do_elseif>
 
         <!-- Is the key returned actually registered? -->
@@ -947,7 +947,7 @@ TODO:
 
           <debug_text text="'Context of key: %s'.[$context]"
                       chance="Globals.$DebugChance" filter="general"/>
-          <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Context of key: %s'.[$context]"/>-->
+          <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Context of key: %s'.[$context]"/>-->
         
           <!-- Get the event associated with this key/event, matching its suffix. -->
           <set_value name="$key" exact ="Globals.$key_event_substrings.{$key_event}.{1}"/>
@@ -997,7 +997,7 @@ TODO:
             <do_if value="$cue.exists">
               <debug_text text="'Signalling cue: %s'.[$cue]"
                           chance="Globals.$DebugChance" filter="general"/>
-              <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Signalling cue: %s'.[$cue]"/>-->
+              <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Signalling cue: %s'.[$cue]"/>-->
               <!-- Call the cue, with return values. -->
               <signal_cue_instantly cue="$cue" param="table[
                                     $key     = $key,

@@ -5,3 +5,4 @@ aiscripts/*
 # Everything in md except one specific file.
 md/*
 !md/SN_Measure_Perf.xml
+!md/sn_measure_perf.xml

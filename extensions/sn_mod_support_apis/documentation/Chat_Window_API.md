@@ -10,6 +10,7 @@ In addition to what is described below for the cues, there is some additional fu
 * When a refresh event occurs, scripts may detect this using the conditions:
   - `<event_ui_triggered screen="'Chat_Window_API'" control="'refreshmd'"/>`
   - `<event_ui_triggered screen="'Chat_Window_API'" control="'refreshai'"/>`
+  - Note: the refresh signal will arrive after files are reloaded.
   
 
 ### MD Chat Window API Cues

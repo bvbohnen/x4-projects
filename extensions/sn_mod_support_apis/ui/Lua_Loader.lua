@@ -253,4 +253,6 @@ local function Init()
     Send_Priority_Ready()
 end
 
+-- Note: have to init this right away to set up mechanism so other
+-- lua files can delay init until load.
 Init()

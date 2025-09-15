@@ -68,7 +68,7 @@ Tests for the time api.
     </conditions>
     <actions>
       <set_value name="$enginetime" exact="event.param3"/>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Time;Engine time: '+$enginetime "/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Time;Engine time: '+$enginetime "/>
     </actions>
   </cue>
 
@@ -78,7 +78,7 @@ Tests for the time api.
     </conditions>
     <actions>
       <set_value name="$time" exact="event.param3"/>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Time;System time: '+$time "/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Time;System time: '+$time "/>
     </actions>
   </cue>
 
@@ -100,7 +100,7 @@ Tests for the time api.
     <actions>
       <!--Add 1 second.-->
       <set_value name="$time_elapsed" operation="add"/>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Time;Seconds: '+$time_elapsed"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Time;Seconds: '+$time_elapsed"/>
       
       <!--Stop at 5.-->
       <do_if value="$time_elapsed ge 5">
@@ -159,7 +159,7 @@ Tests for the time api.
       </check_any>
     </conditions>
     <actions>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Time;%1: %2'.[event.param2, event.param3]"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Time;%1: %2'.[event.param2, event.param3]"/>
       <!--Reset the timer and print again.-->
       <raise_lua_event name="'Time.resetTimer'"  param="event.param2"/>
       <raise_lua_event name="'Time.printTimer'"  param="event.param2"/>
@@ -191,7 +191,7 @@ Tests for the time api.
       <event_ui_triggered screen="'Time'" control="'tictoc'" />
     </conditions>
     <actions>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Time;toc: %1'.[event.param3]"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Time;toc: %1'.[event.param3]"/>
     </actions>
   </cue>
 

@@ -100,6 +100,9 @@ local L = {
 
     -- TODO: maybe ui setting for this.
     max_messages = 30,
+
+    -- The last timestamp applied to a message.
+    last_timestamp = 0,
 }
 
 -- Signalling results from lua to md.
@@ -238,10 +241,22 @@ function L.Record_Message(text, author)
         table.remove(L.messages, 1)
     end
 
+    --[[
+    Note: ego code will sort messages based on timestamp, then author,
+    then subline of wordwrap. If multiple messages are recorded on the same
+    frame with the same timestamp, they can get randomly jumbled.
+    As a workaround, always ensure timestamps increment by at least 1ms.
+    ]]
+    local timestamp = C.GetCurrentUTCDataTime() * 1000
+    if timestamp <= L.last_timestamp then
+        timestamp = L.last_timestamp + 1
+    end
+    L.last_timestamp = timestamp
+
     local new_message = {
         author = author,
         authorid = L.Get_Author_ID(author),
-        time = tostring(C.GetCurrentUTCDataTime() * 1000),
+        time = tostring(timestamp),
         reported = false,
         text = text,
         isprivate = false,
@@ -288,9 +303,9 @@ TODO:
 --]]
 --
 ---- Imports.
---local Lib = require("extensions.sn_mod_support_apis.ui.Library")
---local Time = require("extensions.sn_mod_support_apis.ui.time.Interface")
---local T = require("extensions.sn_mod_support_apis.ui.Text")
+--local Lib = require("extensions.sn_mod_support_apis.ui.library")
+--local Time = require("extensions.sn_mod_support_apis.ui.time.interface")
+--local T = require("extensions.sn_mod_support_apis.ui.text")
 --
 ---- Copy of ego config terms of interest.
 --local config = {

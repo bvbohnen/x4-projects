@@ -85,5 +85,6 @@ Change Log for overall api package.
   - Patched several lua restricted "Online" functions to return safe values instead of nil for modded menus.
   - Fixed a ui lockup bug when accessing player info.
 * 1.93
-  - Fix for hotkeys using ctrl not triggering.
   - Updated chat window api for 8.0.
+  - Fix for hotkeys using ctrl not triggering.
+  - Switched to lowercase file names for better linux compatability.

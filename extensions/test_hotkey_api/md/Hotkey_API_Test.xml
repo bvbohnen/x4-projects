@@ -78,7 +78,7 @@ Relies on named pipe library; server side is written in python.
     </conditions>    
     <actions>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'" 
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" 
                        param="'key;%s (%s %s)'.[
                             event.param.$id, 
                             event.param.$key, 

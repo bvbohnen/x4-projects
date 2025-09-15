@@ -49,7 +49,7 @@
                   chance="100" filter="general"/>
         <set_value name="$result" exact="'fail'"/>        
       </do_else>
-      <raise_lua_event name="'directChatMessageReceived'" param="'LuaCall;test: %s'.[$result]"/>-->
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'LuaCall;test: %s'.[$result]"/>-->
       
     <!--</actions>    
   </cue>-->
@@ -143,7 +143,7 @@
       <check_value value="false"/>
     </conditions>
     <actions>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Test;started'"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Test;started'"/>
       <!--<signal_cue_instantly cue="Bounce_MD_a" param="100"/>-->
       <!--<signal_cue_instantly cue="Chain_MD_0" param="100"/>-->
       <!--<signal_cue_instantly cue="Chain_MD_delay_0" param="100"/>-->
@@ -371,7 +371,7 @@
       <check_value value="false"/>
     </conditions>
     <actions>
-      <raise_lua_event name="'directChatMessageReceived'" param="'Test;started'"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="'Test;started'"/>
 
       <debug_text text="'signal_cue Order_Test_del_a'" filter="general"/>
       <signal_cue cue="Order_Test_del_a"/>

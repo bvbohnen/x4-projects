@@ -211,7 +211,7 @@
       </conditions>
       <actions>
         <!-- Debug message. -->
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Starting Target_Follow'"/>-->
+        <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Starting Target_Follow'"/>-->
         <!--<debug_text text="'KeyCapture Triggered Target_Follow'" filter="general"/>-->
                 
         <!-- Cancel autopilot if the target is already the current dest.-->
@@ -236,7 +236,7 @@
       </conditions>
       <actions>
         <!-- Debug message. -->
-        <!--<raise_lua_event name="'directChatMessageReceived'" param="'KeyCapture;Ejecting_Illegals'"/>-->
+        <!--<signal_cue_instantly cue="md.Chat_Window_API.Print" param="'KeyCapture;Ejecting_Illegals'"/>-->
         <!--<debug_text text="'KeyCapture Triggered Ejecting_Illegals'" filter="general"/>-->
 
         <set_value name="$faction" exact="player.sector.policefaction"/>

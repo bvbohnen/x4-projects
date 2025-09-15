@@ -1,4 +1,5 @@
 # Note: this is not currently used, but could prove useful at some point.
+import time
 
 class Log_Reader:
     '''

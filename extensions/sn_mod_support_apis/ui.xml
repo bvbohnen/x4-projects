@@ -2,39 +2,39 @@
 <addon name="sn_mod_support_apis" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../core/coreaddon.xsd">
   <environment type="menus">
     <!--Load this first, so it sets up the extra global functions.-->
-    <file name="ui/Lua_Loader.lua" />
+    <file name="ui/lua_loader.lua" />
 
     <!--Set up generic lua files for others to reference.-->
-    <file name="ui/Text.lua" />
-    <file name="ui/Library.lua" />
+    <file name="ui/text.lua" />
+    <file name="ui/library.lua" />
 
-    <file name="ui/userdata/Interface.lua" />
+    <file name="ui/userdata/interface.lua" />
     
-    <file name="ui/time/Interface.lua" />
+    <file name="ui/time/interface.lua" />
 
     <file name="ui/c_library/winpipe.lua" />
 
     <file name="ui/named_pipes/library.lua" />
-    <file name="ui/named_pipes/Pipes.lua" />
-    <file name="ui/named_pipes/Interface.lua" />
+    <file name="ui/named_pipes/pipes.lua" />
+    <file name="ui/named_pipes/interface.lua" />
 
-    <file name="ui/time/Pipe_Time.lua" />
+    <file name="ui/time/pipe_time.lua" />
 
-    <file name="ui/interact_menu/Interface.lua" />
-    <file name="ui/chat_window/Interface.lua" />
+    <file name="ui/interact_menu/interface.lua" />
+    <file name="ui/chat_window/interface.lua" />
 
     <!--Load this late, so others can reset and decide if they want to add menus.-->
-    <file name="ui/simple_menu/Library.lua" />
-    <file name="ui/simple_menu/Tables.lua" />
-    <file name="ui/simple_menu/Standalone_Menu.lua" />
-    <file name="ui/simple_menu/Options_Menu.lua" />
-    <file name="ui/simple_menu/Interface.lua" />
+    <file name="ui/simple_menu/library.lua" />
+    <file name="ui/simple_menu/tables.lua" />
+    <file name="ui/simple_menu/standalone_menu.lua" />
+    <file name="ui/simple_menu/options_menu.lua" />
+    <file name="ui/simple_menu/interface.lua" />
 
     <!--References simple menu tables.-->
-    <file name="ui/hotkey/Interface.lua" />
+    <file name="ui/hotkey/interface.lua" />
 
     <!--Load this last, since it imports from others.-->
-    <file name="ui/External_Interface.lua" />
+    <file name="ui/external_interface.lua" />
     
     <savedvariable name="__MOD_USERDATA" storage="userdata" />
 

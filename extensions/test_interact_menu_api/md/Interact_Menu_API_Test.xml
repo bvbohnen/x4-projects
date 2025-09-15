@@ -34,7 +34,7 @@
       <!-- Announce the event. -->
       <set_value name="$msg" exact="'interact;target: %s (%s)'.[
                           $target, $texts.$targetBaseOrShortName ]"/>
-      <raise_lua_event name="'directChatMessageReceived'" param="$msg"/>
+      <signal_cue_instantly cue="md.Chat_Window_API.Print" param="$msg"/>
       <debug_text text="$msg" chance="100" filter="general"/>
             
       <!--Decide if this should show.-->
@@ -90,7 +90,7 @@
     </conditions>
     <actions>
       <!-- Log it. -->
-      <raise_lua_event name="'directChatMessageReceived'"
+      <signal_cue_instantly cue="md.Chat_Window_API.Print"
                         param="'action;%s'.[ event.param.$id ]"/>
       
       <!--If this is the Stay Open test, try de-activating it.
