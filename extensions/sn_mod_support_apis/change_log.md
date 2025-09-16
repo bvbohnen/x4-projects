@@ -86,5 +86,6 @@ Change Log for overall api package.
   - Fixed a ui lockup bug when accessing player info.
 * 1.93
   - Updated chat window api for 8.0.
-  - Fix for hotkeys using ctrl not triggering.
-  - Switched to lowercase file names for better linux compatability.
+  - Fix for hotkeys set in the menu using the ctrl modifier not triggering.
+  - Switched to lowercase xml and lua file names for better linux compatability.
+  - Fixed issue with OnLoad lua Init functions being called multiple times if another mod includes a copy of older Lua_Loader code.

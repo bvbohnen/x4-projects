@@ -56,6 +56,22 @@ in a cat/dat. Example:
 ]]
 
 --[[
+Note: at least one modder copied an older lua_loader into their own mod,
+which leads to Priority_Ready events triggering twice on game load. This
+can then lead to 4 Ready calls (2 here, 2 in other copy). There is no great
+way to protect against all possible issues with signals being sent multiple
+times, but can protect against the worst results.
+
+- Only run registered init functions once.
+- "require" will prevent multiple loads of a lua file.
+- Priority_Ready and Ready can signal multiple times.
+  - Locally can limit to one Ready, but that still can be 3 overall.
+- Lua_Loader.Loaded can signal multiple times for the same file.
+
+If listeners only use these signals to load lua files, this might be okay.
+]]
+
+--[[
 Old description follows:
 
 Simple api for loading in mod lua files.
@@ -127,6 +143,8 @@ local module_exports = {}
 -- be called when the game is loaded or ui is reloaded, in order of 
 -- registration (hence controlled by ordering in ui.xml).
 local module_inits = {}
+-- Table of names of modules that were loaded. (Values are 0s.)
+local modules_loaded = {}
 
 local debug_print_require_info = false
 
@@ -179,7 +197,8 @@ require = function (module_name)
     return orig_require(module_name)
 end
 
-
+-- Note: this may trigger multiple times, eg. when the ui first loads and
+-- again when the game fully loads.
 local function Send_Priority_Ready()
     --DebugError("LUA Loader API: Signalling 'Lua_Loader, Priority_Ready'")
     -- Send a ui signal, telling all md cues to rerun.
@@ -187,7 +206,14 @@ local function Send_Priority_Ready()
     -- TODO: maybe support priority init functions.
 end
 
+-- Flag set once Ready sent.
+local has_sent_ready = false
+
 local function Send_Ready()
+    -- Protect against running multiple times.
+    if has_sent_ready then return end
+    has_sent_ready = true
+
     --DebugError("LUA Loader API: Signalling 'Lua_Loader, Ready'")
     -- Send a ui signal, telling all md cues to rerun.
     AddUITriggeredEvent("Lua_Loader", "Ready")
@@ -201,9 +227,20 @@ local function Send_Ready()
             DebugError("LUA Loader API: init for module "..name.." failed with message: "..message)
         end
     end
+
+    -- Clear the init table since no longer needed, though it would be
+    -- okay to leave this in place since above flag protects against
+    -- running inits more than once.
+    module_inits = {}
 end
 
 local function on_Load_Lua_File(_, file_path)
+
+    -- Skip if already attempted to load this file.
+    if modules_loaded[file_path] ~= nil then
+        return
+    end
+    modules_loaded[file_path] = 0
 
     if(package ~= nil) then
         -- Support lua files distributed as txt (which has more general
@@ -253,6 +290,6 @@ local function Init()
     Send_Priority_Ready()
 end
 
--- Note: have to init this right away to set up mechanism so other
--- lua files can delay init until load.
+-- Note: have to init this right away (and send Send_Priority_Ready) to set 
+-- up mechanism so other lua files can delay init until load.
 Init()
