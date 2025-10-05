@@ -89,3 +89,5 @@ Change Log for overall api package.
   - Fix for hotkeys set in the menu using the ctrl modifier not triggering.
   - Switched to lowercase xml and lua file names for better linux compatability.
   - Fixed issue with OnLoad lua Init functions being called multiple times if another mod includes a copy of older Lua_Loader code.
+* 1.94
+  - Fix for timelines debriefing window not displaying.

@@ -213,7 +213,7 @@ local function displayOptions(optionParameter)
         -- (In pracice, this might not matter much if it just deals with
         -- scroll bar position, as the main menu isn't big enough to
         -- scroll.)
-        ftable:setTopRow(preselectTopRow)    
+        ftable:setTopRow(preselectTopRow)
     end
         
     -- Re-attach the original frame display, and call it.
@@ -347,6 +347,18 @@ local function Hide_Online_Errors()
         local value = ego_OnlineIsCurrentTeamValid()
         if value == nil then
             value = false
+        end
+        return value
+    end
+        
+    -- OnlineGetScenarioRankings
+    -- Note: this one breaks the timelines end of mission briefing if
+    -- not caught (since code expects a table).
+    local ego_OnlineGetScenarioRankings = OnlineGetScenarioRankings
+    OnlineGetScenarioRankings = function()
+        local value = ego_OnlineGetScenarioRankings()
+        if value == nil then
+            value = {}
         end
         return value
     end

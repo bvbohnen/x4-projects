@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <mdscript name="Simple_Menu_Options" 
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" >
-  <!--TODO: merge this into Simple_Menu_API? Or split off entirely?-->
-
   <!--
   MD side of a stock options menu for customizing menus.
   Initial effort will focus on egosoft menus, and not custom ones.
@@ -27,7 +25,6 @@
   -->
 
   <cues>
-
 
     <!--
       Text storage cue, for easier lookup in general.

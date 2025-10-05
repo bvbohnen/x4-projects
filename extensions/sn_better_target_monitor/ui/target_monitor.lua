@@ -86,6 +86,9 @@ local Time = Lib.Time
 
 -- Table of locals.
 local L = {
+    -- Cap on how many debug errors will be printed.
+    debug_errors_remaining = 50,
+
     -- Control settings. Generally these can be changed through the menu.
     settings = {
         -- TODO: user config values, eg. which rows to show, coloring, etc.
@@ -338,6 +341,17 @@ local T = {
 -- Link for export.
 L.text = T
 
+-- Print an error to the log, or suppress if too many printed.
+local function Print_Error(text)
+    if L.debug_errors_remaining > 0 and text ~= nil then
+        DebugError(text)
+        L.debug_errors_remaining = L.debug_errors_remaining - 1
+        if L.debug_errors_remaining == 0 then
+            DebugError("Maximum better_target_monitor error prints reached; suppressing further errors.")
+        end
+    end
+end
+
 ------------------------------------------------------------------------------
 -- Support object for data smoothing.
 -- TODO: move to the mod support apis, maybe.
@@ -401,7 +415,7 @@ function Depth_Filter.Change_Depth(filter, new_depth)
     -- Safety against 0, negative, or just too large.
     new_depth = math.floor(new_depth)
     if new_depth <= 0 or new_depth > 100 then
-        DebugError("Change_Depth rejecting "..tostring(new_depth))
+        Print_Error("Change_Depth rejecting "..tostring(new_depth))
         return
     end
 
@@ -645,7 +659,7 @@ end
 function Filter.Change_Timeout(filter, new_timeout)
     -- Safety against 0, negative, or just too large.
     if new_timeout <= 0 or new_timeout > 100 then
-        DebugError("Filter.Change_Timeout rejecting "..tostring(new_timeout))
+        Print_Error("Filter.Change_Timeout rejecting "..tostring(new_timeout))
         return
     end
     filter.timeout = new_timeout
@@ -713,7 +727,7 @@ function L.Handle_Event(signal, value)
             L.Init_Specs()
         else
 
-            DebugError("Unrecognized target monitor setting: "..tostring(L.md_field))
+            Print_Error("Unrecognized target monitor setting: "..tostring(L.md_field))
         end
     end
 end
@@ -1309,76 +1323,88 @@ end
 ------------------------------------------------------------------------------
 -- Patching the primary function that lays out the ui rows.
 
+-- All logic for modifying the target monitor specification table.
+-- Edits in-place.
+function L.Process_Monitor_Spec(component, templateConnectionName, full_spec)
+    local component64 = ConvertIDTo64Bit(component)
+
+    -- To look up speed in GetLiveData, might need to save some info
+    -- from the GetTargetMonitorDetails call (unless there is another
+    -- way to rebuild it).
+    -- (Need to do this before fast exit checks.)
+    L.targetdata = { }
+    L.targetdata.component = component
+    L.targetdata.component64 = component64
+    L.targetdata.templateConnectionName = templateConnectionName
+    L.targetdata.triggeredConnectionName = (
+        templateConnectionName ~= "" 
+        and ffi.string(C.GetCompSlotPlayerActionTriggeredConnection(
+            component64, templateConnectionName)) 
+        or "")
+    L.targetdata.has_speed = false
+    L.targetdata.distance_error = false
+        
+    -- Hand off to helper functions based on object type.
+    local orig = L.Categorize_Original_Rows(full_spec.text)    
+    local new_rows = L.Get_New_Rows(L.targetdata, orig, L.specs.rows, L.specs.cols)
+    if new_rows ~= nil then
+        full_spec.text = L.Sanitize_Rows(new_rows)
+    end
+
+    
+    -- Change the default fonts.
+    -- TODO: maybe play around with colors dynamically.
+    -- TODO: detect if a custom color was used, and skip if so.
+    -- TODO: apply brightening, particularly if not replacing colors.
+    if L.settings.brighten_text then
+        for i, row in ipairs(full_spec.text) do
+            for side, spec in pairs(row) do
+                spec.color    = L.new_defaults.textcolor
+                spec.fontsize = L.new_defaults.textfontsize
+                -- Skip this one for now, so bold fonts pass through.
+                --spec.font     = L.new_defaults.textfont
+            end
+        end
+        full_spec.header.color     = L.new_defaults.headercolor
+        full_spec.header.fontsize  = L.new_defaults.headerfontsize
+        full_spec.header.font      = L.new_defaults.headerfont
+    end
+
+    -- Color the title based on target faction.
+    if L.settings.faction_color then
+        local faction_details = C.GetOwnerDetails(component64)
+        -- Sometimes no faction id available; skip to avoid log spam.
+        -- (This seems to be a C type, string, empty if no faction,
+        -- so check for empty string.)
+        local factionID_str = ffi.string(faction_details.factionID)
+        if factionID_str and factionID_str ~= "" then
+            local faction_color = GetFactionData(factionID_str, "color")
+            if faction_color then
+                full_spec.header.color = L.Brighten_Color(faction_color, L.faction_color_target_brightness)
+            end
+        end
+    end
+end
+
+
 function L.Patch_GetTargetMonitorDetails()
     local ego_GetTargetMonitorDetails = GetTargetMonitorDetails
     GetTargetMonitorDetails = function(component, templateConnectionName)
-        local component64 = ConvertIDTo64Bit(component)
 
         -- Get the standard table data.
         local full_spec = ego_GetTargetMonitorDetails(component, templateConnectionName)
         
         -- Quick exit when disabled or something went wrong.
-        if (not L.settings.enabled) or (full_spec == nil) then
+        if (not L.settings.enabled) or (full_spec == nil) or (full_spec.text == nil) then
             return full_spec
         end
 
-        -- To look up speed in GetLiveData, might need to save some info
-        -- from the GetTargetMonitorDetails call (unless there is another
-        -- way to rebuild it).
-        -- (Need to do this before fast exit checks.)
-        L.targetdata = { }
-        L.targetdata.component = component
-        L.targetdata.component64 = component64
-        L.targetdata.templateConnectionName = templateConnectionName
-        L.targetdata.triggeredConnectionName = (
-            templateConnectionName ~= "" 
-            and ffi.string(C.GetCompSlotPlayerActionTriggeredConnection(
-                component64, templateConnectionName)) 
-            or "")
-        L.targetdata.has_speed = false
-        L.targetdata.distance_error = false
-        
-        -- Hand off to helper functions based on object type.
-        local orig = L.Categorize_Original_Rows(full_spec.text)    
-        local new_rows = L.Get_New_Rows(L.targetdata, orig, L.specs.rows, L.specs.cols)
-        if new_rows ~= nil then
-            full_spec.text = L.Sanitize_Rows(new_rows)
+        local success, error = pcall(L.Process_Monitor_Spec, 
+            component, templateConnectionName, full_spec)
+        if success == false then
+            Print_Error(error)
         end
 
-    
-        -- Change the default fonts.
-        -- TODO: maybe play around with colors dynamically.
-        -- TODO: detect if a custom color was used, and skip if so.
-        -- TODO: apply brightening, particularly if not replacing colors.
-        if L.settings.brighten_text then
-            for i, row in ipairs(full_spec.text) do
-                for side, spec in pairs(row) do
-                    spec.color    = L.new_defaults.textcolor
-                    spec.fontsize = L.new_defaults.textfontsize
-                    -- Skip this one for now, so bold fonts pass through.
-                    --spec.font     = L.new_defaults.textfont
-                end
-            end
-            full_spec.header.color     = L.new_defaults.headercolor
-            full_spec.header.fontsize  = L.new_defaults.headerfontsize
-            full_spec.header.font      = L.new_defaults.headerfont
-        end
-
-        -- Color the title based on target faction.
-        if L.settings.faction_color then
-            local faction_details = C.GetOwnerDetails(component64)
-            -- Sometimes no faction id available; skip to avoid log spam.
-            -- (This seems to be a C type, string, empty if no faction,
-            -- so check for empty string.)
-            local factionID_str = ffi.string(faction_details.factionID)
-            if factionID_str and factionID_str ~= "" then
-                local faction_color = GetFactionData(factionID_str, "color")
-                if faction_color then
-                    full_spec.header.color = L.Brighten_Color(faction_color, L.faction_color_target_brightness)
-                end
-            end
-        end
-        
         -- Return it all for display.
         return full_spec
     end
@@ -1470,7 +1496,7 @@ end
 --        -- for now to avoid spamming log.
 --        -- Result: the problem is some other file; this trigger is
 --        -- never hit.
---        --DebugError("C.GetObjectPositionInSector error: "..tostring(result))
+--        --Print_Error("C.GetObjectPositionInSector error: "..tostring(result))
 --        return nil
 --    end
 --end

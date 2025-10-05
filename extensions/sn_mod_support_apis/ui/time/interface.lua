@@ -505,7 +505,7 @@ function L.New_Frame_Detector()
 
     -- Handle any callback functions.
     for i, callback in ipairs(L.frame_callbacks) do
-        success, message = pcall(callback, now)
+        local success, message = pcall(callback, now)
         if not success then
             DebugError("Frame Callback function error: "..tostring(message))
         end

@@ -264,7 +264,7 @@ function L.Pipe_Garbage_Collection_Handler(pipe_table)
 
         -- As a workaround, instead explicitly try to message the server
         -- to restart the other end of the pipe.
-        success, message = pcall(function () pipe_table.file:write("garbage_collected") end)
+        local success, message = pcall(function () pipe_table.file:write("garbage_collected") end)
 
         if not success then
             if debug.print_to_log then
@@ -413,7 +413,7 @@ end
 function L.Disconnect_Pipe(pipe_name)
     if pipes[pipe_name].file ~= nil then
         -- Do a safe file close() attempt, ignoring errors.
-        success, message = pcall(function () pipes[pipe_name].file:close() end)
+        local success, message = pcall(function () pipes[pipe_name].file:close() end)
         if not success then
             if debug.print_to_log then
                 DebugError("Failed to close pipe file with error: "..tostring(message))
