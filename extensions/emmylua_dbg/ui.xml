@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon name="emmylua_dbg" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../core/coreaddon.xsd">
+  <environment type="menus">
+    <file name="ui/emmylua_dbg.lua" />
+    <dependency name="sn_mod_support_apis" />
+  </environment>
+</addon>

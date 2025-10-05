@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Note: start debugger after X4 has loaded up.
+            "type": "emmylua_new",
+            "request": "launch",
+            "name": "EmmyLua New Debug",
+            "host": "localhost",
+            "port": 9966,
+            "ext": [
+                ".lua",
+                ".lua.txt",
+                ".lua.bytes"
+            ],
+            "ideConnectDebugger": true
+        }
+    ]
+}

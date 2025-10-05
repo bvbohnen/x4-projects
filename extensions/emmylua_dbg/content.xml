@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content 
+  id="emmylua_dbg"
+  name="Emmylua Debug Loader"
+  description=" "
+  author="SirNukes" 
+  version="100" 
+  date="2025-9-20" 
+  save="false" 
+  sync="false">
+
+  <text language="44" description="Loads emmylua debug server. Start vscode debugger after X4 loads." />
+
+  <!--Mod support APIs-->
+  <dependency id="ws_2042901274" version="193" optional="false"/>
+</content>
