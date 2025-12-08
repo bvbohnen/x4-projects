@@ -91,3 +91,5 @@ Change Log for overall api package.
   - Fixed issue with OnLoad lua Init functions being called multiple times if another mod includes a copy of older Lua_Loader code.
 * 1.94
   - Fix for timelines debriefing window not displaying.
+* 1.95
+  - Fixed chat window api wrongly suppressing some commands (eg. thereshallbewings).

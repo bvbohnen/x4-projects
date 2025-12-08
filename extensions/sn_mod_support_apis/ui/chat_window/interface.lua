@@ -81,12 +81,24 @@ local L = {
     },
 
     -- Names of known egosoft commands.
-    ego_commands = {
-        -- Give a non-nil value to keep key alive.
-        reloadui = 1,
-        refreshai = 1,
-        refreshmd = 1,
-    },
+    -- Note: terms found under "available commands" in 8.0 exe.
+    -- Note: no longer used, in favor of always running commands.
+    --ego_commands = {
+    --    -- Give a non-nil value to keep key alive.
+    --    reloadui = 1,
+    --    refreshai = 1,
+    --    refreshmd = 1,
+    --    aicompat = 1, --"check" or "pcheck"
+    --    thereshallbewings = 1,
+    --    exportlogbook = 1, --<filename>
+    --    chat = 1, --<message>
+    --    c = 1,
+    --    whisper = 1, --<username> <message>
+    --    w = 1,
+    --    dumpholo = 1,
+    --    dumpmouse = 1,
+    --    dumpconv = 1
+    --},
 
     -- Name to use for the player.
     user_name = "self",
@@ -137,6 +149,10 @@ function L.Init()
 end
 
 function L.ExecuteDebugCommand(text, parameter)
+    if debug.print_messages then
+        DebugError("Chatwindow user command text: \"" .. text .. "\" param: \"" .. parameter .."\"")
+    end
+
     -- Swap text for special short commands.
     if L.short_commands[text] ~= nil then
         text = L.short_commands[text]
@@ -150,22 +166,23 @@ function L.ExecuteDebugCommand(text, parameter)
         L.Raise_Signal(text)
     end
 
-    -- TODO: get registered commands from md and only return to md if
-    -- one seen. For now, just send all to md that arent known ego commands.
-    if L.ego_commands[text] ~= nil then
-        L.ego_ExecuteDebugCommand(text, parameter)
-    else
-        -- Construct terms list and send to md.
-        -- Note: keep the / for this for now.
-        local orig_command = '/'..text
-        local terms = L.Get_Terms(parameter)
-        table.insert(terms, 1, orig_command)
-        local orig_text = orig_command
-        if parameter ~= "" then
-            orig_text = orig_text.." "..parameter
-        end
-        L.Raise_Signal("text_entered", {terms = terms, text = orig_text})
+    -- Note: always try to execute the command so that this supports
+    -- anything missing from ego_commands (eg. added by new patches).
+    -- TODO: get registered commands from md and skip the execute call
+    -- if one seen.
+    L.ego_ExecuteDebugCommand(text, parameter)
+
+    -- Construct terms list and send to md.
+    -- Note: send back ego commands as well, incase any mod listens for them.
+    -- Note: keep the / for this for now.
+    local orig_command = '/'..text
+    local terms = L.Get_Terms(parameter)
+    table.insert(terms, 1, orig_command)
+    local orig_text = orig_command
+    if parameter ~= "" then
+        orig_text = orig_text.." "..parameter
     end
+    L.Raise_Signal("text_entered", {terms = terms, text = orig_text})
 end
 
 function L.Get_Terms(text)

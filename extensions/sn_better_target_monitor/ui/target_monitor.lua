@@ -119,7 +119,7 @@ local L = {
     -- TODO: make ship size specific.
     arrival_tolerance = 1000,
 
-    -- When brightening colors, what the target total r+g+b value.
+    -- When brightening colors, the target total r+g+b value.
     -- Up to 255*3 = 765
     -- TODO: play around with this concept; 600 is good for paranid purple,
     -- but too much for red xenon; how to fix? Should red be treated
